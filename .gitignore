@@ -1,0 +1,14 @@
+node_modules
+dist
+.next
+.turbo
+coverage
+playwright-report
+test-results
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+packages/database/src/generated
+apps/api/openapi.json.tmp

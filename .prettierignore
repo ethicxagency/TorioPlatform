@@ -1,0 +1,10 @@
+node_modules
+dist
+.next
+.turbo
+coverage
+pnpm-lock.yaml
+packages/database/src/generated
+prisma/migrations
+packages/api-client/src/schema.d.ts
+next-env.d.ts

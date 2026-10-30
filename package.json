@@ -1,0 +1,41 @@
+{
+  "name": "torio",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@11.17.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:e2e": "pnpm --filter @torio/web test:e2e",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:generate": "prisma generate",
+    "db:validate": "prisma validate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio",
+    "api:openapi": "pnpm --filter @torio/api openapi && pnpm --filter @torio/api-client generate"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "devDependencies": {
+    "dotenv": "^17.2.0",
+    "prettier": "^3.6.2",
+    "prisma": "7.10.1",
+    "tsx": "^4.20.0",
+    "turbo": "^2.11.10",
+    "typescript": "~5.9.3"
+  },
+  "dependencies": {
+    "@node-rs/argon2": "^2.2.2",
+    "@torio/database": "workspace:*"
+  }
+}
