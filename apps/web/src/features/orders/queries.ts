@@ -81,6 +81,24 @@ export function useOrders(ws: string | null, p: OrderListParams) {
   });
 }
 
+/** A customer's most recent orders (newest first), for compact summaries such as the Inbox side panel. */
+export function useCustomerOrders(ws: string | null, customerId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: orderKeys.list(ws ?? '', { customerId }),
+    enabled: !!ws && !!customerId && enabled,
+    queryFn: async () => {
+      const { data, error, response } = await api.GET(P, {
+        params: {
+          path: { workspaceId: ws! },
+          query: { customerId: customerId!, sort: 'createdAt', dir: 'desc', page: 1, pageSize: 5 },
+        },
+      });
+      if (!data) throw fail(error, 'Could not load orders', response.status);
+      return data;
+    },
+  });
+}
+
 export function useOrderSummary(ws: string | null, range: OrderFilters['range']) {
   return useQuery({
     queryKey: orderKeys.summary(ws ?? '', range),

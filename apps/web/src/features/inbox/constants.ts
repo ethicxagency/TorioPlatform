@@ -1,9 +1,9 @@
 import type { LeadStatus, ListView, Provider } from './types';
 
-export const CHANNELS: Record<Provider, { label: string; color: string; view: ListView }> = {
-  WHATSAPP: { label: 'WhatsApp', color: '#25D366', view: 'WHATSAPP' },
-  INSTAGRAM: { label: 'Instagram', color: '#E4405F', view: 'INSTAGRAM' },
-  MESSENGER: { label: 'Messenger', color: '#1877F2', view: 'MESSENGER' },
+export const CHANNELS: Record<Provider, { label: string; color: string }> = {
+  WHATSAPP: { label: 'WhatsApp', color: '#25D366' },
+  INSTAGRAM: { label: 'Instagram', color: '#E4405F' },
+  MESSENGER: { label: 'Messenger', color: '#1877F2' },
 };
 
 export const VIEWS: { key: ListView; label: string }[] = [
@@ -11,9 +11,6 @@ export const VIEWS: { key: ListView; label: string }[] = [
   { key: 'mine', label: 'Mine' },
   { key: 'unassigned', label: 'Unassigned' },
   { key: 'unread', label: 'Unread' },
-  { key: 'WHATSAPP', label: 'WhatsApp' },
-  { key: 'INSTAGRAM', label: 'Instagram' },
-  { key: 'MESSENGER', label: 'Messenger' },
 ];
 
 export const LEAD_STATUSES: { key: LeadStatus; label: string; color: string; bg: string }[] = [
@@ -41,6 +38,9 @@ export const SHORTCUTS: [string, string][] = [
 export const LIST_WIDTH = { min: 280, max: 480, default: 340 } as const;
 export const PROFILE_WIDTH = { min: 280, max: 420, default: 320 } as const;
 export const CHAT_MIN_WIDTH = 420;
+/** Inbox navigation column; shown only when the content area is at least NAV_MIN_CONTENT wide. */
+export const NAV_WIDTH = 216;
+export const NAV_MIN_CONTENT = 1180;
 
 export interface SnoozeOption {
   key: string;

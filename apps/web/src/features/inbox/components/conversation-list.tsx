@@ -11,6 +11,7 @@ import { ConversationFilters } from './conversation-filters';
 import { ConversationRow } from './conversation-row';
 
 interface Props {
+  navVisible: boolean;
   conversations: Conversation[];
   counts: { open: number; snoozed: number; resolved: number } | undefined;
   filters: InboxFilters;
@@ -37,7 +38,11 @@ interface Props {
 export function ConversationList(p: Props) {
   const waiting = p.conversations.filter((c) => c.waitingSince && c.status === 'OPEN');
   const over = waiting.filter((c) => minutesSince(c.waitingSince!, p.now) >= 120).length;
-  const filtered = !!p.filters.q || p.filters.view !== 'all' || advancedFilterCount(p.filters) > 0;
+  const filtered =
+    !!p.filters.q ||
+    p.filters.view !== 'all' ||
+    !!p.filters.channel ||
+    advancedFilterCount(p.filters) > 0;
 
   return (
     <section
@@ -66,6 +71,7 @@ export function ConversationList(p: Props) {
         tags={p.tags}
         onChange={p.onFilters}
         onClear={p.onClearFilters}
+        navVisible={p.navVisible}
       />
       {p.selected.size > 0 && (
         <BulkActionsToolbar

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { SNOOZE_OPTIONS } from '../constants';
 import { snoozeLabel } from '../format';
 import { useDismiss } from '../use-dismiss';
+import { useKeepInView } from '../use-keep-in-view';
 
 interface Props {
   onPick: (until: Date) => void;
@@ -15,6 +16,7 @@ interface Props {
 export function SnoozeMenu({ onPick, onClose, align = 'right' }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   useDismiss(ref, true, onClose);
+  useKeepInView(ref);
   const now = new Date();
   return (
     <div
@@ -22,7 +24,7 @@ export function SnoozeMenu({ onPick, onClose, align = 'right' }: Props) {
       role="menu"
       aria-label="Snooze conversation"
       className={cn(
-        'absolute top-11 z-30 w-[230px] animate-panel-in rounded-xl border border-line bg-white p-1.5 shadow-popover',
+        'absolute top-11 z-30 max-h-[min(360px,calc(100vh-140px))] w-[min(230px,calc(100vw-24px))] overflow-y-auto animate-panel-in rounded-xl border border-line bg-white p-1.5 shadow-popover',
         align === 'right' ? 'right-0' : 'left-0',
       )}
     >

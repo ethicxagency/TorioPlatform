@@ -3,6 +3,7 @@
 import {
   ChevronDown,
   ChevronLeft,
+  Loader2,
   Clock,
   Flag,
   MailOpen,
@@ -29,6 +30,7 @@ interface Props {
   agents: { id: string; name: string }[];
   meId: string;
   canManage: boolean;
+  assigning: boolean;
   profileOpen: boolean;
   showBack: boolean;
   showLabels: boolean;
@@ -41,6 +43,7 @@ interface Props {
   onToggleUrgent: () => void;
   onMarkUnread: () => void;
   onOpenProfile: () => void;
+  onShowProfile: () => void;
   onCloseChat: () => void;
 }
 
@@ -57,7 +60,9 @@ export function ChatHeader(p: Props) {
   const resolved = c.status === 'RESOLVED';
 
   return (
-    <header className="flex min-h-[60px] shrink-0 items-center gap-3 border-b border-line bg-white/75 px-4 py-2 backdrop-blur-[16px]">
+    // relative z-20: the blurred header is its own stacking context and the message log after it is positioned,
+    // so without a z-index the log paints over the header's menus (Assign, Snooze, More).
+    <header className="relative z-20 flex min-h-[60px] shrink-0 items-center gap-3 border-b border-line bg-white/90 px-4 py-2 backdrop-blur-[16px]">
       {p.showBack && (
         <button
           type="button"
@@ -78,7 +83,18 @@ export function ChatHeader(p: Props) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <h2 className="m-0 truncate text-[15px] font-semibold">{c.customer.name}</h2>
+          <h2 className="m-0 min-w-0 truncate text-[15px] font-semibold">
+            {/* Opens Quick Customer Details beside the chat: the conversation, scroll and draft stay put. */}
+            <button
+              type="button"
+              onClick={p.onShowProfile}
+              aria-expanded={p.profileOpen}
+              title="Show customer details"
+              className="max-w-full cursor-pointer truncate rounded-sm text-left decoration-line-input underline-offset-[3px] hover:text-primary-hover hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              {c.customer.name}
+            </button>
+          </h2>
           {c.priority === 'HIGH' && (
             <span className="shrink-0 rounded-md bg-danger-soft px-1.5 py-px text-[11px] font-medium text-danger">
               Urgent
@@ -156,7 +172,7 @@ export function ChatHeader(p: Props) {
             <div
               role="menu"
               aria-label="Conversation actions"
-              className="absolute right-0 top-11 z-30 w-[210px] animate-panel-in rounded-xl border border-line bg-white p-1.5 shadow-popover"
+              className="absolute right-0 top-11 z-30 w-[min(210px,calc(100vw-24px))] animate-panel-in rounded-xl border border-line bg-white p-1.5 shadow-popover"
             >
               <button
                 role="menuitem"
@@ -183,14 +199,20 @@ export function ChatHeader(p: Props) {
         <div className="relative">
           <button
             type="button"
-            disabled={!p.canManage}
+            disabled={!p.canManage || p.assigning}
             aria-haspopup="menu"
             aria-expanded={p.menu === 'assign'}
+            aria-busy={p.assigning}
             onClick={() => p.onMenu(p.menu === 'assign' ? null : 'assign')}
-            title="Assign (A)"
+            title={c.assignee ? `Assigned to ${c.assignee.name} (A)` : 'Assign (A)'}
+            aria-label={
+              c.assignee ? `Assigned to ${c.assignee.name}. Change assignee` : 'Assign conversation'
+            }
             className={btn}
           >
-            {c.assignee ? (
+            {p.assigning ? (
+              <Loader2 size={15} className="animate-spin motion-reduce:animate-none" aria-hidden />
+            ) : c.assignee ? (
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#E6E6FA] text-[9px] font-semibold text-primary-hover">
                 {initialsOf(c.assignee.name)}
               </span>

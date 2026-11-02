@@ -21,19 +21,14 @@ export const keys = {
   search: (ws: string, q: string) => ['inbox', ws, 'search', q] as const,
 };
 
-const PROVIDERS = ['WHATSAPP', 'INSTAGRAM', 'MESSENGER'] as const;
-
 export function useConversationList(ws: string | null, f: InboxFilters) {
   return useQuery({
     queryKey: keys.list(ws ?? '', f),
     enabled: !!ws,
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const channel = (PROVIDERS as readonly string[]).includes(f.view)
-        ? (f.view as (typeof PROVIDERS)[number])
-        : undefined;
-      const view =
-        f.view === 'mine' || f.view === 'unassigned' || f.view === 'unread' ? f.view : 'all';
+      const channel = f.channel || undefined;
+      const view = f.view;
       const { data, error } = await api.GET('/api/v1/workspaces/{workspaceId}/conversations', {
         params: {
           path: { workspaceId: ws! },

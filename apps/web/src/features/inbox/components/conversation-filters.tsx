@@ -11,6 +11,7 @@ import {
   type ConversationStatus,
   type InboxFilters,
   type Priority,
+  type Provider,
 } from '../types';
 
 interface Props {
@@ -20,6 +21,8 @@ interface Props {
   tags: string[];
   onChange: (patch: Partial<InboxFilters>) => void;
   onClear: () => void;
+  /** The Inbox navigation column is showing status, views and channels, so don't repeat them here. */
+  navVisible?: boolean;
 }
 
 const TABS: { key: ConversationStatus; label: string; count: 'open' | 'snoozed' | 'resolved' }[] = [
@@ -30,12 +33,20 @@ const TABS: { key: ConversationStatus; label: string; count: 'open' | 'snoozed' 
 
 const selectCls = 'h-8 rounded-lg border border-line bg-white px-2 text-[13px] text-ink';
 
-export function ConversationFilters({ filters, counts, agents, tags, onChange, onClear }: Props) {
+export function ConversationFilters({
+  filters,
+  counts,
+  agents,
+  tags,
+  onChange,
+  onClear,
+  navVisible = false,
+}: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useDismiss(ref, open, () => setOpen(false));
   const advanced = advancedFilterCount(filters);
-  const hasAny = advanced > 0 || !!filters.q || filters.view !== 'all';
+  const hasAny = advanced > 0 || !!filters.q || filters.view !== 'all' || !!filters.channel;
   const removable = [
     filters.assigneeId && {
       label: agents.find((a) => a.id === filters.assigneeId)?.name ?? 'Agent',
@@ -48,76 +59,91 @@ export function ConversationFilters({ filters, counts, agents, tags, onChange, o
     },
   ].filter(Boolean) as { label: string; clear: () => void }[];
 
-  const chip = (v: (typeof VIEWS)[number]) => {
-    const on = filters.view === v.key;
-    const ch = v.key in CHANNELS ? CHANNELS[v.key as keyof typeof CHANNELS] : null;
-    return (
-      <button
-        key={v.key}
-        type="button"
-        aria-pressed={on}
-        // Channel chips are icon-only (official logos read faster than words); the name stays as label/tooltip.
-        aria-label={ch ? v.label : undefined}
-        title={ch ? v.label : undefined}
-        onClick={() => onChange({ view: v.key })}
-        className={cn(
-          'flex h-7 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border text-[12.5px]',
-          ch ? 'w-8 justify-center px-0' : 'px-2.5',
-          on
-            ? 'border-[rgba(91,92,226,0.18)] bg-primary-soft font-semibold text-primary-hover'
-            : 'border-transparent font-medium text-muted hover:bg-wash-2',
-        )}
-      >
-        {ch ? <ChannelIcon channel={v.key} size={16} decorative /> : v.label}
-      </button>
+  const chipCls = (on: boolean) =>
+    cn(
+      'flex h-7 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border text-[12.5px]',
+      on
+        ? 'border-[rgba(91,92,226,0.18)] bg-primary-soft font-semibold text-primary-hover'
+        : 'border-transparent font-medium text-muted hover:bg-wash-2',
     );
-  };
 
   return (
     <div className="flex flex-col gap-2.5 pb-2.5">
-      <div
-        role="tablist"
-        aria-label="Conversation status"
-        className="mx-3 flex gap-0.5 rounded-[10px] bg-wash-2 p-[3px]"
-      >
-        {TABS.map((t) => {
-          const on = filters.status === t.key;
-          return (
-            <button
-              key={t.key}
-              role="tab"
-              aria-selected={on}
-              type="button"
-              onClick={() => onChange({ status: t.key })}
-              className={cn(
-                'flex h-8 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-[8px] text-[13px]',
-                on
-                  ? 'bg-white font-semibold text-ink shadow-[0_1px_2px_rgba(0,55,112,0.08),0_0_0_1px_rgba(0,55,112,0.05)]'
-                  : 'font-medium text-muted',
-              )}
-            >
-              {t.label}
-              {counts && (
-                <span className={cn('text-xs tabular-nums', on ? 'text-faint' : 'text-faint')}>
-                  {counts[t.count]}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {!navVisible && (
+        <div
+          role="tablist"
+          aria-label="Conversation status"
+          className="mx-3 flex gap-0.5 rounded-[10px] bg-wash-2 p-[3px]"
+        >
+          {TABS.map((t) => {
+            const on = filters.status === t.key;
+            return (
+              <button
+                key={t.key}
+                role="tab"
+                aria-selected={on}
+                type="button"
+                onClick={() => onChange({ status: t.key })}
+                className={cn(
+                  'flex h-8 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-[8px] text-[13px]',
+                  on
+                    ? 'bg-white font-semibold text-ink shadow-[0_1px_2px_rgba(0,55,112,0.08),0_0_0_1px_rgba(0,55,112,0.05)]'
+                    : 'font-medium text-muted',
+                )}
+              >
+                {t.label}
+                {counts && (
+                  <span className={cn('text-xs tabular-nums', on ? 'text-faint' : 'text-faint')}>
+                    {counts[t.count]}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
-      <div
-        role="group"
-        aria-label="Views"
-        className="flex flex-wrap items-center justify-between gap-1 px-3 pb-0.5"
-      >
-        <span className="flex flex-wrap gap-1">
-          {VIEWS.filter((v) => !(v.key in CHANNELS)).map(chip)}
-        </span>
-        {/* Channels as one unit: if the list is narrow the whole group moves down a line together. */}
-        <span className="flex gap-1">{VIEWS.filter((v) => v.key in CHANNELS).map(chip)}</span>
-      </div>
+      {!navVisible && (
+        <div
+          role="group"
+          aria-label="Views"
+          className="flex flex-wrap items-center justify-between gap-1 px-3 pb-0.5"
+        >
+          <span className="flex flex-wrap gap-1">
+            {VIEWS.map((v) => (
+              <button
+                key={v.key}
+                type="button"
+                aria-pressed={filters.view === v.key}
+                onClick={() => onChange({ view: v.key })}
+                className={cn(chipCls(filters.view === v.key), 'px-2.5')}
+              >
+                {v.label}
+              </button>
+            ))}
+          </span>
+          {/* Channels combine with any view; icon-only (official logos read faster), named by label/tooltip.
+              One unit, so on a narrow list the whole group moves down a line together. */}
+          <span className="flex gap-1">
+            {(Object.keys(CHANNELS) as Provider[]).map((ch) => {
+              const on = filters.channel === ch;
+              return (
+                <button
+                  key={ch}
+                  type="button"
+                  aria-pressed={on}
+                  aria-label={CHANNELS[ch].label}
+                  title={CHANNELS[ch].label}
+                  onClick={() => onChange({ channel: on ? '' : ch })}
+                  className={cn(chipCls(on), 'w-8 justify-center px-0')}
+                >
+                  <ChannelIcon channel={ch} size={16} decorative />
+                </button>
+              );
+            })}
+          </span>
+        </div>
+      )}
 
       <div className="flex items-center gap-2 px-3">
         <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-[var(--radius-control)] border border-line bg-white px-2.5 transition-colors focus-within:border-primary focus-within:ring-[3px] focus-within:ring-primary/15">

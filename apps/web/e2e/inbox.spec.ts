@@ -26,10 +26,10 @@ test.describe('inbox', () => {
   test('three-dot opens the profile; X closes chat and profile', async ({ page }) => {
     await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
     await page.getByRole('button', { name: 'Open customer profile' }).click();
-    await expect(page.getByRole('heading', { name: 'Customer', level: 2 })).toBeVisible();
+    await expect(page.locator('aside[aria-label="Customer profile"]')).toBeVisible();
     await page.getByRole('button', { name: 'Close chat' }).click();
     await expect(page.getByRole('region', { name: /^Chat with/ })).toHaveCount(0);
-    await expect(page.getByRole('heading', { name: 'Customer', level: 2 })).toHaveCount(0);
+    await expect(page.locator('aside[aria-label="Customer profile"]')).toHaveCount(0);
     // The conversation itself is untouched.
     await expect(page.getByRole('tab', { name: /Open/ })).toContainText('2');
   });
@@ -99,5 +99,66 @@ test.describe('inbox', () => {
     await page.getByRole('button', { name: 'Retry sending' }).click();
     await retry;
     await expect(page.getByText('Message sent')).toBeVisible();
+  });
+
+  test('customer name opens Quick Customer Details beside the chat, not a new page', async ({
+    page,
+  }) => {
+    await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
+    const chat = page.getByRole('region', { name: 'Chat with Tanvir Hasan' });
+    await chat.getByRole('button', { name: 'Tanvir Hasan', exact: true }).click();
+    await expect(page).toHaveURL(/\/inbox/);
+    await expect(chat).toBeVisible();
+    const panel = page.locator('aside[aria-label="Customer profile"]');
+    await expect(panel).toBeVisible();
+    // The full profile is still one explicit click away, via the existing Customers deep link.
+    await expect(page.getByRole('link', { name: 'View full profile' })).toHaveAttribute(
+      'href',
+      /^\/customers\?customer=[0-9a-f-]{36}$/,
+    );
+    await page.getByRole('button', { name: 'Close customer details' }).click();
+    await expect(panel).toHaveCount(0);
+    await expect(chat).toBeVisible();
+  });
+
+  test('wide screens show the Inbox navigation column instead of repeating tabs and chips', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto('/inbox');
+    const nav = page.getByRole('navigation', { name: 'Inbox navigation' });
+    await expect(nav).toBeVisible();
+    await expect(page.getByRole('tablist', { name: 'Conversation status' })).toHaveCount(0);
+    // A view and a channel combine.
+    const listRequest = page.waitForRequest(
+      (r) => /view=unread/.test(r.url()) && /channel=WHATSAPP/.test(r.url()),
+    );
+    await nav.getByRole('button', { name: 'Unread' }).click();
+    await nav.getByRole('button', { name: 'WhatsApp' }).click();
+    await listRequest;
+    await expect(nav.getByRole('button', { name: 'WhatsApp' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  test('assign menu paints above messages and stays in the viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/inbox');
+    await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
+    await page.getByRole('button', { name: /Assign conversation|Change assignee/ }).click();
+    const menu = page.getByRole('menu', { name: 'Assign conversation' });
+    await expect(menu).toBeVisible();
+    const box = (await menu.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(390);
+    // Whatever is drawn at the menu's centre must belong to the menu, not a message bubble.
+    const onTop = await menu.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height - 12));
+    });
+    expect(onTop).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
   });
 });

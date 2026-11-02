@@ -6,7 +6,14 @@ import { useShell } from '@/components/shell/shell-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/auth';
 import { useWorkspace } from '@/lib/workspace';
-import { SNOOZE_OPTIONS } from '../constants';
+import {
+  CHAT_MIN_WIDTH,
+  LIST_WIDTH,
+  NAV_MIN_CONTENT,
+  NAV_WIDTH,
+  PROFILE_WIDTH,
+  SNOOZE_OPTIONS,
+} from '../constants';
 import { useDrafts } from '../use-drafts';
 import { useInboxShortcuts } from '../use-inbox-shortcuts';
 import { useNow } from '../use-now';
@@ -24,7 +31,7 @@ import {
   type Conversation,
   type InboxFilters,
   type LeadStatus,
-  type ListView,
+  type Provider,
   type Message,
 } from '../types';
 import { ChatPanel } from './chat-panel';
@@ -32,11 +39,12 @@ import type { HeaderMenu } from './chat-header';
 import { ConfirmDialog } from './confirm-dialog';
 import { ConversationList } from './conversation-list';
 import { CustomerProfile } from './customer-profile';
+import { InboxNav } from './inbox-nav';
 import { InboxLayout } from '../inbox-layout';
 import { KeyboardShortcutsDialog } from './keyboard-shortcuts-dialog';
 import type { ComposerMode } from './message-composer';
 
-const CHANNEL_PARAMS: Record<string, ListView> = {
+const CHANNEL_PARAMS: Record<string, Provider> = {
   WHATSAPP: 'WHATSAPP',
   INSTAGRAM: 'INSTAGRAM',
   MESSENGER: 'MESSENGER',
@@ -44,7 +52,7 @@ const CHANNEL_PARAMS: Record<string, ListView> = {
 
 export function InboxPage() {
   const shell = useShell();
-  const { toast, mobile, vw, registerEscape } = shell;
+  const { toast, mobile, contentWidth, registerEscape } = shell;
   const { user } = useAuth();
   const { workspaceId: ws, can, isLoading: wsLoading, error: wsError } = useWorkspace();
   const now = useNow();
@@ -53,13 +61,13 @@ export function InboxPage() {
 
   const [filters, setFilters] = useState<InboxFilters>(() => ({
     ...DEFAULT_FILTERS,
-    view: CHANNEL_PARAMS[paramChannel] ?? 'all',
+    channel: CHANNEL_PARAMS[paramChannel] ?? '',
   }));
   // Sidebar sub-links (?channel=…) drive the channel chip. Derived during render, not in an effect.
   const [seenParam, setSeenParam] = useState(paramChannel);
   if (seenParam !== paramChannel) {
     setSeenParam(paramChannel);
-    setFilters((f) => ({ ...f, view: CHANNEL_PARAMS[paramChannel] ?? 'all' }));
+    setFilters((f) => ({ ...f, channel: CHANNEL_PARAMS[paramChannel] ?? '' }));
   }
 
   const paramConv = params.get('conversation');
@@ -111,7 +119,7 @@ export function InboxPage() {
 
   const patchFilters = useCallback((patch: Partial<InboxFilters>) => {
     setFilters((f) => ({ ...f, ...patch }));
-    if ('status' in patch || 'view' in patch) setSelected(new Set());
+    if ('status' in patch || 'view' in patch || 'channel' in patch) setSelected(new Set());
   }, []);
   const clearFilters = useCallback(
     () => setFilters((f) => ({ ...DEFAULT_FILTERS, status: f.status, order: f.order })),
@@ -327,8 +335,21 @@ export function InboxPage() {
   const listState = list.isPending ? 'loading' : list.isError && !list.data ? 'error' : 'ready';
   const mode = activeId ? (modes[activeId] ?? 'reply') : 'reply';
 
+  // Wide screens get the Inbox navigation column; it takes over the list's status tabs and view chips.
+  // With the customer panel open it stays only if all four columns fit, so the panel never turns into a drawer
+  // just to make room for navigation.
+  const navVisible =
+    !mobile &&
+    contentWidth >= NAV_MIN_CONTENT &&
+    !(
+      active &&
+      profileOpen &&
+      contentWidth < NAV_WIDTH + LIST_WIDTH.min + CHAT_MIN_WIDTH + PROFILE_WIDTH.max
+    );
+
   const listNode = (
     <ConversationList
+      navVisible={navVisible}
       conversations={conversations}
       counts={list.data?.counts}
       filters={filters}
@@ -368,6 +389,12 @@ export function InboxPage() {
       meId={user?.id ?? ''}
       canManage={canManage}
       canReply={canReply}
+      onShowProfile={() => setProfileOpen(true)}
+      assigning={
+        m.update.isPending &&
+        m.update.variables?.id === active.id &&
+        m.update.variables.body.assigneeId !== undefined
+      }
       savedReplies={savedReplies.data ?? []}
       messages={messages.data?.data}
       messagesLoading={messages.isPending}
@@ -380,7 +407,9 @@ export function InboxPage() {
       aiOpen={aiOpen}
       profileOpen={profileOpen}
       showBack={mobile}
-      showLabels={vw - 340 - (profileOpen ? 320 : 0) >= 760}
+      showLabels={
+        contentWidth - (navVisible ? NAV_WIDTH : 0) - 340 - (profileOpen ? 320 : 0) >= 560
+      }
       menu={menu}
       onMenu={setMenu}
       onBack={closeChat}
@@ -443,6 +472,11 @@ export function InboxPage() {
         agents={agents}
         canEditCustomer={canEditCustomer}
         canManage={canManage}
+        fullProfileHref={
+          can('customers:read')
+            ? `/customers?customer=${encodeURIComponent(active.customer.id)}`
+            : undefined
+        }
         onClose={profileDismiss}
         onLead={(s: LeadStatus) =>
           m.updateCustomer.mutate(
@@ -463,12 +497,18 @@ export function InboxPage() {
           )
         }
         onAssign={actions.assign}
+        onOpenConversation={openConversation}
       />
     ) : null;
 
   return (
     <>
       <InboxLayout
+        nav={
+          navVisible ? (
+            <InboxNav filters={filters} counts={list.data?.counts} onChange={patchFilters} />
+          ) : undefined
+        }
         list={listNode}
         chat={chatNode}
         profile={profileNode}

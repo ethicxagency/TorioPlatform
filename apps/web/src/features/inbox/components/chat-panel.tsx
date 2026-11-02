@@ -14,6 +14,10 @@ interface Props {
   meId: string;
   canManage: boolean;
   canReply: boolean;
+  /** Opens the Quick Customer Details panel (never toggles it closed). */
+  onShowProfile: () => void;
+  /** An assignment change is waiting for the server. */
+  assigning: boolean;
   savedReplies: SavedReply[];
   messages: Message[] | undefined;
   messagesLoading: boolean;
@@ -52,13 +56,15 @@ export const ChatPanel = forwardRef<HTMLTextAreaElement, Props>(function ChatPan
   return (
     <section
       aria-label={`Chat with ${c.customer.name}`}
-      className="flex h-full min-h-0 min-w-0 flex-col bg-[linear-gradient(180deg,rgba(238,240,255,0.55),rgba(247,248,250,0.9)_40%)]"
+      className="flex h-full min-h-0 min-w-0 flex-col bg-canvas"
     >
       <ChatHeader
         c={c}
         agents={p.agents}
         meId={p.meId}
         canManage={p.canManage}
+        onShowProfile={p.onShowProfile}
+        assigning={p.assigning}
         profileOpen={p.profileOpen}
         showBack={p.showBack}
         showLabels={p.showLabels}

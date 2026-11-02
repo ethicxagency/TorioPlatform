@@ -10,12 +10,14 @@ export type ConversationStatus = Conversation['status'];
 export type Priority = Conversation['priority'];
 export type LeadStatus = Customer['leadStatus'];
 
-export type ListView = 'all' | 'mine' | 'unassigned' | 'unread' | Provider;
+export type ListView = 'all' | 'mine' | 'unassigned' | 'unread';
 export type SortOrder = 'waiting' | 'newest' | 'priority';
 
 export interface InboxFilters {
   status: ConversationStatus;
   view: ListView;
+  /** Channel narrows any view (e.g. Unread on WhatsApp); '' means every channel. */
+  channel: '' | Provider;
   q: string;
   order: SortOrder;
   assigneeId: string;
@@ -26,6 +28,7 @@ export interface InboxFilters {
 export const DEFAULT_FILTERS: InboxFilters = {
   status: 'OPEN',
   view: 'all',
+  channel: '',
   q: '',
   order: 'waiting',
   assigneeId: '',
