@@ -14,11 +14,13 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   const config = configureApp(app);
   setupDocs(app, config);
-  await app.listen(config.API_PORT);
+  // Hosts such as Vercel assign the port through PORT; locally API_PORT applies.
+  const port = Number(process.env.PORT) || config.API_PORT;
+  await app.listen(port);
   app
     .get(Logger)
     .log(
-      `Torio API listening on :${config.API_PORT} (docs: ${config.NODE_ENV === 'production' ? 'disabled' : '/docs'})`,
+      `Torio API listening on :${port} (docs: ${config.NODE_ENV === 'production' ? 'disabled' : '/docs'})`,
     );
 }
 
