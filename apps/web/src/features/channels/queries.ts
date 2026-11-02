@@ -112,3 +112,20 @@ export function useChannelMutations(ws: string | null) {
     }),
   };
 }
+
+type ConnectWhatsAppBody = ApiSchemas['ConnectWhatsAppDto'];
+/** Connects a WhatsApp Cloud API number. The server verifies it with Meta before anything is stored. */
+export function useConnectWhatsApp(ws: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: ConnectWhatsAppBody) => {
+      const { data, error, response } = await api.POST(`${P}/whatsapp/connect`, {
+        params: { path: { workspaceId: ws! } },
+        body,
+      });
+      if (!data) throw fail(error, 'Could not connect WhatsApp', response.status);
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: channelKeys.all(ws ?? '') }),
+  });
+}

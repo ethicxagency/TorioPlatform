@@ -14,9 +14,14 @@ import { InboxModule } from './modules/inbox/inbox.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { TeamModule } from './modules/team/team.module';
 import { BrainModule } from './modules/brain/brain.module';
+import { PlatformModule } from './modules/platform/platform-settings.service';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { BillingModule } from './modules/billing/billing.module';
 import { AutomationModule } from './modules/automation/automation.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { ChannelsModule } from './modules/channels/channels.module';
+import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
 import { LeadsModule } from './modules/leads/leads.module';
 import { HealthModule } from './modules/health/health.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
@@ -57,7 +62,11 @@ const REQUEST_ID = /^[A-Za-z0-9._-]{8,64}$/;
         },
       }),
     }),
-    ThrottlerModule.forRoot({ throttlers: [{ ttl: 60_000, limit: 120 }] }),
+    ThrottlerModule.forRoot({
+      throttlers: [{ ttl: 60_000, limit: 120 }],
+      // Only for automated suites that sign in many times from one address. Never set in deployments.
+      skipIf: () => process.env.THROTTLE_DISABLED === 'true',
+    }),
     DatabaseModule,
     AuthorizationModule,
     AuthModule,
@@ -70,8 +79,13 @@ const REQUEST_ID = /^[A-Za-z0-9._-]{8,64}$/;
     TeamModule,
     BrainModule,
     ChannelsModule,
+    WhatsAppModule,
     OrdersModule,
     AutomationModule,
+    PlatformModule,
+    BillingModule,
+    AdminModule,
+    DashboardModule,
     RealtimeModule,
   ],
   providers: [

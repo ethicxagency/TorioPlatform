@@ -53,7 +53,7 @@ test.describe('inbox', () => {
 
   test('send is disabled for an empty draft; AI Assist is honest', async ({ page }) => {
     await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
-    await expect(page.getByRole('button', { name: 'Send' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Send', exact: true })).toBeDisabled();
     await page.getByRole('button', { name: 'AI Assist' }).click();
     await expect(page.getByText("AI Assist isn't connected yet")).toBeVisible();
   });
@@ -80,5 +80,24 @@ test.describe('inbox', () => {
     expect(overflow).toBe(false);
     await page.getByRole('button', { name: 'Back to conversations' }).click();
     await expect(page.getByRole('option', { name: /Tanvir Hasan/ })).toBeVisible();
+  });
+
+  test('filters fit the list: channel chips are labelled icons; no attachment button', async ({
+    page,
+  }) => {
+    const views = page.getByRole('group', { name: 'Views' });
+    for (const name of ['WhatsApp', 'Instagram', 'Messenger'])
+      await expect(views.getByRole('button', { name })).toBeVisible();
+    await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
+    await expect(page.getByRole('button', { name: /Attach file/ })).toHaveCount(0);
+  });
+
+  test('a failed reply shows its reason and can be resent', async ({ page }) => {
+    await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
+    await expect(page.getByText('Not delivered: Outside the 24-hour window')).toBeVisible();
+    const retry = page.waitForRequest((r) => r.url().endsWith('/retry') && r.method() === 'POST');
+    await page.getByRole('button', { name: 'Retry sending' }).click();
+    await retry;
+    await expect(page.getByText('Message sent')).toBeVisible();
   });
 });

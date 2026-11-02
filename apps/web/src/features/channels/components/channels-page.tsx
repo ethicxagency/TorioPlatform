@@ -69,7 +69,7 @@ export function ChannelsPage() {
           <nav aria-label="Breadcrumb" className="mb-1 text-xs text-faint">
             Settings / <span className="text-muted">Channels</span>
           </nav>
-          <h1 className="m-0 text-2xl font-semibold tracking-[-0.015em]">Channels</h1>
+          <h1 className="m-0 font-page-title">Channels</h1>
           <p className="m-0 mt-1 text-sm text-muted">
             Connect your messaging platforms and manage every conversation in one place.
           </p>
@@ -110,9 +110,7 @@ export function ChannelsPage() {
                 </>
               ) : (
                 <>
-                  <div className="mt-1 text-2xl font-semibold tabular-nums tracking-[-0.02em]">
-                    {k.value ?? '—'}
-                  </div>
+                  <div className="mt-1 text-2xl font-metric">{k.value ?? '—'}</div>
                   <div className="mt-1 truncate text-xs text-faint">{k.sub}</div>
                 </>
               )}
@@ -222,7 +220,7 @@ export function ChannelsPage() {
               className={cn(
                 'flex h-[30px] cursor-pointer items-center gap-1.5 rounded-lg px-2.5 text-[12.5px] font-medium',
                 view === k
-                  ? 'bg-white text-ink shadow-[0_1px_2px_rgba(16,24,40,0.08)]'
+                  ? 'bg-white text-ink shadow-[0_1px_2px_rgba(0,55,112,0.08)]'
                   : 'text-muted',
               )}
             >

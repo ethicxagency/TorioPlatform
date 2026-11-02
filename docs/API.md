@@ -140,6 +140,25 @@ Money is integer **minor units** (cents) with one currency per order. The server
 | POST   | `/:orderId/notes`       | `orders:write`                  | Internal note. `PATCH`/`DELETE /notes/:noteId`: authors edit their own; delete also by `orders:payments`                                                                                                                                       |
 | POST   | `/bulk`                 | `orders:write`                  | `{ ids, action: 'SET_STATUS', status }` (max 100). Each order is checked individually; response lists `updated` and `failed[{id, number, reason}]`                                                                                             |
 
+### Dashboard analytics (under `/workspaces/:workspaceId/dashboard`)
+
+- `GET /analytics?from=YYYY-MM-DD&to=YYYY-MM-DD&compare=none|previous_period|previous_year` (`workspace:read`). Returns revenue (per currency, never summed across currencies), orders, customers (total/new), the point-in-time subscription (only with `billing:read`, otherwise `null`), bucketed series, recent activity and an optional comparison.
+- Optional `channel=WHATSAPP|INSTAGRAM|MESSENGER` limits conversations (by channel), leads and customers (by source), and orders/revenue (by the conversation an order came from).
+- `messaging` (`total` = conversations with a customer or agent message in the range, `new`, `resolved` via `Conversation.resolvedAt`, current `waiting`/`unread`), `leads.total`, and `series.conversations|newConversations|resolvedConversations|leads`.
+- Optional `granularity=day|week|month` (only groupings `granularityOptions(days)` allows for the range; else 400). `byChannel` splits each KPI by channel for the whole range, ignoring the channel filter, with an `unattributed` remainder.
+- `attention` (current state, not range-filtered): conversations waiting over 2 hours (with the oldest), waiting for a reply (average wait), open leads scored 70+ idle for 24h, pending orders. Complaints aren't classified, so they're never reported.
+- **Date contract:** `from`/`to` are inclusive calendar dates in the workspace's `reportingTimeZone` (default `UTC`, set in Settings → Workspace). The server converts them to half-open UTC bounds `[start, endExclusive)`, so DST days (23h/25h) and month/leap-year boundaries are exact. `to` may not be in the future in that zone; `from <= to`; at most 731 days.
+- Granularity is day (≤31 days), week (≤183, Monday start) or month. Revenue counts payments (`paidAt`) on non-cancelled orders.
+- Comparison reports `coverage` (`full`/`partial`/`none`) against the workspace's `dataSince`; `% change` is `null` when the previous value is 0 or there is no history, so no misleading percentages.
+
+### WhatsApp (see `docs/WHATSAPP.md`)
+
+- `POST /workspaces/:id/channels/whatsapp/connect` (`channels:manage`): verifies the number with Meta, stores the encrypted token.
+- `POST /workspaces/:id/channels/:channelId/health` (`channels:manage`): live check; returns `ok`, `qualityRating`, `error`.
+- `POST /workspaces/:id/messages/:messageId/retry` (`conversations:reply`): retries a FAILED outgoing message.
+- `GET|POST /webhooks/whatsapp`: public Meta callbacks (verify token; HMAC-signed POST). Not part of the OpenAPI document.
+- Messages now include `failureReason` (why a send failed).
+
 ### Account and settings
 
 | Method | Path                               | Permission                       | Notes                                                                                                                                                                              |
@@ -172,6 +191,45 @@ A workflow is `trigger → ordered steps`, where a step is a **condition gate** 
 | POST      | `/executions/:id/retry`          | `automation:activate`               | Re-queues a FAILED run from the step that failed                                                                         |
 
 **Events emitted today** (after the domain transaction commits): `lead.created`, `lead.stage_changed`, `customer.created`, `order.created`, `order.status_changed`, `order.payment_recorded`, `conversation.assigned`, `conversation.status_changed`. Imports don’t emit. **Actions:** internal notes (conversation/order), assign conversation, set conversation status, add/remove customer tag, set lead stage, assign lead owner, plus **Wait**.
+
+### Billing (under `/workspaces/:workspaceId/billing`; webhook at `/billing/webhooks/stripe`)
+
+Billing is provider-agnostic behind a `BillingProvider` interface (`apps/api/src/modules/billing/provider`). Stripe is implemented over its REST API and is active only when `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and `BILLING_PRICE_IDS` are set; otherwise an `UnconfiguredProvider` refuses every payment operation (503). **Subscription, invoice and payment-method state is written only from signature-verified webhook events**: action endpoints ask the provider to change something and return `accepted`, and the UI shows the result once the webhook arrives. The browser never sends a price, amount or status. Card data is never handled: cards are added on the provider's hosted page and Torio keeps brand, last four and expiry.
+
+| Method      | Path                                                   | Permission                   | Notes                                                                                                                                               |
+| ----------- | ------------------------------------------------------ | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET         | `/overview`, `/plans`, `/usage`, `/profile`            | `billing:read` (Owner/Admin) | Overview (plan, status, next payment, actions allowed), plan catalog, real usage counts vs plan limits, billing profile                             |
+| PUT         | `/profile`                                             | `billing:manage` (Owner)     | Strict validation; audited                                                                                                                          |
+| GET         | `/payment-methods`                                     | read                         | Display data only                                                                                                                                   |
+| POST        | `/payment-methods/session`                             | manage                       | Hosted card-entry link                                                                                                                              |
+| POST/DELETE | `/payment-methods/:id/default`, `/payment-methods/:id` | manage                       | Provider call first, then local update; the only card on an active subscription can't be removed                                                    |
+| GET         | `/invoices`, `/invoices/:id`, `/invoices/:id/pdf`      | read                         | Mirrored provider invoices (filter `status`, paged); PDF rendered from the stored record                                                            |
+| POST        | `/invoices/:id/retry`                                  | manage                       | Failed invoices only; provider retries payment                                                                                                      |
+| POST        | `/subscription/preview`                                | read                         | Upgrade/downgrade classification, gained/lost features, usage above new limits, effective date. Proration amounts are the provider's, not estimated |
+| POST        | `/subscription/checkout`                               | manage                       | Hosted checkout link for a plan with a configured price id                                                                                          |
+| POST        | `/subscription/change`, `/cancel`, `/resume`           | manage                       | Downgrades over the new limits need `acknowledgeOverage`; cancel at period end or immediately; resume a scheduled cancellation                      |
+| POST        | `/billing/webhooks/stripe`                             | public + signature           | HMAC-SHA256 over the raw body, 5-minute tolerance. Idempotent on the event id; stale events can't roll state back                                   |
+
+Plans live in `apps/api/src/modules/billing/plans.ts` with **placeholder pricing** (flagged in the API and UI) until real prices are configured.
+
+### Super Admin (`/api/v1/admin`)
+
+A separate system for the platform operator. Admin accounts live in their own table (`PlatformAdmin`) and are created only by the `pnpm admin:create` command: there is no HTTP route that creates or promotes one. Sign-in (`POST /admin/auth/login`, throttled 5/min) issues an opaque, HttpOnly, `SameSite=Strict` cookie (`torio_admin`, path `/api/v1/admin`, 8 h) backed by a server-side session (only its SHA-256 is stored). `AdminGuard` checks the session, the account’s active flag and role on **every** request; state-changing requests also need the `X-Torio-Admin: 1` header. Customer JWTs don't work here and the admin cookie doesn't work on customer routes.
+
+| Area          | Endpoints                                                                                                                                                       |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Auth          | `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`, `PATCH /auth/profile`, `POST /auth/password` (verifies the current password, signs other sessions out) |
+| Dashboard     | `GET /dashboard`: counts, MRR per currency, 6-month paid-invoice revenue, recent customers/subscriptions, failed payments                                       |
+| Customers     | `GET /customers` (`q`, `status`, `subscription`, paged), `GET /customers/:id`, `POST /customers/:id/suspend` / `reactivate` (reason required)                   |
+| Workspaces    | `GET /workspaces`, `GET /workspaces/:id`, `POST …/suspend` / `reactivate` (reason required), `POST …/assign-plan`                                               |
+| Subscriptions | `GET /subscriptions` (`status`, `q`), `GET /subscriptions/:id` (invoices + payment events), `POST …/cancel`, `POST …/resume`                                    |
+| Plans         | `GET/POST /plans`, `PATCH /plans/:key`, `POST /plans/:key/status` (ACTIVE / DISABLED / ARCHIVED, reason required)                                               |
+| Activity      | `GET /activity?source=admin                                                                                                                                     | payments&q=` (read-only) |
+| Settings      | `GET/PATCH /settings` (branding, registration switch; provider status shows presence only, never secrets)                                                       |
+
+Provider-backed subscription changes (cancel, resume, plan change) are only **requested**: the response says `pending: true` and local state changes when the signed webhook confirms. A workspace with no paid subscription can be given a complimentary **manual** plan (`source = MANUAL`), applied locally (`pending: false`), excluded from MRR. Suspending a customer revokes all their sessions and blocks every workspace request immediately; suspending a workspace answers 403 for all its members.
+
+MRR = sum of the recorded recurring price (from provider events) of ACTIVE, provider-billed subscriptions, yearly ÷ 12, per currency (never summed across currencies). Canceled, expired, past-due, trialing and manual plans are excluded; subscriptions with no recorded price are reported, not guessed.
 
 ## Conventions
 

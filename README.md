@@ -59,7 +59,7 @@ Production/CI uses `pnpm db:deploy` (applies committed migrations only).
 pnpm dev             # web :3000, api :4000, worker (health :4100) — all in one stream
 ```
 
-- Web: http://localhost:3000 (dashboard), `/inbox`, `/leads`, `/customers`, `/team`, `/brain`, `/channels`, `/orders`, `/automation`, `/settings` (profile, preferences, security, workspace, audit log), `/status` (live API readiness via the typed client), `/login`
+- Web: http://localhost:3000 (dashboard), `/inbox`, `/leads`, `/customers`, `/team`, `/brain`, `/channels`, `/orders`, `/automation`, `/billing`, `/admin` (Super Admin: create one with `pnpm admin:create -- --email you@company.com`), `/settings` (profile, preferences, security, workspace, audit log), `/status` (live API readiness via the typed client), `/login`
 - API docs (non-production): http://localhost:4000/docs
 - Dashboard state previews: `/?demo=loading`, `/?demo=empty`, `/?demo=error`
 
@@ -75,7 +75,7 @@ pnpm api:openapi                   # regenerate apps/api/openapi.json and the Ty
 
 ## What is not built yet
 
-Channel delivery/ingestion (the Inbox UI and API exist; replies are stored but not sent), AI execution (Brain stores configuration and has a rule-based preview; Inbox AI Assist is not connected), product catalog, payment provider and refunds, carrier integration, two-factor auth, notification delivery, billing, provider connection/OAuth for channels, message-sending automation actions, branching workflows, billing, push notifications, Flutter app.
+Channel delivery/ingestion (the Inbox UI and API exist; replies are stored but not sent), AI execution (Brain stores configuration and has a rule-based preview; Inbox AI Assist is not connected), product catalog, payment provider and refunds, carrier integration, two-factor auth, notification delivery, provider connection/OAuth for channels, message-sending automation actions, branching workflows, live Stripe credentials and price ids (Billing is read-only without them), push notifications, Flutter app.
 Auth gaps: email-verification and password-reset **endpoints** (tables and token model exist), account lockout,
 MFA, invitation email delivery, presence/availability, bulk member actions. The web dashboard shows **fictional demo data** and its route is
 not auth-gated yet. See [docs/SECURITY.md](docs/SECURITY.md).

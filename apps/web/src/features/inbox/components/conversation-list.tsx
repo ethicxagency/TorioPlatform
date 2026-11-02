@@ -45,7 +45,7 @@ export function ConversationList(p: Props) {
       className="flex h-full min-h-0 min-w-0 flex-col bg-white/70 backdrop-blur-[12px]"
     >
       <header className="flex items-baseline gap-2 px-4 pb-2.5 pt-4">
-        <h1 className="m-0 text-[17px] font-semibold tracking-[-0.01em]">Inbox</h1>
+        <h1 className="m-0 font-page-title">Inbox</h1>
         <span className="text-[12.5px] text-muted">
           {p.counts ? `${p.counts.open} open` : ''}
           {waiting.length > 0 && ` · ${waiting.length} waiting`}

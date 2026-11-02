@@ -31,7 +31,7 @@ export const Readiness = forwardRef<
     >
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="m-0 text-[15px] font-semibold">Knowledge readiness</h2>
-        <span className="text-2xl font-semibold tabular-nums tracking-[-0.02em]">{pct}%</span>
+        <span className="text-2xl font-metric">{pct}%</span>
       </div>
       <div
         role="progressbar"

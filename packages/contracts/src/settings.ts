@@ -96,6 +96,7 @@ export const updateWorkspaceSchema = z
       .nullable()
       .optional()
       .transform((v) => (v ? v : v === undefined ? undefined : null)),
+    reportingTimeZone: timeZoneSchema.optional(),
     contactEmail: z
       .union([z.literal(''), z.email().max(254)])
       .nullable()

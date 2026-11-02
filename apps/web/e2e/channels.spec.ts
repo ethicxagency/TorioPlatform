@@ -35,7 +35,7 @@ test.describe('channels (owner)', () => {
     await dlg.getByRole('radio', { name: /WhatsApp Business/ }).click();
     await expect(dlg.getByText('What WhatsApp Business needs')).toBeVisible();
     await expect(dlg.getByText(/Nothing was connected/)).toBeVisible();
-    await expect(dlg.getByRole('button', { name: /Continue to WhatsApp Business/ })).toBeDisabled();
+    await expect(dlg.getByRole('button', { name: /^Connect WhatsApp Business$/ })).toBeDisabled();
   });
 
   test('details: health is "not monitored", reconnect is unavailable, rename persists via the API', async ({
@@ -49,10 +49,10 @@ test.describe('channels (owner)', () => {
     await d.getByLabel('Display name').fill('Brand IG');
     await d.getByRole('button', { name: 'Save' }).click();
     await expect.poll(() => channelState.patches.length).toBe(1);
-    await expect(d.getByRole('link', { name: 'Open Inbox' })).toHaveAttribute(
-      'href',
-      '/inbox?channel=INSTAGRAM',
-    );
+    // the dialog is renamed once the save lands, so look it up by role rather than by its old name
+    await expect(
+      page.getByRole('dialog').getByRole('link', { name: 'Open Inbox' }),
+    ).toHaveAttribute('href', '/inbox?channel=INSTAGRAM');
   });
 
   test('disconnect asks for confirmation and explains history is kept', async ({ page }) => {

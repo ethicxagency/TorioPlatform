@@ -2,13 +2,14 @@ import type { Permission } from '@torio/types';
 import {
   Bell,
   Building2,
+  CreditCard,
   FileClock,
-  Lock,
   Plug,
   ShieldCheck,
   SlidersHorizontal,
   UserRound,
-  Users,
+  Shield,
+  UsersRound,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -49,8 +50,8 @@ export const SETTINGS: SettingsItem[] = [
     key: 'security',
     href: '/settings/security',
     title: 'Security',
-    description: 'Change your password and manage signed-in devices.',
-    icon: Lock,
+    description: 'Change your password and manage sign-in security.',
+    icon: ShieldCheck,
     group: 'Personal',
     keywords: ['password', 'sessions', 'devices', 'sign out', 'two-factor', '2fa', 'login'],
   },
@@ -58,7 +59,7 @@ export const SETTINGS: SettingsItem[] = [
     key: 'notifications',
     href: '/settings/notifications',
     title: 'Notifications',
-    description: 'Email and in-app alerts. Delivery isn’t built yet.',
+    description: 'Manage your email and in-app notification preferences.',
     icon: Bell,
     group: 'Personal',
     unavailable: true,
@@ -77,8 +78,8 @@ export const SETTINGS: SettingsItem[] = [
     key: 'members',
     href: '/settings/members',
     title: 'Members & access',
-    description: 'People, invitations, teams, roles and permissions.',
-    icon: Users,
+    description: 'Manage people, invitations, teams, roles and permissions.',
+    icon: UsersRound,
     group: 'Workspace',
     keywords: ['invite', 'roles', 'permissions', 'teams', 'members', 'owner', 'admin', 'agent'],
   },
@@ -86,17 +87,37 @@ export const SETTINGS: SettingsItem[] = [
     key: 'channels',
     href: '/settings/channels',
     title: 'Channels & integrations',
-    description: 'WhatsApp, Instagram and Messenger connections.',
+    description: 'Manage WhatsApp, Instagram and Messenger connections.',
     icon: Plug,
     group: 'Workspace',
     keywords: ['whatsapp', 'instagram', 'messenger', 'facebook', 'connect', 'integration'],
   },
   {
+    key: 'billing',
+    href: '/billing',
+    title: 'Billing & subscriptions',
+    description: 'Manage plans, usage, payment methods, invoices and billing details.',
+    icon: CreditCard,
+    group: 'Workspace',
+    needs: 'billing:read',
+    keywords: [
+      'plan',
+      'subscription',
+      'invoice',
+      'payment',
+      'card',
+      'usage',
+      'limits',
+      'upgrade',
+      'cancel',
+    ],
+  },
+  {
     key: 'privacy',
     href: '/settings/privacy',
     title: 'Data & privacy',
-    description: 'Download a copy of your own account data.',
-    icon: ShieldCheck,
+    description: 'Manage your account data and privacy requests.',
+    icon: Shield,
     group: 'Privacy',
     keywords: ['export', 'download', 'data', 'delete account', 'retention', 'gdpr'],
   },
@@ -104,7 +125,7 @@ export const SETTINGS: SettingsItem[] = [
     key: 'audit',
     href: '/settings/audit',
     title: 'Audit log',
-    description: 'Who changed what in this workspace.',
+    description: 'Review important activities and changes in your workspace.',
     icon: FileClock,
     group: 'Administration',
     needs: 'audit:read',
@@ -114,12 +135,12 @@ export const SETTINGS: SettingsItem[] = [
 
 export const GROUPS = ['Personal', 'Workspace', 'Privacy', 'Administration'] as const;
 
-/** Capabilities with no backing implementation. Listed for transparency; never searchable or togglable. */
-export const NOT_AVAILABLE = [
-  { title: 'Two-factor authentication', note: 'Sign-in uses a password only.' },
-  { title: 'Sign-in history', note: 'Failed and successful logins aren’t recorded for display.' },
-  { title: 'Workspace logo and avatars', note: 'There is no file storage yet.' },
-  { title: 'Billing & subscription', note: 'Torio has no billing system.' },
-  { title: 'Conversation preferences', note: 'No workspace-level Inbox rules exist yet.' },
-  { title: 'Account deletion', note: 'Not implemented.' },
-];
+/**
+ * Routes that belong to the Settings area. Billing lives at /billing but is listed in the Settings navigation, so it
+ * keeps the two-level layout. Everything here is derived from the current URL, never from click state.
+ */
+export const isSettingsPath = (pathname: string) =>
+  pathname === '/settings' ||
+  pathname.startsWith('/settings/') ||
+  pathname === '/billing' ||
+  pathname.startsWith('/billing/');

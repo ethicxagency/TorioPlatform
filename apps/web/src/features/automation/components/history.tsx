@@ -171,12 +171,12 @@ export function ExecutionDrawer({
   const e = q.data;
   return (
     <>
-      <div className="fixed inset-0 z-[70] bg-[rgba(23,24,28,0.25)]" onClick={onClose} />
+      <div className="fixed inset-0 z-[70] bg-[rgba(13,37,61,0.25)]" onClick={onClose} />
       <aside
         role="dialog"
         aria-modal="true"
         aria-label="Run details"
-        className="fixed inset-y-0 right-0 z-[71] flex w-full animate-drawer-in flex-col bg-white shadow-[-12px_0_40px_rgba(16,24,40,0.16)] sm:w-[520px]"
+        className="fixed inset-y-0 right-0 z-[71] flex w-full animate-drawer-in flex-col bg-white shadow-[-12px_0_40px_rgba(0,55,112,0.16)] sm:w-[520px]"
       >
         <header className="flex items-start gap-3 border-b border-line-subtle px-5 py-4">
           <div className="min-w-0 flex-1">

@@ -17,7 +17,7 @@ export const VIEWS: { key: ListView; label: string }[] = [
 ];
 
 export const LEAD_STATUSES: { key: LeadStatus; label: string; color: string; bg: string }[] = [
-  { key: 'NEW', label: 'New Lead', color: '#62656D', bg: '#EEF0F2' },
+  { key: 'NEW', label: 'New Lead', color: '#5A6A82', bg: '#EDF1F5' },
   { key: 'CONTACTED', label: 'Contacted', color: '#2563EB', bg: '#EFF6FF' },
   { key: 'INTERESTED', label: 'Interested', color: '#A15C00', bg: '#FFF7E6' },
   { key: 'CONVERTED', label: 'Converted', color: '#16803A', bg: '#ECFDF3' },

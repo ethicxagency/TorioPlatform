@@ -1,23 +1,25 @@
 'use client';
 
+import Link from 'next/link';
+import { ChannelIcon } from '@/components/channel-icon';
 import { useShell } from '@/components/shell/shell-context';
 import { buildOrderDetail } from '../model';
 
 const label = 'mb-2 text-[11.5px] font-semibold uppercase tracking-[0.04em] text-faint';
 
 export function OrderDrawer() {
-  const { orderId, openOrder, toast } = useShell();
+  const { orderId, openOrder } = useShell();
   const od = buildOrderDetail(orderId);
   if (!od) return null;
   const close = () => openOrder(null);
   return (
     <>
-      <div onClick={close} className="fixed inset-0 z-[80] bg-[rgba(23,24,28,0.25)]" />
+      <div onClick={close} className="fixed inset-0 z-[80] bg-[rgba(13,37,61,0.25)]" />
       <aside
         role="dialog"
         aria-modal="true"
         aria-label="Order details"
-        className="fixed bottom-0 right-0 top-0 z-[81] flex w-[min(420px,100vw)] animate-drawer-in flex-col bg-white shadow-[-12px_0_40px_rgba(16,24,40,0.16)]"
+        className="fixed bottom-0 right-0 top-0 z-[81] flex w-[min(420px,100vw)] animate-drawer-in flex-col bg-white shadow-[-12px_0_40px_rgba(0,55,112,0.16)]"
       >
         <div className="flex items-center gap-2.5 border-b border-line-subtle px-5 py-4">
           <div className="min-w-0 flex-1">
@@ -30,7 +32,7 @@ export function OrderDrawer() {
                 {od.status}
               </span>
             </div>
-            <div className="mt-0.5 text-[12.5px] text-faint">{od.date} · Demo order</div>
+            <div className="mt-0.5 text-[12.5px] text-faint">{od.date}</div>
           </div>
           <button
             type="button"
@@ -43,7 +45,7 @@ export function OrderDrawer() {
               height="15"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="#62656D"
+              stroke="#5A6A82"
               strokeWidth="2"
               strokeLinecap="round"
             >
@@ -59,20 +61,13 @@ export function OrderDrawer() {
             <div className="flex-1">
               <div className="text-sm font-semibold">{od.customer}</div>
               <div className="flex items-center gap-1.5 text-[12.5px] text-muted">
-                <span className="h-[7px] w-[7px] rounded-full" style={{ background: od.color }} />
+                <ChannelIcon channel={od.channel} size={14} decorative />
                 {od.channel}
               </div>
             </div>
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                toast("Inbox isn't available yet");
-              }}
-              className="text-[13px] font-medium"
-            >
+            <Link href="/inbox" onClick={() => openOrder(null)} className="text-[13px] font-medium">
               Open conversation
-            </a>
+            </Link>
           </div>
           <div>
             <div className={label}>Items</div>
@@ -120,23 +115,20 @@ export function OrderDrawer() {
           )}
         </div>
         <div className="flex gap-2 border-t border-line-subtle px-5 py-3.5">
-          <button
-            type="button"
-            onClick={() => toast("Orders isn't available yet")}
-            className="h-9 flex-1 cursor-pointer rounded-[9px] border border-line bg-white text-[13px] font-medium"
+          <Link
+            href="/orders"
+            onClick={() => openOrder(null)}
+            className="flex h-9 flex-1 items-center justify-center rounded-full border border-line bg-white text-[13px] font-medium text-ink no-underline hover:bg-wash hover:text-ink hover:no-underline"
           >
             Open in Orders
-          </button>
-          <a
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              toast("Inbox isn't available yet");
-            }}
-            className="flex h-9 flex-1 items-center justify-center rounded-[9px] bg-primary text-[13px] font-semibold text-white no-underline hover:bg-primary-hover hover:text-white hover:no-underline"
+          </Link>
+          <Link
+            href="/inbox"
+            onClick={() => openOrder(null)}
+            className="flex h-9 flex-1 items-center justify-center rounded-full bg-primary text-[13px] font-semibold text-white no-underline hover:bg-primary-hover hover:text-white hover:no-underline"
           >
             Message customer
-          </a>
+          </Link>
         </div>
       </aside>
     </>

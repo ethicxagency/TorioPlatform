@@ -18,7 +18,7 @@ export function ConfirmDialog({ title, body, confirmLabel, busy, onConfirm, onCa
   useEffect(() => cancelRef.current?.focus(), []);
   return (
     <div
-      className="fixed inset-0 z-[90] flex items-center justify-center bg-[rgba(23,24,28,0.3)] p-4"
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-[rgba(13,37,61,0.3)] p-4"
       onClick={onCancel}
     >
       <div

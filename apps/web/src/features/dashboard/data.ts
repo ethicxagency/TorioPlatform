@@ -140,15 +140,16 @@ export const NAV: NavDef[] = [
   { label: 'Orders', icon: 'M4 8l8-4 8 4-8 4-8-4zM4 8v9l8 4 8-4V8M12 12v9' },
   { label: 'Team', icon: IC.team },
   {
-    label: 'Settings',
-    icon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 3v2.5M12 18.5V21M4.2 4.2l1.8 1.8M18 18l1.8 1.8M3 12h2.5M18.5 12H21M4.2 19.8l1.8-1.8M18 6l1.8-1.8',
-  },
-  {
     label: 'Channels',
     icon: 'M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM12 13.6a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2zM17 7l3-3M4 20l3-3',
   },
   { label: 'Automation', icon: 'M13 2L5 14h6l-2 8 10-12h-6z' },
   { label: 'Brain', icon: IC.brain },
+  // Always last in the customer portal navigation.
+  {
+    label: 'Settings',
+    icon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 3v2.5M12 18.5V21M4.2 4.2l1.8 1.8M18 18l1.8 1.8M3 12h2.5M18.5 12H21M4.2 19.8l1.8-1.8M18 6l1.8-1.8',
+  },
 ];
 
 export type WidgetKey =

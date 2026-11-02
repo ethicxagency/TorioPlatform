@@ -1,0 +1,46 @@
+# Torio feature audit
+
+Audited from source (schema, services, controllers, worker, contracts, web features), not from file names. Date: 2026-11-01.
+
+## Architecture
+
+pnpm + Turborepo monorepo. `apps/web` (Next.js, customer portal + `/admin`), `apps/api` (NestJS, REST `/api/v1`, Socket.IO `/realtime`, OpenAPI), `apps/worker` (BullMQ on Redis), `prisma/` (PostgreSQL 16), `packages/{types,contracts,database,api-client,config}`. One workspace-scoped permission system (`WorkspaceMembership.role` + `RequirePermission`), one subscription system (`Subscription` + `PlanDefinition` + `PlansService`), one Brain document per workspace (`BrainConfig`), one automation engine (`apps/api/src/modules/automation`). Every query is workspace-scoped.
+
+## Feature inventory
+
+| Feature                                                                                                           | Status      | Existing implementation                                                                                                     | Missing functionality                                                                                | Required action                  |
+| ----------------------------------------------------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------- |
+| Auth, sessions, workspaces, roles (Owner/Admin/Manager/Agent)                                                     | Implemented | `auth`, `authorization`, `workspaces`, `users` modules                                                                      | none                                                                                                 | Preserve                         |
+| Team members, invitations, teams, member status, activity                                                         | Implemented | `team` module; `Team`, `TeamMembership`, `Invitation`                                                                       | agent availability, assignment to a team (conversations only take a user)                            | Extend                           |
+| Inbox (3-column list/chat/profile, filters, search, bulk, snooze, saved replies, notes, assign, priority, unread) | Implemented | `inbox` module, `features/inbox`, `Conversation`, `Message` (kinds INBOUND/OUTBOUND/NOTE/EVENT), `SavedReply`               | attachments/media, @mentions, conversation tags, forward, typing, collision, team inbox, date filter | Extend                           |
+| Real-time                                                                                                         | Partial     | Socket.IO gateway; events carry ids only (`message:created`, `conversation:updated`, ...)                                   | presence/typing/collision events                                                                     | Extend                           |
+| WhatsApp / Messenger / Instagram connection                                                                       | **Missing** | `Channel` rows + honest provider catalog; `channels.service` states no provider connection exists; seed rows are `isSample` | OAuth/Embedded Signup, credential storage, webhooks, sending, health checks                          | Build (WhatsApp first)           |
+| Message ingestion / sending to providers                                                                          | **Missing** | `Message.externalId` unique per conversation (idempotency hook); outbound messages are stored only, never delivered         | webhook receiver, signature check, send queue, status updates                                        | Build                            |
+| Webhook / queue infrastructure                                                                                    | Partial     | BullMQ worker with retry/backoff/dead-letter policy and `webhooks` queue name, but only an example job                      | real processors, provider event log, idempotent dedupe                                               | Build                            |
+| WhatsApp templates, 24h window, opt-in/out, quality                                                               | Missing     | none                                                                                                                        | all                                                                                                  | Build (needs provider)           |
+| Unified customer identity                                                                                         | Partial     | `Customer` (phone/email/handle, tags, notes, leadStatus)                                                                    | per-channel identities, duplicate detection, merge/unlink                                            | Build                            |
+| CRM, leads, orders, payments (manual)                                                                             | Implemented | `customers`, `leads`, `orders` modules                                                                                      | no external commerce connector (Shopify)                                                             | Document extension point         |
+| Automation engine (steps, conditions, waits, retries, execution history, versions, loop-safe)                     | Implemented | `automation` module; triggers limited to lead/customer/order/conversation assigned+status                                   | triggers new conversation, incoming message, keyword, no-reply; actions send reply, set priority, AI | Extend after ingestion exists    |
+| Brain configuration (profile, products, FAQs, voice, guardrails)                                                  | Implemented | `BrainConfig` JSON with optimistic versioning, `brain-preview.ts` deterministic preview                                     | none for configuration                                                                               | Preserve                         |
+| AI replies, summaries, sentiment, handover                                                                        | Missing     | UI `AiAssistPanel` says "not connected"                                                                                     | LLM provider, usage metering, handover state                                                         | Blocked: AI provider credentials |
+| Dashboard analytics + global date range                                                                           | Implemented | `dashboard` module, date-range contract                                                                                     | messaging/agent/AI analytics from real data                                                          | Extend after ingestion           |
+| Billing & subscriptions                                                                                           | Implemented | `billing` module, Stripe, plans, invoices, admin billing                                                                    | AI credits stored but not metered; channel/seat limits partly enforced                               | Extend                           |
+| Mobile-ready API                                                                                                  | Implemented | OpenAPI, bearer/refresh auth, `docs/MOBILE_READINESS.md`                                                                    | push tokens                                                                                          | Document                         |
+| Super Admin                                                                                                       | Implemented | `admin` module + `/admin`                                                                                                   | none                                                                                                 | Preserve                         |
+
+## Overlap found
+
+None harmful. The only overlap risk is a second ingestion/inbox path: all provider traffic must write through `Conversation`/`Message`, reusing `externalId` idempotency.
+
+## External dependencies
+
+Meta app (App ID/secret, verify token), WhatsApp Business Platform access and business verification for Embedded Signup, Instagram/Messenger permissions (app review), AI provider key, Shopify credentials. None are present in this environment, so no live connection can be shown as working here.
+
+## Recommended order
+
+1. Provider foundation: encrypted credentials, webhook event log (dedupe), signature verification, queue processors.
+2. WhatsApp Cloud API: inbound/outbound/status, 24h window, templates, opt-out.
+3. Channel identity + duplicate detection.
+4. Inbox gaps: attachments, collision, tags.
+5. Automation triggers/actions on real messages.
+6. AI (blocked), analytics, billing metering.

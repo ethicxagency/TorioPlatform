@@ -10,6 +10,7 @@ import { SOCKET_EVENTS } from '@torio/types';
 import { PrismaService } from '../../database/prisma.service';
 import { AutomationEngine } from '../automation/automation.engine';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { WhatsAppDeliveryService } from '../whatsapp/whatsapp.delivery.service';
 import {
   conversationInclude,
   messageInclude,
@@ -28,6 +29,7 @@ export class ConversationsService {
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeGateway,
     private readonly automation: AutomationEngine,
+    private readonly whatsapp: WhatsAppDeliveryService,
   ) {}
 
   async list(workspaceId: string, userId: string, q: ConversationQuery) {
@@ -164,6 +166,16 @@ export class ConversationsService {
       conversationId: id,
       messageId: message.id,
     });
+    if (!isNote) {
+      // Hands the reply to the provider (WhatsApp only; other channels stay PENDING). Failures are recorded on the
+      // message (FAILED + reason) and can be retried, so they never fail the agent's request.
+      await this.whatsapp.deliver(workspaceId, message.id).catch(() => undefined);
+      const fresh = await this.prisma.client.message.findUnique({
+        where: { id: message.id },
+        include: messageInclude,
+      });
+      if (fresh) return toMessageDto(fresh);
+    }
     return toMessageDto(message);
   }
 
@@ -205,6 +217,7 @@ export class ConversationsService {
         data.unreadCount = 0;
         data.waitingSince = null;
         data.snoozedUntil = null;
+        data.resolvedAt = new Date();
         events.push(`${actor.name} resolved this conversation`);
       } else if (input.status === 'SNOOZED') {
         const until = new Date(input.snoozedUntil!);
@@ -214,6 +227,7 @@ export class ConversationsService {
         events.push(`${actor.name} snoozed this until ${until.toISOString()}`);
       } else {
         data.snoozedUntil = null;
+        data.resolvedAt = null;
         events.push(
           `${actor.name} ${conv.status === 'RESOLVED' ? 'reopened' : 'unsnoozed'} this conversation`,
         );
@@ -276,7 +290,13 @@ export class ConversationsService {
         data = { unreadCount: 0 };
         break;
       case 'RESOLVE':
-        data = { status: 'RESOLVED', unreadCount: 0, waitingSince: null, snoozedUntil: null };
+        data = {
+          status: 'RESOLVED',
+          unreadCount: 0,
+          waitingSince: null,
+          snoozedUntil: null,
+          resolvedAt: new Date(),
+        };
         break;
       case 'SNOOZE': {
         const until = input.snoozedUntil ? new Date(input.snoozedUntil) : null;

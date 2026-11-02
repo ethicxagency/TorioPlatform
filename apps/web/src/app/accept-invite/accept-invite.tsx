@@ -48,7 +48,7 @@ export function AcceptInvite() {
   if (token.length < 20 || preview.isError)
     return (
       <div role="alert">
-        <h1 className="m-0 text-xl font-semibold">Invitation unavailable</h1>
+        <h1 className="m-0 font-page-title">Invitation unavailable</h1>
         <p className="mb-0 mt-2 text-sm text-muted">
           {preview.error?.message ?? 'This invitation link is invalid or has expired.'} Ask your
           workspace admin for a new link.
@@ -95,7 +95,7 @@ export function AcceptInvite() {
 
   return (
     <div>
-      <h1 className="m-0 text-xl font-semibold tracking-[-0.015em]">Join {inv.workspaceName}</h1>
+      <h1 className="m-0 font-page-title">Join {inv.workspaceName}</h1>
       <p className="mb-4 mt-1 text-[13px] text-muted">
         You&apos;ve been invited as <b>{ROLE_INFO[inv.role].label}</b> using <b>{inv.email}</b>.
       </p>

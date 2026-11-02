@@ -396,7 +396,8 @@ async function seedOrders(prisma: Db, workspaceId: string) {
         workspaceId,
         number: 1000 + seq,
         customerId: customers[i % customers.length]!.id,
-        currency: 'USD',
+        // New demo data is in the platform default currency; existing rows are never rewritten.
+        currency: 'BDT',
         subtotalMinor: subtotal,
         shippingMinor: shipping,
         totalMinor: total,
@@ -607,7 +608,7 @@ async function main() {
   const workspace = await prisma.workspace.upsert({
     where: { slug: 'urbannest-demo' },
     update: {},
-    create: { name: 'UrbanNest (demo)', slug: 'urbannest-demo' },
+    create: { name: 'UrbanNest (demo)', slug: 'urbannest-demo', defaultCurrency: 'BDT' },
   });
 
   const people = [
@@ -633,6 +634,20 @@ async function main() {
   await seedLeads(prisma, workspace.id);
   await seedBrain(prisma, workspace.id);
   await seedOrders(prisma, workspace.id);
+
+  // A local-only Super Admin so /admin can be tried. Real deployments create theirs with `pnpm admin:create`.
+  if ((await prisma.platformAdmin.count()) === 0) {
+    const adminPassword =
+      process.env.ADMIN_PASSWORD ?? `Adm-${Math.random().toString(36).slice(2, 14)}-Aa1`;
+    await prisma.platformAdmin.create({
+      data: {
+        email: 'admin@torio.local',
+        name: 'Platform Admin',
+        passwordHash: await hash(adminPassword, { algorithm: 2 }),
+      },
+    });
+    console.log(`Created Super Admin admin@torio.local. Password (shown once): ${adminPassword}`);
+  }
 
   console.log(`Seeded workspace "${workspace.slug}" with ${people.length} users.`);
   console.log(`Dev password for newly created users: ${password}`);

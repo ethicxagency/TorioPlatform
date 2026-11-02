@@ -113,7 +113,7 @@ export function AutomationPage() {
           <nav aria-label="Breadcrumb" className="mb-1 text-xs text-faint">
             Automation / <span className="text-muted">Workflows</span>
           </nav>
-          <h1 className="m-0 text-2xl font-semibold tracking-[-0.015em]">Automation</h1>
+          <h1 className="m-0 font-page-title">Automation</h1>
           <p className="m-0 mt-1 text-sm text-muted">
             Automate conversations, streamline repetitive tasks, and keep your team moving.
           </p>

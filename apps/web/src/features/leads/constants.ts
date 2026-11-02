@@ -2,7 +2,7 @@ import type { LeadSource, LeadStage } from './types';
 
 /** Default pipeline. The API stores these as a fixed enum; configurable pipelines are not implemented yet. */
 export const STAGES: { key: LeadStage; label: string; color: string; bg: string }[] = [
-  { key: 'NEW', label: 'New', color: '#62656D', bg: '#EEF0F2' },
+  { key: 'NEW', label: 'New', color: '#5A6A82', bg: '#EDF1F5' },
   { key: 'CONTACTED', label: 'Contacted', color: '#2563EB', bg: '#EFF6FF' },
   { key: 'QUALIFIED', label: 'Qualified', color: '#4F50D1', bg: '#F0F0FF' },
   { key: 'PROPOSAL', label: 'Proposal', color: '#A15C00', bg: '#FFF7E6' },
@@ -19,8 +19,8 @@ export const SOURCES: { key: LeadSource; label: string; color: string }[] = [
   { key: 'INSTAGRAM', label: 'Instagram', color: '#E4405F' },
   { key: 'MESSENGER', label: 'Messenger', color: '#1877F2' },
   { key: 'WEBSITE', label: 'Website', color: '#5B5CE2' },
-  { key: 'MANUAL', label: 'Manual', color: '#8B8E97' },
-  { key: 'IMPORT', label: 'Import', color: '#8B8E97' },
+  { key: 'MANUAL', label: 'Manual', color: '#66778E' },
+  { key: 'IMPORT', label: 'Import', color: '#66778E' },
 ];
 export const SOURCE = Object.fromEntries(SOURCES.map((s) => [s.key, s])) as Record<
   LeadSource,

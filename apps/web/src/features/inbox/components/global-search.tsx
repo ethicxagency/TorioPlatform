@@ -103,8 +103,8 @@ export function GlobalSearch({ inputRef }: { inputRef: React.RefObject<HTMLInput
 
   return (
     <div className="relative w-[clamp(240px,38vw,560px)]">
-      <div className="flex h-10 items-center gap-2 rounded-[10px] border border-line bg-white/70 px-3">
-        <Search size={16} className="shrink-0 text-faint" aria-hidden />
+      <div className="flex h-9 items-center gap-2 rounded-[10px] border border-transparent bg-wash px-3 transition-[background-color,border-color,box-shadow] duration-150 hover:border-line focus-within:border-primary focus-within:bg-white focus-within:ring-2 focus-within:ring-primary/15 motion-reduce:transition-none">
+        <Search size={15} className="shrink-0 text-faint" aria-hidden />
         <input
           ref={inputRef}
           type="text"
@@ -124,12 +124,12 @@ export function GlobalSearch({ inputRef }: { inputRef: React.RefObject<HTMLInput
           }}
           onKeyDown={onKeyDown}
           placeholder="Search conversations, customers…"
-          className="w-full border-none bg-transparent text-sm text-ink"
+          className="w-full border-none bg-transparent text-[13.5px] text-ink outline-none placeholder:text-faint"
         />
         {search.isFetching && (
           <Loader2 size={14} className="shrink-0 animate-spin text-faint" aria-label="Searching" />
         )}
-        <kbd className="shrink-0 rounded-[5px] border border-line bg-wash px-1.5 py-0.5 font-mono text-[11.5px] text-faint">
+        <kbd className="shrink-0 rounded-[5px] border border-line bg-white px-1.5 py-px font-mono text-[11px] text-faint">
           ⌘K
         </kbd>
       </div>
@@ -137,7 +137,7 @@ export function GlobalSearch({ inputRef }: { inputRef: React.RefObject<HTMLInput
         <div
           id="global-search-results"
           role="listbox"
-          className="absolute inset-x-0 top-[46px] z-50 max-h-[420px] animate-panel-in overflow-y-auto rounded-xl border border-line bg-white/95 p-1.5 shadow-popover backdrop-blur-[20px]"
+          className="absolute inset-x-0 top-[42px] z-50 max-h-[420px] animate-panel-in overflow-y-auto rounded-xl border border-line bg-white/95 p-1.5 shadow-popover backdrop-blur-[20px]"
         >
           {!term && (
             <div className="px-3 py-4 text-center text-[13px] text-muted">

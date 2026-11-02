@@ -1,3 +1,4 @@
+import { ChannelIcon, channelKind } from '@/components/channel-icon';
 import { Globe, Upload, UserPen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SCORE_HELP, SCORE_STYLE, scoreBand } from '../score';
@@ -30,9 +31,12 @@ export function SourceBadge({ source }: { source: LeadSource }) {
         : source === 'MANUAL'
           ? UserPen
           : null;
+  const brand = channelKind(source);
   return (
     <span className="inline-flex items-center gap-1.5 text-[13px] text-ink">
-      {Icon ? (
+      {brand ? (
+        <ChannelIcon channel={brand} size={14} decorative />
+      ) : Icon ? (
         <Icon size={13} style={{ color: s.color }} aria-hidden />
       ) : (
         <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: s.color }} />

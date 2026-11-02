@@ -52,9 +52,9 @@ export class WorkspacesService {
     const cur = await this.prisma.client.workspace.findUniqueOrThrow({
       where: { id: workspaceId },
     });
-    const changed = (['name', 'description', 'defaultCurrency', 'contactEmail'] as const).filter(
-      (k) => input[k] !== undefined && input[k] !== cur[k],
-    );
+    const changed = (
+      ['name', 'description', 'defaultCurrency', 'contactEmail', 'reportingTimeZone'] as const
+    ).filter((k) => input[k] !== undefined && input[k] !== cur[k]);
     const w = await this.prisma.client.$transaction(async (tx) => {
       const updated = await tx.workspace.update({
         where: { id: workspaceId },
@@ -63,6 +63,9 @@ export class WorkspacesService {
           ...(input.description !== undefined && { description: input.description }),
           ...(input.defaultCurrency !== undefined && { defaultCurrency: input.defaultCurrency }),
           ...(input.contactEmail !== undefined && { contactEmail: input.contactEmail }),
+          ...(input.reportingTimeZone !== undefined && {
+            reportingTimeZone: input.reportingTimeZone,
+          }),
         },
       });
       if (changed.length)
@@ -120,6 +123,8 @@ export class WorkspacesService {
     name: string;
     slug: string;
     description: string | null;
+    status?: 'ACTIVE' | 'SUSPENDED';
+    reportingTimeZone?: string;
     defaultCurrency: string | null;
     contactEmail: string | null;
     createdAt: Date;
@@ -129,6 +134,8 @@ export class WorkspacesService {
       name: w.name,
       slug: w.slug,
       description: w.description,
+      status: w.status ?? ('ACTIVE' as const),
+      reportingTimeZone: w.reportingTimeZone ?? 'UTC',
       defaultCurrency: w.defaultCurrency,
       contactEmail: w.contactEmail,
       createdAt: w.createdAt.toISOString(),

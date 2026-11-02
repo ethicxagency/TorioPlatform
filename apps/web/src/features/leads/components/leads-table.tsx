@@ -50,7 +50,7 @@ interface Props {
   onAdd: () => void;
 }
 
-const th = 'px-3 py-2.5 text-left text-[11.5px] font-medium text-faint whitespace-nowrap';
+const th = 'px-3 py-2.5 text-left text-[12px] font-semibold text-muted whitespace-nowrap';
 
 function Check_({
   checked,
@@ -320,7 +320,7 @@ export function LeadsTable(p: Props) {
                       {initialsOf(l.name)}
                     </span>
                     <span className="min-w-0">
-                      <span className="block truncate font-medium">{l.name}</span>
+                      <span className="block truncate font-semibold">{l.name}</span>
                       <span className="block truncate text-xs text-faint">{l.company ?? '—'}</span>
                     </span>
                   </div>
@@ -390,7 +390,7 @@ export function LeadsTable(p: Props) {
               className="min-w-0 flex-1 cursor-pointer text-left"
             >
               <span className="flex items-center gap-2">
-                <span className="truncate text-sm font-medium">{l.name}</span>
+                <span className="truncate text-sm font-semibold">{l.name}</span>
                 <StageBadge stage={l.stage} className="shrink-0" />
               </span>
               <span className="mt-0.5 block truncate text-xs text-muted">

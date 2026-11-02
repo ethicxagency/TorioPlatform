@@ -1,7 +1,8 @@
 import type { ApiSchemas } from '@torio/api-client';
 
 export type Conversation = ApiSchemas['ConversationDto'];
-export type Message = ApiSchemas['MessageDto'];
+// Taken from the list response: the generated standalone MessageDto mistypes nullable strings as arrays.
+export type Message = ApiSchemas['MessageListDto']['data'][number];
 export type Customer = Conversation['customer'];
 export type SavedReply = ApiSchemas['SavedReplyDto'];
 export type Provider = Conversation['channel']['provider'];

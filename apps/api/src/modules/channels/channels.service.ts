@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@torio/database';
 import type { UpdateChannelInput } from '@torio/contracts';
+import { Inject } from '@nestjs/common';
+import { APP_CONFIG, type AppConfig } from '../../config/config.module';
 import { PrismaService } from '../../database/prisma.service';
 
 type Provider = 'WHATSAPP' | 'INSTAGRAM' | 'MESSENGER';
@@ -43,7 +45,18 @@ const DAY = 86_400_000;
 /** Every query is scoped by workspaceId. Credentials are never selected or returned. */
 @Injectable()
 export class ChannelsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
+  ) {}
+
+  private get whatsappReady() {
+    return !!(
+      this.config.META_APP_SECRET &&
+      this.config.META_WEBHOOK_VERIFY_TOKEN &&
+      this.config.CHANNEL_ENCRYPTION_KEY
+    );
+  }
 
   private include = {
     defaultAssignee: { select: { id: true, name: true } },
@@ -190,8 +203,19 @@ export class ChannelsService {
       data: (Object.keys(CATALOG) as Provider[]).map((p) => ({
         provider: p,
         label: CATALOG[p].label,
-        state: 'unavailable' as const,
-        reason: REASON,
+        ...(p === 'WHATSAPP' && this.whatsappReady
+          ? {
+              state: 'available' as const,
+              reason:
+                'Connect a WhatsApp Cloud API number with its phone number ID and access token. Meta Embedded Signup isn’t built yet.',
+            }
+          : {
+              state: 'unavailable' as const,
+              reason:
+                p === 'WHATSAPP'
+                  ? 'WhatsApp isn’t configured on this server (Meta app secret, webhook verify token and encryption key are missing).'
+                  : REASON,
+            }),
         requirements: CATALOG[p].requirements,
         connectedCount: counts.find((c) => c.provider === p)?._count._all ?? 0,
       })),

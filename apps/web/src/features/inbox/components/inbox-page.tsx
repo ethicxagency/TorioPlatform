@@ -416,6 +416,21 @@ export function InboxPage() {
           () => toast("Couldn't copy"),
         );
       }}
+      onRetrySend={
+        canReply
+          ? (msg) =>
+              m.retry.mutate(
+                { id: active.id, messageId: msg.id },
+                {
+                  onSuccess: (r) =>
+                    toast(
+                      r.result === 'sent' ? 'Message sent' : 'Still not delivered — see the reason',
+                    ),
+                  onError: err,
+                },
+              )
+          : undefined
+      }
       onToggleAi={() => setAiOpen((v) => !v)}
     />
   ) : null;

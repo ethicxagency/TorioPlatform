@@ -405,6 +405,7 @@ export const resetSettings = () => {
     name: 'UrbanNest',
     slug: 'u',
     description: null,
+    reportingTimeZone: 'Asia/Dhaka',
     defaultCurrency: null,
     contactEmail: null,
     createdAt: USER.createdAt,
@@ -517,6 +518,430 @@ const EXEC = (n: number, status: string, extra: Record<string, unknown> = {}) =>
   createdAt: iso(30),
   ...extra,
 });
+
+const PLAN = (
+  key: string,
+  name: string,
+  rank: number,
+  monthly: number,
+  limits: Record<string, number>,
+  over: Record<string, unknown> = {},
+) => ({
+  key,
+  name,
+  description: `${name} plan`,
+  rank,
+  recommended: key === 'growth',
+  currency: 'BDT',
+  monthlyMinor: monthly,
+  yearlyMinor: monthly * 10,
+  placeholderPricing: rank > 0,
+  purchasable: true,
+  limits,
+  features: [`${name} feature`],
+  ...over,
+});
+const LIM = (m: number, c: number) => ({
+  members: m,
+  channels: 2,
+  contacts: c,
+  messages: 5000,
+  whatsapp: 500,
+  instagram: 500,
+  messenger: 500,
+});
+export const PLANS_MOCK = [
+  PLAN(
+    'free',
+    'Free',
+    0,
+    0,
+    { ...LIM(2, 100), channels: 1, messages: 500 },
+    { purchasable: false, placeholderPricing: false },
+  ),
+  PLAN('starter', 'Starter', 1, 150_000, LIM(5, 2000)),
+  PLAN('growth', 'Growth', 2, 450_000, LIM(15, 20000)),
+  PLAN('scale', 'Scale', 3, 1_200_000, {
+    members: -1,
+    channels: -1,
+    contacts: -1,
+    messages: -1,
+    whatsapp: -1,
+    instagram: -1,
+    messenger: -1,
+  }),
+];
+type Sub = null | {
+  planKey: string;
+  interval: 'MONTH' | 'YEAR';
+  status: string;
+  cancelAtPeriodEnd: boolean;
+};
+export const billingState = {
+  configured: true,
+  sub: null as Sub,
+  failed: false,
+  profile: {} as Record<string, string | null>,
+  profilePuts: [] as unknown[],
+  cards: [] as {
+    id: string;
+    brand: string;
+    last4: string;
+    expMonth: number;
+    expYear: number;
+    isDefault: boolean;
+  }[],
+  calls: [] as { path: string; body: unknown }[],
+  overMembers: false,
+};
+export const resetBilling = () => {
+  billingState.configured = true;
+  billingState.sub = null;
+  billingState.failed = false;
+  billingState.profile = Object.fromEntries(
+    [
+      'companyName',
+      'contactName',
+      'billingEmail',
+      'phone',
+      'country',
+      'state',
+      'city',
+      'addressLine',
+      'postalCode',
+      'taxId',
+    ].map((k) => [k, null]),
+  );
+  billingState.profilePuts = [];
+  billingState.cards = [
+    {
+      id: 'c3c3c3c3-c3c3-4c3c-8c3c-000000000001',
+      brand: 'visa',
+      last4: '4242',
+      expMonth: 12,
+      expYear: 2030,
+      isDefault: true,
+    },
+    {
+      id: 'c3c3c3c3-c3c3-4c3c-8c3c-000000000002',
+      brand: 'mastercard',
+      last4: '1111',
+      expMonth: 3,
+      expYear: 2029,
+      isDefault: false,
+    },
+  ];
+  billingState.calls = [];
+  billingState.overMembers = false;
+};
+resetBilling();
+const INVOICES = [
+  {
+    id: 'd4d4d4d4-d4d4-4d4d-8d4d-000000000001',
+    number: 'INV-0003',
+    status: 'FAILED',
+    currency: 'USD',
+    totalMinor: 4900,
+    periodStart: iso(60 * 24 * 5),
+    periodEnd: iso(-60 * 24 * 25),
+    planKey: 'growth',
+    description: 'Growth subscription',
+    issuedAt: iso(60 * 24 * 5),
+    hostedUrl: null,
+    canRetry: true,
+  },
+  {
+    id: 'd4d4d4d4-d4d4-4d4d-8d4d-000000000002',
+    number: 'INV-0002',
+    status: 'PAID',
+    currency: 'USD',
+    totalMinor: 4900,
+    periodStart: iso(60 * 24 * 35),
+    periodEnd: iso(60 * 24 * 5),
+    planKey: 'growth',
+    description: 'Growth subscription',
+    issuedAt: iso(60 * 24 * 35),
+    hostedUrl: null,
+    canRetry: false,
+  },
+];
+
+const url2 = (u: string) => new URL(u);
+const ADM = (n: number) => `ad0ad0ad-ad0a-4d0a-8d0a-0000000000${String(n).padStart(2, '0')}`;
+export const adminState = {
+  signedIn: false,
+  logins: [] as unknown[],
+  posts: [] as { path: string; body: Record<string, unknown> }[],
+  patches: [] as { path: string; body: Record<string, unknown> }[],
+  customers: [] as {
+    id: string;
+    name: string;
+    email: string;
+    createdAt: string;
+    status: 'ACTIVE' | 'DISABLED';
+    workspaceCount: number;
+    planKey: string;
+    planName: string;
+    subscriptionStatus: string;
+    suspendedReason?: string;
+  }[],
+  plans: [] as Record<string, unknown>[],
+};
+export const resetAdmin = () => {
+  adminState.signedIn = false;
+  adminState.logins = [];
+  adminState.posts = [];
+  adminState.patches = [];
+  adminState.customers = [
+    {
+      id: ADM(1),
+      name: 'Nadia Rahman',
+      email: 'nadia@acme.test',
+      createdAt: iso(60 * 24 * 40),
+      status: 'ACTIVE',
+      workspaceCount: 2,
+      planKey: 'growth',
+      planName: 'Growth',
+      subscriptionStatus: 'ACTIVE',
+    },
+    {
+      id: ADM(2),
+      name: 'Karim Hossain',
+      email: 'karim@beta.test',
+      createdAt: iso(60 * 24 * 3),
+      status: 'ACTIVE',
+      workspaceCount: 1,
+      planKey: 'free',
+      planName: 'Free',
+      subscriptionStatus: 'NONE',
+    },
+  ];
+  const lim = (m: number) => ({
+    members: m,
+    channels: 2,
+    contacts: 1000,
+    messages: 5000,
+    whatsapp: 500,
+    instagram: 500,
+    messenger: 500,
+  });
+  adminState.plans = [
+    {
+      key: 'free',
+      name: 'Free',
+      description: '',
+      rank: 0,
+      recommended: false,
+      currency: 'USD',
+      monthlyMinor: 0,
+      yearlyMinor: 0,
+      placeholderPricing: false,
+      limits: lim(2),
+      aiCredits: -1,
+      features: [],
+      priceIdMonth: null,
+      priceIdYear: null,
+      status: 'ACTIVE',
+      subscribers: 0,
+    },
+    {
+      key: 'growth',
+      name: 'Growth',
+      description: '',
+      rank: 2,
+      recommended: true,
+      currency: 'USD',
+      monthlyMinor: 4900,
+      yearlyMinor: 49000,
+      placeholderPricing: true,
+      limits: lim(15),
+      aiCredits: 1000,
+      features: ['Priority support'],
+      priceIdMonth: 'price_g',
+      priceIdYear: null,
+      status: 'ACTIVE',
+      subscribers: 3,
+    },
+    {
+      key: 'legacy',
+      name: 'Legacy',
+      description: '',
+      rank: 1,
+      recommended: false,
+      currency: 'USD',
+      monthlyMinor: 900,
+      yearlyMinor: 9000,
+      placeholderPricing: false,
+      limits: lim(3),
+      aiCredits: -1,
+      features: [],
+      priceIdMonth: null,
+      priceIdYear: null,
+      status: 'DISABLED',
+      subscribers: 0,
+    },
+  ];
+};
+resetAdmin();
+const ADMIN_USER = {
+  id: ADM(90),
+  email: 'root@torio.test',
+  name: 'Platform Owner',
+  role: 'SUPER_ADMIN',
+};
+const adminSubs = [
+  {
+    id: ADM(20),
+    providerSubscriptionId: 'sub_1NabcDEFghiJKL',
+    source: 'PROVIDER',
+    customer: { name: 'Nadia Rahman', email: 'nadia@acme.test' },
+    workspace: { id: ADM(30), name: 'Acme Store' },
+    planKey: 'growth',
+    planName: 'Growth',
+    interval: 'MONTH',
+    amountMinor: 4900,
+    currency: 'USD',
+    status: 'ACTIVE',
+    cancelAtPeriodEnd: false,
+    startedAt: iso(60 * 24 * 30),
+    renewsAt: iso(-60 * 24 * 5),
+    grantReason: null,
+  },
+  {
+    id: ADM(21),
+    providerSubscriptionId: 'manual_x',
+    source: 'MANUAL',
+    customer: { name: 'Karim Hossain', email: 'karim@beta.test' },
+    workspace: { id: ADM(31), name: 'Beta Shop' },
+    planKey: 'growth',
+    planName: 'Growth',
+    interval: 'YEAR',
+    amountMinor: -1,
+    currency: null,
+    status: 'ACTIVE',
+    cancelAtPeriodEnd: false,
+    startedAt: iso(60 * 24 * 2),
+    renewsAt: null,
+    grantReason: 'Partner',
+  },
+];
+
+export const dashboardState = {
+  requests: [] as {
+    from: string;
+    to: string;
+    compare: string;
+    channel?: string;
+    granularity?: string;
+  }[],
+  /** When true, nothing needs attention (empty state). */
+  calm: false,
+  /** Responses for this `from` are delayed (ms) to exercise out-of-order responses. */
+  delayFrom: '' as string,
+  delayMs: 0,
+  fail: false,
+};
+export const resetDashboard = () => {
+  dashboardState.requests = [];
+  dashboardState.delayFrom = '';
+  dashboardState.delayMs = 0;
+  dashboardState.fail = false;
+  dashboardState.calm = false;
+};
+function analyticsFor(from: string, to: string, compare: string) {
+  const f = Date.parse(`${from}T00:00:00Z`);
+  const t = Date.parse(`${to}T00:00:00Z`);
+  const days = Math.round((t - f) / 86_400_000) + 1;
+  const buckets = Array.from({ length: Math.min(days, 31) }, (_, i) =>
+    new Date(f + i * 86_400_000).toISOString().slice(0, 10),
+  );
+  return {
+    range: { from, to },
+    timeZone: 'Asia/Dhaka',
+    granularity: 'day',
+    revenue: {
+      byCurrency: [
+        { currency: 'USD', amountMinor: days * 10_000 },
+        { currency: 'EUR', amountMinor: 500 },
+      ],
+      primaryCurrency: 'USD',
+    },
+    orders: { total: days * 2, cancelled: 1 },
+    customers: { total: 100 + days, new: days },
+    subscription: {
+      onFreePlan: false,
+      planKey: 'growth',
+      planName: 'Growth',
+      status: 'ACTIVE',
+      cancelAtPeriodEnd: false,
+    },
+    messaging: { total: days * 3, new: days, resolved: days * 2, waiting: 4, unread: 6 },
+    leads: { total: days + 5 },
+    byChannel: {
+      revenue: { WHATSAPP: days * 6_000, INSTAGRAM: days * 3_000, unattributed: days * 1_000 },
+      orders: { WHATSAPP: days, INSTAGRAM: days },
+      conversations: {
+        WHATSAPP: days * 2,
+        INSTAGRAM: Math.ceil(days / 2),
+        MESSENGER: Math.floor(days / 2),
+      },
+      leads: { WHATSAPP: days, INSTAGRAM: 3, MESSENGER: 2 },
+      newCustomers: { WHATSAPP: days },
+    },
+    attention: dashboardState.calm
+      ? {
+          waitingLong: { count: 0, thresholdMinutes: 120, oldest: null },
+          waiting: { count: 0, averageWaitMinutes: null },
+          staleLeads: { count: 0, idleHours: 24 },
+          pendingOrders: { count: 0 },
+        }
+      : {
+          waitingLong: {
+            count: 2,
+            thresholdMinutes: 120,
+            oldest: {
+              conversationId: 'conv-oldest',
+              customerName: 'Rakib Hossain',
+              provider: 'MESSENGER',
+              waitingSince: new Date(Date.now() - 125 * 60_000).toISOString(),
+            },
+          },
+          waiting: { count: 4, averageWaitMinutes: 18 },
+          staleLeads: { count: 5, idleHours: 24 },
+          pendingOrders: { count: 3 },
+        },
+    series: {
+      buckets,
+      conversations: buckets.map((_, i) => 20 + ((i * 7) % 13)),
+      newConversations: buckets.map((_, i) => 5 + (i % 4)),
+      resolvedConversations: buckets.map((_, i) => 15 + (i % 6)),
+      leads: buckets.map((_, i) => i % 3),
+      revenue: buckets.map((_, i) => (i + 1) * 1000),
+      orders: buckets.map((_, i) => i % 4),
+      newCustomers: buckets.map(() => 1),
+      totalCustomers: buckets.map((_, i) => 100 + i),
+    },
+    comparison:
+      compare === 'none'
+        ? null
+        : {
+            mode: compare,
+            range: { from: '2025-01-01', to: '2025-01-07' },
+            coverage: 'full',
+            previous: { revenue: [], orders: 1, newCustomers: 1, customers: 90 },
+            changes: { revenue: 18.5, orders: -4.2, newCustomers: 12.3, customers: null },
+          },
+    activity: [
+      {
+        id: 'o-1',
+        type: 'order',
+        title: `Order #1001 created · $${days}.00`,
+        at: `${to}T10:00:00.000Z`,
+      },
+    ],
+    dataSince: '2024-01-01T00:00:00.000Z',
+  };
+}
 
 export const CONVS = [
   conversation('33333333-3333-4333-8333-000000000001', 'Tanvir Hasan', 'WHATSAPP', 2),
@@ -635,6 +1060,7 @@ export async function mockApi(page: Page, opts: { role?: 'OWNER' | 'ADMIN' | 'AG
       });
     const one = CONVS.find((c) => p === `/workspaces/${WS}/conversations/${c.id}`);
     if (one) return reply(one);
+    if (p.endsWith('/retry') && p.includes('/messages/')) return reply({ result: 'sent' });
     if (p.endsWith('/messages'))
       return reply({
         data: [
@@ -645,10 +1071,21 @@ export async function mockApi(page: Page, opts: { role?: 'OWNER' | 'ADMIN' | 'AG
             author: null,
             replyTo: null,
             deliveryStatus: null,
+            failureReason: null,
             createdAt: iso(10),
           },
+          {
+            id: 'eeeeeeee-eeee-4eee-8eee-000000000002',
+            kind: 'OUTBOUND',
+            body: 'Price 1,250 taka.',
+            author: { id: USER.id, name: USER.name },
+            replyTo: null,
+            deliveryStatus: 'FAILED',
+            failureReason: 'Outside the 24-hour window',
+            createdAt: iso(5),
+          },
         ],
-        meta: { page: 1, pageSize: 200, total: 1, totalPages: 1 },
+        meta: { page: 1, pageSize: 200, total: 2, totalPages: 1 },
       });
     if (p === `/workspaces/${WS}/members`)
       return reply({ data: MEMBERS, meta: { page: 1, pageSize: 100, total: 2, totalPages: 1 } });
@@ -1170,6 +1607,519 @@ export async function mockApi(page: Page, opts: { role?: 'OWNER' | 'ADMIN' | 'AG
         return reply(a);
       }
       return reply(a);
+    }
+    if (p.startsWith(`/workspaces/${WS}/billing`)) {
+      const rest = p.slice(`/workspaces/${WS}/billing`.length);
+      const sub = billingState.sub;
+      const plan = PLANS_MOCK.find((x) => x.key === (sub?.planKey ?? 'free'))!;
+      if (req.method() !== 'GET')
+        billingState.calls.push({ path: `${req.method()} ${rest}`, body: req.postDataJSON?.() });
+      if (rest === '/overview')
+        return reply({
+          providerConfigured: billingState.configured,
+          provider: billingState.configured ? 'stripe' : null,
+          onFreePlan: !sub,
+          plan,
+          subscription: sub && {
+            currentPeriodStart: iso(60 * 24 * 5),
+            currentPeriodEnd: iso(-60 * 24 * 25),
+            trialEnd: null,
+            startedAt: iso(60 * 24 * 60),
+            canceledAt: null,
+            ...sub,
+          },
+          actions: !sub
+            ? {
+                canCheckout: true,
+                canChange: false,
+                canCancel: false,
+                canResume: false,
+                canRetryPayment: false,
+                access: 'full',
+              }
+            : sub.status === 'PAST_DUE'
+              ? {
+                  canCheckout: false,
+                  canChange: false,
+                  canCancel: true,
+                  canResume: false,
+                  canRetryPayment: true,
+                  access: 'limited',
+                }
+              : sub.cancelAtPeriodEnd
+                ? {
+                    canCheckout: false,
+                    canChange: false,
+                    canCancel: false,
+                    canResume: true,
+                    access: 'full_until_period_end',
+                  }
+                : {
+                    canCheckout: false,
+                    canChange: true,
+                    canCancel: true,
+                    canResume: false,
+                    canRetryPayment: false,
+                    access: 'full',
+                  },
+          nextPayment:
+            sub && !sub.cancelAtPeriodEnd
+              ? {
+                  date: iso(-60 * 24 * 25),
+                  amountMinor: plan.monthlyMinor,
+                  currency: 'USD',
+                  placeholderPricing: true,
+                }
+              : null,
+          hasFailedPayment: billingState.failed || sub?.status === 'PAST_DUE',
+          usage: {
+            metric: 'members',
+            used: 3,
+            limit: plan.limits.members as number,
+            percent: Math.min(
+              100,
+              Math.round((3 / Math.max(1, plan.limits.members as number)) * 100),
+            ),
+          },
+          aiCredits: { metered: false },
+        });
+      if (rest === '/plans') return reply({ data: PLANS_MOCK });
+      if (rest === '/usage')
+        return reply({
+          planKey: plan.key,
+          periodStart: iso(60 * 24 * 10),
+          periodEnd: iso(-60 * 24 * 20),
+          data: [
+            ['members', 'Team members', 3, 2],
+            ['channels', 'Connected channels', 1, 5],
+            ['contacts', 'Contacts', 80, 100],
+            ['messages', 'Messages sent (this month)', 10, -1],
+          ].map(([metric, label, used, limit]) => {
+            const l = limit as number;
+            const u = used as number;
+            const pct = l < 0 ? 0 : Math.min(100, Math.round((u / l) * 100));
+            return {
+              metric,
+              label,
+              used: u,
+              limit: l,
+              remaining: l < 0 ? -1 : Math.max(0, l - u),
+              percent: pct,
+              level:
+                l < 0
+                  ? 'unlimited'
+                  : u >= l
+                    ? 'reached'
+                    : pct >= 90
+                      ? 'near'
+                      : pct >= 70
+                        ? 'approaching'
+                        : 'ok',
+            };
+          }),
+          notTracked: ['AI conversations', 'AI credits consumed', 'Storage'],
+        });
+      if (rest === '/profile') {
+        if (req.method() === 'PUT') {
+          const b = req.postDataJSON() as Record<string, string>;
+          billingState.profilePuts.push(b);
+          for (const [k, v] of Object.entries(b))
+            billingState.profile[k] = v === '' ? null : k === 'country' ? v.toUpperCase() : v;
+        }
+        return reply(billingState.profile);
+      }
+      if (rest === '/payment-methods') return reply({ data: billingState.cards });
+      if (rest === '/payment-methods/session')
+        return reply({ url: 'http://localhost:3100/billing?result=success&pm=1' });
+      if (rest.startsWith('/payment-methods/')) {
+        const id = rest.split('/')[2]!;
+        if (req.method() === 'DELETE')
+          billingState.cards = billingState.cards.filter((c) => c.id !== id);
+        else billingState.cards = billingState.cards.map((c) => ({ ...c, isDefault: c.id === id }));
+        return reply({ data: billingState.cards });
+      }
+      if (rest === '/invoices') {
+        const st = url2(req.url()).searchParams.get('status');
+        const rows = INVOICES.filter((i) => !st || i.status === st);
+        return reply({
+          data: rows,
+          meta: { page: 1, pageSize: 10, total: rows.length, totalPages: 1 },
+        });
+      }
+      if (rest.endsWith('/retry'))
+        return reply({ accepted: true, message: 'Payment retry submitted.' });
+      if (rest.startsWith('/invoices/')) {
+        const i = INVOICES.find((x) => rest.includes(x.id))!;
+        return reply({
+          ...i,
+          subtotalMinor: 4900,
+          taxMinor: 0,
+          amountPaidMinor: i.status === 'PAID' ? 4900 : 0,
+          paymentSummary: i.status === 'PAID' ? 'Card ending 4242' : null,
+          lines: [{ description: 'Growth plan', quantity: 1, amountMinor: 4900 }],
+          customer: { ...billingState.profile },
+          seller: { name: 'Torio', note: 'Legal entity details are not configured yet.' },
+        });
+      }
+      if (rest === '/subscription/preview') {
+        const b = req.postDataJSON() as { planKey: string; interval: 'MONTH' | 'YEAR' };
+        const t = PLANS_MOCK.find((x) => x.key === b.planKey)!;
+        const kind = !sub
+          ? 'upgrade'
+          : t.key === plan.key
+            ? b.interval === sub.interval
+              ? 'same'
+              : 'interval'
+            : t.rank > plan.rank
+              ? 'upgrade'
+              : 'downgrade';
+        return reply({
+          kind,
+          planKey: t.key,
+          interval: b.interval,
+          priceMinor: b.interval === 'YEAR' ? t.yearlyMinor : t.monthlyMinor,
+          currency: 'USD',
+          placeholderPricing: t.rank > 0,
+          effective:
+            kind === 'upgrade'
+              ? 'Takes effect immediately. The provider calculates any prorated charge.'
+              : 'The provider applies the change immediately.',
+          gained: kind === 'upgrade' ? [`${t.name} feature`] : [],
+          lost: kind === 'downgrade' ? [`${plan.name} feature`] : [],
+          overages:
+            kind === 'downgrade' && billingState.overMembers
+              ? [{ metric: 'members', label: 'Team members', used: 8, limit: 5 }]
+              : [],
+          blockedReason: kind === 'same' ? 'This is already your plan.' : null,
+        });
+      }
+      if (rest === '/subscription/checkout')
+        return reply({ url: 'http://localhost:3100/billing?result=success' });
+      if (rest === '/subscription/change') {
+        const b = req.postDataJSON() as { acknowledgeOverage?: boolean };
+        if (billingState.overMembers && !b.acknowledgeOverage)
+          return reply(
+            {
+              error: {
+                code: 'CONFLICT',
+                message: 'Your current usage exceeds this plan’s limits.',
+                statusCode: 409,
+              },
+            },
+            409,
+          );
+        return reply({
+          accepted: true,
+          message: 'Plan change submitted. It shows here once the provider confirms it.',
+        });
+      }
+      if (rest === '/subscription/cancel')
+        return reply({
+          accepted: true,
+          message:
+            'Cancellation scheduled for the end of the billing period. It shows here once the provider confirms it.',
+        });
+      if (rest === '/subscription/resume')
+        return reply({ accepted: true, message: 'Reactivation submitted.' });
+    }
+    if (p.startsWith('/admin/')) {
+      const rest = p.slice('/admin'.length);
+      const method = req.method();
+      if (rest === '/auth/login') {
+        const b = req.postDataJSON() as { password: string };
+        adminState.logins.push(b);
+        if (b.password !== 'correct-horse-battery')
+          return reply(
+            {
+              error: {
+                code: 'UNAUTHORIZED',
+                message: 'Invalid email or password',
+                statusCode: 401,
+              },
+            },
+            401,
+          );
+        adminState.signedIn = true;
+        return reply(ADMIN_USER);
+      }
+      if (rest === '/auth/logout') {
+        adminState.signedIn = false;
+        return reply({ ok: true });
+      }
+      if (!adminState.signedIn)
+        return reply(
+          { error: { code: 'UNAUTHORIZED', message: 'Admin sign-in required', statusCode: 401 } },
+          401,
+        );
+      if (rest === '/auth/me') return reply(ADMIN_USER);
+      if (method !== 'GET')
+        adminState.posts.push({
+          path: `${method} ${rest}`,
+          body: (req.postDataJSON() ?? {}) as Record<string, unknown>,
+        });
+      const url = new URL(req.url());
+      const qp = (k: string) => url.searchParams.get(k);
+      const pg = (rows: unknown[]) => ({
+        data: rows,
+        meta: { page: 1, pageSize: 20, total: rows.length, totalPages: 1 },
+      });
+      if (rest === '/dashboard')
+        return reply({
+          customers: { total: 2, newLast30Days: 1, suspended: 0 },
+          workspaces: { active: 3, suspended: 0 },
+          subscriptions: { active: 1, trialing: 0, pastDue: 1 },
+          mrr: { byCurrency: [{ currency: 'USD', amountMinor: 4900 }], unpricedSubscriptions: 0 },
+          revenue: [
+            {
+              currency: 'USD',
+              months: ['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10'].map(
+                (month, i) => ({ month, amountMinor: i * 4900 }),
+              ),
+            },
+          ],
+          recentCustomers: adminState.customers.map((c) => ({
+            id: c.id,
+            name: c.name,
+            email: c.email,
+            createdAt: c.createdAt,
+          })),
+          recentSubscriptions: [
+            {
+              id: ADM(20),
+              workspace: 'Acme Store',
+              planKey: 'growth',
+              status: 'ACTIVE',
+              createdAt: iso(100),
+            },
+          ],
+          failedPayments: [
+            {
+              id: ADM(40),
+              workspace: 'Gamma Ltd',
+              number: 'INV-0009',
+              totalMinor: 4900,
+              currency: 'USD',
+              issuedAt: iso(300),
+            },
+          ],
+        });
+      if (rest === '/customers') {
+        const q = (qp('q') ?? '').toLowerCase();
+        const rows = adminState.customers.filter(
+          (c) =>
+            (!q || `${c.name} ${c.email}`.toLowerCase().includes(q)) &&
+            (!qp('status') || c.status === qp('status')) &&
+            (!qp('subscription') || c.subscriptionStatus === qp('subscription')),
+        );
+        return reply(pg(rows));
+      }
+      if (rest.startsWith('/customers/')) {
+        const [, , id, action] = rest.split('/');
+        const c = adminState.customers.find((x) => x.id === id)!;
+        if (action === 'suspend') {
+          c.status = 'DISABLED';
+          c.suspendedReason = (req.postDataJSON() as { reason: string }).reason;
+        }
+        if (action === 'reactivate') c.status = 'ACTIVE';
+        return reply({
+          ...c,
+          emailVerified: true,
+          suspendedAt: c.status === 'DISABLED' ? iso(0) : null,
+          suspendedReason: c.status === 'DISABLED' ? (c.suspendedReason ?? null) : null,
+          workspaces: [
+            {
+              id: ADM(30),
+              name: 'Acme Store',
+              role: 'OWNER',
+              status: 'ACTIVE',
+              planKey: c.planKey,
+              subscriptionStatus: c.subscriptionStatus,
+            },
+          ],
+          invoices: [
+            {
+              id: ADM(41),
+              number: 'INV-0004',
+              status: 'PAID',
+              totalMinor: 4900,
+              currency: 'USD',
+              issuedAt: iso(60 * 24 * 3),
+              workspace: 'Acme Store',
+            },
+          ],
+          activity: [{ action: 'auth.login', at: iso(60) }],
+        });
+      }
+      if (rest === '/workspaces')
+        return reply(
+          pg(
+            [
+              {
+                id: ADM(30),
+                name: 'Acme Store',
+                slug: 'acme',
+                owner: { id: ADM(1), name: 'Nadia Rahman', email: 'nadia@acme.test' },
+                members: 4,
+                channels: 2,
+                planKey: 'growth',
+                planName: 'Growth',
+                subscriptionStatus: 'ACTIVE',
+                createdAt: iso(60 * 24 * 40),
+                status: 'ACTIVE',
+              },
+            ].filter((w) => !qp('status') || w.status === qp('status')),
+          ),
+        );
+      if (rest.startsWith('/workspaces/'))
+        return reply({
+          id: ADM(30),
+          name: 'Acme Store',
+          slug: 'acme',
+          owner: { id: ADM(1), name: 'Nadia Rahman', email: 'nadia@acme.test' },
+          members: 4,
+          channels: 2,
+          planKey: 'growth',
+          planName: 'Growth',
+          subscriptionStatus: 'ACTIVE',
+          createdAt: iso(60 * 24 * 40),
+          status: 'ACTIVE',
+          suspendedAt: null,
+          suspendedReason: null,
+          subscription: {
+            id: ADM(20),
+            interval: 'MONTH',
+            source: 'PROVIDER',
+            renewsAt: iso(-60 * 24 * 5),
+            cancelAtPeriodEnd: false,
+          },
+        });
+      if (rest === '/subscriptions')
+        return reply(pg(adminSubs.filter((s) => !qp('status') || s.status === qp('status'))));
+      if (rest.startsWith('/subscriptions/')) {
+        const sub = adminSubs.find((x) => rest.includes(x.id))!;
+        if (rest.endsWith('/cancel'))
+          return reply({
+            accepted: true,
+            pending: sub.source === 'PROVIDER',
+            message:
+              sub.source === 'PROVIDER'
+                ? 'Cancellation requested from the payment provider. It shows here once the provider confirms it.'
+                : 'The manually assigned plan was ended.',
+          });
+        return reply({
+          ...sub,
+          invoices: [
+            {
+              id: ADM(41),
+              number: 'INV-0004',
+              status: 'PAID',
+              totalMinor: 4900,
+              currency: 'USD',
+              issuedAt: iso(60 * 24 * 3),
+            },
+          ],
+          payments: [{ type: 'invoice.paid', outcome: 'processed', at: iso(60 * 24 * 3) }],
+        });
+      }
+      if (rest === '/plans' && method === 'GET') return reply({ data: adminState.plans });
+      if (rest === '/plans' && method === 'POST') {
+        const b = req.postDataJSON() as Record<string, unknown>;
+        const created = {
+          ...b,
+          aiCredits: (b.aiCredits as number | null) ?? -1,
+          limits: Object.fromEntries(
+            Object.entries(b.limits as object).map(([k, v]) => [k, v ?? -1]),
+          ),
+          status: 'DISABLED',
+          subscribers: 0,
+          placeholderPricing: b.placeholderPricing ?? false,
+        };
+        adminState.plans.push(created);
+        return reply(created);
+      }
+      if (rest.startsWith('/plans/') && rest.endsWith('/status')) {
+        const key = rest.split('/')[2]!;
+        const plan = adminState.plans.find((x) => x.key === key)!;
+        plan.status = (req.postDataJSON() as { status: string }).status;
+        return reply(plan);
+      }
+      if (rest.startsWith('/plans/') && method === 'PATCH') {
+        adminState.patches.push({
+          path: rest,
+          body: req.postDataJSON() as Record<string, unknown>,
+        });
+        return reply(adminState.plans.find((x) => x.key === rest.split('/')[2]));
+      }
+      if (rest === '/activity') {
+        const rows =
+          qp('source') === 'payments'
+            ? [
+                {
+                  id: ADM(50),
+                  at: iso(10),
+                  actor: 'Payment provider',
+                  action: 'invoice.payment_failed',
+                  target: 'Gamma Ltd',
+                  reason: null,
+                  metadata: { outcome: 'processed' },
+                },
+              ]
+            : [
+                {
+                  id: ADM(51),
+                  at: iso(5),
+                  actor: 'root@torio.test',
+                  action: 'customer.suspend',
+                  target: 'karim@beta.test',
+                  reason: 'Fraud review',
+                  metadata: null,
+                },
+                {
+                  id: ADM(52),
+                  at: iso(30),
+                  actor: 'root@torio.test',
+                  action: 'admin.login',
+                  target: null,
+                  reason: null,
+                  metadata: null,
+                },
+              ];
+        const q = (qp('q') ?? '').toLowerCase();
+        return reply(pg(rows.filter((r) => !q || JSON.stringify(r).toLowerCase().includes(q))));
+      }
+      if (rest === '/settings')
+        return reply({
+          branding: { productName: 'Torio', legalName: '', supportEmail: '', invoiceNote: 'n/a' },
+          registrationOpen: true,
+          paymentProvider: {
+            provider: null,
+            configured: false,
+            webhookSecretSet: false,
+            priceIdsConfigured: 0,
+            lastWebhookAt: null,
+          },
+          emailProvider: { configured: false, note: 'No email service is integrated.' },
+        });
+    }
+    if (p === `/workspaces/${WS}/dashboard/analytics`) {
+      const u = new URL(req.url());
+      const from = u.searchParams.get('from')!;
+      const to = u.searchParams.get('to')!;
+      const compare = u.searchParams.get('compare') ?? 'none';
+      const channel = u.searchParams.get('channel') ?? undefined;
+      const granularity = u.searchParams.get('granularity') ?? undefined;
+      dashboardState.requests.push({
+        from,
+        to,
+        compare,
+        ...(channel && { channel }),
+        ...(granularity && { granularity }),
+      });
+      if (dashboardState.fail)
+        return reply({ error: { code: 'INTERNAL', message: 'Boom', statusCode: 500 } }, 500);
+      if (dashboardState.delayFrom && from === dashboardState.delayFrom)
+        await new Promise((r) => setTimeout(r, dashboardState.delayMs));
+      return reply(analyticsFor(from, to, compare));
     }
     if (p.endsWith('/read')) return reply(CONVS[0]);
     return reply({ error: { code: 'NOT_FOUND', message: `unmocked ${p}`, statusCode: 404 } }, 404);

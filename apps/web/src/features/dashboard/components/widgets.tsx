@@ -1,5 +1,6 @@
 'use client';
 
+import { ChannelIcon } from '@/components/channel-icon';
 import { useState } from 'react';
 import { useShell } from '@/components/shell/shell-context';
 import { cn } from '@/lib/utils';
@@ -23,7 +24,7 @@ export function OverviewWidget({
   wide: boolean;
 }) {
   const [hover, setHover] = useState<number | null>(null);
-  const { ov, rangeDef, prevLabel } = m;
+  const { ov, rangeDef } = m;
   const n = ov.vals.length;
   const hv = hover != null && hover < n ? hover : null;
   const tipPt = hv != null ? ov.pts[hv]! : null;
@@ -35,10 +36,7 @@ export function OverviewWidget({
           {ov.summary.map((s) => (
             <div key={s.label}>
               <div className="text-xs text-faint">{s.label}</div>
-              <div
-                className="text-xl font-semibold tabular-nums tracking-[-0.015em]"
-                style={{ color: s.color }}
-              >
+              <div className="text-xl font-metric" style={{ color: s.color }}>
                 {s.value}
               </div>
             </div>
@@ -67,7 +65,7 @@ export function OverviewWidget({
                 className={cn(
                   'h-[26px] cursor-pointer whitespace-nowrap rounded-[7px] px-2.5 text-[12.5px] font-medium',
                   on
-                    ? 'bg-white text-ink shadow-[0_1px_2px_rgba(16,24,40,0.08)]'
+                    ? 'bg-white text-ink shadow-[0_1px_2px_rgba(0,55,112,0.08)]'
                     : 'bg-transparent text-muted',
                 )}
               >
@@ -106,14 +104,6 @@ export function OverviewWidget({
             >
               <path d={ov.area} fill="rgba(91,92,226,0.09)" />
               <path
-                d={ov.prevLine}
-                fill="none"
-                stroke="#B7B9C0"
-                strokeWidth="1.5"
-                strokeDasharray="4 4"
-                vectorEffect="non-scaling-stroke"
-              />
-              <path
                 d={ov.line}
                 fill="none"
                 stroke="#5B5CE2"
@@ -139,7 +129,7 @@ export function OverviewWidget({
                   style={{ left: tipPt[0] + '%', top: tipPt[1] + '%' }}
                 />
                 <div
-                  className="pointer-events-none absolute top-1 whitespace-nowrap rounded-[9px] bg-[rgba(23,24,28,0.94)] px-2.5 py-2 text-xs text-white shadow-[0_6px_16px_rgba(16,24,40,0.18)]"
+                  className="pointer-events-none absolute top-1 whitespace-nowrap rounded-[9px] bg-[rgba(13,37,61,0.94)] px-2.5 py-2 text-xs text-white shadow-[0_6px_16px_rgba(0,55,112,0.18)]"
                   style={{
                     left: tipPt[0] + '%',
                     transform:
@@ -156,10 +146,6 @@ export function OverviewWidget({
                       {Math.round(ov.vals[hv]!).toLocaleString('en-IN')}
                     </span>
                     <span className="text-[#B7B9C0]">{ov.metricLabel}</span>
-                  </div>
-                  <div className="mt-0.5 flex items-center gap-1.5 text-[#B7B9C0]">
-                    <span className="h-0 w-2 border-t-2 border-dashed border-faint" />
-                    {Math.round(ov.prevVals[hv]!).toLocaleString('en-IN')} previous period
                   </div>
                 </div>
               </>
@@ -178,10 +164,6 @@ export function OverviewWidget({
         <span className="flex items-center gap-1.5">
           <span className="h-0.5 w-3.5 rounded-[1px] bg-primary" />
           {ov.metricLabelCap} · {rangeDef.label}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3.5 border-t-2 border-dashed border-[#B7B9C0]" />
-          {prevLabel[0]!.toUpperCase() + prevLabel.slice(1)}
         </span>
       </div>
     </>
@@ -272,10 +254,7 @@ export function ChannelsWidget({ m, go, table }: Props & { table: boolean }) {
               <>
                 <div className={cn(grid, 'items-center text-[13.5px] tabular-nums')}>
                   <span className="flex min-w-0 items-center gap-2">
-                    <span
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ background: ch.color }}
-                    />
+                    <ChannelIcon channel={ch.icon} size={16} decorative />
                     <span className="truncate font-medium">{ch.name}</span>
                   </span>
                   <span className="text-right font-semibold">{ch.conv}</span>
@@ -296,7 +275,7 @@ export function ChannelsWidget({ m, go, table }: Props & { table: boolean }) {
             ) : (
               <>
                 <div className="mb-2 flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full" style={{ background: ch.color }} />
+                  <ChannelIcon channel={ch.icon} size={18} decorative />
                   <span className="flex-1 text-sm font-semibold">{ch.name}</span>
                   <span className="text-[13px] font-semibold tabular-nums">
                     {ch.conv} <span className="font-normal text-faint">conversations</span>
@@ -324,14 +303,16 @@ export function ChannelsWidget({ m, go, table }: Props & { table: boolean }) {
           ) : (
             <div className="flex flex-wrap items-center gap-2.5 opacity-100">
               <span className="flex items-center gap-2">
-                <span
-                  className="h-2 w-2 rounded-full border-[1.5px]"
-                  style={{ borderColor: ch.color }}
+                <ChannelIcon
+                  channel={ch.icon}
+                  size={16}
+                  decorative
+                  className="opacity-50 grayscale"
                 />
                 <span className="text-[13.5px] font-medium">{ch.name}</span>
               </span>
               <span className="rounded-md bg-[#F3F4F6] px-[7px] py-px text-xs text-faint">
-                Not connected (demo)
+                Not connected
               </span>
               <span className="min-w-40 flex-1 text-[12.5px] text-muted">
                 Connect to receive and track messages here.
@@ -347,9 +328,6 @@ export function ChannelsWidget({ m, go, table }: Props & { table: boolean }) {
           )}
         </div>
       ))}
-      <div className="mt-2.5 text-[11.5px] text-faint">
-        Leads and orders count only where attribution is tracked. Connection status is demo data.
-      </div>
     </div>
   );
 }
@@ -362,10 +340,7 @@ export function AiWidget({ m }: Props) {
           <div key={ab.label} className="min-w-0 bg-white px-3.5 py-3">
             <div className="text-xs text-muted">{ab.label}</div>
             <div className="mt-0.5 flex items-baseline gap-1.5">
-              <span
-                className="text-xl font-semibold tabular-nums tracking-[-0.015em]"
-                style={{ color: ab.color }}
-              >
+              <span className="text-xl font-metric" style={{ color: ab.color }}>
                 {ab.value}
               </span>
               <span className="text-[11.5px] text-faint">{ab.note}</span>
@@ -381,10 +356,6 @@ export function AiWidget({ m }: Props) {
           Your AI-assisted replies are using the knowledge and rules configured in Brain.{' '}
           <b>Auto-send is off</b> — every AI reply is a suggestion an agent reviews before sending.
         </div>
-      </div>
-      <div className="text-[11.5px] text-faint">
-        Demo metrics. Acceptance shows how often agents used a suggestion, not whether it was
-        factually correct.
       </div>
     </>
   );
@@ -408,11 +379,14 @@ export function ConversationsWidget({ m, go }: Props) {
             <span className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-line-subtle text-[11.5px] font-semibold text-muted">
               {cv.initials}
             </span>
-            <span
-              title={cv.channel}
-              className="absolute -bottom-px -right-px h-[11px] w-[11px] rounded-full border-2 border-white"
-              style={{ background: cv.color }}
-            />
+            <span className="absolute -bottom-0.5 -right-0.5">
+              <ChannelIcon
+                channel={cv.icon}
+                size={15}
+                variant="tile"
+                className="ring-2 ring-white"
+              />
+            </span>
           </span>
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-2">
@@ -486,9 +460,6 @@ export function OrdersWidget({ m }: Props) {
           </button>
         ))}
       </div>
-      <div className="text-[11.5px] text-faint">
-        Orders created in Torio (demo). No external store is connected.
-      </div>
     </>
   );
 }
@@ -513,7 +484,6 @@ export function FunnelWidget({ m }: Props) {
             </span>
             <span className="text-right text-xs text-muted">
               <span className="block font-medium text-ink">{f.pct}</span>
-              <span style={{ color: f.deltaColor }}>{f.delta}</span>
             </span>
           </div>
         ))}
@@ -522,7 +492,6 @@ export function FunnelWidget({ m }: Props) {
         <span>
           Overall conversion <b className="text-ink">{m.funnelRate}</b> of new leads
         </span>
-        <span className="text-faint">Percentages are stage-to-stage · illustrative data</span>
       </div>
     </>
   );

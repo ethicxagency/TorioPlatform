@@ -17,6 +17,7 @@ interface Props {
   onRetry: () => void;
   onReply: (m: Message) => void;
   onCopy: (m: Message) => void;
+  onRetrySend?: (m: Message) => void;
 }
 
 const NEAR_BOTTOM = 80;
@@ -30,6 +31,7 @@ export function MessageTimeline({
   onRetry,
   onReply,
   onCopy,
+  onRetrySend,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
@@ -127,6 +129,7 @@ export function MessageTimeline({
                 customerName={customerName}
                 onReply={onReply}
                 onCopy={onCopy}
+                onRetry={onRetrySend}
               />
             </div>
           );

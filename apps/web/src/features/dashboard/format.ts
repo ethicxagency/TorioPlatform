@@ -1,3 +1,4 @@
+import { formatCurrencyMajor } from '@torio/contracts';
 export const MON = [
   'Jan',
   'Feb',
@@ -19,7 +20,8 @@ export const rnd = (i: number, s: number) => {
   return x - Math.floor(x);
 };
 
-export const bdt = (n: number) => '৳' + Math.round(n).toLocaleString('en-IN');
+/** Sample figures are whole taka. */
+export const bdt = (n: number) => formatCurrencyMajor(Math.round(n), 'BDT');
 export const num = (n: number) => Math.round(n).toLocaleString('en-IN');
 export const ini = (n: string | null | undefined) =>
   (n || '?')
@@ -83,4 +85,48 @@ export function labelsFor(r: { k: string; n: number }): string[] {
     d.setDate(end.getDate() - (r.n - 1 - i));
     return d.getDate() + ' ' + MON[d.getMonth()];
   });
+}
+
+/**
+ * Monotone cubic path (Fritsch–Carlson): smooth like `smooth`, but never overshoots between points, so a curve never
+ * dips below zero or above a peak that isn't in the data.
+ */
+export function monotone(pts: [number, number][]): string {
+  const n = pts.length;
+  if (n === 0) return '';
+  if (n < 3) return pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x},${y}`).join('');
+  const dx = pts.slice(1).map((p, i) => p[0] - pts[i]![0]);
+  const s = pts.slice(1).map((p, i) => (p[1] - pts[i]![1]) / (dx[i] || 1));
+  const m = pts.map((_, i) =>
+    i === 0
+      ? s[0]!
+      : i === n - 1
+        ? s[n - 2]!
+        : s[i - 1]! * s[i]! <= 0
+          ? 0
+          : (s[i - 1]! + s[i]!) / 2,
+  );
+  for (let i = 0; i < n - 1; i++) {
+    if (s[i] === 0) {
+      m[i] = 0;
+      m[i + 1] = 0;
+      continue;
+    }
+    const a = m[i]! / s[i]!;
+    const b = m[i + 1]! / s[i]!;
+    const h = a * a + b * b;
+    if (h > 9) {
+      const t = 3 / Math.sqrt(h);
+      m[i] = t * a * s[i]!;
+      m[i + 1] = t * b * s[i]!;
+    }
+  }
+  let d = `M${pts[0]![0]},${pts[0]![1]}`;
+  for (let i = 0; i < n - 1; i++) {
+    const [x0, y0] = pts[i]!;
+    const [x1, y1] = pts[i + 1]!;
+    const h = dx[i]! / 3;
+    d += `C${x0 + h},${y0 + m[i]! * h},${x1 - h},${y1 - m[i + 1]! * h},${x1},${y1}`;
+  }
+  return d;
 }

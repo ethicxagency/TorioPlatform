@@ -1,5 +1,6 @@
 'use client';
 
+import { formatMoney } from '../money';
 import { Check, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useRef, useState } from 'react';
@@ -47,7 +48,12 @@ export function CreateOrderDialog({ customer: initial, onClose, onCreate }: Prop
     pageSize: 8,
   });
   const convs = useCustomerConversations(ws, customer?.id ?? null);
-  const [currency, setCurrency] = useState<string>(workspace?.defaultCurrency ?? DEFAULT_CURRENCY);
+  const [currency, setCurrency] = useState<string>(
+    // Only enabled currencies can start a new order; an older default outside that list falls back to BDT.
+    (CURRENCIES as readonly string[]).includes(workspace?.defaultCurrency ?? '')
+      ? workspace!.defaultCurrency!
+      : DEFAULT_CURRENCY,
+  );
   const [lines, setLines] = useState<Line[]>(() => [newLine()]);
   const [pricing, setPricing] = useState<Pricing>({ discount: '', shipping: '', tax: '' });
   const [address, setAddress] = useState('');
@@ -324,9 +330,7 @@ export function CreateOrderDialog({ customer: initial, onClose, onCreate }: Prop
                     {i.quantity} × {i.name}
                   </span>
                   <span className="tabular-nums text-muted">
-                    {new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(
-                      (i.quantity * i.unitPriceMinor) / 100,
-                    )}
+                    {formatMoney(i.quantity * i.unitPriceMinor, currency)}
                   </span>
                 </li>
               ))}

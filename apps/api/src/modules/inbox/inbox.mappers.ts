@@ -55,6 +55,7 @@ export function toMessageDto(m: MessageRow) {
     author: m.author,
     replyTo: m.replyTo,
     deliveryStatus: m.deliveryStatus,
+    failureReason: m.errorMessage,
     createdAt: m.createdAt.toISOString(),
   };
 }

@@ -43,9 +43,8 @@ function Row({ c, active, checked, selectionMode, now, onOpen, onToggle }: Props
       }}
       data-conversation-id={c.id}
       className={cn(
-        'group flex min-h-[76px] cursor-pointer gap-3 border-b border-line-subtle border-l-[3px] py-3 pl-[11px] pr-3.5 transition-colors',
-        checked ? 'bg-primary-soft' : active ? 'bg-[#F1F1FF]' : 'hover:bg-[#F7F7F9]',
-        active ? 'border-l-primary' : 'border-l-transparent',
+        'group flex min-h-[76px] cursor-pointer gap-3 border-b border-line-subtle py-3 pl-3.5 pr-3.5 transition-colors duration-150 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
+        checked || active ? 'bg-primary-soft' : 'hover:bg-wash',
       )}
     >
       <div className="relative h-10 w-10 shrink-0">
@@ -98,8 +97,8 @@ function Row({ c, active, checked, selectionMode, now, onOpen, onToggle }: Props
           )}
           <span
             className={cn(
-              'min-w-0 flex-1 truncate text-sm',
-              unread ? 'font-semibold' : 'font-medium',
+              'min-w-0 flex-1 truncate text-sm font-semibold',
+              active ? 'text-primary-hover' : unread ? 'text-ink' : 'text-ink-secondary',
             )}
           >
             {c.customer.name}

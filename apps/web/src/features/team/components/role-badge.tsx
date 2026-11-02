@@ -4,7 +4,7 @@ import { ROLE_INFO, type Role } from '../types';
 const STYLE: Record<Role, string> = {
   OWNER: 'bg-[#F0F0FF] text-[#4F50D1]',
   ADMIN: 'bg-[#EFF6FF] text-[#2563EB]',
-  AGENT: 'bg-[#EEF0F2] text-[#62656D]',
+  AGENT: 'bg-[#EDF1F5] text-[#5A6A82]',
 };
 
 export function RoleBadge({ role, className }: { role: Role; className?: string }) {

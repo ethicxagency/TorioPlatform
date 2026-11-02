@@ -1,6 +1,6 @@
 'use client';
 
-import { Paperclip, Send, Smile, Sparkles, StickyNote, X, Zap } from 'lucide-react';
+import { Send, Smile, Sparkles, StickyNote, X, Zap } from 'lucide-react';
 import { forwardRef, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { MAX_MESSAGE_LENGTH } from '@torio/contracts';
@@ -222,7 +222,7 @@ export const MessageComposer = forwardRef<HTMLTextAreaElement, Props>(
 
         <div
           className={cn(
-            'rounded-2xl border shadow-[0_1px_2px_rgba(16,24,40,0.04)] backdrop-blur-[12px]',
+            'rounded-2xl border shadow-[0_1px_2px_rgba(0,55,112,0.04)] backdrop-blur-[12px]',
             isNote
               ? 'border-[#F5D9A0] bg-[#FFFBEB]'
               : 'border-[rgba(229,231,235,0.95)] bg-white/95',
@@ -242,7 +242,7 @@ export const MessageComposer = forwardRef<HTMLTextAreaElement, Props>(
                 className={cn(
                   'h-[26px] cursor-pointer rounded-md px-2.5 text-xs font-medium',
                   !isNote
-                    ? 'bg-white text-ink shadow-[0_1px_2px_rgba(16,24,40,0.08)]'
+                    ? 'bg-white text-ink shadow-[0_1px_2px_rgba(0,55,112,0.08)]'
                     : 'text-muted',
                 )}
               >
@@ -256,7 +256,7 @@ export const MessageComposer = forwardRef<HTMLTextAreaElement, Props>(
                 className={cn(
                   'flex h-[26px] cursor-pointer items-center gap-1 rounded-md px-2.5 text-xs font-medium',
                   isNote
-                    ? 'bg-white text-warning shadow-[0_1px_2px_rgba(16,24,40,0.08)]'
+                    ? 'bg-white text-warning shadow-[0_1px_2px_rgba(0,55,112,0.08)]'
                     : 'text-muted',
                 )}
               >
@@ -288,15 +288,6 @@ export const MessageComposer = forwardRef<HTMLTextAreaElement, Props>(
             className="block max-h-40 w-full resize-none border-none bg-transparent px-3.5 py-2 text-sm leading-[1.5] text-ink"
           />
           <div className="flex items-center gap-0.5 px-2 pb-2">
-            <button
-              type="button"
-              disabled
-              title="Attachments aren't available yet"
-              aria-label="Attach file (not available yet)"
-              className={iconBtn}
-            >
-              <Paperclip size={16} />
-            </button>
             <button
               type="button"
               aria-label="Insert emoji"

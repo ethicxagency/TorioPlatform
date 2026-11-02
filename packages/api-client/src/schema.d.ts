@@ -388,6 +388,150 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/channels/whatsapp/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["WhatsAppController_connect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/channels/{channelId}/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["WhatsAppController_health"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/messages/{messageId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["WhatsAppController_retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ChannelsController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/channels/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ChannelsController_summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/channels/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ChannelsController_providers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/channels/{channelId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ChannelsController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["ChannelsController_update"];
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/channels/{channelId}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ChannelsController_activity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/channels/{channelId}/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ChannelsController_disconnect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/leads": {
         parameters: {
             query?: never;
@@ -884,102 +1028,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/workspaces/{workspaceId}/channels": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["ChannelsController_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/workspaces/{workspaceId}/channels/summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["ChannelsController_summary"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/workspaces/{workspaceId}/channels/providers": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["ChannelsController_providers"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/workspaces/{workspaceId}/channels/{channelId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["ChannelsController_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch: operations["ChannelsController_update"];
-        trace?: never;
-    };
-    "/api/v1/workspaces/{workspaceId}/channels/{channelId}/activity": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["ChannelsController_activity"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/workspaces/{workspaceId}/channels/{channelId}/disconnect": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["ChannelsController_disconnect"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/workspaces/{workspaceId}/orders": {
         parameters: {
             query?: never;
@@ -1316,6 +1364,678 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/billing/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["BillingController_overview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/billing/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["BillingController_plans"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/billing/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["BillingController_usage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/billing/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["BillingController_profile"];
+        put: operations["BillingController_updateProfile"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/billing/payment-methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["BillingController_paymentMethods"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/billing/payment-methods/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["BillingController_paymentMethodSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/billing/payment-methods/{id}/default": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["BillingController_makeDefault"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/billing/payment-methods/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["BillingController_removePaymentMethod"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/billing/invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["BillingController_invoices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/billing/invoices/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["BillingController_invoice"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/billing/invoices/{id}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["BillingController_pdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/billing/invoices/{id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["BillingController_retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/billing/subscription/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["BillingController_preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/billing/subscription/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["BillingController_checkout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/billing/subscription/change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["BillingController_change"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/billing/subscription/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["BillingController_cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/billing/subscription/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["BillingController_resume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminController_login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminController_logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminController_me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/auth/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["AdminController_profile"];
+        trace?: never;
+    };
+    "/api/v1/admin/auth/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminController_password"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminController_dashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminController_customers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/customers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminController_customer"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/customers/{id}/suspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminController_suspendCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/customers/{id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminController_reactivateCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/workspaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminController_workspaces"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/workspaces/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminController_workspace"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/workspaces/{id}/suspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminController_suspendWorkspace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/workspaces/{id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminController_reactivateWorkspace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/workspaces/{id}/assign-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminController_assignPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminController_subscriptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/subscriptions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminController_subscription"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/subscriptions/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminController_cancelSubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/subscriptions/{id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminController_resumeSubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminController_plans"];
+        put?: never;
+        post: operations["AdminController_createPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plans/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["AdminController_updatePlan"];
+        trace?: never;
+    };
+    "/api/v1/admin/plans/{key}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminController_planStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminController_activity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminController_settings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["AdminController_updateSettings"];
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/dashboard/analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["DashboardController_analytics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1459,6 +2179,9 @@ export interface components {
             name: string;
             slug: string;
             description: string | null;
+            /** @enum {string} */
+            status: "ACTIVE" | "SUSPENDED";
+            reportingTimeZone: string;
             defaultCurrency: string | null;
             contactEmail: string | null;
             /** Format: date-time */
@@ -1473,6 +2196,7 @@ export interface components {
             name?: string;
             description?: string | null;
             defaultCurrency?: ("" | ("USD" | "EUR" | "GBP" | "BDT" | "INR" | "AED")) | null;
+            reportingTimeZone?: string;
             contactEmail?: ("" | string) | null;
         };
         AuditListDto: {
@@ -1633,6 +2357,7 @@ export interface components {
                     kind: "INBOUND" | "OUTBOUND" | "NOTE" | "EVENT";
                 } | null;
                 deliveryStatus: ("PENDING" | "SENT" | "DELIVERED" | "READ" | "FAILED") | null;
+                failureReason: string | null;
                 /** Format: date-time */
                 createdAt: string;
             }[];
@@ -1672,6 +2397,7 @@ export interface components {
                 kind: "INBOUND" | "OUTBOUND" | "NOTE" | "EVENT";
             } | null;
             deliveryStatus: ("PENDING" | "SENT" | "DELIVERED" | "READ" | "FAILED") | null;
+            failureReason: string[];
             /** Format: date-time */
             createdAt: string;
         };
@@ -1705,6 +2431,123 @@ export interface components {
                 phone: string | null;
                 email: string | null;
             }[];
+        };
+        ConnectWhatsAppDto: {
+            displayName: string;
+            phoneNumberId: string;
+            accessToken: string;
+        };
+        ChannelDto: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            provider: "WHATSAPP" | "INSTAGRAM" | "MESSENGER";
+            displayName: string;
+            /** @enum {string} */
+            status: "CONNECTED" | "DISCONNECTED" | "NEEDS_ATTENTION" | "EXPIRED";
+            accountName: string | null;
+            accountMask: string | null;
+            connectedAt: string | null;
+            disconnectedAt: string | null;
+            lastHealthCheckAt: string | null;
+            lastError: string | null;
+            isSample: boolean;
+            defaultAssignee: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+            } | null;
+            defaultTeam: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+            } | null;
+            conversationCount: number;
+            openConversations: number;
+            unreadConversations: number;
+            lastConversationAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ChannelHealthDto: {
+            ok: boolean;
+            checkedAt: string;
+            qualityRating: string[];
+            displayPhoneNumber: string[];
+            error: string[];
+        };
+        ChannelListDto: {
+            data: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                provider: "WHATSAPP" | "INSTAGRAM" | "MESSENGER";
+                displayName: string;
+                /** @enum {string} */
+                status: "CONNECTED" | "DISCONNECTED" | "NEEDS_ATTENTION" | "EXPIRED";
+                accountName: string | null;
+                accountMask: string | null;
+                connectedAt: string | null;
+                disconnectedAt: string | null;
+                lastHealthCheckAt: string | null;
+                lastError: string | null;
+                isSample: boolean;
+                defaultAssignee: {
+                    /** Format: uuid */
+                    id: string;
+                    name: string;
+                } | null;
+                defaultTeam: {
+                    /** Format: uuid */
+                    id: string;
+                    name: string;
+                } | null;
+                conversationCount: number;
+                openConversations: number;
+                unreadConversations: number;
+                lastConversationAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
+        };
+        ChannelSummaryDto: {
+            total: number;
+            connected: number;
+            needsAttention: number;
+            disconnected: number;
+            sample: number;
+            conversationsLast30Days: number;
+        };
+        ProviderListDto: {
+            data: {
+                /** @enum {string} */
+                provider: "WHATSAPP" | "INSTAGRAM" | "MESSENGER";
+                label: string;
+                /** @enum {string} */
+                state: "available" | "unavailable";
+                reason: string;
+                requirements: string[];
+                connectedCount: number;
+            }[];
+        };
+        ChannelActivityDto: {
+            data: {
+                /** Format: uuid */
+                id: string;
+                description: string;
+                actor: {
+                    /** Format: uuid */
+                    id: string;
+                    name: string;
+                } | null;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
+        };
+        UpdateChannelDto: {
+            displayName?: string;
+            defaultAssigneeId?: string | null;
+            defaultTeamId?: string | null;
         };
         LeadListDto: {
             data: {
@@ -2630,111 +3473,6 @@ export interface components {
             };
             baseVersion: number;
         };
-        ChannelListDto: {
-            data: {
-                /** Format: uuid */
-                id: string;
-                /** @enum {string} */
-                provider: "WHATSAPP" | "INSTAGRAM" | "MESSENGER";
-                displayName: string;
-                /** @enum {string} */
-                status: "CONNECTED" | "DISCONNECTED" | "NEEDS_ATTENTION" | "EXPIRED";
-                accountName: string | null;
-                accountMask: string | null;
-                connectedAt: string | null;
-                disconnectedAt: string | null;
-                lastHealthCheckAt: string | null;
-                lastError: string | null;
-                isSample: boolean;
-                defaultAssignee: {
-                    /** Format: uuid */
-                    id: string;
-                    name: string;
-                } | null;
-                defaultTeam: {
-                    /** Format: uuid */
-                    id: string;
-                    name: string;
-                } | null;
-                conversationCount: number;
-                openConversations: number;
-                unreadConversations: number;
-                lastConversationAt: string | null;
-                /** Format: date-time */
-                createdAt: string;
-            }[];
-        };
-        ChannelSummaryDto: {
-            total: number;
-            connected: number;
-            needsAttention: number;
-            disconnected: number;
-            sample: number;
-            conversationsLast30Days: number;
-        };
-        ProviderListDto: {
-            data: {
-                /** @enum {string} */
-                provider: "WHATSAPP" | "INSTAGRAM" | "MESSENGER";
-                label: string;
-                /** @enum {string} */
-                state: "available" | "unavailable";
-                reason: string;
-                requirements: string[];
-                connectedCount: number;
-            }[];
-        };
-        ChannelDto: {
-            /** Format: uuid */
-            id: string;
-            /** @enum {string} */
-            provider: "WHATSAPP" | "INSTAGRAM" | "MESSENGER";
-            displayName: string;
-            /** @enum {string} */
-            status: "CONNECTED" | "DISCONNECTED" | "NEEDS_ATTENTION" | "EXPIRED";
-            accountName: string | null;
-            accountMask: string | null;
-            connectedAt: string | null;
-            disconnectedAt: string | null;
-            lastHealthCheckAt: string | null;
-            lastError: string | null;
-            isSample: boolean;
-            defaultAssignee: {
-                /** Format: uuid */
-                id: string;
-                name: string;
-            } | null;
-            defaultTeam: {
-                /** Format: uuid */
-                id: string;
-                name: string;
-            } | null;
-            conversationCount: number;
-            openConversations: number;
-            unreadConversations: number;
-            lastConversationAt: string | null;
-            /** Format: date-time */
-            createdAt: string;
-        };
-        ChannelActivityDto: {
-            data: {
-                /** Format: uuid */
-                id: string;
-                description: string;
-                actor: {
-                    /** Format: uuid */
-                    id: string;
-                    name: string;
-                } | null;
-                /** Format: date-time */
-                createdAt: string;
-            }[];
-        };
-        UpdateChannelDto: {
-            displayName?: string;
-            defaultAssigneeId?: string | null;
-            defaultTeamId?: string | null;
-        };
         OrderListDto: {
             data: {
                 /** Format: uuid */
@@ -3270,6 +4008,860 @@ export interface components {
                 stepId: string | null;
                 message: string;
             }[];
+        };
+        BillingOverviewDto: {
+            providerConfigured: boolean;
+            provider: string | null;
+            onFreePlan: boolean;
+            plan: {
+                key: string;
+                name: string;
+                description: string;
+                rank: number;
+                recommended: boolean;
+                currency: string;
+                monthlyMinor: number;
+                yearlyMinor: number;
+                placeholderPricing: boolean;
+                purchasable: boolean;
+                limits: {
+                    [key: string]: number;
+                };
+                features: string[];
+            };
+            subscription: {
+                planKey: string;
+                /** @enum {string} */
+                interval: "MONTH" | "YEAR";
+                /** @enum {string} */
+                status: "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "EXPIRED";
+                currentPeriodStart: string | null;
+                currentPeriodEnd: string | null;
+                trialEnd: string | null;
+                startedAt: string | null;
+                cancelAtPeriodEnd: boolean;
+                canceledAt: string | null;
+            } | null;
+            actions: {
+                canCheckout: boolean;
+                canChange: boolean;
+                canCancel: boolean;
+                canResume: boolean;
+                canRetryPayment: boolean;
+                /** @enum {string} */
+                access: "full" | "full_until_period_end" | "limited" | "none";
+            };
+            nextPayment: {
+                /** Format: date-time */
+                date: string;
+                amountMinor: number;
+                currency: string;
+                placeholderPricing: boolean;
+            } | null;
+            hasFailedPayment: boolean;
+            usage: {
+                metric: string;
+                used: number;
+                limit: number;
+                percent: number;
+            } | null;
+            aiCredits: {
+                /** @constant */
+                metered: false;
+            };
+        };
+        BillingPlanListDto: {
+            data: {
+                key: string;
+                name: string;
+                description: string;
+                rank: number;
+                recommended: boolean;
+                currency: string;
+                monthlyMinor: number;
+                yearlyMinor: number;
+                placeholderPricing: boolean;
+                purchasable: boolean;
+                limits: {
+                    [key: string]: number;
+                };
+                features: string[];
+            }[];
+        };
+        BillingUsageDto: {
+            planKey: string;
+            /** Format: date-time */
+            periodStart: string;
+            /** Format: date-time */
+            periodEnd: string;
+            data: {
+                /** @enum {string} */
+                metric: "members" | "channels" | "contacts" | "messages" | "whatsapp" | "instagram" | "messenger";
+                label: string;
+                used: number;
+                /** @description Limit, or -1 for unlimited */
+                limit: number;
+                /** @description Remaining allowance, or -1 for unlimited */
+                remaining: number;
+                percent: number;
+                /** @enum {string} */
+                level: "unlimited" | "ok" | "approaching" | "near" | "reached";
+            }[];
+            notTracked: string[];
+        };
+        BillingProfileDto: {
+            companyName: string | null;
+            contactName: string | null;
+            billingEmail: string | null;
+            phone: string | null;
+            country: string | null;
+            state: string | null;
+            city: string | null;
+            addressLine: string | null;
+            postalCode: string | null;
+            taxId: string | null;
+        };
+        UpdateBillingProfileDto: {
+            companyName?: string | null;
+            contactName?: string | null;
+            billingEmail?: ("" | string) | null;
+            phone?: string | null;
+            country?: ("" | string) | null;
+            state?: string | null;
+            city?: string | null;
+            addressLine?: string | null;
+            postalCode?: string | null;
+            taxId?: string | null;
+        };
+        SavedPaymentMethodListDto: {
+            data: {
+                /** Format: uuid */
+                id: string;
+                brand: string;
+                last4: string;
+                expMonth: number;
+                expYear: number;
+                isDefault: boolean;
+            }[];
+        };
+        CheckoutResultDto: {
+            /** Format: uri */
+            url: string;
+        };
+        InvoiceListDto: {
+            data: {
+                /** Format: uuid */
+                id: string;
+                number: string | null;
+                /** @enum {string} */
+                status: "PENDING" | "PAID" | "FAILED" | "REFUNDED" | "VOID";
+                currency: string;
+                totalMinor: number;
+                periodStart: string | null;
+                periodEnd: string | null;
+                planKey: string | null;
+                description: string;
+                /** Format: date-time */
+                issuedAt: string;
+                hostedUrl: string | null;
+                canRetry: boolean;
+            }[];
+            meta: {
+                page: number;
+                pageSize: number;
+                total: number;
+                totalPages: number;
+            };
+        };
+        InvoiceDetailDto: {
+            /** Format: uuid */
+            id: string;
+            number: string | null;
+            /** @enum {string} */
+            status: "PENDING" | "PAID" | "FAILED" | "REFUNDED" | "VOID";
+            currency: string;
+            totalMinor: number;
+            periodStart: string | null;
+            periodEnd: string | null;
+            planKey: string | null;
+            description: string;
+            /** Format: date-time */
+            issuedAt: string;
+            hostedUrl: string | null;
+            canRetry: boolean;
+            subtotalMinor: number;
+            taxMinor: number;
+            amountPaidMinor: number;
+            paymentSummary: string | null;
+            lines: {
+                description: string;
+                quantity: number;
+                amountMinor: number;
+            }[];
+            customer: {
+                companyName: string | null;
+                contactName: string | null;
+                billingEmail: string | null;
+                phone: string | null;
+                country: string | null;
+                state: string | null;
+                city: string | null;
+                addressLine: string | null;
+                postalCode: string | null;
+                taxId: string | null;
+            };
+            seller: {
+                name: string;
+                note: string;
+            };
+        };
+        BillingAcceptedDto: {
+            /** @constant */
+            accepted: true;
+            message: string;
+        };
+        PlanChangeDto: {
+            planKey: string;
+            /** @enum {string} */
+            interval: "MONTH" | "YEAR";
+        };
+        PlanPreviewDto: {
+            /** @enum {string} */
+            kind: "same" | "upgrade" | "downgrade" | "interval";
+            planKey: string;
+            /** @enum {string} */
+            interval: "MONTH" | "YEAR";
+            priceMinor: number;
+            currency: string;
+            placeholderPricing: boolean;
+            effective: string;
+            gained: string[];
+            lost: string[];
+            overages: {
+                metric: string;
+                label: string;
+                used: number;
+                limit: number;
+            }[];
+            blockedReason: string | null;
+        };
+        PlanChangeConfirmDto: {
+            planKey: string;
+            /** @enum {string} */
+            interval: "MONTH" | "YEAR";
+            /** @default false */
+            acknowledgeOverage: boolean;
+        };
+        CancelSubscriptionDto: {
+            /** @default true */
+            atPeriodEnd: boolean;
+            reason?: string;
+        };
+        AdminLoginDto: {
+            /** Format: email */
+            email: string;
+            password: string;
+        };
+        AdminProfileDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: email */
+            email: string;
+            name: string;
+            role: string;
+        };
+        UpdateAdminProfileDto: {
+            name: string;
+        };
+        AdminPasswordDto: {
+            currentPassword: string;
+            newPassword: string;
+        };
+        AdminDashboardDto: {
+            customers: {
+                total: number;
+                newLast30Days: number;
+                suspended: number;
+            };
+            workspaces: {
+                active: number;
+                suspended: number;
+            };
+            subscriptions: {
+                active: number;
+                trialing: number;
+                pastDue: number;
+            };
+            mrr: {
+                byCurrency: {
+                    currency: string;
+                    amountMinor: number;
+                }[];
+                unpricedSubscriptions: number;
+            };
+            revenue: {
+                currency: string;
+                months: {
+                    month: string;
+                    amountMinor: number;
+                }[];
+            }[];
+            recentCustomers: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                email: string;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
+            recentSubscriptions: {
+                /** Format: uuid */
+                id: string;
+                workspace: string;
+                planKey: string;
+                /** @enum {string} */
+                status: "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "EXPIRED";
+                /** Format: date-time */
+                createdAt: string;
+            }[];
+            failedPayments: {
+                /** Format: uuid */
+                id: string;
+                workspace: string;
+                number: string | null;
+                totalMinor: number;
+                currency: string;
+                /** Format: date-time */
+                issuedAt: string;
+            }[];
+        };
+        AdminCustomerListDto: {
+            data: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                email: string;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                status: "ACTIVE" | "DISABLED";
+                workspaceCount: number;
+                planKey: string;
+                planName: string;
+                /** @description A subscription status, or NONE for the free plan */
+                subscriptionStatus: string;
+            }[];
+            meta: {
+                page: number;
+                pageSize: number;
+                total: number;
+                totalPages: number;
+            };
+        };
+        AdminCustomerDetailDto: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            email: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "DISABLED";
+            workspaceCount: number;
+            planKey: string;
+            planName: string;
+            /** @description A subscription status, or NONE for the free plan */
+            subscriptionStatus: string;
+            suspendedAt: string | null;
+            suspendedReason: string | null;
+            emailVerified: boolean;
+            workspaces: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                role: string;
+                /** @enum {string} */
+                status: "ACTIVE" | "SUSPENDED";
+                planKey: string;
+                subscriptionStatus: string;
+            }[];
+            invoices: {
+                /** Format: uuid */
+                id: string;
+                number: string | null;
+                /** @enum {string} */
+                status: "PENDING" | "PAID" | "FAILED" | "REFUNDED" | "VOID";
+                totalMinor: number;
+                currency: string;
+                /** Format: date-time */
+                issuedAt: string;
+                workspace: string;
+            }[];
+            activity: {
+                action: string;
+                /** Format: date-time */
+                at: string;
+            }[];
+        };
+        AdminReasonDto: {
+            reason: string;
+        };
+        AdminWorkspaceListDto: {
+            data: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                slug: string;
+                owner: {
+                    /** Format: uuid */
+                    id: string;
+                    name: string;
+                    email: string;
+                } | null;
+                members: number;
+                channels: number;
+                planKey: string;
+                planName: string;
+                subscriptionStatus: string;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                status: "ACTIVE" | "SUSPENDED";
+            }[];
+            meta: {
+                page: number;
+                pageSize: number;
+                total: number;
+                totalPages: number;
+            };
+        };
+        AdminWorkspaceDetailDto: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            slug: string;
+            owner: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                email: string;
+            } | null;
+            members: number;
+            channels: number;
+            planKey: string;
+            planName: string;
+            subscriptionStatus: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "SUSPENDED";
+            suspendedAt: string | null;
+            suspendedReason: string | null;
+            subscription: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                interval: "MONTH" | "YEAR";
+                /** @enum {string} */
+                source: "PROVIDER" | "MANUAL";
+                renewsAt: string | null;
+                cancelAtPeriodEnd: boolean;
+            } | null;
+        };
+        AdminAssignPlanDto: {
+            reason: string;
+            planKey: string;
+            /**
+             * @default MONTH
+             * @enum {string}
+             */
+            interval: "MONTH" | "YEAR";
+            /** Format: date-time */
+            endsAt?: string;
+        };
+        AdminResultDto: {
+            /** @constant */
+            accepted: true;
+            pending: boolean;
+            message: string;
+        };
+        AdminSubscriptionListDto: {
+            data: {
+                /** Format: uuid */
+                id: string;
+                providerSubscriptionId: string;
+                /** @enum {string} */
+                source: "PROVIDER" | "MANUAL";
+                customer: {
+                    name: string;
+                    email: string;
+                } | null;
+                workspace: {
+                    /** Format: uuid */
+                    id: string;
+                    name: string;
+                };
+                planKey: string;
+                planName: string;
+                /** @enum {string} */
+                interval: "MONTH" | "YEAR";
+                /** @description Recurring price per interval, or -1 when unknown or complimentary */
+                amountMinor: number;
+                currency: string | null;
+                /** @enum {string} */
+                status: "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "EXPIRED";
+                cancelAtPeriodEnd: boolean;
+                startedAt: string | null;
+                renewsAt: string | null;
+                grantReason: string | null;
+            }[];
+            meta: {
+                page: number;
+                pageSize: number;
+                total: number;
+                totalPages: number;
+            };
+        };
+        AdminSubscriptionDetailDto: {
+            /** Format: uuid */
+            id: string;
+            providerSubscriptionId: string;
+            /** @enum {string} */
+            source: "PROVIDER" | "MANUAL";
+            customer: {
+                name: string;
+                email: string;
+            } | null;
+            workspace: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+            };
+            planKey: string;
+            planName: string;
+            /** @enum {string} */
+            interval: "MONTH" | "YEAR";
+            /** @description Recurring price per interval, or -1 when unknown or complimentary */
+            amountMinor: number;
+            currency: string | null;
+            /** @enum {string} */
+            status: "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "EXPIRED";
+            cancelAtPeriodEnd: boolean;
+            startedAt: string | null;
+            renewsAt: string | null;
+            grantReason: string | null;
+            invoices: {
+                /** Format: uuid */
+                id: string;
+                number: string | null;
+                /** @enum {string} */
+                status: "PENDING" | "PAID" | "FAILED" | "REFUNDED" | "VOID";
+                totalMinor: number;
+                currency: string;
+                /** Format: date-time */
+                issuedAt: string;
+            }[];
+            payments: {
+                type: string;
+                outcome: string;
+                /** Format: date-time */
+                at: string;
+            }[];
+        };
+        AdminCancelSubscriptionDto: {
+            reason: string;
+            /** @default true */
+            atPeriodEnd: boolean;
+        };
+        AdminPlanListDto: {
+            data: {
+                key: string;
+                name: string;
+                description: string;
+                rank: number;
+                recommended: boolean;
+                currency: string;
+                monthlyMinor: number;
+                yearlyMinor: number;
+                placeholderPricing: boolean;
+                limits: {
+                    [key: string]: number;
+                };
+                /** @description Credits, or -1 when not set */
+                aiCredits: number;
+                features: string[];
+                priceIdMonth: string | null;
+                priceIdYear: string | null;
+                /** @enum {string} */
+                status: "ACTIVE" | "DISABLED" | "ARCHIVED";
+                /** @description Subscriptions currently on this plan (active, trialing or past due) */
+                subscribers: number;
+            }[];
+        };
+        CreatePlanDto: {
+            key: string;
+            name: string;
+            /** @default  */
+            description: string;
+            rank: number;
+            /** @default false */
+            recommended: boolean;
+            /** @enum {string} */
+            currency: "USD" | "EUR" | "GBP" | "BDT" | "INR" | "AED";
+            monthlyMinor: number;
+            yearlyMinor: number;
+            /** @default false */
+            placeholderPricing: boolean;
+            limits: {
+                members: number | null;
+                channels: number | null;
+                contacts: number | null;
+                messages: number | null;
+                whatsapp: number | null;
+                instagram: number | null;
+                messenger: number | null;
+            };
+            /** @default null */
+            aiCredits: number | null;
+            /** @default [] */
+            features: string[];
+            priceIdMonth?: string | null;
+            priceIdYear?: string | null;
+        };
+        AdminPlanDto: {
+            key: string;
+            name: string;
+            description: string;
+            rank: number;
+            recommended: boolean;
+            currency: string;
+            monthlyMinor: number;
+            yearlyMinor: number;
+            placeholderPricing: boolean;
+            limits: {
+                [key: string]: number;
+            };
+            /** @description Credits, or -1 when not set */
+            aiCredits: number;
+            features: string[];
+            priceIdMonth: string | null;
+            priceIdYear: string | null;
+            /** @enum {string} */
+            status: "ACTIVE" | "DISABLED" | "ARCHIVED";
+            /** @description Subscriptions currently on this plan (active, trialing or past due) */
+            subscribers: number;
+        };
+        UpdatePlanDto: {
+            name?: string;
+            /** @default  */
+            description: string;
+            rank?: number;
+            /** @default false */
+            recommended: boolean;
+            /** @enum {string} */
+            currency?: "USD" | "EUR" | "GBP" | "BDT" | "INR" | "AED";
+            monthlyMinor?: number;
+            yearlyMinor?: number;
+            /** @default false */
+            placeholderPricing: boolean;
+            limits?: {
+                members: number | null;
+                channels: number | null;
+                contacts: number | null;
+                messages: number | null;
+                whatsapp: number | null;
+                instagram: number | null;
+                messenger: number | null;
+            };
+            /** @default null */
+            aiCredits: number | null;
+            /** @default [] */
+            features: string[];
+            priceIdMonth?: string | null;
+            priceIdYear?: string | null;
+        };
+        PlanStatusDto: {
+            reason: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "DISABLED" | "ARCHIVED";
+        };
+        AdminActivityListDto: {
+            data: {
+                /** Format: uuid */
+                id: string;
+                /** Format: date-time */
+                at: string;
+                actor: string;
+                action: string;
+                target: string | null;
+                reason: string | null;
+                metadata: {
+                    [key: string]: unknown;
+                } | null;
+            }[];
+            meta: {
+                page: number;
+                pageSize: number;
+                total: number;
+                totalPages: number;
+            };
+        };
+        AdminSettingsDto: {
+            branding: {
+                productName: string;
+                legalName: string;
+                supportEmail: string;
+                invoiceNote: string;
+            };
+            registrationOpen: boolean;
+            paymentProvider: {
+                provider: string | null;
+                configured: boolean;
+                webhookSecretSet: boolean;
+                priceIdsConfigured: number;
+                lastWebhookAt: string | null;
+            };
+            emailProvider: {
+                configured: boolean;
+                note: string;
+            };
+        };
+        UpdateAdminSettingsDto: {
+            productName?: string;
+            legalName?: string;
+            supportEmail?: "" | string;
+            invoiceNote?: string;
+            registrationOpen?: boolean;
+            reason?: string;
+        };
+        DashboardAnalyticsDto: {
+            range: {
+                from: string;
+                to: string;
+            };
+            timeZone: string;
+            /** @enum {string} */
+            granularity: "day" | "week" | "month";
+            revenue: {
+                byCurrency: {
+                    currency: string;
+                    amountMinor: number;
+                }[];
+                /** @description Currency shown in the revenue chart, or empty when there is no revenue */
+                primaryCurrency: string;
+            };
+            orders: {
+                total: number;
+                cancelled: number;
+            };
+            customers: {
+                /** @description Customers existing at the end of the range */
+                total: number;
+                new: number;
+            };
+            subscription: {
+                onFreePlan: boolean;
+                planKey: string;
+                planName: string;
+                /** @description A subscription status, or NONE on the free plan */
+                status: string;
+                cancelAtPeriodEnd: boolean;
+            } | null;
+            messaging: {
+                total: number;
+                new: number;
+                resolved: number;
+                waiting: number;
+                unread: number;
+            };
+            leads: {
+                total: number;
+            };
+            byChannel: {
+                revenue: {
+                    [key: string]: number;
+                };
+                orders: {
+                    [key: string]: number;
+                };
+                conversations: {
+                    [key: string]: number;
+                };
+                leads: {
+                    [key: string]: number;
+                };
+                newCustomers: {
+                    [key: string]: number;
+                };
+            };
+            attention: {
+                waitingLong: {
+                    count: number;
+                    thresholdMinutes: number;
+                    oldest: {
+                        conversationId: string;
+                        customerName: string;
+                        provider: string;
+                        waitingSince: string;
+                    } | null;
+                };
+                waiting: {
+                    count: number;
+                    averageWaitMinutes: number | null;
+                };
+                staleLeads: {
+                    count: number;
+                    idleHours: number;
+                };
+                pendingOrders: {
+                    count: number;
+                };
+            };
+            series: {
+                buckets: string[];
+                conversations: number[];
+                newConversations: number[];
+                resolvedConversations: number[];
+                leads: number[];
+                revenue: number[];
+                orders: number[];
+                newCustomers: number[];
+                totalCustomers: number[];
+            };
+            comparison: {
+                /** @enum {string} */
+                mode: "previous_period" | "previous_year";
+                range: {
+                    from: string;
+                    to: string;
+                };
+                /** @enum {string} */
+                coverage: "full" | "partial" | "none";
+                previous: {
+                    revenue: {
+                        currency: string;
+                        amountMinor: number;
+                    }[];
+                    orders: number;
+                    newCustomers: number;
+                    customers: number;
+                };
+                changes: {
+                    revenue: number | null;
+                    orders: number | null;
+                    newCustomers: number | null;
+                    customers: number | null;
+                };
+            } | null;
+            activity: {
+                id: string;
+                /** @enum {string} */
+                type: "order" | "payment" | "customer" | "lead";
+                title: string;
+                /** Format: date-time */
+                at: string;
+            }[];
+            dataSince: string | null;
         };
     };
     responses: never;
@@ -3952,6 +5544,238 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SearchResultDto"];
+                };
+            };
+        };
+    };
+    WhatsAppController_connect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectWhatsAppDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelDto"];
+                };
+            };
+        };
+    };
+    WhatsAppController_health: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                channelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelHealthDto"];
+                };
+            };
+        };
+    };
+    WhatsAppController_retry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        result: "sent" | "skipped" | "failed";
+                    };
+                };
+            };
+        };
+    };
+    ChannelsController_list: {
+        parameters: {
+            query?: {
+                q?: string;
+                provider?: "WHATSAPP" | "INSTAGRAM" | "MESSENGER";
+                status?: "CONNECTED" | "DISCONNECTED" | "NEEDS_ATTENTION" | "EXPIRED";
+                sort?: "name" | "activity";
+            };
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelListDto"];
+                };
+            };
+        };
+    };
+    ChannelsController_summary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelSummaryDto"];
+                };
+            };
+        };
+    };
+    ChannelsController_providers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderListDto"];
+                };
+            };
+        };
+    };
+    ChannelsController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                channelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelDto"];
+                };
+            };
+        };
+    };
+    ChannelsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                channelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateChannelDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelDto"];
+                };
+            };
+        };
+    };
+    ChannelsController_activity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                channelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelActivityDto"];
+                };
+            };
+        };
+    };
+    ChannelsController_disconnect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                channelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelDto"];
                 };
             };
         };
@@ -5035,166 +6859,6 @@ export interface operations {
             };
         };
     };
-    ChannelsController_list: {
-        parameters: {
-            query?: {
-                q?: string;
-                provider?: "WHATSAPP" | "INSTAGRAM" | "MESSENGER";
-                status?: "CONNECTED" | "DISCONNECTED" | "NEEDS_ATTENTION" | "EXPIRED";
-                sort?: "name" | "activity";
-            };
-            header?: never;
-            path: {
-                workspaceId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChannelListDto"];
-                };
-            };
-        };
-    };
-    ChannelsController_summary: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspaceId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChannelSummaryDto"];
-                };
-            };
-        };
-    };
-    ChannelsController_providers: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspaceId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProviderListDto"];
-                };
-            };
-        };
-    };
-    ChannelsController_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspaceId: string;
-                channelId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChannelDto"];
-                };
-            };
-        };
-    };
-    ChannelsController_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspaceId: string;
-                channelId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateChannelDto"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChannelDto"];
-                };
-            };
-        };
-    };
-    ChannelsController_activity: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspaceId: string;
-                channelId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChannelActivityDto"];
-                };
-            };
-        };
-    };
-    ChannelsController_disconnect: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspaceId: string;
-                channelId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChannelDto"];
-                };
-            };
-        };
-    };
     OrdersController_list: {
         parameters: {
             query?: {
@@ -5865,6 +7529,1029 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AutomationDetailDto"];
+                };
+            };
+        };
+    };
+    BillingController_overview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingOverviewDto"];
+                };
+            };
+        };
+    };
+    BillingController_plans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingPlanListDto"];
+                };
+            };
+        };
+    };
+    BillingController_usage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingUsageDto"];
+                };
+            };
+        };
+    };
+    BillingController_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingProfileDto"];
+                };
+            };
+        };
+    };
+    BillingController_updateProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateBillingProfileDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingProfileDto"];
+                };
+            };
+        };
+    };
+    BillingController_paymentMethods: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedPaymentMethodListDto"];
+                };
+            };
+        };
+    };
+    BillingController_paymentMethodSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckoutResultDto"];
+                };
+            };
+        };
+    };
+    BillingController_makeDefault: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedPaymentMethodListDto"];
+                };
+            };
+        };
+    };
+    BillingController_removePaymentMethod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedPaymentMethodListDto"];
+                };
+            };
+        };
+    };
+    BillingController_invoices: {
+        parameters: {
+            query?: {
+                status?: "PENDING" | "PAID" | "FAILED" | "REFUNDED" | "VOID";
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceListDto"];
+                };
+            };
+        };
+    };
+    BillingController_invoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceDetailDto"];
+                };
+            };
+        };
+    };
+    BillingController_pdf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BillingController_retry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingAcceptedDto"];
+                };
+            };
+        };
+    };
+    BillingController_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanChangeDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanPreviewDto"];
+                };
+            };
+        };
+    };
+    BillingController_checkout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanChangeDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckoutResultDto"];
+                };
+            };
+        };
+    };
+    BillingController_change: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanChangeConfirmDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingAcceptedDto"];
+                };
+            };
+        };
+    };
+    BillingController_cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancelSubscriptionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingAcceptedDto"];
+                };
+            };
+        };
+    };
+    BillingController_resume: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingAcceptedDto"];
+                };
+            };
+        };
+    };
+    AdminController_login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminLoginDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminProfileDto"];
+                };
+            };
+        };
+    };
+    AdminController_logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminController_me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminProfileDto"];
+                };
+            };
+        };
+    };
+    AdminController_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAdminProfileDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminProfileDto"];
+                };
+            };
+        };
+    };
+    AdminController_password: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPasswordDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminController_dashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDashboardDto"];
+                };
+            };
+        };
+    };
+    AdminController_customers: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                q?: string;
+                status?: "ACTIVE" | "DISABLED";
+                subscription?: "NONE" | "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "EXPIRED";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCustomerListDto"];
+                };
+            };
+        };
+    };
+    AdminController_customer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCustomerDetailDto"];
+                };
+            };
+        };
+    };
+    AdminController_suspendCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminReasonDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCustomerDetailDto"];
+                };
+            };
+        };
+    };
+    AdminController_reactivateCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminReasonDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCustomerDetailDto"];
+                };
+            };
+        };
+    };
+    AdminController_workspaces: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                q?: string;
+                status?: "ACTIVE" | "SUSPENDED";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminWorkspaceListDto"];
+                };
+            };
+        };
+    };
+    AdminController_workspace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminWorkspaceDetailDto"];
+                };
+            };
+        };
+    };
+    AdminController_suspendWorkspace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminReasonDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminWorkspaceDetailDto"];
+                };
+            };
+        };
+    };
+    AdminController_reactivateWorkspace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminReasonDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminWorkspaceDetailDto"];
+                };
+            };
+        };
+    };
+    AdminController_assignPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminAssignPlanDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminResultDto"];
+                };
+            };
+        };
+    };
+    AdminController_subscriptions: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                status?: "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED" | "EXPIRED";
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSubscriptionListDto"];
+                };
+            };
+        };
+    };
+    AdminController_subscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSubscriptionDetailDto"];
+                };
+            };
+        };
+    };
+    AdminController_cancelSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminCancelSubscriptionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminResultDto"];
+                };
+            };
+        };
+    };
+    AdminController_resumeSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminReasonDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminResultDto"];
+                };
+            };
+        };
+    };
+    AdminController_plans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPlanListDto"];
+                };
+            };
+        };
+    };
+    AdminController_createPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePlanDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPlanDto"];
+                };
+            };
+        };
+    };
+    AdminController_updatePlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePlanDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPlanDto"];
+                };
+            };
+        };
+    };
+    AdminController_planStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanStatusDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPlanDto"];
+                };
+            };
+        };
+    };
+    AdminController_activity: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                source?: "admin" | "payments";
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminActivityListDto"];
+                };
+            };
+        };
+    };
+    AdminController_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSettingsDto"];
+                };
+            };
+        };
+    };
+    AdminController_updateSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAdminSettingsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSettingsDto"];
+                };
+            };
+        };
+    };
+    DashboardController_analytics: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                compare?: "none" | "previous_period" | "previous_year";
+                channel?: "WHATSAPP" | "INSTAGRAM" | "MESSENGER";
+                granularity?: "day" | "week" | "month";
+            };
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardAnalyticsDto"];
                 };
             };
         };

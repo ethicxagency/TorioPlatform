@@ -6,7 +6,7 @@ import {
   Clock,
   Flag,
   MailOpen,
-  MoreHorizontal,
+  PanelRight,
   RotateCcw,
   UserPlus,
   X,
@@ -209,7 +209,7 @@ export function ChatHeader(p: Props) {
             />
           )}
         </div>
-        {/* ⋯ sits immediately after Assign and opens the customer profile directly. */}
+        {/* Customer panel toggle: a panel icon, so it is never mistaken for the More-actions menu. */}
         <button
           type="button"
           aria-label="Open customer profile"
@@ -218,7 +218,7 @@ export function ChatHeader(p: Props) {
           onClick={p.onOpenProfile}
           className={cn(btn, 'w-9 px-0', p.profileOpen && 'bg-primary-soft text-primary-hover')}
         >
-          <MoreHorizontal size={17} />
+          <PanelRight size={17} />
         </button>
         <button
           type="button"

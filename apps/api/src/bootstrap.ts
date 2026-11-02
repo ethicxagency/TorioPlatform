@@ -32,14 +32,28 @@ export function configureApp(app: INestApplication): AppConfig {
   app.useLogger(app.get(Logger));
   app.setGlobalPrefix(API_PREFIX, { exclude: [] });
   app.use(helmet());
-  app.use(json({ limit: '100kb' }));
+  // Keep the exact bytes of JSON bodies: webhook signatures are computed over the raw payload.
+  app.use(
+    json({
+      limit: '100kb',
+      verify: (req, _res, buf) => {
+        (req as unknown as { rawBody?: Buffer }).rawBody = buf;
+      },
+    }),
+  );
   app.use(urlencoded({ extended: false, limit: '100kb' }));
   app.use(cookieParser());
   app.enableCors({
     origin: config.CORS_ALLOWED_ORIGINS,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id', 'X-Torio-Client'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Request-Id',
+      'X-Torio-Client',
+      'X-Torio-Admin',
+    ],
     exposedHeaders: ['X-Request-Id'],
   });
   app.useWebSocketAdapter(new CorsIoAdapter(app, config.CORS_ALLOWED_ORIGINS));

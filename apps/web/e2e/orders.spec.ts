@@ -121,14 +121,14 @@ test.describe('orders (owner)', () => {
     await w.getByLabel('Item 1 unit price').fill('250.50');
     await w.getByRole('button', { name: 'Continue' }).click();
     await w.getByLabel('Shipping', { exact: true }).fill('20');
-    await expect(w.getByText('$521.00')).toBeVisible();
+    await expect(w.getByText('৳521')).toBeVisible(); // new orders default to BDT
     await w.getByRole('button', { name: 'Continue' }).click();
     await expect(w.getByText(/doesn.t\s+process payments|process payments/)).toBeVisible();
     await w.getByRole('button', { name: 'Continue' }).click();
     await w.getByRole('button', { name: 'Create order' }).click();
     await expect.poll(() => orderState.created.length).toBe(1);
     expect(orderState.created[0]).toMatchObject({
-      currency: 'USD',
+      currency: 'BDT',
       items: [{ name: 'Linen sofa', quantity: 2, unitPriceMinor: 25_050 }],
       shippingMinor: 2_000,
     });

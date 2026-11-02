@@ -368,7 +368,7 @@ function BrainEditor({
           <Brain size={22} className="text-primary" />
         </span>
         <div className="min-w-0 flex-1 basis-72">
-          <h1 className="m-0 text-2xl font-semibold tracking-[-0.015em]">Brain</h1>
+          <h1 className="m-0 font-page-title">Brain</h1>
           <p className="m-0 text-sm font-medium text-primary-hover">
             Your business. Your rules. Your AI.
           </p>
@@ -555,7 +555,7 @@ function BrainEditor({
         <div
           role={undoToast.error ? 'alert' : 'status'}
           className={cn(
-            'fixed bottom-6 left-1/2 z-[95] flex max-w-[calc(100vw-32px)] -translate-x-1/2 animate-toast-in items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13px] text-white shadow-[0_8px_24px_rgba(16,24,40,0.2)]',
+            'fixed bottom-6 left-1/2 z-[95] flex max-w-[calc(100vw-32px)] -translate-x-1/2 animate-toast-in items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13px] text-white shadow-[0_8px_24px_rgba(0,55,112,0.2)]',
             undoToast.error ? 'bg-[#8F2424]' : 'bg-ink',
           )}
         >

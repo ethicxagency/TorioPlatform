@@ -28,6 +28,8 @@ const LABEL: Record<Permission, string> = {
   'automation:read': 'View automations and runs',
   'automation:write': 'Create, edit and test automations',
   'automation:activate': 'Activate, delete and retry automations',
+  'billing:read': 'View billing, invoices and usage',
+  'billing:manage': 'Change plan, payment methods and billing details',
   'audit:read': 'View audit history',
 };
 const ROLES: WorkspaceRole[] = ['OWNER', 'ADMIN', 'AGENT'];

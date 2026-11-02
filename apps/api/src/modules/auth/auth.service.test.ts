@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { AppConfig } from '../../config/config.module';
 import type { PrismaService } from '../../database/prisma.service';
 import { AuthService } from './auth.service';
+import type { PlatformSettingsService } from '../platform/platform-settings.service';
 import { PasswordService } from './password.service';
 
 interface Row {
@@ -60,7 +61,9 @@ function setup() {
   const config = { ACCESS_TOKEN_TTL_SECONDS: 900, REFRESH_TOKEN_TTL_DAYS: 30 } as AppConfig;
   const passwords = new PasswordService();
   const jwt = new JwtService({ secret: 'k'.repeat(32) });
-  const svc = new AuthService({ client } as unknown as PrismaService, passwords, jwt, config);
+  const svc = new AuthService({ client } as unknown as PrismaService, passwords, jwt, config, {
+    registrationOpen: async () => true,
+  } as unknown as PlatformSettingsService);
   return { svc, sessions, user, passwords };
 }
 

@@ -34,7 +34,7 @@ interface Props {
 }
 
 const selectCls = 'h-9 rounded-[10px] border border-line bg-white px-2.5 text-[13px]';
-const th = 'px-3 py-2.5 text-left text-[11.5px] font-medium text-faint whitespace-nowrap';
+const th = 'px-3 py-2.5 text-left text-[12px] font-semibold text-muted whitespace-nowrap';
 
 export function MembersTab(p: Props) {
   const from = p.total === 0 ? 0 : (p.page - 1) * p.pageSize + 1;

@@ -85,7 +85,7 @@ export function PipelineBoard({ leads, total, canWrite, now, onOpen, onMove }: P
                       setOver(null);
                     }}
                     className={cn(
-                      'rounded-lg border border-line bg-white p-2.5 shadow-[0_1px_2px_rgba(16,24,40,0.04)]',
+                      'rounded-lg border border-line bg-white p-2.5 shadow-[0_1px_2px_rgba(0,55,112,0.04)]',
                       canWrite && 'cursor-grab active:cursor-grabbing',
                       dragId === l.id && 'opacity-50',
                     )}

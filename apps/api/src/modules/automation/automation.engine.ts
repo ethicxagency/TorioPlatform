@@ -449,6 +449,7 @@ export class AutomationEngine implements OnModuleInit, OnModuleDestroy {
             data: {
               status,
               snoozedUntil: null,
+              resolvedAt: status === 'RESOLVED' ? new Date() : null,
               ...(status === 'RESOLVED' && { unreadCount: 0, waitingSince: null }),
             },
           });

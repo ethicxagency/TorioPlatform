@@ -65,9 +65,7 @@ export function KpiCards({ summary: s, loading, error, onRetry }: Props) {
             </>
           ) : (
             <>
-              <div className="mt-1 text-2xl font-semibold tabular-nums tracking-[-0.02em]">
-                {c.value ?? '—'}
-              </div>
+              <div className="mt-1 text-2xl font-metric">{c.value ?? '—'}</div>
               <div className="mt-1 truncate text-xs text-faint">{c.sub}</div>
             </>
           )}

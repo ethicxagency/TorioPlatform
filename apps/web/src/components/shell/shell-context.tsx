@@ -1,5 +1,7 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
+import { isSettingsPath } from '@/features/settings/nav';
 import {
   createContext,
   useCallback,
@@ -30,6 +32,8 @@ interface ShellState {
   /** 'full' (228px), 'rail' (68px, expands on hover) or 'none' (mobile drawer). */
   sidebarMode: 'full' | 'rail' | 'none';
   expanded: boolean;
+  /** On a Settings route (including Billing): keeps Settings highlighted in the main sidebar. */
+  settingsMode: boolean;
   /** Width left for page content next to the sidebar. */
   contentWidth: number;
   userCollapsed: boolean;
@@ -55,6 +59,7 @@ export function useShell(): ShellState {
 
 export function ShellProvider({ children }: { children: React.ReactNode }) {
   const vw = useViewportWidth();
+  const settingsMode = isSettingsPath(usePathname());
   const [userCollapsed, setUserCollapsed] = useState(false);
   const [sbHover, setSbHover] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
@@ -85,7 +90,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<ShellState>(() => {
     const mobile = vw < 768;
     const wide = vw >= 1280;
-    const sidebarMode = mobile ? 'none' : wide && !userCollapsed ? 'full' : 'rail';
+    const sidebarMode = mobile ? 'none' : !wide || userCollapsed ? 'rail' : 'full';
     const expanded =
       sidebarMode === 'full' ||
       (sidebarMode === 'rail' && sbHover) ||
@@ -97,6 +102,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       wide,
       sidebarMode,
       expanded,
+      settingsMode,
       contentWidth: vw - sbPx,
       userCollapsed,
       mobileNav,
@@ -117,7 +123,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
         };
       },
     };
-  }, [vw, userCollapsed, sbHover, mobileNav, orderId, toastText, toast]);
+  }, [vw, userCollapsed, sbHover, mobileNav, orderId, toastText, toast, settingsMode]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

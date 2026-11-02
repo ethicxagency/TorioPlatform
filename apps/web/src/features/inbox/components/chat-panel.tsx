@@ -43,6 +43,7 @@ interface Props {
   onReplyTo: (m: Message) => void;
   onClearReplyTo: () => void;
   onCopy: (m: Message) => void;
+  onRetrySend?: (m: Message) => void;
   onToggleAi: () => void;
 }
 
@@ -81,6 +82,7 @@ export const ChatPanel = forwardRef<HTMLTextAreaElement, Props>(function ChatPan
         onRetry={p.onRetryMessages}
         onReply={p.onReplyTo}
         onCopy={p.onCopy}
+        onRetrySend={p.onRetrySend}
       />
       {p.aiOpen && p.mode === 'reply' && <AiAssistPanel onClose={p.onToggleAi} />}
       <MessageComposer

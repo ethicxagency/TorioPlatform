@@ -29,6 +29,9 @@ import {
   uid,
 } from './bits';
 import type { Remove, SectionProps } from './types';
+import { CURRENCY_DEFS, DEFAULT_CURRENCY } from '@torio/contracts';
+
+const CURRENCY_SYMBOL = CURRENCY_DEFS[DEFAULT_CURRENCY].symbol;
 
 export const blankField = (category: string = 'General Business'): BrainCustomField => ({
   id: uid('cf'),
@@ -95,7 +98,7 @@ function ValueInput({
     case 'Currency':
       return (
         <TextField
-          label={f.type === 'Currency' ? 'Value (৳)' : 'Value'}
+          label={f.type === 'Currency' ? `Value (${CURRENCY_SYMBOL})` : 'Value'}
           value={str}
           onChange={set}
         />

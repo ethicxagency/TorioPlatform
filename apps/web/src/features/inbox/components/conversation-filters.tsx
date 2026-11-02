@@ -1,5 +1,6 @@
 'use client';
 
+import { ChannelIcon } from '@/components/channel-icon';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -47,6 +48,31 @@ export function ConversationFilters({ filters, counts, agents, tags, onChange, o
     },
   ].filter(Boolean) as { label: string; clear: () => void }[];
 
+  const chip = (v: (typeof VIEWS)[number]) => {
+    const on = filters.view === v.key;
+    const ch = v.key in CHANNELS ? CHANNELS[v.key as keyof typeof CHANNELS] : null;
+    return (
+      <button
+        key={v.key}
+        type="button"
+        aria-pressed={on}
+        // Channel chips are icon-only (official logos read faster than words); the name stays as label/tooltip.
+        aria-label={ch ? v.label : undefined}
+        title={ch ? v.label : undefined}
+        onClick={() => onChange({ view: v.key })}
+        className={cn(
+          'flex h-7 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border text-[12.5px]',
+          ch ? 'w-8 justify-center px-0' : 'px-2.5',
+          on
+            ? 'border-[rgba(91,92,226,0.18)] bg-primary-soft font-semibold text-primary-hover'
+            : 'border-transparent font-medium text-muted hover:bg-wash-2',
+        )}
+      >
+        {ch ? <ChannelIcon channel={v.key} size={16} decorative /> : v.label}
+      </button>
+    );
+  };
+
   return (
     <div className="flex flex-col gap-2.5 pb-2.5">
       <div
@@ -66,7 +92,7 @@ export function ConversationFilters({ filters, counts, agents, tags, onChange, o
               className={cn(
                 'flex h-8 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-[8px] text-[13px]',
                 on
-                  ? 'bg-white font-semibold text-ink shadow-[0_1px_2px_rgba(16,24,40,0.08),0_0_0_1px_rgba(16,24,40,0.05)]'
+                  ? 'bg-white font-semibold text-ink shadow-[0_1px_2px_rgba(0,55,112,0.08),0_0_0_1px_rgba(0,55,112,0.05)]'
                   : 'font-medium text-muted',
               )}
             >
@@ -84,40 +110,22 @@ export function ConversationFilters({ filters, counts, agents, tags, onChange, o
       <div
         role="group"
         aria-label="Views"
-        className="flex gap-1.5 overflow-x-auto px-3 pb-0.5 [scrollbar-width:none]"
+        className="flex flex-wrap items-center justify-between gap-1 px-3 pb-0.5"
       >
-        {VIEWS.map((v) => {
-          const on = filters.view === v.key;
-          const ch = v.key in CHANNELS ? CHANNELS[v.key as keyof typeof CHANNELS] : null;
-          return (
-            <button
-              key={v.key}
-              type="button"
-              aria-pressed={on}
-              onClick={() => onChange({ view: v.key })}
-              className={cn(
-                'flex h-7 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-[12.5px]',
-                on
-                  ? 'border-[rgba(91,92,226,0.18)] bg-primary-soft font-semibold text-primary-hover'
-                  : 'border-transparent font-medium text-muted hover:bg-wash-2',
-              )}
-            >
-              {ch && (
-                <span className="h-[7px] w-[7px] rounded-full" style={{ background: ch.color }} />
-              )}
-              {v.label}
-            </button>
-          );
-        })}
+        <span className="flex flex-wrap gap-1">
+          {VIEWS.filter((v) => !(v.key in CHANNELS)).map(chip)}
+        </span>
+        {/* Channels as one unit: if the list is narrow the whole group moves down a line together. */}
+        <span className="flex gap-1">{VIEWS.filter((v) => v.key in CHANNELS).map(chip)}</span>
       </div>
 
       <div className="flex items-center gap-2 px-3">
-        <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-[10px] border border-line bg-white/80 px-2.5">
+        <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-[var(--radius-control)] border border-line bg-white px-2.5 transition-colors focus-within:border-primary focus-within:ring-[3px] focus-within:ring-primary/15">
           <Search size={15} className="shrink-0 text-faint" aria-hidden />
           <input
             type="search"
             aria-label="Search conversations"
-            placeholder="Search name, phone or message"
+            placeholder="Search"
             value={filters.q}
             onChange={(e) => onChange({ q: e.target.value })}
             className="min-w-0 flex-1 border-none bg-transparent text-[13px]"
@@ -137,9 +145,9 @@ export function ConversationFilters({ filters, counts, agents, tags, onChange, o
           aria-label="Sort conversations"
           value={filters.order}
           onChange={(e) => onChange({ order: e.target.value as InboxFilters['order'] })}
-          className={cn(selectCls, 'h-9 max-w-[120px]')}
+          className={cn(selectCls, 'h-9 w-[124px] shrink-0')}
         >
-          <option value="waiting">Waiting longest</option>
+          <option value="waiting">Longest wait</option>
           <option value="newest">Newest</option>
           <option value="priority">Priority</option>
         </select>

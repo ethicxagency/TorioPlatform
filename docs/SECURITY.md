@@ -77,6 +77,21 @@ This is a foundation. It has **not** had a security review and must not be calle
 - Nothing sends customer messages (no provider delivery exists). Run context stores ids, enums and names only (no email, phone, message text or tokens). Activation always needs an explicit confirmation; tests are simulations.
 - Safeguards: idempotency per event, 60 runs/hour/automation cap (extra events recorded as skipped), step and wait limits, no automation-triggered events, audited activate/publish/deactivate/delete/retry.
 
+## Billing security notes
+
+- `billing:read` is Owner/Admin; `billing:manage` (change plan, cards, billing details) is Owner only. Every query is workspace-scoped; another tenant gets 404.
+- Webhooks are public but must carry a valid, fresh `Stripe-Signature` over the exact raw body (constant-time compare). A workspace is resolved only through our own `BillingAccount.providerCustomerId`, so an event can never change a workspace it doesn't belong to. Events are claimed by unique id inside the same transaction that applies them.
+- No card numbers, CVV or provider secrets are stored, logged or returned. The provider secret key is only ever sent to api.stripe.com. Amounts always come from provider prices; the client can't set them.
+- Without provider credentials every payment operation is refused (503); nothing is simulated.
+
+## Super Admin security notes
+
+- Separate identity system: admin accounts can only be created from the command line; nothing a customer sends can create, promote or impersonate one. Authorization is server-side on every request (session lookup + active flag + role); the frontend only reflects state.
+- Cookie `torio_admin`: HttpOnly, `SameSite=Strict`, `Secure` in production, scoped to `/api/v1/admin`, 8-hour absolute lifetime, hash-only storage, revoked on logout and on password change. State-changing calls require a custom header (blocked cross-site by CORS preflight). Login is throttled, uses constant-time verification, and failed attempts are logged.
+- Every consequential action (suspensions, plan and subscription changes, settings, logins) writes an `AdminAuditLog` row with admin, target, reason and IP; the application never updates or deletes those rows. Suspensions and plan changes require a written reason.
+- The panel shows administrative data only. It never returns password hashes, tokens, payment credentials, conversations, messages or contact lists. Provider keys are environment-only and only their presence is reported.
+- Known gaps: a single SUPER_ADMIN role (no finer admin permissions), no 2FA for admins, no IP allow-listing. Put `/admin` behind your own network controls in production.
+
 ## Known gaps
 
 - No email-verification / password-reset endpoints yet (data model exists). Invitations work but **are not emailed** (no mail provider): admins share the link. Registration reveals whether an email is taken (409).

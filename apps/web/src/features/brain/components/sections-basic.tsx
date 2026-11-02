@@ -13,6 +13,9 @@ import {
   Toggle,
 } from './bits';
 import type { SectionProps } from './types';
+import { CURRENCY_DEFS, DEFAULT_CURRENCY } from '@torio/contracts';
+
+const CURRENCY_SYMBOL = CURRENCY_DEFS[DEFAULT_CURRENCY].symbol;
 
 const CATEGORIES = [
   'Home & Lifestyle',
@@ -204,12 +207,12 @@ export function PoliciesSection({ d, mut }: SectionProps) {
             placeholder="e.g. 1 business day"
           />
           <TextField
-            label="Inside-city delivery fee (৳)"
+            label={`Inside-city delivery fee (${CURRENCY_SYMBOL})`}
             value={s.feeInside}
             onChange={sh('feeInside')}
           />
           <TextField
-            label="Outside-city delivery fee (৳)"
+            label={`Outside-city delivery fee (${CURRENCY_SYMBOL})`}
             value={s.feeOutside}
             onChange={sh('feeOutside')}
           />
@@ -249,7 +252,7 @@ export function PoliciesSection({ d, mut }: SectionProps) {
         </div>
         {s.freeShip && (
           <TextField
-            label="Free shipping threshold (৳)"
+            label={`Free shipping threshold (${CURRENCY_SYMBOL})`}
             value={s.threshold}
             onChange={sh('threshold')}
             className="max-w-xs"

@@ -65,7 +65,7 @@ export function InboxLayout({ list, chat, profile, onProfileDismiss }: Props) {
   const showChat = chatOpen;
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 bg-[radial-gradient(900px_400px_at_0%_0%,rgba(124,131,255,0.10),transparent_60%),radial-gradient(700px_420px_at_100%_100%,rgba(139,92,246,0.07),transparent_60%),linear-gradient(180deg,#F4F5FF,#F7F8FA)]">
+    <div className="flex h-full min-h-0 min-w-0 bg-canvas">
       {showList && (
         <div
           className={cn(
@@ -114,14 +114,14 @@ export function InboxLayout({ list, chat, profile, onProfileDismiss }: Props) {
       {drawerProfile && (
         <>
           <div
-            className="fixed inset-x-0 bottom-0 top-14 z-[70] bg-[rgba(23,24,28,0.25)]"
+            className="fixed inset-x-0 bottom-0 top-14 z-[70] bg-[rgba(13,37,61,0.25)]"
             onClick={onProfileDismiss}
           />
           <aside
             role="dialog"
             aria-modal="true"
             aria-label="Customer profile"
-            className="fixed bottom-0 right-0 top-14 z-[71] w-[min(360px,100vw)] animate-drawer-in bg-white shadow-[-8px_0_32px_rgba(16,24,40,0.14)]"
+            className="fixed bottom-0 right-0 top-14 z-[71] w-[min(360px,100vw)] animate-drawer-in bg-white shadow-[-8px_0_32px_rgba(0,55,112,0.14)]"
           >
             {profile}
           </aside>

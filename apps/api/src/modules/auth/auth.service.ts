@@ -1,10 +1,17 @@
-import { ConflictException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { LoginInput, RegisterInput } from '@torio/contracts';
 import { slugify } from '@torio/contracts';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { APP_CONFIG, type AppConfig } from '../../config/config.module';
 import { PrismaService } from '../../database/prisma.service';
+import { PlatformSettingsService } from '../platform/platform-settings.service';
 import { PasswordService } from './password.service';
 
 export interface ClientMeta {
@@ -36,9 +43,12 @@ export class AuthService {
     private readonly passwords: PasswordService,
     private readonly jwt: JwtService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly platform: PlatformSettingsService,
   ) {}
 
   async register(input: RegisterInput, meta: ClientMeta): Promise<IssuedSession> {
+    if (!(await this.platform.registrationOpen()))
+      throw new ForbiddenException('New registrations are currently closed.');
     const existing = await this.prisma.client.user.findUnique({ where: { email: input.email } });
     if (existing) throw new ConflictException('An account with this email already exists');
 

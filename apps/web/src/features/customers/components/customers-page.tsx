@@ -184,7 +184,7 @@ export function CustomersPage() {
           <nav aria-label="Breadcrumb" className="mb-1 text-xs text-faint">
             CRM / <span className="text-muted">Customers</span>
           </nav>
-          <h1 className="m-0 text-2xl font-semibold tracking-[-0.015em]">Customers</h1>
+          <h1 className="m-0 font-page-title">Customers</h1>
           <p className="m-0 mt-1 text-sm text-muted">
             Understand your customers and build stronger relationships.
           </p>

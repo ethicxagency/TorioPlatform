@@ -9,38 +9,14 @@ test.describe('settings (owner)', () => {
     await expect(page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible();
   });
 
-  test('overview lists real sections and is honest about what is not available', async ({
+  test('overview lists real sections as cards and marks what is not built yet', async ({
     page,
   }) => {
     const main = page.getByRole('main');
     for (const t of ['My profile', 'Security', 'Workspace', 'Members & access', 'Audit log'])
       await expect(main.getByRole('link', { name: new RegExp(t) }).first()).toBeVisible();
-    const na = main.getByRole('region', { name: 'Not available yet' });
-    await expect(na.getByText('Two-factor authentication')).toBeVisible();
-    await expect(na.getByText('Billing & subscription')).toBeVisible();
-  });
-
-  test('search finds real settings, supports the keyboard, and explains no results', async ({
-    page,
-  }) => {
-    const box = page.getByRole('combobox', { name: 'Search settings' });
-    await box.fill('password');
-    const list = page.getByRole('listbox', { name: 'Matching settings' });
-    await expect(list.getByRole('option', { name: /Security/ })).toBeVisible();
-    await box.press('Enter');
-    await expect(page).toHaveURL(/\/settings\/security$/);
-    await page.goto('/settings');
-    await box.fill('time zone');
-    await box.press('ArrowDown');
-    await box.press('ArrowUp');
-    await box.press('Enter');
-    await expect(page).toHaveURL(/\/settings\/preferences$/);
-    await page.goto('/settings');
-    await box.fill('zzzz');
-    await expect(page.getByText(/No settings match/)).toBeVisible();
-    // unavailable capabilities are never returned as results
-    await box.fill('notifications');
-    await expect(page.getByText(/No settings match/)).toBeVisible();
+    await expect(main.getByRole('link', { name: /Notifications/ })).toContainText('Soon');
+    await expect(main.getByRole('link', { name: /Billing & subscriptions/ }).first()).toBeVisible();
   });
 
   test('profile: saves through the API, shows saved only after, keeps email read-only', async ({
@@ -67,25 +43,22 @@ test.describe('settings (owner)', () => {
     await expect(page.getByRole('banner')).not.toContainText('Unsaved');
   });
 
-  test('unsaved edits trigger a discard confirmation when leaving through settings navigation', async ({
+  test('unsaved edits trigger a discard confirmation when leaving through the breadcrumb', async ({
     page,
   }) => {
     await page.goto('/settings/profile');
     await page.getByLabel('Job title').fill('Head of Support');
-    await page
-      .getByRole('navigation', { name: 'Settings' })
-      .getByRole('link', { name: 'Security' })
-      .click();
+    const crumb = page.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', {
+      name: 'Settings',
+    });
+    await crumb.click();
     const d = page.getByRole('alertdialog');
     await expect(d).toContainText('Discard unsaved changes?');
     await d.getByRole('button', { name: 'Cancel' }).click();
     await expect(page).toHaveURL(/\/settings\/profile$/);
-    await page
-      .getByRole('navigation', { name: 'Settings' })
-      .getByRole('link', { name: 'Security' })
-      .click();
+    await crumb.click();
     await page.getByRole('alertdialog').getByRole('button', { name: 'Discard changes' }).click();
-    await expect(page).toHaveURL(/\/settings\/security$/);
+    await expect(page).toHaveURL(/\/settings$/);
   });
 
   test('preferences save the time zone and start page', async ({ page }) => {
@@ -192,17 +165,18 @@ test.describe('settings (owner)', () => {
     await expect(page).toHaveURL(/\/settings\/workspace$/);
   });
 
-  test('no horizontal overflow on a phone, and the section menu collapses', async ({ page }) => {
+  test('no horizontal overflow on a phone, and the breadcrumb leads back', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/settings/workspace');
     await expect(page.getByLabel('Workspace name')).toBeVisible();
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
     ).toBe(false);
-    const toggle = page.getByRole('button', { name: /^Workspace$/ });
-    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    await toggle.click();
-    await expect(page.getByRole('link', { name: /Security/ }).first()).toBeVisible();
+    await page
+      .getByRole('navigation', { name: 'Breadcrumb' })
+      .getByRole('link', { name: 'Settings' })
+      .click();
+    await expect(page).toHaveURL(/\/settings$/);
   });
 });
 
@@ -230,8 +204,11 @@ test.describe('settings (agent)', () => {
     await expect(page.getByLabel('Workspace name')).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Save changes' })).toHaveCount(0);
     await expect(page.getByText(/Only an Owner or Admin can change them/)).toBeVisible();
+    await page.goto('/settings');
     await expect(
-      page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Audit log' }),
+      page
+        .getByRole('list', { name: 'Settings sections' })
+        .getByRole('link', { name: /Audit log/ }),
     ).toHaveCount(0);
     await page.goto('/settings/audit');
     await expect(page.getByText('Only Owners and Admins can view the audit log.')).toBeVisible();

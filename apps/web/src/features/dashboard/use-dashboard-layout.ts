@@ -19,9 +19,11 @@ const subscribe = (cb: () => void) => {
     window.removeEventListener(EVENT, cb);
   };
 };
-const read = (): string | null => {
+/** One layout per workspace; the old browser-wide key is still read so existing preferences carry over. */
+const keyFor = (ws: string | null) => (ws ? `${KEY}:${ws}` : KEY);
+const readKey = (key: string): string | null => {
   try {
-    return localStorage.getItem(KEY);
+    return localStorage.getItem(key) ?? localStorage.getItem(KEY);
   } catch {
     return null;
   }
@@ -50,19 +52,24 @@ export function parseLayout(raw: string | null): DashboardLayout {
   }
 }
 
-/** Per-browser layout preference (non-sensitive UI state), kept in localStorage. */
-export function useDashboardLayout() {
+/** Per-workspace layout preference (non-sensitive UI state), kept in this browser's localStorage. */
+export function useDashboardLayout(ws: string | null = null) {
+  const key = keyFor(ws);
+  const read = useCallback(() => readKey(key), [key]);
   const raw = useSyncExternalStore(subscribe, read, () => null);
   const layout = useMemo(() => parseLayout(raw), [raw]);
 
-  const save = useCallback((next: DashboardLayout) => {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(next));
-    } catch {
-      /* storage unavailable: layout simply won't persist */
-    }
-    window.dispatchEvent(new Event(EVENT));
-  }, []);
+  const save = useCallback(
+    (next: DashboardLayout) => {
+      try {
+        localStorage.setItem(key, JSON.stringify(next));
+      } catch {
+        /* storage unavailable: layout simply won't persist */
+      }
+      window.dispatchEvent(new Event(EVENT));
+    },
+    [key],
+  );
 
   return {
     ...layout,

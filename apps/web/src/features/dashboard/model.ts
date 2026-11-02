@@ -12,6 +12,7 @@ import {
   type ChannelKey,
   type DemoState,
   type MetricKey,
+  type RangeDef,
   type RangeKey,
   type WidgetKey,
 } from './data';
@@ -19,6 +20,8 @@ import { bdt, ini, labelsFor, niceMax, num, series, smooth, spark } from './form
 
 export interface ModelInput {
   range: RangeKey;
+  /** Overrides `range` with the dashboard's global selection (real dates), so every widget follows one range. */
+  rangeOverride?: RangeDef;
   channel: 'all' | ChannelKey;
   metric: MetricKey;
   demoState: DemoState;
@@ -41,7 +44,7 @@ export function buildDashboardModel(i: ModelInput) {
   const loading = i.refreshing || st === 'Loading';
   const isError = !loading && st === 'Error';
   const isEmptyWs = st === 'Empty (new workspace)';
-  const R = RANGES.find((r) => r.k === i.range) ?? RANGES[2]!;
+  const R = i.rangeOverride ?? RANGES.find((r) => r.k === i.range) ?? RANGES[2]!;
   const dl = DELTAS[R.k];
   const chKeys = (i.channel === 'all' ? (Object.keys(CH) as ChannelKey[]) : [i.channel]).filter(
     (k) => k !== 'facebook' || i.messengerConnected,
@@ -50,7 +53,6 @@ export function buildDashboardModel(i: ModelInput) {
   const empty = isEmptyWs || share === 0;
   const sum = (f: (c: (typeof CH)[ChannelKey]) => number) =>
     chKeys.reduce((a, k) => a + f(CH[k]), 0);
-  const unread = sum((c) => c.unread);
   const waiting = sum((c) => c.waiting);
   const today = R.k === 'today';
   const convSeries = series(3, 1284 * R.f * share, R.n, today);
@@ -59,55 +61,20 @@ export function buildDashboardModel(i: ModelInput) {
   const orders = Math.round(94 * R.f * sum((c) => c.orders));
   const revenue = Math.round((284500 * R.f * sum((c) => c.orders)) / 500) * 500;
 
-  const fmtD = (d: number) => (d >= 0 ? '↑ ' : '↓ ') + Math.abs(d).toFixed(1) + '%';
-  const kp = (label: string, icon: string, val: string, d: number, sub: string, seed: number) => ({
+  const kp = (label: string, icon: string, val: string, seed: number) => ({
     label,
     icon,
     value: empty ? '—' : val,
-    hasDelta: !empty,
     noData: empty,
-    delta: fmtD(d),
-    deltaColor: d >= 0 ? '#16803A' : '#C53030',
-    deltaBg: d >= 0 ? '#ECFDF3' : '#FFF1F2',
-    sub,
     spark: spark(seed),
+    sparkValues: series(seed, 100, 12, false),
     showSpark: !empty && !mobile && cw >= 560,
   });
   const kpis = [
-    kp(
-      'Conversations',
-      IC.msgs,
-      num(convTotal),
-      dl[0]!,
-      empty
-        ? 'Connect a channel to start receiving messages.'
-        : `${unread} unread · ${waiting} waiting for a reply`,
-      3,
-    ),
-    kp(
-      'Leads generated',
-      IC.users,
-      num(leads),
-      dl[1]!,
-      empty ? 'Leads appear as conversations are qualified.' : 'New leads in this period',
-      5,
-    ),
-    kp(
-      'Orders generated',
-      IC.bag,
-      num(orders),
-      dl[2]!,
-      empty ? 'No orders yet.' : 'From conversations with order tracking',
-      7,
-    ),
-    kp(
-      'Revenue',
-      IC.chart,
-      bdt(revenue),
-      dl[3]!,
-      empty ? 'No revenue recorded yet.' : 'Recorded on Torio orders in this period',
-      9,
-    ),
+    kp('Conversations', IC.msgs, num(convTotal), 3),
+    kp('Leads generated', IC.users, num(leads), 5),
+    kp('Orders generated', IC.bag, num(orders), 7),
+    kp('Revenue', IC.chart, bdt(revenue), 9),
   ];
 
   // Overview chart
@@ -132,14 +99,14 @@ export function buildDashboardModel(i: ModelInput) {
   ];
   const ov = {
     summary: [
-      { label: 'Total conversations', value: num(convTotal), color: '#17181C' },
-      { label: 'Resolved', value: num(convTotal * 0.89), color: '#17181C' },
-      { label: 'Waiting for reply', value: num(waiting), color: waiting ? '#A15C00' : '#17181C' },
+      { label: 'Total conversations', value: num(convTotal), color: '#0D253D' },
+      { label: 'Resolved', value: num(convTotal * 0.89), color: '#0D253D' },
+      { label: 'Waiting for reply', value: num(waiting), color: waiting ? '#A15C00' : '#0D253D' },
     ],
     yTicks: [1, 0.75, 0.5, 0.25, 0].map((f) => ({
       top: 100 - f * 100 + '%',
       label: num(max * f),
-      line: f === 0 ? '#E5E7EB' : '#F1F2F4',
+      line: f === 0 ? '#E3E8EE' : '#F1F2F4',
     })),
     area,
     line,
@@ -158,8 +125,8 @@ export function buildDashboardModel(i: ModelInput) {
   const tones = {
     danger: ['#C53030', '#FFF1F2', '#C53030'],
     warning: ['#A15C00', '#FFF7E6', '#A15C00'],
-    indigo: ['#5B5CE2', '#F0F0FF', '#17181C'],
-    neutral: ['#62656D', '#F1F2F4', '#17181C'],
+    indigo: ['#5B5CE2', '#F0F0FF', '#0D253D'],
+    neutral: ['#5A6A82', '#F1F2F4', '#0D253D'],
   } as const;
   const attention = (
     [
@@ -229,11 +196,13 @@ export function buildDashboardModel(i: ModelInput) {
     const conn = k !== 'facebook' || i.messengerConnected;
     return {
       name: c.name,
+      icon:
+        k === 'facebook' ? ('MESSENGER' as const) : (k.toUpperCase() as 'WHATSAPP' | 'INSTAGRAM'),
       color: c.color,
       connected: conn,
       conv: num(1284 * R.f * c.share),
       unread: c.unread,
-      unreadColor: c.unread ? '#17181C' : '#8B8E97',
+      unreadColor: c.unread ? '#0D253D' : '#66778E',
       resp: c.resp,
       leads: num(186 * R.f * c.leads),
       orders: num(94 * R.f * c.orders),
@@ -248,15 +217,15 @@ export function buildDashboardModel(i: ModelInput) {
       label: 'AI-suggested replies',
       value: num(412 * aiF),
       note: 'shown to agents',
-      color: '#17181C',
+      color: '#0D253D',
     },
     {
       label: 'Accepted by agents',
       value: num(318 * aiF),
-      note: '77% · demo metric',
-      color: '#17181C',
+      note: '77%',
+      color: '#0D253D',
     },
-    { label: 'Human handoffs', value: num(46 * aiF), note: 'escalated by rules', color: '#17181C' },
+    { label: 'Human handoffs', value: num(46 * aiF), note: 'escalated by rules', color: '#0D253D' },
     {
       label: 'Questions to add to Brain',
       value: String(Math.max(1, Math.round(9 * Math.min(1, aiF * 2)))),
@@ -274,6 +243,10 @@ export function buildDashboardModel(i: ModelInput) {
         name: c.name,
         initials: ini(c.name),
         channel: CH[c.ch].name,
+        icon:
+          c.ch === 'facebook'
+            ? ('MESSENGER' as const)
+            : (c.ch.toUpperCase() as 'WHATSAPP' | 'INSTAGRAM'),
         color: CH[c.ch].color,
         msg: c.msg,
         status: c.status,
@@ -332,13 +305,13 @@ export function buildDashboardModel(i: ModelInput) {
     resolved: num(t.resolved * tf),
     frt: t.frt,
     pending: t.pending,
-    pendColor: t.pending > 3 ? '#A15C00' : '#17181C',
+    pendColor: t.pending > 3 ? '#A15C00' : '#0D253D',
     load: Math.round((t.handled / maxH) * 100) + '%',
   }));
   const teamStats = [
-    { label: 'Handled', value: num(1284 * tf), color: '#17181C' },
-    { label: 'Avg. first reply', value: '5m 41s', color: '#17181C' },
-    { label: 'Resolved', value: num(1128 * tf), color: '#17181C' },
+    { label: 'Handled', value: num(1284 * tf), color: '#0D253D' },
+    { label: 'Avg. first reply', value: '5m 41s', color: '#0D253D' },
+    { label: 'Resolved', value: num(1128 * tf), color: '#0D253D' },
     { label: 'Pending assignment', value: '12', color: '#A15C00' },
   ];
 

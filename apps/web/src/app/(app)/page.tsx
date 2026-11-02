@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { LandingRedirect } from '@/features/settings/components/landing-redirect';
 import { DashboardPage } from '@/features/dashboard/components/dashboard-page';
 import type { DemoState } from '@/features/dashboard/data';
@@ -17,7 +18,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
   return (
     <>
       <LandingRedirect />
-      <DashboardPage demoState={(demo && DEMO[demo]) || 'Populated'} />
+      <Suspense fallback={null}>
+        <DashboardPage demoState={(demo && DEMO[demo]) || 'Populated'} />
+      </Suspense>
     </>
   );
 }

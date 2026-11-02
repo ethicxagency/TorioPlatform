@@ -3,22 +3,38 @@
 import { useState } from 'react';
 import { useShell } from '@/components/shell/shell-context';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DEFAULT_CURRENCY, currencyDef } from '@torio/contracts';
 import { CURRENCIES } from '@/features/orders/constants';
 import { useWorkspace } from '@/lib/workspace';
 import { useUpdateWorkspace } from '../queries';
 import { Field, fieldErrors, inputCls, Notice, PageHeader, SaveBar, Section } from './bits';
 import { useDirty } from './guard';
 
+function zoneList(current: string): string[] {
+  let zones: string[] = [];
+  try {
+    zones = (Intl as unknown as { supportedValuesOf: (k: string) => string[] }).supportedValuesOf(
+      'timeZone',
+    );
+  } catch {
+    /* fall through to the minimal list */
+  }
+  const all = zones.includes('UTC') ? zones : ['UTC', ...zones];
+  return all.includes(current) ? all : [current, ...all];
+}
+
 export function WorkspacePage() {
   const { toast } = useShell();
   const { workspace: w, workspaceId, role, can, isLoading } = useWorkspace();
   const save = useUpdateWorkspace(workspaceId);
   const canEdit = can('workspace:update');
-  const [f, setF] = useState({ name: '', description: '', currency: '', email: '' });
+  const [f, setF] = useState({ name: '', description: '', currency: '', email: '', tz: 'UTC' });
   const [errs, setErrs] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
   const [seeded, setSeeded] = useState<string | null>(null);
-  const sig = w ? [w.name, w.description, w.defaultCurrency, w.contactEmail].join('|') : null;
+  const sig = w
+    ? [w.name, w.description, w.defaultCurrency, w.contactEmail, w.reportingTimeZone].join('|')
+    : null;
   if (w && sig !== seeded) {
     setSeeded(sig);
     setF({
@@ -26,6 +42,7 @@ export function WorkspacePage() {
       description: w.description ?? '',
       currency: w.defaultCurrency ?? '',
       email: w.contactEmail ?? '',
+      tz: w.reportingTimeZone,
     });
   }
   const dirty =
@@ -33,7 +50,8 @@ export function WorkspacePage() {
     (f.name !== w.name ||
       f.description !== (w.description ?? '') ||
       f.currency !== (w.defaultCurrency ?? '') ||
-      f.email !== (w.contactEmail ?? ''));
+      f.email !== (w.contactEmail ?? '') ||
+      f.tz !== w.reportingTimeZone);
   useDirty(dirty);
   const set =
     (k: keyof typeof f) =>
@@ -54,6 +72,7 @@ export function WorkspacePage() {
         description: f.description.trim(),
         defaultCurrency: f.currency as '' | (typeof CURRENCIES)[number],
         contactEmail: f.email.trim(),
+        reportingTimeZone: f.tz,
       },
       {
         onSuccess: () => {
@@ -121,9 +140,17 @@ export function WorkspacePage() {
                     onChange={set('currency')}
                     className={inputCls}
                   >
-                    <option value="">No default (USD)</option>
-                    {CURRENCIES.map((c) => (
-                      <option key={c}>{c}</option>
+                    <option value="">No default ({DEFAULT_CURRENCY})</option>
+                    {[
+                      ...CURRENCIES,
+                      // keep a previously saved currency visible instead of silently changing it
+                      ...(f.currency && !(CURRENCIES as readonly string[]).includes(f.currency)
+                        ? [f.currency]
+                        : []),
+                    ].map((c) => (
+                      <option key={c} value={c}>
+                        {c} — {currencyDef(c)?.name ?? c}
+                      </option>
                     ))}
                   </select>
                 </Field>
@@ -140,6 +167,26 @@ export function WorkspacePage() {
                   />
                 </Field>
               </div>
+              <Field
+                label="Reporting time zone"
+                htmlFor="ws-tz"
+                hint="Decides where each day starts and ends in dashboard analytics, so everyone sees the same numbers."
+                error={errs.reportingTimeZone}
+              >
+                <select
+                  id="ws-tz"
+                  value={f.tz}
+                  disabled={!canEdit}
+                  onChange={set('tz')}
+                  className={inputCls}
+                >
+                  {zoneList(f.tz).map((z) => (
+                    <option key={z} value={z}>
+                      {z.replace(/_/g, ' ')}
+                    </option>
+                  ))}
+                </select>
+              </Field>
               {errs.form && <Notice tone="error">{errs.form}</Notice>}
             </div>
           </Section>
@@ -154,6 +201,7 @@ export function WorkspacePage() {
                   description: w.description ?? '',
                   currency: w.defaultCurrency ?? '',
                   email: w.contactEmail ?? '',
+                  tz: w.reportingTimeZone,
                 });
                 setErrs({});
               }}

@@ -158,6 +158,18 @@ export function useInboxMutations(ws: string | null) {
       },
       onSettled: (_d, _e, v) => refresh(v.id),
     }),
+    /** Re-sends a FAILED outgoing message. The API refuses anything already delivered, so it can't double-send. */
+    retry: useMutation({
+      mutationFn: async ({ messageId }: { id: string; messageId: string }) => {
+        const { data, error } = await api.POST(
+          '/api/v1/workspaces/{workspaceId}/messages/{messageId}/retry',
+          { params: { path: { workspaceId: ws!, messageId } } },
+        );
+        if (!data) throw fail(error, 'Could not retry the message');
+        return data;
+      },
+      onSettled: (_d, _e, v) => refresh(v.id),
+    }),
     setRead: useMutation({
       mutationFn: async ({ id, read }: { id: string; read: boolean }) => {
         const route = read

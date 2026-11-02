@@ -1,0 +1,23 @@
+# Missing features checklist
+
+| Feature                             | Status      | Existing code                                                                 | Gap                                  | Implementation                                 |
+| ----------------------------------- | ----------- | ----------------------------------------------------------------------------- | ------------------------------------ | ---------------------------------------------- |
+| Provider credential storage         | Missing     | `Channel` (no secrets by design)                                              | encrypted token store                | Build `ChannelCredential` + AES-256-GCM helper |
+| Webhook event log + dedupe          | Missing     | `webhooks` queue name only                                                    | persisted events, unique key         | Build `ProviderWebhookEvent`                   |
+| WhatsApp webhook verify + signature | Missing     | none                                                                          | GET challenge, `X-Hub-Signature-256` | Build                                          |
+| WhatsApp inbound ingestion          | Missing     | `Message.externalId`                                                          | create customer/conversation/message | Build, reusing Inbox models                    |
+| WhatsApp outbound send + status     | Missing     | stored-only outbound                                                          | send job, delivery/read/failed       | Build                                          |
+| 24-hour service window              | Missing     | `Conversation.lastMessageAt`                                                  | inbound-based window + enforcement   | Build                                          |
+| Opt-in / opt-out                    | Missing     | none                                                                          | per-customer consent                 | Build                                          |
+| WhatsApp templates                  | Missing     | none                                                                          | sync, list, send                     | Build (needs Meta)                             |
+| Embedded Signup                     | Blocked     | none                                                                          | Meta app + business verification     | Config screen + docs                           |
+| Messenger / Instagram               | Blocked     | catalog entries                                                               | app review                           | Same provider layer later                      |
+| Channel identities / dedupe / merge | Missing     | `Customer` fields                                                             | `ChannelIdentity`, merge             | Build                                          |
+| Attachments                         | Missing     | none                                                                          | storage + model                      | Build later                                    |
+| Collision detection / typing        | Missing     | gateway                                                                       | presence events                      | Build later                                    |
+| Conversation tags, assign to team   | Missing     | customer tags, `Channel.defaultTeamId`                                        | fields                               | Build later                                    |
+| Automation message triggers/actions | Partial     | engine                                                                        | needs ingestion                      | Extend after ingestion                         |
+| AI assist, summaries, handover      | Blocked     | Brain config                                                                  | provider key                         | Not implemented                                |
+| Messaging/agent/AI analytics        | Partial     | dashboard module                                                              | real message data                    | Extend after ingestion                         |
+| AI credit metering, usage limits    | Partial     | `PlanDefinition.aiCredits`                                                    | metering                             | Extend                                         |
+| Preserved as-is                     | Implemented | Auth, team, inbox UI, leads, orders, billing, admin, brain config, date range | none                                 | Preserve                                       |

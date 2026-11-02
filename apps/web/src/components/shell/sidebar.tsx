@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { CH, NAV } from '@/features/dashboard/data';
+import { ChannelIcon } from '@/components/channel-icon';
+import { NAV } from '@/features/dashboard/data';
 import { cn } from '@/lib/utils';
+import { NAV_ICON, NAV_PANEL_CLASS, NavItem } from './nav-item';
 import { useShell } from './shell-context';
 
 const HREFS: Record<string, string> = {
@@ -19,16 +21,17 @@ const HREFS: Record<string, string> = {
   Automation: '/automation',
 };
 const SUBS = [
-  { label: 'All', dot: '#B7B9C0', href: '/inbox' },
-  { label: 'WhatsApp', dot: CH.whatsapp.color, href: '/inbox?channel=WHATSAPP' },
-  { label: 'Instagram', dot: CH.instagram.color, href: '/inbox?channel=INSTAGRAM' },
-  { label: 'Facebook', dot: CH.facebook.color, href: '/inbox?channel=MESSENGER' },
-];
+  { label: 'All', channel: null, href: '/inbox' },
+  { label: 'WhatsApp', channel: 'WHATSAPP', href: '/inbox?channel=WHATSAPP' },
+  { label: 'Instagram', channel: 'INSTAGRAM', href: '/inbox?channel=INSTAGRAM' },
+  { label: 'Facebook', channel: 'MESSENGER', href: '/inbox?channel=MESSENGER' },
+] as const;
 
 export function Sidebar() {
   const {
     sidebarMode,
     expanded,
+    settingsMode,
     mobileNav,
     mobile,
     wide,
@@ -49,89 +52,66 @@ export function Sidebar() {
       {mobile && mobileNav && (
         <div
           onClick={() => setMobileNav(false)}
-          className="fixed inset-x-0 bottom-0 top-14 z-[55] bg-[rgba(23,24,28,0.25)]"
+          className="fixed inset-x-0 bottom-0 top-14 z-[55] bg-[rgba(13,37,61,0.25)]"
         />
       )}
-      <div className="relative shrink-0" style={{ width: sbPx }}>
+      <div
+        className="relative shrink-0 transition-[width] duration-[280ms] ease-in-out motion-reduce:transition-none"
+        style={{ width: sbPx }}
+      >
         <nav
           aria-label="Main"
           onMouseEnter={() => setSidebarHover(true)}
           onMouseLeave={() => setSidebarHover(false)}
           className={cn(
-            'z-[60] flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden border-r border-[rgba(229,231,235,0.75)] px-[11px] py-4 transition-[width] duration-200 ease-out backdrop-blur-[24px] backdrop-saturate-150',
-            'bg-[linear-gradient(180deg,rgba(236,236,255,0.96)_0%,rgba(244,244,255,0.94)_45%,rgba(255,255,255,0.96)_100%)]',
+            NAV_PANEL_CLASS,
+            'z-[60] overflow-y-auto overflow-x-hidden border-r border-line transition-[width] duration-[280ms] ease-in-out motion-reduce:transition-none',
             sidebarMode === 'full'
               ? 'relative h-full'
               : sidebarMode === 'rail'
                 ? 'absolute left-0 top-0 h-full'
                 : 'fixed left-0 top-14 h-[calc(100vh-56px)]',
-            floating && 'shadow-[4px_0_20px_rgba(16,24,40,0.12)]',
+            floating && 'shadow-[4px_0_20px_rgba(0,55,112,0.12)]',
           )}
           style={{ width: expanded ? 228 : 68 }}
         >
           {NAV.map((n) => {
             const href = HREFS[n.label];
-            const active = href === '/' ? pathname === '/' : !!href && pathname.startsWith(href);
-            const color = active ? '#4F50D1' : '#62656D';
-            const cls = cn(
-              'flex shrink-0 items-center gap-2.5 no-underline hover:bg-white/60 hover:no-underline',
-              expanded
-                ? 'h-9 justify-start rounded-lg px-2.5'
-                : 'h-[46px] w-[46px] justify-center rounded-[11px]',
-            );
-            const style = {
-              color,
-              background: active ? 'rgba(240,240,255,0.95)' : undefined,
-              fontWeight: active ? 600 : 500,
-              fontSize: 14,
-            };
-            const inner = (
-              <>
-                <svg
-                  width={expanded ? 16 : 20}
-                  height={expanded ? 16 : 20}
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke={color}
-                  strokeWidth="1.9"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="shrink-0"
-                >
-                  <path d={n.icon} />
-                </svg>
-                {expanded && <span className="flex-1 whitespace-nowrap">{n.label}</span>}
-              </>
-            );
+            const active =
+              href === '/'
+                ? pathname === '/'
+                : href === '/settings'
+                  ? settingsMode
+                  : !!href && pathname.startsWith(href);
             return (
               <div key={n.label}>
-                {href ? (
-                  <Link
-                    href={href}
-                    title={n.label}
-                    aria-current={active ? 'page' : undefined}
-                    onClick={() => setMobileNav(false)}
-                    className={cls}
-                    style={style}
-                  >
-                    {inner}
-                  </Link>
-                ) : (
-                  <a
-                    href="#"
-                    title={n.label}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      toast(`${n.label} isn't available yet`);
-                    }}
-                    className={cls}
-                    style={style}
-                  >
-                    {inner}
-                  </a>
-                )}
+                <NavItem
+                  label={n.label}
+                  active={active}
+                  expanded={expanded}
+                  href={href}
+                  onClick={() => {
+                    if (href) setMobileNav(false);
+                    else toast(`${n.label} isn't available yet`);
+                  }}
+                  icon={(color) => (
+                    <svg
+                      width={NAV_ICON.size}
+                      height={NAV_ICON.size}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke={color}
+                      strokeWidth={NAV_ICON.strokeWidth}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d={n.icon} />
+                    </svg>
+                  )}
+                />
                 {n.subs && expanded && (
-                  <div className="flex flex-col gap-px pb-1 pl-[26px] pt-0.5">
+                  // Indented under the Inbox icon with a guide line, so channel shortcuts read as children of Inbox.
+                  <div className="mb-1 ml-[23px] mt-0.5 flex animate-panel-in flex-col gap-0.5 border-l border-line pl-[14px] motion-reduce:animate-none">
                     {SUBS.map((sb) => {
                       const on =
                         active &&
@@ -141,15 +121,21 @@ export function Sidebar() {
                           key={sb.label}
                           href={sb.href}
                           onClick={() => setMobileNav(false)}
+                          aria-current={on ? 'page' : undefined}
                           className={cn(
-                            'flex h-[30px] items-center gap-2 rounded-[7px] px-2.5 text-[13px] no-underline hover:bg-white/60 hover:no-underline',
-                            on ? 'bg-white/70 font-medium text-ink' : 'text-muted hover:text-muted',
+                            'flex h-8 items-center gap-2.5 rounded-[8px] px-2.5 text-[13.5px] no-underline transition-colors duration-150 hover:bg-[rgba(13,37,61,0.045)] hover:no-underline motion-reduce:transition-none',
+                            on
+                              ? 'bg-[rgba(91,92,226,0.09)] font-semibold text-primary-hover hover:text-primary-hover'
+                              : 'font-medium text-[#3C4F68] hover:text-ink',
                           )}
                         >
-                          <span
-                            className="h-[7px] w-[7px] rounded-full"
-                            style={{ background: sb.dot }}
-                          />
+                          {sb.channel ? (
+                            <ChannelIcon channel={sb.channel} size={16} decorative />
+                          ) : (
+                            <span className="flex w-4 justify-center">
+                              <span className="h-[7px] w-[7px] rounded-full bg-[#9A9DA6]" />
+                            </span>
+                          )}
                           {sb.label}
                         </Link>
                       );
@@ -161,8 +147,8 @@ export function Sidebar() {
           })}
           <div className="flex-1" />
           {wide && (
-            <>
-              <div className="my-2 h-px bg-line" />
+            // Pinned footer: stays visible below the scrolling items and never covers them.
+            <div className="sticky -bottom-3 -mx-[11px] -mb-3 mt-2 border-t border-line bg-[#FAFAFC] px-[11px] pb-3 pt-2">
               <button
                 type="button"
                 onClick={toggleSidebar}
@@ -174,7 +160,7 @@ export function Sidebar() {
                   height="17"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="#62656D"
+                  stroke="#5A6A82"
                   strokeWidth="1.7"
                   style={{
                     transform: userCollapsed ? 'rotate(180deg)' : 'none',
@@ -185,7 +171,7 @@ export function Sidebar() {
                   <path d="M9.5 4v16M6.5 10l-1.5 2 1.5 2" />
                 </svg>
               </button>
-            </>
+            </div>
           )}
         </nav>
       </div>

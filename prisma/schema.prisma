@@ -126,6 +126,43 @@ enum ExecutionStatus {
   SKIPPED
 }
 
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum BillingInterval {
+  MONTH
+  YEAR
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  VOID
+}
+
+enum WorkspaceStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum PlanStatus {
+  ACTIVE
+  DISABLED
+  ARCHIVED
+}
+
+enum SubscriptionSource {
+  PROVIDER
+  MANUAL
+}
+
 enum LeadStage {
   NEW
   CONTACTED
@@ -170,6 +207,8 @@ model User {
   timeZone        String?
   /// Where "/" sends this user after sign-in: dashboard, inbox, leads, customers or orders.
   landingPage     String     @default("dashboard")
+  suspendedAt     DateTime?
+  suspendedReason String?
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
@@ -204,16 +243,21 @@ model User {
 }
 
 model Workspace {
-  id              String   @id @default(uuid(7)) @db.Uuid
-  name            String
-  slug            String   @unique
-  description     String?
+  id                String          @id @default(uuid(7)) @db.Uuid
+  name              String
+  slug              String          @unique
+  description       String?
   /// Pre-selected currency when creating orders.
-  defaultCurrency String?  @db.VarChar(3)
-  contactEmail    String?
-  createdById     String?  @db.Uuid
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  defaultCurrency   String?         @db.VarChar(3)
+  contactEmail      String?
+  status            WorkspaceStatus @default(ACTIVE)
+  /// IANA zone that defines "a day" for dashboard analytics, so every member sees identical numbers.
+  reportingTimeZone String          @default("UTC")
+  suspendedAt       DateTime?
+  suspendedReason   String?
+  createdById       String?         @db.Uuid
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   createdBy            User?                 @relation("WorkspaceCreator", fields: [createdById], references: [id], onDelete: SetNull)
   memberships          WorkspaceMembership[]
@@ -239,6 +283,11 @@ model Workspace {
   orderEvents          OrderEvent[]
   /// Last issued human-readable order number for this workspace.
   orderSeq             Int                   @default(0)
+  billingAccount       BillingAccount?
+  subscription         Subscription?
+  invoices             Invoice[]
+  paymentMethodRefs    PaymentMethodRef[]
+  billingEvents        BillingEvent[]
 
   @@map("workspaces")
 }
@@ -342,42 +391,85 @@ model Channel {
   defaultTeamId     String?         @db.Uuid
   /// True for development seed records that have no live provider connection.
   isSample          Boolean         @default(false)
+  /// Provider-side account id (WhatsApp phone-number id). Unique per provider so one number can't be connected twice.
+  externalAccountId String?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
-  workspace       Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  defaultAssignee User?          @relation("ChannelDefaultAssignee", fields: [defaultAssigneeId], references: [id], onDelete: SetNull)
-  defaultTeam     Team?          @relation("ChannelDefaultTeam", fields: [defaultTeamId], references: [id], onDelete: SetNull)
+  workspace       Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  credential      ChannelCredential?
+  defaultAssignee User?              @relation("ChannelDefaultAssignee", fields: [defaultAssigneeId], references: [id], onDelete: SetNull)
+  defaultTeam     Team?              @relation("ChannelDefaultTeam", fields: [defaultTeamId], references: [id], onDelete: SetNull)
   conversations   Conversation[]
 
+  @@unique([provider, externalAccountId])
   @@index([workspaceId, provider])
   @@map("channels")
 }
 
+/// Provider access token, encrypted at rest (AES-256-GCM, see ChannelCryptoService). Never selected by list queries
+/// and never returned by any API.
+model ChannelCredential {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  workspaceId String   @db.Uuid
+  channelId   String   @unique @db.Uuid
+  ciphertext  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("channel_credentials")
+}
+
+/// Every provider webhook delivery, stored before processing. (provider, eventKey) is unique, so a redelivered event
+/// is detected and skipped instead of creating duplicate messages.
+model ProviderWebhookEvent {
+  id          String          @id @default(uuid(7)) @db.Uuid
+  provider    ChannelProvider
+  eventKey    String
+  workspaceId String?         @db.Uuid
+  channelId   String?         @db.Uuid
+  payload     Json
+  /// RECEIVED | PROCESSED | IGNORED | FAILED
+  status      String          @default("RECEIVED")
+  attempts    Int             @default(0)
+  error       String?
+  receivedAt  DateTime        @default(now())
+  processedAt DateTime?
+
+  @@unique([provider, eventKey])
+  @@index([status, receivedAt])
+  @@map("provider_webhook_events")
+}
+
 model Customer {
-  id          String         @id @default(uuid(7)) @db.Uuid
-  workspaceId String         @db.Uuid
-  name        String
-  phone       String?
-  email       String?
+  id                String         @id @default(uuid(7)) @db.Uuid
+  workspaceId       String         @db.Uuid
+  name              String
+  phone             String?
+  email             String?
   /// Provider handle, e.g. an Instagram @username.
-  handle      String?
-  location    String?
-  leadStatus  LeadStatus     @default(NEW)
-  tags        String[]       @default([])
-  notes       String         @default("")
+  handle            String?
+  location          String?
+  leadStatus        LeadStatus     @default(NEW)
+  tags              String[]       @default([])
+  notes             String         @default("")
   /// True for development seed records so the UI can label them honestly.
-  company     String?
-  address     String?
+  company           String?
+  address           String?
   /// First-touch source (reuses the lead source enum).
-  source      LeadSource     @default(MANUAL)
-  status      CustomerStatus @default(ACTIVE)
-  ownerId     String?        @db.Uuid
+  source            LeadSource     @default(MANUAL)
+  status            CustomerStatus @default(ACTIVE)
+  ownerId           String?        @db.Uuid
   /// Digits-only phone for duplicate detection.
-  phoneKey    String?
-  isSample    Boolean        @default(false)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  phoneKey          String?
+  /// Set when the customer sent a stop keyword on a messaging channel; outbound marketing/service sends are blocked.
+  messagingOptOutAt DateTime?
+  isSample          Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 
   workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   conversations Conversation[]
@@ -409,6 +501,10 @@ model Conversation {
   lastMessagePreview String               @default("")
   /// Set when the newest customer message has not been answered; cleared on agent reply.
   waitingSince       DateTime?
+  /// Time of the newest customer message; the WhatsApp 24-hour customer service window runs from here.
+  lastInboundAt      DateTime?
+  /// When the conversation was last resolved; cleared when it reopens. Drives "resolved" analytics.
+  resolvedAt         DateTime?
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
 
@@ -421,6 +517,7 @@ model Conversation {
 
   @@index([workspaceId, status, lastMessageAt(sort: Desc)])
   @@index([workspaceId, assigneeId])
+  @@index([workspaceId, resolvedAt])
   @@index([customerId])
   @@map("conversations")
 }
@@ -436,6 +533,8 @@ model Message {
   deliveryStatus DeliveryStatus?
   /// Provider message id; unique per conversation for idempotent ingestion.
   externalId     String?
+  /// Why a send failed (provider error), shown to agents.
+  errorMessage   String?
   createdAt      DateTime        @default(now())
 
   workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -709,6 +808,7 @@ model OrderPayment {
 
   @@unique([workspaceId, requestId])
   @@index([orderId, paidAt])
+  @@index([workspaceId, paidAt])
   @@map("order_payments")
 }
 
@@ -832,4 +932,241 @@ model AutomationExecution {
   @@index([automationId, createdAt(sort: Desc)])
   @@index([status, resumeAt])
   @@map("automation_executions")
+}
+
+/// The workspace's billing profile and its link to the payment provider. Provider ids are kept apart from ours.
+/// No card data is ever stored: payment methods are provider references (see PaymentMethodRef).
+model BillingAccount {
+  id                 String   @id @default(uuid(7)) @db.Uuid
+  workspaceId        String   @unique @db.Uuid
+  provider           String?
+  providerCustomerId String?  @unique
+  companyName        String?
+  contactName        String?
+  billingEmail       String?
+  phone              String?
+  country            String?
+  state              String?
+  city               String?
+  addressLine        String?
+  postalCode         String?
+  taxId              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("billing_accounts")
+}
+
+/// One subscription per workspace, written only from verified provider events (never from the browser).
+/// No row means the workspace is on the built-in Free plan.
+model Subscription {
+  id                     String             @id @default(uuid(7)) @db.Uuid
+  workspaceId            String             @unique @db.Uuid
+  planKey                String
+  interval               BillingInterval
+  status                 SubscriptionStatus
+  providerSubscriptionId String             @unique
+  /// MANUAL = a complimentary plan granted by a platform admin (no payments, no provider subscription).
+  source                 SubscriptionSource @default(PROVIDER)
+  /// Real recurring price taken from the provider event (per interval, minor units). Basis for MRR.
+  priceMinor             Int?
+  currency               String?            @db.VarChar(3)
+  /// The plan definition (limits, features) as it was when this subscription started or last changed plan,
+  /// so later edits to a plan never silently change existing subscribers.
+  planSnapshot           Json?
+  grantedById            String?            @db.Uuid
+  grantReason            String?
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  trialEnd               DateTime?
+  cancelAtPeriodEnd      Boolean            @default(false)
+  canceledAt             DateTime?
+  startedAt              DateTime?
+  /// Provider event time of the last applied update, so out-of-order events can't roll state back.
+  lastEventAt            DateTime
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+/// A provider invoice mirrored locally. Rows exist only when the provider reported them.
+model Invoice {
+  id                String        @id @default(uuid(7)) @db.Uuid
+  workspaceId       String        @db.Uuid
+  providerInvoiceId String        @unique
+  number            String?
+  status            InvoiceStatus
+  currency          String        @db.VarChar(3)
+  subtotalMinor     Int
+  taxMinor          Int
+  totalMinor        Int
+  amountPaidMinor   Int           @default(0)
+  periodStart       DateTime?
+  periodEnd         DateTime?
+  planKey           String?
+  hostedUrl         String?
+  /// Snapshot of the billing profile at issue time (name, address, tax id) so reprints never change.
+  customerSnapshot  Json?
+  paymentSummary    String?
+  issuedAt          DateTime
+  lastEventAt       DateTime
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  workspace Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  lines     InvoiceLineItem[]
+
+  @@index([workspaceId, issuedAt(sort: Desc)])
+  @@index([workspaceId, status])
+  @@map("invoices")
+}
+
+model InvoiceLineItem {
+  id          String @id @default(uuid(7)) @db.Uuid
+  invoiceId   String @db.Uuid
+  position    Int
+  description String
+  quantity    Int    @default(1)
+  amountMinor Int
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId, position])
+  @@map("invoice_line_items")
+}
+
+/// A reference to a payment method held by the provider. Only display data (brand, last 4, expiry).
+model PaymentMethodRef {
+  id                      String   @id @default(uuid(7)) @db.Uuid
+  workspaceId             String   @db.Uuid
+  providerPaymentMethodId String   @unique
+  brand                   String
+  last4                   String   @db.VarChar(4)
+  expMonth                Int
+  expYear                 Int
+  isDefault               Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("payment_method_refs")
+}
+
+/// Every provider webhook event we accepted. `providerEventId` is unique, which makes processing idempotent.
+model BillingEvent {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  workspaceId     String?  @db.Uuid
+  providerEventId String   @unique
+  type            String
+  occurredAt      DateTime
+  /// Outcome: processed, or ignored with the reason (unknown customer, unsupported type).
+  outcome         String
+  processedAt     DateTime @default(now())
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, processedAt])
+  @@map("billing_events")
+}
+
+/// A platform operator who signs in to /admin. Completely separate from customer `User` accounts: its own
+/// credentials, its own sessions, and no relation to workspaces. Created only by a CLI command, never over HTTP.
+model PlatformAdmin {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         String    @default("SUPER_ADMIN")
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions AdminSession[]
+  audits   AdminAuditLog[]
+
+  @@map("platform_admins")
+}
+
+/// Server-side admin session. Only the SHA-256 of the opaque cookie token is stored.
+model AdminSession {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  adminId    String    @db.Uuid
+  tokenHash  String    @unique
+  ipAddress  String?
+  userAgent  String?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  admin PlatformAdmin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId, revokedAt])
+  @@map("admin_sessions")
+}
+
+/// Append-only record of platform admin actions. The application only ever inserts and reads it.
+model AdminAuditLog {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  adminId     String?  @db.Uuid
+  adminEmail  String
+  action      String
+  targetType  String?
+  targetId    String?
+  targetLabel String?
+  reason      String?
+  metadata    Json?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  admin PlatformAdmin? @relation(fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([action])
+  @@index([targetType, targetId])
+  @@map("admin_audit_logs")
+}
+
+/// Platform-wide key/value settings (branding, registration switch). Never holds secrets.
+model PlatformSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("platform_settings")
+}
+
+/// Plan catalog managed by platform admins. Plans are never hard-deleted while subscriptions reference them.
+model PlanDefinition {
+  id                 String     @id @default(uuid(7)) @db.Uuid
+  key                String     @unique
+  name               String
+  description        String     @default("")
+  rank               Int
+  recommended        Boolean    @default(false)
+  currency           String     @db.VarChar(3)
+  monthlyMinor       Int
+  yearlyMinor        Int
+  placeholderPricing Boolean    @default(true)
+  /// { members, channels, contacts, messages, whatsapp, instagram, messenger }: number or null (unlimited)
+  limits             Json
+  /// Credits included per period. Stored and shown, but not enforced: AI usage isn't metered yet.
+  aiCredits          Int?
+  features           String[]   @default([])
+  /// Provider price ids. When null the BILLING_PRICE_IDS environment mapping is used.
+  priceIdMonth       String?
+  priceIdYear        String?
+  status             PlanStatus @default(ACTIVE)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  @@map("plans")
 }

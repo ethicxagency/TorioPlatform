@@ -60,9 +60,11 @@ interface Props {
   customerName: string;
   onReply: (m: Message) => void;
   onCopy: (m: Message) => void;
+  /** Offered on failed outgoing messages only. */
+  onRetry?: (m: Message) => void;
 }
 
-function Bubble({ m, groupStart, groupEnd, customerName, onReply, onCopy }: Props) {
+function Bubble({ m, groupStart, groupEnd, customerName, onReply, onCopy, onRetry }: Props) {
   if (m.kind === 'EVENT') {
     return (
       <div className="my-2 flex items-center justify-center gap-2 px-4 text-xs text-faint">
@@ -128,6 +130,20 @@ function Bubble({ m, groupStart, groupEnd, customerName, onReply, onCopy }: Prop
         )}
         {/* Plain text only: message bodies are never rendered as HTML. */}
         <p className="m-0 whitespace-pre-wrap [overflow-wrap:anywhere]">{m.body}</p>
+        {out && m.deliveryStatus === 'FAILED' && m.failureReason && (
+          <p role="alert" className="m-0 mt-1 text-xs text-[#FFD0D0] [overflow-wrap:anywhere]">
+            Not delivered: {m.failureReason}
+          </p>
+        )}
+        {out && m.deliveryStatus === 'FAILED' && onRetry && (
+          <button
+            type="button"
+            onClick={() => onRetry(m)}
+            className="mt-1.5 cursor-pointer rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-semibold text-white hover:bg-white/30"
+          >
+            Retry sending
+          </button>
+        )}
         {groupEnd && (
           <div
             className={cn(

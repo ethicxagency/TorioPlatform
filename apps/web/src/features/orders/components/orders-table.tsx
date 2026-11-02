@@ -53,7 +53,7 @@ interface Props {
   onCreate: () => void;
 }
 
-const th = 'px-3 py-2.5 text-left text-[11.5px] font-medium text-faint whitespace-nowrap';
+const th = 'px-3 py-2.5 text-left text-[12px] font-semibold text-muted whitespace-nowrap';
 
 function Box({
   checked,

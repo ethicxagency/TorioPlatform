@@ -1,5 +1,6 @@
 'use client';
 
+import { CURRENCY_DEFS, DEFAULT_CURRENCY } from '@torio/contracts';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { leadInputSchema, type LeadInput, type LeadInputParsed } from '@torio/contracts';
 import { X } from 'lucide-react';
@@ -197,7 +198,7 @@ export function LeadFormDialog({ lead, owners, onClose, onSubmit }: Props) {
           </select>
         </label>
         <label className={label}>
-          Estimated deal value (৳)
+          Estimated deal value ({CURRENCY_DEFS[DEFAULT_CURRENCY].symbol})
           <Input
             type="number"
             min={0}

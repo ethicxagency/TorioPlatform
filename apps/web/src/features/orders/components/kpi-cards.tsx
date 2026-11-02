@@ -75,9 +75,7 @@ export function OrderKpis({ summary: s, loading, error, periodLabel, onRetry }: 
               </>
             ) : (
               <>
-                <div className="mt-1 truncate text-2xl font-semibold tabular-nums tracking-[-0.02em]">
-                  {c.value ?? '—'}
-                </div>
+                <div className="mt-1 truncate text-2xl font-metric">{c.value ?? '—'}</div>
                 <div className="mt-1 truncate text-xs text-faint" title={c.sub}>
                   {c.sub}
                 </div>

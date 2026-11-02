@@ -3,9 +3,12 @@
 import { Check, Info } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useWorkspace } from '@/lib/workspace';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Modal } from '@/features/leads/components/modal';
 import { cn } from '@/lib/utils';
+import { useConnectWhatsApp } from '../queries';
 import type { ProviderInfo } from '../types';
 import { ProviderMark } from './bits';
 
@@ -24,6 +27,14 @@ interface Props {
 export function ConnectDialog({ providers, loading, error, onRetry, onClose }: Props) {
   const [sel, setSel] = useState<string>('');
   const chosen = providers?.find((p) => p.provider === sel);
+  const { workspaceId } = useWorkspace();
+  const connect = useConnectWhatsApp(workspaceId);
+  const [wa, setWa] = useState({ displayName: '', phoneNumberId: '', accessToken: '' });
+  const isWa = chosen?.provider === 'WHATSAPP' && chosen.state === 'available';
+  const waReady =
+    wa.displayName.trim() &&
+    /^\d{5,30}$/.test(wa.phoneNumberId.trim()) &&
+    wa.accessToken.trim().length >= 20;
   return (
     <Modal
       title="Connect a channel"
@@ -35,10 +46,13 @@ export function ConnectDialog({ providers, loading, error, onRetry, onClose }: P
             Close
           </Button>
           <Button
-            disabled={!chosen || chosen.state !== 'available'}
+            disabled={
+              !chosen || chosen.state !== 'available' || !isWa || !waReady || connect.isPending
+            }
             title={chosen?.state === 'unavailable' ? chosen.reason : undefined}
+            onClick={() => connect.mutate(wa, { onSuccess: onClose })}
           >
-            Continue to {chosen?.label ?? 'provider'}
+            {connect.isPending ? 'Verifying with Meta…' : `Connect ${chosen?.label ?? 'channel'}`}
           </Button>
         </>
       }
@@ -106,6 +120,44 @@ export function ConnectDialog({ providers, loading, error, onRetry, onClose }: P
                   </li>
                 ))}
               </ul>
+              {isWa && (
+                <div className="mt-3 flex flex-col gap-2">
+                  <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+                    Display name
+                    <Input
+                      value={wa.displayName}
+                      maxLength={60}
+                      onChange={(e) => setWa({ ...wa, displayName: e.target.value })}
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+                    Phone number ID (from Meta)
+                    <Input
+                      inputMode="numeric"
+                      value={wa.phoneNumberId}
+                      onChange={(e) => setWa({ ...wa, phoneNumberId: e.target.value })}
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+                    Access token
+                    <Input
+                      type="password"
+                      autoComplete="off"
+                      value={wa.accessToken}
+                      onChange={(e) => setWa({ ...wa, accessToken: e.target.value })}
+                    />
+                  </label>
+                  <p className="m-0 text-xs text-faint">
+                    Torio checks the number with Meta before saving. The token is encrypted and
+                    never shown again.
+                  </p>
+                  {connect.error && (
+                    <p role="alert" className="m-0 text-xs text-danger">
+                      {connect.error.message}
+                    </p>
+                  )}
+                </div>
+              )}
               {chosen.state === 'unavailable' && (
                 <p
                   role="status"

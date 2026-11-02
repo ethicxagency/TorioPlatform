@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { formatCurrency } from './currency';
 
 /**
  * Orders. Money is integer minor units (cents) with one currency per order. Totals are computed here, on the
@@ -172,13 +173,9 @@ export function computeTotals(
   return { ok: true, totals: { lineTotals, subtotalMinor, totalMinor } };
 }
 
-export function formatMoney(minor: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(minor / 100);
-  } catch {
-    return `${(minor / 100).toFixed(2)} ${currency}`;
-  }
-}
+/** Kept for existing callers; the implementation lives in currency.ts. */
+export const formatMoney = (minor: number, currency: string): string =>
+  formatCurrency(minor, currency);
 
 // ---------- inputs ----------
 

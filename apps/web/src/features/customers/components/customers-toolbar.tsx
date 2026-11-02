@@ -1,5 +1,6 @@
 'use client';
 
+import { ChannelIcon, channelKind } from '@/components/channel-icon';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -185,10 +186,14 @@ export function CustomersToolbar(p: Props) {
                             : 'border-line bg-white text-muted hover:bg-wash',
                         )}
                       >
-                        <span
-                          className="h-1.5 w-1.5 rounded-full"
-                          style={{ background: s.color }}
-                        />
+                        {channelKind(s.key) ? (
+                          <ChannelIcon channel={s.key} size={13} decorative />
+                        ) : (
+                          <span
+                            className="h-1.5 w-1.5 rounded-full"
+                            style={{ background: s.color }}
+                          />
+                        )}
                         {s.label}
                       </button>
                     );

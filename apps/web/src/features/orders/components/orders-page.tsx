@@ -137,7 +137,7 @@ export function OrdersPage() {
           <nav aria-label="Breadcrumb" className="mb-1 text-xs text-faint">
             Commerce / <span className="text-muted">Orders</span>
           </nav>
-          <h1 className="m-0 text-2xl font-semibold tracking-[-0.015em]">Orders</h1>
+          <h1 className="m-0 font-page-title">Orders</h1>
           <p className="m-0 mt-1 text-sm text-muted">
             Track orders, payments, and fulfillment from one workspace.
           </p>

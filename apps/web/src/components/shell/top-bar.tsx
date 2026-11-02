@@ -9,7 +9,7 @@ import { useShell } from './shell-context';
 import { TorioLogo } from './torio-logo';
 
 const glassBtn =
-  'flex h-9 w-9 items-center justify-center rounded-[9px] border-none bg-transparent cursor-pointer hover:bg-white/75';
+  'flex h-9 w-9 cursor-pointer items-center justify-center rounded-[9px] border-none bg-transparent text-muted transition-colors duration-150 hover:bg-wash hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none';
 
 export function TopBar() {
   const { user, signOut } = useAuth();
@@ -42,12 +42,8 @@ export function TopBar() {
   const stub = () => toast("This action isn't available yet");
 
   return (
-    <header className="relative z-40 h-14 shrink-0 border-b border-[rgba(229,231,235,0.7)] bg-[linear-gradient(90deg,rgba(91,92,226,0.10),rgba(255,255,255,0.72)_45%,rgba(91,92,226,0.04))] backdrop-blur-[20px] backdrop-saturate-150">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -left-10 -top-[60px] h-[180px] w-[180px] rounded-full bg-[#7C83FF] opacity-[0.14] blur-[40px]"
-      />
-      <div className="relative z-[1] flex h-full items-center gap-3 px-4">
+    <header className="relative z-40 h-14 shrink-0 border-b border-line bg-white/90 backdrop-blur-[12px] backdrop-saturate-150">
+      <div className="relative z-[1] flex h-full items-center gap-2 pl-[22px] pr-4">
         {mobile && (
           <button
             type="button"
@@ -60,7 +56,7 @@ export function TopBar() {
               height="20"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="#62656D"
+              stroke="#5A6A82"
               strokeWidth="1.8"
               strokeLinecap="round"
             >
@@ -68,7 +64,7 @@ export function TopBar() {
             </svg>
           </button>
         )}
-        <TorioLogo className="block h-10 w-auto" />
+        <TorioLogo className="block h-9 w-auto shrink-0 object-contain" />
         <div className="flex-1" />
         {!mobile && <GlobalSearch inputRef={inputRef} />}
         <div className="flex-1" />
@@ -78,7 +74,7 @@ export function TopBar() {
             height="18"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="#62656D"
+            stroke="currentColor"
             strokeWidth="1.75"
             strokeLinecap="round"
           >
@@ -90,6 +86,7 @@ export function TopBar() {
           type="button"
           onClick={stub}
           aria-label="Notifications"
+          title="Notifications"
           className={`relative ${glassBtn}`}
         >
           <svg
@@ -97,7 +94,7 @@ export function TopBar() {
             height="18"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="#62656D"
+            stroke="currentColor"
             strokeWidth="1.75"
           >
             <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
@@ -110,15 +107,15 @@ export function TopBar() {
             type="button"
             onClick={() => setAccountOpen((v) => !v)}
             aria-label="Account menu"
-            className="flex h-10 cursor-pointer items-center gap-2 rounded-[11px] border border-white/70 bg-white/50 py-1 pl-[5px] pr-2.5"
+            className="flex h-9 cursor-pointer items-center gap-2 rounded-[10px] border border-line bg-white py-1 pl-1 pr-2.5 transition-colors duration-150 hover:bg-wash focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
           >
-            <span className="flex h-[30px] w-[30px] items-center justify-center rounded-full bg-primary text-[11.5px] font-semibold text-white">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-white">
               {initials}
             </span>
             {!mobile && <span className="text-[13.5px] font-semibold text-ink">Torio</span>}
           </button>
           {accountOpen && (
-            <div className="absolute right-0 top-12 z-50 w-60 animate-panel-in rounded-[14px] border border-line bg-white/95 p-1.5 shadow-[0_8px_24px_rgba(16,24,40,0.1)] backdrop-blur-[20px]">
+            <div className="absolute right-0 top-12 z-50 w-60 animate-panel-in rounded-[14px] border border-line bg-white/95 p-1.5 shadow-[0_8px_24px_rgba(0,55,112,0.1)] backdrop-blur-[20px]">
               <div className="mb-1 border-b border-line-subtle px-2.5 pb-2.5 pt-2">
                 <div className="text-[13.5px] font-semibold">{user?.name}</div>
                 <div className="truncate text-xs text-faint">{user?.email}</div>

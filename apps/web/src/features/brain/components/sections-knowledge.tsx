@@ -1,5 +1,6 @@
 'use client';
 
+import { formatCurrencyMajor } from '@torio/contracts';
 import {
   areas,
   FAQ_CATS,
@@ -14,6 +15,9 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { AreaField, Drawer, Pill, SectionCard, SelectField, TextField, Toggle, uid } from './bits';
 import type { Remove, SectionProps } from './types';
+import { CURRENCY_DEFS, DEFAULT_CURRENCY } from '@torio/contracts';
+
+const CURRENCY_SYMBOL = CURRENCY_DEFS[DEFAULT_CURRENCY].symbol;
 
 const STOCK_TONE = {
   'In stock': 'ok',
@@ -94,7 +98,7 @@ function ProductDrawer({
         />
         <TextField label="Category" value={p.category} onChange={set('category')} />
         <TextField
-          label="Price (৳) *"
+          label={`Price (${CURRENCY_SYMBOL}) *`}
           value={p.price}
           onChange={set('price')}
           error={tried ? errors.price : ''}
@@ -206,7 +210,7 @@ export function ProductsSection({ d, mut, canWrite, remove }: SectionProps & { r
                   </div>
                 </div>
                 <div className="w-20 text-sm tabular-nums">
-                  {p.price ? `৳${Number(p.price).toLocaleString('en-US')}` : '—'}
+                  {p.price ? formatCurrencyMajor(Number(p.price)) : '—'}
                 </div>
                 <Pill tone={STOCK_TONE[p.stock]}>{p.stock}</Pill>
                 {miss.length > 0 && (

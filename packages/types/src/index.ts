@@ -29,6 +29,8 @@ export const PERMISSIONS = [
   'automation:read',
   'automation:write',
   'automation:activate',
+  'billing:read',
+  'billing:manage',
   'audit:read',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
@@ -39,7 +41,7 @@ export type Permission = (typeof PERMISSIONS)[number];
  */
 export const ROLE_PERMISSIONS: Record<WorkspaceRole, ReadonlySet<Permission>> = {
   OWNER: new Set(PERMISSIONS),
-  ADMIN: new Set(PERMISSIONS.filter((p) => p !== 'workspace:delete')),
+  ADMIN: new Set(PERMISSIONS.filter((p) => p !== 'workspace:delete' && p !== 'billing:manage')),
   AGENT: new Set<Permission>([
     'workspace:read',
     'members:read',

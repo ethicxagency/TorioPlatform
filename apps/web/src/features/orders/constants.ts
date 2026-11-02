@@ -1,3 +1,4 @@
+import { DEFAULT_CURRENCY, ENABLED_CURRENCIES } from '@torio/contracts';
 import type {
   FulfillmentStatus,
   OrderChannel,
@@ -40,8 +41,9 @@ export const CHANNEL_LABEL: Record<OrderChannel, string> = {
   INSTAGRAM: 'Instagram',
   MESSENGER: 'Messenger',
 };
-export const CURRENCIES = ['USD', 'EUR', 'GBP', 'BDT', 'INR', 'AED'] as const;
-export const DEFAULT_CURRENCY = 'USD';
+/** Currencies a customer can pick for new orders. Old orders keep whatever currency they were created in. */
+export const CURRENCIES = ENABLED_CURRENCIES;
+export { DEFAULT_CURRENCY };
 
 /** Status transitions offered as the primary "next step" in the UI, in order. Rules live in @torio/contracts. */
 export const NEXT_STATUS: Partial<

@@ -71,6 +71,8 @@ export const workspaceSchema = z.object({
   name: z.string(),
   slug: z.string(),
   description: z.string().describe('Text, or null when not set').nullable(),
+  status: z.enum(['ACTIVE', 'SUSPENDED']),
+  reportingTimeZone: z.string(),
   defaultCurrency: z.string().describe('ISO currency code, or null when not set').nullable(),
   contactEmail: z.string().describe('Text, or null when not set').nullable(),
   createdAt: z.iso.datetime(),
@@ -200,6 +202,8 @@ export const messageSchema = z.object({
   author: z.object({ id: z.uuid(), name: z.string() }).nullable(),
   replyTo: z.object({ id: z.uuid(), body: z.string(), kind: messageKindSchema }).nullable(),
   deliveryStatus: deliveryStatusSchema.nullable(),
+  /** Why a send failed, when deliveryStatus is FAILED. */
+  failureReason: z.string().nullable(),
   createdAt: z.iso.datetime(),
 });
 
@@ -772,8 +776,12 @@ export type UpdateTeamInput = z.infer<typeof updateTeamSchema>;
 export * from './brain';
 export * from './brain-preview';
 export * from './orders';
+export * from './currency';
 export * from './settings';
 export * from './automations';
+export * from './billing';
+export * from './admin';
+export * from './date-range';
 
 // ---------- Channels ----------
 
@@ -833,6 +841,24 @@ export const providerInfoSchema = z.object({
   requirements: z.array(z.string()),
   connectedCount: z.number().int(),
 });
+/** Connect a WhatsApp number with a Cloud API access token (Meta Embedded Signup is not built yet). */
+export const connectWhatsAppSchema = z.object({
+  displayName: z.string().trim().min(1).max(60),
+  phoneNumberId: z
+    .string()
+    .trim()
+    .regex(/^\d{5,30}$/, 'Enter the numeric phone number ID from Meta'),
+  accessToken: z.string().trim().min(20).max(1000),
+});
+export type ConnectWhatsAppInput = z.infer<typeof connectWhatsAppSchema>;
+export const channelHealthSchema = z.object({
+  ok: z.boolean(),
+  checkedAt: z.string(),
+  qualityRating: z.string().nullable(),
+  displayPhoneNumber: z.string().nullable(),
+  error: z.string().nullable(),
+});
+
 export const providerListSchema = z.object({ data: z.array(providerInfoSchema) });
 
 export const updateChannelSchema = z

@@ -44,8 +44,18 @@ Settings (migration `…_settings`): `User` gains `phone`, `jobTitle`, `timeZone
 
 Automation (migration `…_automation`): `Automation` (draft definition JSON, `draftRevision`, live `publishedVersion`), `AutomationVersion` (immutable snapshots), `AutomationExecution` (one run; `eventKey` is unique per automation so a replayed event can’t start twice; per-step log, `currentStep`, `attempts`, `resumeAt` for waits/retries, redacted `context`). Test runs are rows with `isTest = true`.
 
+Billing (migration `…_billing`): `BillingAccount` (billing profile + provider customer id), `Subscription` (one per workspace, `lastEventAt` guards ordering), `Invoice` + `InvoiceLineItem` (mirrored from the provider, customer snapshot frozen at issue), `PaymentMethodRef` (brand/last4/expiry only), `BillingEvent` (unique provider event id = idempotency, with the outcome). Usage isn't stored: it is counted live from real tables. No row in `Subscription` means the built-in Free plan.
+
+Super Admin (migration `…_admin`): `PlatformAdmin` + `AdminSession` (separate from customer `User`/`Session`), append-only `AdminAuditLog`, `PlatformSetting` (branding, registration switch; no secrets), `PlanDefinition` (the plan catalog, seeded from code, edited by admins). `User` and `Workspace` gain `suspendedAt/suspendedReason` (`Workspace.status`); `Subscription` gains `source` (PROVIDER/MANUAL), the real recurring `priceMinor`/`currency` for MRR, and a `planSnapshot` frozen when the plan starts or changes so editing a plan never changes existing subscribers.
+
 All ids are UUID v7 (`@db.Uuid`); all tables have `createdAt`/`updatedAt` where mutable.
 Roles are an enum; role → permission mapping is in code (see ARCHITECTURE).
+
+Dashboard range (migration `20261030600000_dashboard_range`): `Workspace.reportingTimeZone` (IANA name, default `UTC`) defines where a reporting day starts and ends; `OrderPayment` gains an index on `(workspaceId, paidAt)` for revenue queries.
+
+WhatsApp (migration `20261101000000_omnichannel_whatsapp`): `ChannelCredential` (one encrypted token per channel), `ProviderWebhookEvent` (every provider delivery, unique `(provider, eventKey)`), `Channel.externalAccountId` (unique per provider), `Conversation.lastInboundAt` (24-hour window; backfilled from existing inbound messages), `Customer.messagingOptOutAt`, `Message.errorMessage`.
+
+`Conversation.resolvedAt` (migration `20261101100000_conversation_resolved_at`): set when a conversation is resolved (Inbox, bulk actions, automations) and cleared when it reopens. Existing resolved rows were backfilled from `updatedAt`, an approximation.
 
 ## Migration status
 

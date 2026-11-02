@@ -2,7 +2,7 @@ import type { CustomerStatus, Segment } from './types';
 
 export const STATUSES: { key: CustomerStatus; label: string; color: string; bg: string }[] = [
   { key: 'ACTIVE', label: 'Active', color: '#16803A', bg: '#ECFDF3' },
-  { key: 'INACTIVE', label: 'Inactive', color: '#62656D', bg: '#EEF0F2' },
+  { key: 'INACTIVE', label: 'Inactive', color: '#5A6A82', bg: '#EDF1F5' },
 ];
 
 /** Predefined, rule-based segments the API can evaluate today. Order-based segments need the Orders module. */

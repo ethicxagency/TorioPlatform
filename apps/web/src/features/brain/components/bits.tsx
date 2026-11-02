@@ -286,7 +286,7 @@ export function Segmented({
             className={cn(
               'h-8 cursor-pointer rounded-lg px-3 text-[13px] disabled:cursor-not-allowed',
               value === o
-                ? 'bg-white font-semibold text-ink shadow-[0_1px_2px_rgba(16,24,40,0.08)]'
+                ? 'bg-white font-semibold text-ink shadow-[0_1px_2px_rgba(0,55,112,0.08)]'
                 : 'text-muted',
             )}
           >
@@ -374,13 +374,13 @@ export function Drawer({
 }) {
   return (
     <>
-      <div className="fixed inset-0 z-[80] bg-[rgba(23,24,28,0.25)]" onClick={onClose} />
+      <div className="fixed inset-0 z-[80] bg-[rgba(13,37,61,0.25)]" onClick={onClose} />
       <aside
         role="dialog"
         aria-modal="true"
         aria-label={title}
         onKeyDown={(e) => e.key === 'Escape' && onClose()}
-        className="fixed inset-y-0 right-0 z-[81] flex w-full animate-drawer-in flex-col bg-white shadow-[-12px_0_40px_rgba(16,24,40,0.16)] sm:w-[520px]"
+        className="fixed inset-y-0 right-0 z-[81] flex w-full animate-drawer-in flex-col bg-white shadow-[-12px_0_40px_rgba(0,55,112,0.16)] sm:w-[520px]"
       >
         <header className="flex items-center gap-2 border-b border-line-subtle px-5 py-4">
           <h2 className="m-0 flex-1 text-base font-semibold">{title}</h2>

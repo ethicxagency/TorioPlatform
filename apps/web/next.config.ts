@@ -10,6 +10,8 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Keep the dev-only indicator away from the sidebar footer controls (bottom-left).
+  devIndicators: { position: 'bottom-right' },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },

@@ -98,7 +98,7 @@ export function TeamPage() {
           <nav aria-label="Breadcrumb" className="mb-1 text-xs text-faint">
             Settings / <span className="text-muted">Teams</span>
           </nav>
-          <h1 className="m-0 text-2xl font-semibold tracking-[-0.015em]">Teams</h1>
+          <h1 className="m-0 font-page-title">Teams</h1>
           <p className="m-0 mt-1 text-sm text-muted">
             Manage your workspace members, access, and team workload.
           </p>
