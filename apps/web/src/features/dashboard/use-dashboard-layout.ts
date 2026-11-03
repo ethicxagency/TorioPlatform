@@ -73,6 +73,9 @@ export function useDashboardLayout(ws: string | null = null) {
 
   return {
     ...layout,
+    /** True when sections are hidden or reordered; shown as a dot on the Customize button. */
+    customized:
+      Object.values(layout.hidden).some(Boolean) || layout.order.join() !== DEFAULT_ORDER.join(),
     move(k: WidgetKey, dir: -1 | 1) {
       const o = [...layout.order];
       const i = o.indexOf(k);

@@ -1,6 +1,5 @@
 'use client';
 
-import { ChannelIcon } from '@/components/channel-icon';
 import {
   DEFAULT_CURRENCY,
   daysBetween,
@@ -10,7 +9,15 @@ import {
   granularityOptions,
   parseIso,
 } from '@torio/contracts';
-import { MessagesSquare, ShoppingBag, UserPlus, Users, Wallet } from 'lucide-react';
+import {
+  MessagesSquare,
+  RefreshCw,
+  ShoppingBag,
+  SlidersHorizontal,
+  UserPlus,
+  Users,
+  Wallet,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useWorkspace } from '@/lib/workspace';
@@ -26,6 +33,7 @@ import { AnalyticsSection } from './analytics-section';
 import { Breakdown } from './breakdown';
 import { KpiTabs } from './kpi-tabs';
 import { MetricChart, type Gran } from './metric-chart';
+import { ChannelSelect } from './channel-select';
 import { DateRangeSelector } from './date-range-selector';
 import { buildDashboardModel, type Target, type WidgetModel } from '../model';
 import { useDashboardLayout } from '../use-dashboard-layout';
@@ -67,10 +75,7 @@ function useNow(ms: number) {
 
 /** Square icon-only header action (refresh, customize). */
 const ICON_BTN =
-  'flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-[9px] border border-line bg-white text-muted transition-colors hover:bg-wash hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
-const selectCls = 'cursor-pointer border-none bg-transparent text-[13px] font-medium text-ink';
-const ctrl =
-  'flex h-11 items-center rounded-[var(--radius-control)] border border-line bg-white transition-colors duration-150 hover:bg-wash motion-reduce:transition-none';
+  'flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius-control)] border border-line bg-white text-muted transition-colors duration-150 hover:border-line-input hover:bg-wash hover:text-ink active:bg-wash-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:hover:bg-white motion-reduce:transition-none';
 
 export interface DashboardPageProps {
   demoState?: DemoState;
@@ -242,33 +247,11 @@ export function DashboardPage({
             onPreset={sel.setPreset}
             onCustom={sel.setCustom}
           />
-          <label
-            className={cn(
-              ctrl,
-              'gap-1.5 pl-3 pr-2 max-sm:order-2 max-sm:min-w-0 max-sm:grow max-sm:basis-[45%]',
-            )}
-          >
-            {sel.channel ? (
-              <ChannelIcon channel={sel.channel} size={16} decorative />
-            ) : (
-              <span className="h-2 w-2 rounded-full bg-primary" />
-            )}
-            <select
-              aria-label="Channel"
-              value={sel.channel ?? 'all'}
-              onChange={(e) =>
-                sel.setChannel(
-                  e.target.value === 'all' ? undefined : (e.target.value as DashboardChannel),
-                )
-              }
-              className={selectCls}
-            >
-              <option value="all">All channels</option>
-              <option value="WHATSAPP">WhatsApp</option>
-              <option value="INSTAGRAM">Instagram</option>
-              <option value="MESSENGER">Messenger</option>
-            </select>
-          </label>
+          <ChannelSelect
+            className="max-sm:order-2 max-sm:min-w-0 max-sm:grow max-sm:basis-[45%] sm:w-[188px]"
+            value={sel.channel}
+            onChange={sel.setChannel}
+          />
           <button
             type="button"
             onClick={refresh}
@@ -278,43 +261,36 @@ export function DashboardPage({
             title="Refresh dashboard"
             className={cn(ICON_BTN, 'disabled:cursor-wait max-sm:order-1')}
           >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.9"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+            <RefreshCw
+              size={18}
+              strokeWidth={1.9}
+              aria-hidden
               className={analytics.isFetching ? 'animate-spin motion-reduce:animate-none' : ''}
-            >
-              <path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5" />
-            </svg>
+            />
           </button>
           <div className="relative max-sm:order-1">
             <button
               type="button"
               onClick={() => setCustomizeOpen((v) => !v)}
               aria-expanded={customizeOpen}
-              aria-label="Customize dashboard"
+              aria-label={
+                layout.customized ? 'Customize dashboard (customized)' : 'Customize dashboard'
+              }
               title="Customize dashboard"
-              className={cn(ICON_BTN, customizeOpen && 'bg-primary-soft text-primary')}
+              className={cn(
+                ICON_BTN,
+                'relative',
+                customizeOpen &&
+                  'border-primary bg-primary-soft text-primary hover:bg-primary-soft',
+              )}
             >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.9"
-                strokeLinecap="round"
-              >
-                <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" />
-                <circle cx="16" cy="6" r="2" />
-                <circle cx="10" cy="12" r="2" />
-                <circle cx="18" cy="18" r="2" />
-              </svg>
+              <SlidersHorizontal size={18} strokeWidth={1.9} aria-hidden />
+              {layout.customized && (
+                <span
+                  aria-hidden
+                  className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-white"
+                />
+              )}
             </button>
             {customizeOpen && (
               <div

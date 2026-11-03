@@ -94,14 +94,25 @@ test.describe('dashboard smoke', () => {
 
   test('channel filter is sent to the API and kept in the URL', async ({ page }) => {
     await page.goto(thirtyDays());
-    await page.getByLabel('Channel', { exact: true }).selectOption('WHATSAPP');
+    const trigger = page.getByRole('button', { name: /^Channel:/ });
+    await trigger.click();
+    const menu = page.getByRole('listbox', { name: 'Channel' });
+    // Real connection state per channel comes from the channels API.
+    await expect(menu.getByRole('option', { name: /WhatsApp/ })).toBeVisible();
+    await menu.getByRole('option', { name: /WhatsApp/ }).click();
+    await expect(menu).toHaveCount(0);
+    await expect(trigger).toHaveAccessibleName('Channel: WhatsApp');
     await expect.poll(() => dashboardState.requests.at(-1)?.channel).toBe('WHATSAPP');
     await expect(page).toHaveURL(/channel=WHATSAPP/);
     await expect(page.getByRole('link', { name: /Open Inbox/ }).first()).toHaveAttribute(
       'href',
       '/inbox?channel=WHATSAPP',
     );
-    await page.getByLabel('Channel', { exact: true }).selectOption('all');
+    // Keyboard: open, move to "All channels", choose; Escape would close without a change.
+    await trigger.focus();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Home');
+    await page.keyboard.press('Enter');
     await expect(page).not.toHaveURL(/channel=/); // all channels = no filter (served from cache)
   });
 
