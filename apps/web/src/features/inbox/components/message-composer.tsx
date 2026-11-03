@@ -1,6 +1,15 @@
 'use client';
 
-import { Send, Smile, Sparkles, StickyNote, X, Zap } from 'lucide-react';
+import {
+  MessageSquareText,
+  Search,
+  Send,
+  ShoppingBag,
+  Smile,
+  Sparkles,
+  StickyNote,
+  X,
+} from 'lucide-react';
 import { forwardRef, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { MAX_MESSAGE_LENGTH } from '@torio/contracts';
@@ -44,12 +53,16 @@ interface Props {
   onSend: () => void;
   onClearReplyTo: () => void;
   onToggleAi: () => void;
+  /** Opens Create Order for this conversation; absent when the agent can't create orders. */
+  onCreateOrder?: () => void;
 }
 
 export const MessageComposer = forwardRef<HTMLTextAreaElement, Props>(
   function MessageComposer(p, ref) {
     const [menu, setMenu] = useState<'saved' | 'emoji' | null>(null);
     const [slashSel, setSlashSel] = useState(0);
+    const [replyQuery, setReplyQuery] = useState('');
+    const savedBtn = useRef<HTMLButtonElement>(null);
     const wrap = useRef<HTMLDivElement>(null);
     useDismiss(wrap, menu !== null, () => setMenu(null));
     const isNote = p.mode === 'note';
@@ -71,12 +84,51 @@ export const MessageComposer = forwardRef<HTMLTextAreaElement, Props>(
     );
     const sel = slash.length ? slashSel % slash.length : 0;
 
-    /** Saved replies only fill the draft; the agent still presses Send. */
-    const insertReply = (r: SavedReply) => {
-      p.onDraft(renderTemplate(r.body, { name: p.customerName }));
+    const textarea = () => (ref as React.RefObject<HTMLTextAreaElement | null>)?.current ?? null;
+
+    /**
+     * Saved replies only fill the draft; the agent still presses Send. A slash command is replaced by
+     * the reply; from the picker the reply goes in at the cursor, keeping the rest of the draft.
+     */
+    const insertReply = (r: SavedReply, at: 'replace' | 'cursor') => {
+      const text = renderTemplate(r.body, { name: p.customerName });
+      const el = textarea();
+      let next = text;
+      let caret = text.length;
+      if (at === 'cursor' && p.draft) {
+        const start = el?.selectionStart ?? p.draft.length;
+        const end = el?.selectionEnd ?? p.draft.length;
+        const before = p.draft.slice(0, start);
+        const after = p.draft.slice(end);
+        const lead = before && !/\s$/.test(before) ? ' ' : '';
+        const trail = after && !/^\s/.test(after) ? ' ' : '';
+        next = before + lead + text + trail + after;
+        caret = (before + lead + text).length;
+      }
+      p.onDraft(next);
       setMenu(null);
       setSlashSel(0);
-      (ref as React.RefObject<HTMLTextAreaElement>)?.current?.focus();
+      setReplyQuery('');
+      requestAnimationFrame(() => {
+        const t = textarea();
+        t?.focus();
+        t?.setSelectionRange(caret, caret);
+      });
+    };
+
+    const q = replyQuery.trim().toLowerCase();
+    const pickable = q
+      ? p.savedReplies.filter(
+          (r) =>
+            r.title.toLowerCase().includes(q) ||
+            r.shortcut.toLowerCase().includes(q) ||
+            r.body.toLowerCase().includes(q),
+        )
+      : p.savedReplies;
+    const closeSaved = () => {
+      setMenu(null);
+      setReplyQuery('');
+      savedBtn.current?.focus();
     };
 
     const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -94,7 +146,7 @@ export const MessageComposer = forwardRef<HTMLTextAreaElement, Props>(
         }
         if (e.key === 'Enter' || e.key === 'Tab') {
           e.preventDefault();
-          insertReply(slash[sel]!);
+          insertReply(slash[sel]!, 'replace');
           return;
         }
         if (e.key === 'Escape') {
@@ -151,7 +203,7 @@ export const MessageComposer = forwardRef<HTMLTextAreaElement, Props>(
                 type="button"
                 onMouseDown={(e) => {
                   e.preventDefault();
-                  insertReply(r);
+                  insertReply(r, 'replace');
                 }}
                 className={cn(
                   'flex w-full cursor-pointer flex-col gap-0.5 rounded-lg p-2 text-left',
@@ -172,32 +224,63 @@ export const MessageComposer = forwardRef<HTMLTextAreaElement, Props>(
 
         {menu === 'saved' && (
           <div
-            role="menu"
+            role="dialog"
             aria-label="Saved replies"
-            className="absolute bottom-full left-3 z-20 mb-1 max-h-64 w-[min(340px,calc(100%-24px))] animate-panel-in overflow-y-auto rounded-xl border border-line bg-white p-1.5 shadow-popover"
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.stopPropagation();
+                closeSaved();
+              }
+            }}
+            className="absolute bottom-full left-3 z-20 mb-1 flex max-h-[min(360px,calc(100vh-200px))] w-[min(360px,calc(100%-24px))] animate-panel-in flex-col rounded-xl border border-line bg-white shadow-popover"
           >
-            {p.savedReplies.length === 0 && (
-              <div className="p-3 text-[13px] text-muted">
-                No saved replies yet. An admin can add them.
-              </div>
-            )}
-            {p.savedReplies.map((r) => (
-              <button
-                key={r.id}
-                role="menuitem"
-                type="button"
-                onClick={() => insertReply(r)}
-                className="flex w-full cursor-pointer flex-col gap-0.5 rounded-lg p-2 text-left hover:bg-wash"
-              >
-                <span className="flex items-baseline gap-2 text-[13px]">
-                  <span className="font-mono font-semibold text-primary-hover">{r.shortcut}</span>
-                  <span>{r.title}</span>
-                </span>
-                <span className="line-clamp-2 text-xs text-muted">
-                  {renderTemplate(r.body, { name: p.customerName })}
-                </span>
-              </button>
-            ))}
+            <label className="m-1.5 flex h-8 items-center gap-2 rounded-[var(--radius-input)] border border-line px-2 focus-within:border-primary focus-within:ring-[3px] focus-within:ring-primary/15">
+              <Search size={14} className="shrink-0 text-faint" aria-hidden />
+              <input
+                autoFocus
+                type="search"
+                aria-label="Search saved replies"
+                placeholder="Search saved replies"
+                value={replyQuery}
+                onChange={(e) => setReplyQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && pickable[0]) {
+                    e.preventDefault();
+                    insertReply(pickable[0], 'cursor');
+                  }
+                }}
+                className="min-w-0 flex-1 border-none bg-transparent text-[13px] text-ink"
+              />
+            </label>
+            <div role="list" className="min-h-0 overflow-y-auto px-1.5 pb-1.5">
+              {p.savedReplies.length === 0 ? (
+                <p className="m-0 p-3 text-[13px] text-muted">
+                  No saved replies in this workspace yet.
+                </p>
+              ) : pickable.length === 0 ? (
+                <p className="m-0 p-3 text-[13px] text-muted">
+                  No saved replies match &ldquo;{replyQuery.trim()}&rdquo;.
+                </p>
+              ) : (
+                pickable.map((r) => (
+                  <button
+                    key={r.id}
+                    role="listitem"
+                    type="button"
+                    onClick={() => insertReply(r, 'cursor')}
+                    className="flex w-full cursor-pointer flex-col gap-0.5 rounded-lg p-2 text-left hover:bg-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+                  >
+                    <span className="flex items-baseline gap-2 text-[13px]">
+                      <span className="font-semibold text-ink">{r.title}</span>
+                      <span className="font-mono text-xs text-faint">{r.shortcut}</span>
+                    </span>
+                    <span className="line-clamp-2 text-xs text-muted">
+                      {renderTemplate(r.body, { name: p.customerName })}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
           </div>
         )}
         {menu === 'emoji' && (
@@ -288,24 +371,42 @@ export const MessageComposer = forwardRef<HTMLTextAreaElement, Props>(
             className="block max-h-40 w-full resize-none border-none bg-transparent px-3.5 py-2 text-sm leading-[1.5] text-ink"
           />
           <div className="flex items-center gap-0.5 px-2 pb-2">
+            {p.onCreateOrder && (
+              <button
+                type="button"
+                aria-label="Create order"
+                title="Create order"
+                aria-haspopup="dialog"
+                onClick={() => {
+                  setMenu(null);
+                  p.onCreateOrder?.();
+                }}
+                className={iconBtn}
+              >
+                <ShoppingBag size={16} />
+              </button>
+            )}
             <button
+              ref={savedBtn}
               type="button"
-              aria-label="Insert emoji"
-              aria-expanded={menu === 'emoji'}
-              onClick={() => setMenu(menu === 'emoji' ? null : 'emoji')}
-              className={iconBtn}
+              aria-label="Saved replies"
+              aria-haspopup="dialog"
+              aria-expanded={menu === 'saved'}
+              title="Saved replies (or type /)"
+              onClick={() => (menu === 'saved' ? closeSaved() : setMenu('saved'))}
+              className={cn(iconBtn, menu === 'saved' && 'bg-wash-2 text-ink')}
             >
-              <Smile size={16} />
+              <MessageSquareText size={16} />
             </button>
             <button
               type="button"
-              aria-label="Saved replies"
-              aria-expanded={menu === 'saved'}
-              title="Saved replies (/)"
-              onClick={() => setMenu(menu === 'saved' ? null : 'saved')}
-              className={iconBtn}
+              aria-label="Insert emoji"
+              title="Emoji"
+              aria-expanded={menu === 'emoji'}
+              onClick={() => setMenu(menu === 'emoji' ? null : 'emoji')}
+              className={cn(iconBtn, menu === 'emoji' && 'bg-wash-2 text-ink')}
             >
-              <Zap size={16} />
+              <Smile size={16} />
             </button>
             {!isNote && (
               <button

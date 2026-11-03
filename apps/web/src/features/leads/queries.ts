@@ -83,6 +83,24 @@ export function useLeads(ws: string | null, p: ListParams) {
   });
 }
 
+/** Leads linked to one customer, newest first (the Inbox customer panel shows the latest). */
+export function useCustomerLeads(ws: string | null, customerId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: leadKeys.list(ws ?? '', { customerId }),
+    enabled: !!ws && !!customerId && enabled,
+    queryFn: async () => {
+      const { data, error, response } = await api.GET('/api/v1/workspaces/{workspaceId}/leads', {
+        params: {
+          path: { workspaceId: ws! },
+          query: { customerId: customerId!, sort: 'createdAt', dir: 'desc', page: 1, pageSize: 5 },
+        },
+      });
+      if (!data) throw fail(error, 'Could not load leads', response.status);
+      return data;
+    },
+  });
+}
+
 export function useLeadSummary(ws: string | null) {
   return useQuery({
     queryKey: leadKeys.summary(ws ?? ''),

@@ -1,7 +1,7 @@
 'use client';
 
 import { Download, MoreHorizontal, Plus, RefreshCw, Upload } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useShell } from '@/components/shell/shell-context';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { PAGE_SIZE } from '../constants';
 import {
   ApiRequestError,
   downloadLeadsCsv,
+  useLead,
   useLeadMutations,
   useLeads,
   useLeadSummary,
@@ -54,7 +55,13 @@ export function LeadsPage() {
   const [page, setPage] = useState(1);
   const [view, setView] = useState<View>('list');
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [openLead, setOpenLead] = useState<Lead | null>(null);
+  const [openState, setOpenLead] = useState<Lead | null>(null);
+  // Deep link from other pages (e.g. the Inbox customer panel): /leads?lead=<id> opens that lead.
+  const linkedId = useSearchParams().get('lead');
+  const [dismissedId, setDismissedId] = useState<string | null>(null);
+  const linked = useLead(ws, linkedId && linkedId !== dismissedId ? linkedId : null);
+  const openLead =
+    openState ?? (linkedId && linkedId !== dismissedId ? (linked.data ?? null) : null);
   const [form, setForm] = useState<{ lead: Lead | null } | null>(null);
   const [importing, setImporting] = useState(false);
   const [confirm, setConfirm] = useState<Confirm>(null);
@@ -106,7 +113,10 @@ export function LeadsPage() {
     f === sort
       ? onSort(f, dir === 'asc' ? 'desc' : 'asc')
       : onSort(f, f === 'name' ? 'asc' : 'desc');
-  const closeDrawer = useCallback(() => setOpenLead(null), []);
+  const closeDrawer = useCallback(() => {
+    setOpenLead(null);
+    setDismissedId(linkedId);
+  }, [linkedId]);
   const openConversation = (l: Lead) =>
     l.conversationId && router.push(`/inbox?conversation=${l.conversationId}`);
 

@@ -161,4 +161,145 @@ test.describe('inbox', () => {
     await page.keyboard.press('Escape');
     await expect(menu).toHaveCount(0);
   });
+
+  test('saved replies picker searches and inserts at the cursor, keeping the draft', async ({
+    page,
+  }) => {
+    await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
+    const box = page.getByRole('textbox', { name: /Reply to Tanvir/ });
+    await box.fill('Hello');
+    await page.getByRole('button', { name: 'Saved replies' }).click();
+    const search = page.getByRole('searchbox', { name: 'Search saved replies' });
+    await search.fill('zzz');
+    await expect(page.getByText('No saved replies match')).toBeVisible();
+    await search.fill('thank');
+    await page.getByRole('listitem').filter({ hasText: 'Thank you' }).click();
+    await expect(box).toHaveValue('Hello Thanks, Tanvir!');
+    await expect(box).toBeFocused();
+    await expect(page.getByRole('dialog', { name: 'Saved replies' })).toHaveCount(0);
+  });
+
+  test('create order drawer: catalog product with variant, conversation linked, summary drafted', async ({
+    page,
+  }) => {
+    await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
+    const box = page.getByRole('textbox', { name: /Reply to Tanvir/ });
+    await box.fill('Sure!');
+    await page.getByRole('button', { name: 'Create order' }).click();
+    const drawer = page.getByRole('dialog', { name: 'Create order' });
+    // Customer comes from the conversation; nothing valid yet, so the button waits.
+    await expect(drawer.getByText('Tanvir Hasan')).toBeVisible();
+    const create = drawer.getByRole('button', { name: 'Create order' });
+    await expect(create).toBeDisabled();
+
+    await drawer.getByRole('combobox', { name: 'Search catalog' }).fill('vase');
+    await drawer.getByRole('option', { name: /Nordic Ceramic Vase/ }).click();
+    await drawer.getByRole('combobox', { name: 'Colour' }).selectOption('Sage');
+    await drawer.getByRole('button', { name: 'Add to order' }).click();
+    await expect(drawer.getByRole('textbox', { name: /Product name/ })).toHaveValue(
+      'Nordic Ceramic Vase (Sage)',
+    );
+    await expect(drawer.getByRole('textbox', { name: 'Item 1 amount' })).toHaveValue('1450.00');
+    await drawer.getByRole('button', { name: 'Increase quantity of item 1' }).click();
+    await expect(drawer.getByText('৳2,900')).toHaveCount(2); // subtotal and total
+
+    const created = page.waitForRequest(
+      (r) => r.method() === 'POST' && /\/orders$/.test(new URL(r.url()).pathname),
+    );
+    await create.click();
+    const body = (await created).postDataJSON() as {
+      conversationId?: string;
+      currency: string;
+      items: { name: string; quantity: number; unitPriceMinor: number }[];
+    };
+    expect(body.conversationId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(body.items).toEqual([
+      { name: 'Nordic Ceramic Vase (Sage)', quantity: 2, unitPriceMinor: 145000 },
+    ]);
+    await expect(drawer).toHaveCount(0);
+    await expect(page.getByText(/Order #\d+ created/)).toBeVisible();
+    // The summary goes into the draft after what was typed; nothing is sent.
+    await expect(box).toHaveValue(/^Sure!\n\nOrder #\d+\n/);
+  });
+
+  test('create order drawer: manual item, Escape closes without saving', async ({ page }) => {
+    await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
+    await page.getByRole('button', { name: 'Create order' }).click();
+    const drawer = page.getByRole('dialog', { name: 'Create order' });
+    await drawer.getByRole('textbox', { name: 'Item 1 amount' }).fill('abc');
+    await expect(drawer.getByRole('alert')).toContainText('valid unit price');
+    await expect(drawer.getByRole('button', { name: 'Create order' })).toBeDisabled();
+    await drawer.getByRole('textbox', { name: 'Item 1 amount' }).fill('250');
+    await expect(drawer.getByRole('button', { name: 'Create order' })).toBeEnabled();
+    await page.keyboard.press('Escape');
+    await expect(drawer).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Chat with Tanvir Hasan' })).toBeVisible();
+  });
+
+  test('customer panel: no lead yet, Create lead links it to this customer', async ({ page }) => {
+    await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
+    await page
+      .getByRole('region', { name: 'Chat with Tanvir Hasan' })
+      .getByRole('button', { name: 'Tanvir Hasan', exact: true })
+      .click();
+    const panel = page.locator('aside[aria-label="Customer profile"]');
+    await expect(panel.getByText('No lead for this customer yet.')).toBeVisible();
+    const created = page.waitForRequest(
+      (r) => r.method() === 'POST' && new URL(r.url()).pathname.endsWith('/leads'),
+    );
+    await panel.getByRole('button', { name: 'Create lead' }).click();
+    const body = (await created).postDataJSON() as Record<string, unknown>;
+    expect(body).toMatchObject({ name: 'Tanvir Hasan', source: 'WHATSAPP', stage: 'NEW' });
+    expect(body.customerId).toMatch(/^[0-9a-f-]{36}$/);
+    await expect(page.getByText('Lead created')).toBeVisible();
+  });
+
+  test('customer panel: lead stage edits the same lead record the Leads Centre uses', async ({
+    page,
+  }) => {
+    const leadId = '99999999-9999-4999-8999-0000000000aa';
+    // Only the panel's per-customer request gets this lead; the mock filters everything else.
+    await page.route(/\/leads\?.*customerId=/, (route) =>
+      route.fulfill({
+        json: {
+          data: [
+            {
+              id: leadId,
+              name: 'Tanvir Hasan',
+              email: null,
+              phone: null,
+              company: null,
+              jobTitle: null,
+              source: 'WHATSAPP',
+              stage: 'CONTACTED',
+              owner: null,
+              tags: [],
+              dealValue: null,
+              score: 40,
+              notes: '',
+              customerId: 'dddddddd-dddd-4ddd-8ddd-000000000001',
+              conversationId: null,
+              lastActivityAt: '2026-11-01T00:00:00.000Z',
+              createdAt: '2026-11-01T00:00:00.000Z',
+            },
+          ],
+          meta: { page: 1, pageSize: 5, total: 1, totalPages: 1 },
+        },
+      }),
+    );
+    await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
+    await page.getByRole('button', { name: 'Open customer profile' }).click();
+    const panel = page.locator('aside[aria-label="Customer profile"]');
+    const stage = panel.getByRole('combobox', { name: 'Lead stage' });
+    await expect(stage).toHaveValue('CONTACTED');
+    const patched = page.waitForRequest(
+      (r) => r.method() === 'PATCH' && new URL(r.url()).pathname.endsWith(`/leads/${leadId}`),
+    );
+    await stage.selectOption('WON');
+    expect((await patched).postDataJSON()).toEqual({ stage: 'WON' });
+    await expect(panel.getByRole('link', { name: 'View in Leads' })).toHaveAttribute(
+      'href',
+      `/leads?lead=${leadId}`,
+    );
+  });
 });

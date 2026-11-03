@@ -58,3 +58,29 @@ export function renderTemplate(body: string, customer: { name: string }) {
 
 export const snoozeLabel = (iso: string) =>
   new Date(iso).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+
+/** Customer-facing order summary for the reply draft (the agent reviews it and presses Send). */
+export function orderSummaryText(
+  o: {
+    number: number;
+    currency: string;
+    items: { name: string; quantity: number; lineTotalMinor: number }[];
+    discountMinor: number;
+    shippingMinor: number;
+    taxMinor: number;
+    totalMinor: number;
+    shippingAddress: string | null;
+  },
+  money: (minor: number, currency: string) => string,
+) {
+  const m = (v: number) => money(v, o.currency);
+  return [
+    `Order #${o.number}`,
+    ...o.items.map((i) => `${i.quantity} × ${i.name}: ${m(i.lineTotalMinor)}`),
+    ...(o.discountMinor ? [`Discount: −${m(o.discountMinor)}`] : []),
+    ...(o.shippingMinor ? [`Delivery: ${m(o.shippingMinor)}`] : []),
+    ...(o.taxMinor ? [`Tax: ${m(o.taxMinor)}`] : []),
+    `Total: ${m(o.totalMinor)}`,
+    ...(o.shippingAddress ? [`Delivery to: ${o.shippingAddress}`] : []),
+  ].join('\n');
+}

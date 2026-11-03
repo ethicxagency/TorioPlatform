@@ -14,6 +14,7 @@ import {
   PROFILE_WIDTH,
   SNOOZE_OPTIONS,
 } from '../constants';
+import { orderSummaryText } from '../format';
 import { useDrafts } from '../use-drafts';
 import { useInboxShortcuts } from '../use-inbox-shortcuts';
 import { useNow } from '../use-now';
@@ -30,7 +31,6 @@ import {
   DEFAULT_FILTERS,
   type Conversation,
   type InboxFilters,
-  type LeadStatus,
   type Provider,
   type Message,
 } from '../types';
@@ -38,8 +38,11 @@ import { ChatPanel } from './chat-panel';
 import type { HeaderMenu } from './chat-header';
 import { ConfirmDialog } from './confirm-dialog';
 import { ConversationList } from './conversation-list';
+import { CreateOrderDrawer } from './create-order-drawer';
 import { CustomerProfile } from './customer-profile';
 import { InboxNav } from './inbox-nav';
+import { formatMoney } from '@torio/contracts';
+import { useOrderMutations } from '@/features/orders/queries';
 import { InboxLayout } from '../inbox-layout';
 import { KeyboardShortcutsDialog } from './keyboard-shortcuts-dialog';
 import type { ComposerMode } from './message-composer';
@@ -88,6 +91,8 @@ export function InboxPage() {
     Record<string, { id: string; text: string; who: string } | null>
   >({});
   const { drafts, setDraft } = useDrafts();
+  const orderMutations = useOrderMutations(ws);
+  const [orderFor, setOrderFor] = useState<Conversation | null>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
   const list = useConversationList(ws, filters);
@@ -461,6 +466,7 @@ export function InboxPage() {
           : undefined
       }
       onToggleAi={() => setAiOpen((v) => !v)}
+      onCreateOrder={can('orders:write') ? () => setOrderFor(active) : undefined}
     />
   ) : null;
 
@@ -478,12 +484,6 @@ export function InboxPage() {
             : undefined
         }
         onClose={profileDismiss}
-        onLead={(s: LeadStatus) =>
-          m.updateCustomer.mutate(
-            { customerId: active.customer.id, body: { leadStatus: s } },
-            { onSuccess: () => toast('Lead status updated'), onError: err },
-          )
-        }
         onTags={(t) =>
           m.updateCustomer.mutate(
             { customerId: active.customer.id, body: { tags: t } },
@@ -514,6 +514,24 @@ export function InboxPage() {
         profile={profileNode}
         onProfileDismiss={profileDismiss}
       />
+      {orderFor && (
+        <CreateOrderDrawer
+          c={orderFor}
+          offerSummary={canReply}
+          onClose={() => setOrderFor(null)}
+          onCreate={async (body, { addSummary }) => {
+            const o = await orderMutations.create.mutateAsync(body);
+            const id = orderFor.id;
+            setOrderFor(null);
+            toast(`Order #${o.number} created`);
+            if (addSummary) {
+              const prev = (drafts[id] ?? '').trimEnd();
+              setDraft(id, (prev ? `${prev}\n\n` : '') + orderSummaryText(o, formatMoney));
+              if (id === activeId) focusComposer();
+            }
+          }}
+        />
+      )}
       {shortcuts && <KeyboardShortcutsDialog onClose={() => setShortcuts(false)} />}
       {confirmBulk && (
         <ConfirmDialog

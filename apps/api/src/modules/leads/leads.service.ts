@@ -58,6 +58,7 @@ export class LeadsService {
     if (f.owner === 'unassigned') where.ownerId = null;
     else if (f.owner) where.ownerId = f.owner;
     if (f.tag) where.tags = { has: f.tag };
+    if (f.customerId) where.customerId = f.customerId;
     if (f.createdFrom || f.createdTo)
       where.createdAt = {
         ...(f.createdFrom && { gte: new Date(f.createdFrom) }),

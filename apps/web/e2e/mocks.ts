@@ -1169,7 +1169,12 @@ export async function mockApi(page: Page, opts: { role?: 'OWNER' | 'ADMIN' | 'AG
     }
     if (p === `/workspaces/${WS}/leads`) {
       leadRequests.push(url.search);
-      return reply({ data: LEADS, meta: { page: 1, pageSize: 25, total: 2, totalPages: 1 } });
+      const forCustomer = url.searchParams.get('customerId');
+      const rows = forCustomer ? LEADS.filter((l) => l.customerId === forCustomer) : LEADS;
+      return reply({
+        data: rows,
+        meta: { page: 1, pageSize: 25, total: rows.length, totalPages: 1 },
+      });
     }
     const oneLead = LEADS.find((l) => p === `/workspaces/${WS}/leads/${l.id}`);
     if (oneLead) return reply(oneLead);

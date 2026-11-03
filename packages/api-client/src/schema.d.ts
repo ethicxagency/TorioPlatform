@@ -5788,6 +5788,7 @@ export interface operations {
                 sources?: string;
                 owner?: "unassigned" | string;
                 tag?: string;
+                customerId?: string;
                 createdFrom?: string;
                 createdTo?: string;
                 minScore?: number;
@@ -5869,6 +5870,7 @@ export interface operations {
                 sources?: string;
                 owner?: "unassigned" | string;
                 tag?: string;
+                customerId?: string;
                 createdFrom?: string;
                 createdTo?: string;
                 minScore?: number;

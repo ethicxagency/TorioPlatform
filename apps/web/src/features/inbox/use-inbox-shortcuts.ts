@@ -36,6 +36,8 @@ export function useInboxShortcuts(h: ShortcutHandlers) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (isTyping(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
+      // A modal (e.g. Create order) owns the keyboard: J/K must not switch the conversation behind it.
+      if (document.querySelector('[aria-modal="true"]')) return;
       const h = ref.current;
       const needsActive: Record<string, () => void> = {
         r: h.reply,

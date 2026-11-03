@@ -18,12 +18,16 @@ import { ChannelIcon } from '@/components/channel-icon';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWorkspace } from '@/lib/workspace';
 import { cn } from '@/lib/utils';
+import { useShell } from '@/components/shell/shell-context';
 import { useCustomerConversations } from '@/features/customers/queries';
+import { SOURCE, STAGE, STAGES } from '@/features/leads/constants';
+import { useCustomerLeads, useLeadMutations } from '@/features/leads/queries';
+import type { Lead, LeadStage } from '@/features/leads/types';
 import { STATUS_INFO } from '@/features/orders/constants';
 import { useCustomerOrders } from '@/features/orders/queries';
-import { CHANNELS, LEAD_STATUSES } from '../constants';
+import { CHANNELS } from '../constants';
 import { fmtAgo, fmtWait, initialsOf, minutesSince } from '../format';
-import type { Conversation, LeadStatus } from '../types';
+import type { Conversation } from '../types';
 import { ChannelBadge } from './channel-badge';
 
 interface Props {
@@ -34,7 +38,6 @@ interface Props {
   /** Existing Customer Details deep link; absent when the viewer can't read customers. */
   fullProfileHref?: string;
   onClose: () => void;
-  onLead: (s: LeadStatus) => void;
   onTags: (tags: string[]) => void;
   onNotes: (notes: string) => void;
   onAssign: (agentId: string | null) => void;
@@ -105,7 +108,6 @@ export function CustomerProfile({
   canManage,
   fullProfileHref,
   onClose,
-  onLead,
   onTags,
   onNotes,
   onAssign,
@@ -121,7 +123,10 @@ export function CustomerProfile({
   const [adding, setAdding] = useState(false);
   const [tag, setTag] = useState('');
   const [notes, setNotes] = useState(cu.notes);
-  const lead = LEAD_STATUSES.find((l) => l.key === cu.leadStatus)!;
+  const canLeads = can('leads:read');
+  const leads = useCustomerLeads(ws, cu.id, canLeads);
+  // A customer can have several leads; the panel works on the newest, the Leads Centre lists them all.
+  const lead = leads.data?.data[0] ?? null;
   const wait = c.waitingSince && c.status === 'OPEN' ? minutesSince(c.waitingSince) : null;
   const hasContact = !!(cu.phone || cu.email || cu.handle || cu.location);
 
@@ -156,12 +161,14 @@ export function CustomerProfile({
             )}
           </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <span
-              className="rounded-md px-1.5 py-px text-[11.5px] font-medium"
-              style={{ background: lead.bg, color: lead.color }}
-            >
-              {lead.label}
-            </span>
+            {lead && (
+              <span
+                className="rounded-md px-1.5 py-px text-[11.5px] font-medium"
+                style={{ background: STAGE[lead.stage].bg, color: STAGE[lead.stage].color }}
+              >
+                {STAGE[lead.stage].label} lead
+              </span>
+            )}
             {cu.isSample && (
               <span className="rounded-md bg-wash-2 px-1.5 py-px text-[11.5px] text-faint">
                 Sample customer
@@ -262,23 +269,19 @@ export function CustomerProfile({
           </dl>
         </Section>
 
-        <Section title="Lead & tags">
-          <label className="mb-3 flex flex-col gap-1 text-[12px] text-faint">
-            Lead status
-            <select
-              disabled={!canEditCustomer}
-              value={cu.leadStatus}
-              onChange={(e) => onLead(e.target.value as LeadStatus)}
-              className={fieldCls}
-            >
-              {LEAD_STATUSES.map((l) => (
-                <option key={l.key} value={l.key}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="mb-1 text-[12px] text-faint">Tags</div>
+        {canLeads && (
+          <Section title="Lead">
+            <LeadSection
+              c={c}
+              lead={lead}
+              state={leads.isPending ? 'loading' : leads.isError ? 'error' : 'ready'}
+              agents={agents}
+              onRetry={() => leads.refetch()}
+            />
+          </Section>
+        )}
+
+        <Section title="Tags">
           <div className="flex flex-wrap gap-1.5">
             {cu.tags.map((t) => (
               <span
@@ -454,5 +457,140 @@ export function CustomerProfile({
         </Section>
       </div>
     </div>
+  );
+}
+
+const SOURCE_OF = { WHATSAPP: 'WHATSAPP', INSTAGRAM: 'INSTAGRAM', MESSENGER: 'MESSENGER' } as const;
+
+/**
+ * The customer's lead record: the same one the Leads Centre shows, so a stage change here appears there.
+ * Changes are confirmed by the server before the toast; stage moves use the Leads module's optimistic update.
+ */
+function LeadSection({
+  c,
+  lead,
+  state,
+  agents,
+  onRetry,
+}: {
+  c: Conversation;
+  lead: Lead | null;
+  state: 'loading' | 'error' | 'ready';
+  agents: { id: string; name: string }[];
+  onRetry: () => void;
+}) {
+  const { toast } = useShell();
+  const { workspaceId: ws, workspace, can } = useWorkspace();
+  const canWrite = can('leads:write');
+  const m = useLeadMutations(ws);
+  const err = (e: unknown) => toast(e instanceof Error ? e.message : 'Something went wrong');
+
+  if (state === 'loading') return <Skeleton className="h-16 w-full" />;
+  if (state === 'error')
+    return (
+      <p role="alert" className="m-0 text-[13px] text-danger">
+        Couldn&apos;t load the lead.{' '}
+        <button
+          type="button"
+          onClick={onRetry}
+          className="cursor-pointer font-semibold text-primary underline-offset-2 hover:underline"
+        >
+          Try again
+        </button>
+      </p>
+    );
+
+  if (!lead)
+    return (
+      <div className="text-[13px] text-muted">
+        <p className="m-0">No lead for this customer yet.</p>
+        {canWrite && (
+          <button
+            type="button"
+            disabled={m.create.isPending}
+            onClick={() =>
+              m.create.mutate(
+                {
+                  name: c.customer.name,
+                  ...(c.customer.phone && { phone: c.customer.phone }),
+                  ...(c.customer.email && { email: c.customer.email }),
+                  source: SOURCE_OF[c.channel.provider],
+                  stage: 'NEW',
+                  tags: [],
+                  notes: '',
+                  customerId: c.customer.id,
+                },
+                { onSuccess: () => toast('Lead created'), onError: err },
+              )
+            }
+            className="mt-2 inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full border border-line px-3 text-[13px] font-semibold text-ink hover:bg-wash disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Plus size={13} aria-hidden />
+            {m.create.isPending ? 'Creating…' : 'Create lead'}
+          </button>
+        )}
+      </div>
+    );
+
+  const update = (body: { stage?: LeadStage; ownerId?: string | null }, ok: string) =>
+    m.update.mutate({ id: lead.id, body }, { onSuccess: () => toast(ok), onError: err });
+
+  return (
+    <>
+      <dl className="m-0">
+        {/* A lead keeps its own name; show it when it differs so the agent knows which record this is. */}
+        {lead.name !== c.customer.name && <Row label="Lead">{lead.name}</Row>}
+        <Row label="Stage">
+          <select
+            aria-label="Lead stage"
+            disabled={!canWrite}
+            value={lead.stage}
+            onChange={(e) => update({ stage: e.target.value as LeadStage }, 'Lead stage updated')}
+            className={fieldCls}
+          >
+            {STAGES.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </Row>
+        <Row label="Owner">
+          <select
+            aria-label="Lead owner"
+            disabled={!canWrite}
+            value={lead.owner?.id ?? ''}
+            onChange={(e) => update({ ownerId: e.target.value || null }, 'Lead owner updated')}
+            className={fieldCls}
+          >
+            <option value="">No owner</option>
+            {agents.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+        </Row>
+        <Row label="Source">{SOURCE[lead.source].label}</Row>
+        {lead.dealValue != null && (
+          <Row label="Deal value">
+            <span className="tabular-nums">
+              {/* Stored in whole units of the workspace currency. */}
+              {formatMoney(lead.dealValue * 100, workspace?.defaultCurrency ?? 'BDT')}
+            </span>
+          </Row>
+        )}
+        <Row label="Score">
+          <span className="tabular-nums">{lead.score} / 100</span>
+        </Row>
+      </dl>
+      <Link
+        href={`/leads?lead=${encodeURIComponent(lead.id)}`}
+        className="mt-2 inline-flex items-center gap-1 text-[13px] font-medium text-primary hover:underline"
+      >
+        View in Leads
+        <ArrowUpRight size={13} aria-hidden />
+      </Link>
+    </>
   );
 }

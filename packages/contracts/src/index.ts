@@ -375,6 +375,8 @@ export const leadFilterSchema = z.object({
   /** "unassigned" or a member user id. */
   owner: z.union([z.literal('unassigned'), z.uuid()]).optional(),
   tag: z.string().trim().min(1).max(40).optional(),
+  /** Leads linked to one customer (e.g. the Inbox customer panel). */
+  customerId: z.uuid().optional(),
   createdFrom: z.iso.datetime().optional(),
   createdTo: z.iso.datetime().optional(),
   minScore: z.coerce.number().int().min(0).max(100).optional(),

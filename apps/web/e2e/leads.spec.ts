@@ -31,6 +31,11 @@ test.describe('leads', () => {
     await expect(page.getByRole('button', { name: 'Remove filter Qualified' })).toHaveCount(0);
   });
 
+  test('?lead=<id> opens that lead (deep link from the Inbox panel)', async ({ page }) => {
+    await page.goto('/leads?lead=99999999-9999-4999-8999-000000000001');
+    await expect(page.getByRole('dialog', { name: /Lead details: Nusrat Jahan/ })).toBeVisible();
+  });
+
   test('opens the details drawer and closes it with Escape', async ({ page }) => {
     await page.getByRole('row', { name: /Nusrat Jahan/ }).click();
     const drawer = page.getByRole('dialog', { name: /Lead details: Nusrat Jahan/ });

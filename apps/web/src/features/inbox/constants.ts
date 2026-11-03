@@ -1,4 +1,4 @@
-import type { LeadStatus, ListView, Provider } from './types';
+import type { ListView, Provider } from './types';
 
 export const CHANNELS: Record<Provider, { label: string; color: string }> = {
   WHATSAPP: { label: 'WhatsApp', color: '#25D366' },
@@ -11,14 +11,6 @@ export const VIEWS: { key: ListView; label: string }[] = [
   { key: 'mine', label: 'Mine' },
   { key: 'unassigned', label: 'Unassigned' },
   { key: 'unread', label: 'Unread' },
-];
-
-export const LEAD_STATUSES: { key: LeadStatus; label: string; color: string; bg: string }[] = [
-  { key: 'NEW', label: 'New Lead', color: '#5A6A82', bg: '#EDF1F5' },
-  { key: 'CONTACTED', label: 'Contacted', color: '#2563EB', bg: '#EFF6FF' },
-  { key: 'INTERESTED', label: 'Interested', color: '#A15C00', bg: '#FFF7E6' },
-  { key: 'CONVERTED', label: 'Converted', color: '#16803A', bg: '#ECFDF3' },
-  { key: 'LOST', label: 'Lost', color: '#C53030', bg: '#FFF1F2' },
 ];
 
 export const SHORTCUTS: [string, string][] = [

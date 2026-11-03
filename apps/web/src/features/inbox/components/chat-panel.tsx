@@ -49,6 +49,7 @@ interface Props {
   onCopy: (m: Message) => void;
   onRetrySend?: (m: Message) => void;
   onToggleAi: () => void;
+  onCreateOrder?: () => void;
 }
 
 export const ChatPanel = forwardRef<HTMLTextAreaElement, Props>(function ChatPanel(p, composerRef) {
@@ -92,6 +93,7 @@ export const ChatPanel = forwardRef<HTMLTextAreaElement, Props>(function ChatPan
       />
       {p.aiOpen && p.mode === 'reply' && <AiAssistPanel onClose={p.onToggleAi} />}
       <MessageComposer
+        key={c.id}
         ref={composerRef}
         customerName={c.customer.name}
         channelLabel={CHANNELS[c.channel.provider].label}
@@ -107,6 +109,7 @@ export const ChatPanel = forwardRef<HTMLTextAreaElement, Props>(function ChatPan
         onSend={p.onSend}
         onClearReplyTo={p.onClearReplyTo}
         onToggleAi={p.onToggleAi}
+        onCreateOrder={p.onCreateOrder}
       />
     </section>
   );

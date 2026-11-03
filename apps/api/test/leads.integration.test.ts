@@ -280,6 +280,10 @@ describe.skipIf(!url)('leads API (real PostgreSQL)', () => {
       .send({ name: 'Linked Lead', customerId: cust.id })
       .expect(201);
     expect(res.body.conversationId).toBe(conv.id);
+    // The Inbox customer panel lists only this customer's leads.
+    const forCust = (await http().get(`${base()}?customerId=${cust.id}`).set(h)).body;
+    expect(forCust.data.map((l: { name: string }) => l.name)).toEqual(['Linked Lead']);
+    await http().get(`${base()}?customerId=not-a-uuid`).set(h).expect(400);
     const otherCust = await db.customer.create({
       data: { workspaceId: ids.wsB!, name: 'Foreign', isSample: true },
     });
