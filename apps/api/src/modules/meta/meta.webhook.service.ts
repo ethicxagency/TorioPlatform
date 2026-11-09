@@ -4,6 +4,7 @@ import { SOCKET_EVENTS } from '@torio/types';
 import { PrismaService } from '../../database/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { ChannelCryptoService } from '../whatsapp/channel-crypto.service';
+import { MetaConfigService } from '../meta-config/meta-config.service';
 import { MetaGraphProvider } from './meta.graph-provider';
 import { unpackCredential } from './meta.credentials';
 
@@ -64,6 +65,7 @@ export class MetaWebhookService implements OnModuleInit, OnModuleDestroy {
     private readonly realtime: RealtimeGateway,
     private readonly crypto: ChannelCryptoService,
     private readonly graph: MetaGraphProvider,
+    private readonly mc: MetaConfigService,
   ) {}
 
   /** Records new events and returns the work to do. Fast: no Meta calls, no message writes. */
@@ -73,6 +75,12 @@ export class MetaWebhookService implements OnModuleInit, OnModuleDestroy {
     const provider =
       payload.object === 'instagram' ? 'INSTAGRAM' : payload.object === 'page' ? 'MESSENGER' : null;
     if (!provider) return { ...out, jobs };
+    const cfg = await this.mc.load();
+    if (
+      (provider === 'MESSENGER' && !cfg.messengerEnabled) ||
+      (provider === 'INSTAGRAM' && !cfg.instagramEnabled)
+    )
+      return { ...out, ignored: 1, jobs }; // switched off by Super Admin
     for (const entry of payload.entry ?? []) {
       if (!entry.id) continue;
       const channel = (await this.prisma.client.channel.findFirst({

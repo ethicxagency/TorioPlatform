@@ -6,7 +6,7 @@ import { MetaGraph } from './meta.graph';
 import { signState, STATE_TTL_MS, verifyState } from './meta.state';
 
 const SECRET = 'app-secret-for-tests';
-const base = { w: 'ws-1', u: 'user-1', p: 'MESSENGER' as const };
+const base = { w: 'ws-1', u: 'user-1', p: ['MESSENGER' as const, 'INSTAGRAM' as const] };
 
 describe('OAuth state', () => {
   it('round-trips and binds workspace, user and provider', () => {
@@ -23,6 +23,11 @@ describe('OAuth state', () => {
     expect(verifyState(s, 'other-secret')).toBeNull();
     expect(verifyState(`${body}.`, SECRET)).toBeNull();
     expect(verifyState('garbage', SECRET)).toBeNull();
+  });
+  it('rejects an unknown product list', () => {
+    const bad = signState({ ...base, p: ['TELEGRAM' as never] }, SECRET);
+    expect(verifyState(bad, SECRET)).toBeNull();
+    expect(verifyState(signState({ ...base, p: [] }, SECRET), SECRET)).toBeNull();
   });
   it('expires, and every state is unique', () => {
     const t0 = 1_000_000;
@@ -53,6 +58,11 @@ describe('scopes', () => {
     ]);
     expect(SCOPES.INSTAGRAM).toContain('instagram_manage_messages');
     expect(SCOPES.MESSENGER).not.toContain('instagram_manage_messages');
+    expect(SCOPES.WHATSAPP).toEqual([
+      'business_management',
+      'whatsapp_business_management',
+      'whatsapp_business_messaging',
+    ]);
   });
 });
 

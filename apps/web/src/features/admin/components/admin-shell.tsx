@@ -3,19 +3,32 @@
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Building2,
+  ChevronDown,
   CreditCard,
   LayoutDashboard,
   LogOut,
   Menu,
+  Plug,
   ScrollText,
   Settings,
   Tags,
   Users,
 } from 'lucide-react';
-import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { HEADER_ICON_BTN } from '@/components/shell/header-popover';
+import { NAV_ICON, NAV_PANEL_CLASS, NavItem } from '@/components/shell/nav-item';
+import { TorioLogo } from '@/components/shell/torio-logo';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useDismiss } from '@/features/inbox/use-dismiss';
 import { adminRequest, setAdminUnauthorizedHandler } from '@/lib/admin-api';
 import { cn } from '@/lib/utils';
 import { useAdminMe, type AdminProfile } from '../queries';
@@ -42,6 +55,10 @@ const NAV = [
       { href: '/admin/subscriptions', label: 'Subscriptions & Billing', icon: CreditCard },
       { href: '/admin/plans', label: 'Plans & Pricing', icon: Tags },
     ],
+  },
+  {
+    group: 'INTEGRATIONS',
+    items: [{ href: '/admin/integrations/meta', label: 'Meta Developer', icon: Plug }],
   },
   {
     group: 'PLATFORM',
@@ -116,108 +133,188 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     qc.clear();
     router.replace('/admin/login');
   };
+  const initials = value.admin.name
+    .split(' ')
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
   const nav = (
-    <nav aria-label="Admin" className="flex flex-1 flex-col gap-4 overflow-y-auto px-3 py-4">
-      {NAV.map((g) => (
-        <div key={g.group}>
-          <div className="px-2.5 pb-1 text-[10.5px] font-semibold tracking-[0.06em] text-faint">
+    <nav
+      aria-label="Admin"
+      className={cn(NAV_PANEL_CLASS, 'h-full w-[228px] overflow-y-auto border-r border-line')}
+    >
+      {NAV.map((g, gi) => (
+        <div key={g.group} className={cn('flex flex-col gap-0.5', gi > 0 && 'mt-2')}>
+          <div className="px-3 pb-1 pt-1 text-[10.5px] font-semibold tracking-[0.06em] text-faint">
             {g.group}
           </div>
-          <ul className="m-0 list-none p-0">
-            {g.items.map((i) => {
-              const active =
-                i.href === '/admin' ? pathname === '/admin' : pathname.startsWith(i.href);
-              return (
-                <li key={i.href}>
-                  <Link
-                    href={i.href}
-                    aria-current={active ? 'page' : undefined}
-                    className={cn(
-                      'flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] no-underline hover:bg-white/70 hover:no-underline',
-                      active ? 'bg-primary-soft font-semibold text-primary-hover' : 'text-muted',
-                    )}
-                  >
-                    <i.icon size={15} aria-hidden />
-                    {i.label}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+          {g.items.map((i) => {
+            const active =
+              i.href === '/admin' ? pathname === '/admin' : pathname.startsWith(i.href);
+            return (
+              <NavItem
+                key={i.href}
+                href={i.href}
+                label={i.label}
+                active={active}
+                icon={(color) => (
+                  <i.icon
+                    size={NAV_ICON.size}
+                    strokeWidth={NAV_ICON.strokeWidth}
+                    color={color}
+                    aria-hidden
+                  />
+                )}
+              />
+            );
+          })}
         </div>
       ))}
     </nav>
   );
-  const sidebar = (
-    <div className="flex h-full flex-col">
-      <div className="flex h-14 items-center gap-2 border-b border-line-subtle px-4">
-        {/* eslint-disable-next-line @next/next/no-img-element -- static brand mark */}
-        <img src="/torio-icon.png" alt="" width={28} height={28} className="h-7 w-7" />
-        <span className="text-[15px] font-semibold tracking-[-0.01em]">Torio Admin</span>
-      </div>
-      {nav}
-      <div className="border-t border-line-subtle p-3">
-        <div className="mb-2 px-1">
-          <div className="truncate text-[13px] font-semibold">{value.admin.name}</div>
-          <div className="truncate text-xs text-faint">{value.admin.email}</div>
-        </div>
-        <button
-          type="button"
-          onClick={() => void logout()}
-          className="flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 text-[13.5px] text-muted hover:bg-white/70"
-        >
-          <LogOut size={15} aria-hidden /> Log out
-        </button>
-      </div>
-    </div>
-  );
 
   return (
     <Ctx.Provider value={value}>
-      <div className="flex min-h-screen bg-canvas">
-        <aside className="sticky top-0 hidden h-screen w-[236px] shrink-0 border-r border-line bg-[#FAFAFD] lg:block">
-          {sidebar}
-        </aside>
-        {open && (
-          <div
-            className="fixed inset-0 z-[60] lg:hidden"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Admin menu"
-          >
-            <div
-              className="absolute inset-0 bg-[rgba(13,37,61,0.3)]"
-              onClick={() => setOpen(false)}
-            />
-            <div className="absolute inset-y-0 left-0 w-[260px] bg-[#FAFAFD] shadow-popover">
-              {sidebar}
-            </div>
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-white/90 px-4 backdrop-blur lg:hidden">
+      <div className="relative flex h-screen flex-col overflow-hidden bg-canvas text-sm text-ink">
+        <header className="relative z-40 h-14 shrink-0 border-b border-line glass-header">
+          <div className="flex h-full items-center gap-2 pl-4 pr-3 sm:pl-[22px] sm:pr-5">
             <button
               type="button"
               aria-label="Open menu"
               aria-expanded={open}
-              onClick={() => setOpen(true)}
-              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-line bg-white"
+              onClick={() => setOpen((v) => !v)}
+              className={cn(HEADER_ICON_BTN, '-ml-1.5 lg:hidden')}
             >
-              <Menu size={16} />
+              <Menu size={18} aria-hidden />
             </button>
-            <span className="text-[15px] font-semibold">Torio Admin</span>
-          </header>
-          <main className="mx-auto max-w-[1180px] px-4 pb-10 pt-5 sm:px-6">{children}</main>
+            <TorioLogo className="block h-9 w-auto shrink-0 object-contain" />
+            <span className="rounded-md bg-primary-soft px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-primary-hover">
+              Admin
+            </span>
+            <div className="flex-1" />
+            <AccountMenu
+              name={value.admin.name}
+              email={value.admin.email}
+              initials={initials}
+              onLogout={() => void logout()}
+            />
+          </div>
+        </header>
+        <div className="relative flex min-h-0 flex-1">
+          <aside className="hidden w-[228px] shrink-0 lg:block">{nav}</aside>
+          {open && (
+            <div className="lg:hidden" role="dialog" aria-modal="true" aria-label="Admin menu">
+              <div
+                onClick={() => setOpen(false)}
+                className="fixed inset-x-0 bottom-0 top-14 z-[55] glass-scrim"
+              />
+              <div className="fixed bottom-0 left-0 top-14 z-[60] animate-drawer-in shadow-popover">
+                {nav}
+              </div>
+            </div>
+          )}
+          <main
+            key={pathname}
+            id="main"
+            className="min-w-0 flex-1 animate-page-in overflow-y-auto overflow-x-hidden"
+          >
+            <div className="mx-auto max-w-[1180px] px-4 pb-10 pt-5 sm:px-6">{children}</div>
+          </main>
         </div>
         {message && (
           <div
             role="status"
-            className="fixed bottom-5 left-1/2 z-[100] max-w-[90vw] -translate-x-1/2 rounded-xl bg-ink px-4 py-2.5 text-[13px] text-white shadow-popover"
+            className="fixed bottom-6 left-1/2 z-[95] flex max-w-[calc(100vw-32px)] -translate-x-1/2 animate-toast-in items-center gap-3 rounded-xl bg-ink px-3.5 py-2.5 text-[13px] text-white shadow-[0_8px_24px_rgba(0,55,112,0.2)]"
           >
             {message}
           </div>
         )}
       </div>
     </Ctx.Provider>
+  );
+}
+
+/** Same capsule and menu as the customer app's account menu, scoped to the signed-in platform admin. */
+function AccountMenu({
+  name,
+  email,
+  initials,
+  onLogout,
+}: {
+  name: string;
+  email: string;
+  initials: string;
+  onLogout: () => void;
+}) {
+  const { registerEscape } = useAdminShell();
+  const [open, setOpen] = useState(false);
+  const wrap = useRef<HTMLDivElement>(null);
+  useDismiss(wrap, open, () => setOpen(false));
+  useEffect(
+    () => (open ? registerEscape(() => setOpen(false)) : undefined),
+    [open, registerEscape],
+  );
+  return (
+    <div ref={wrap} className="relative">
+      <button
+        type="button"
+        aria-label="Account menu"
+        title={name}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="flex h-12 cursor-pointer items-center gap-2.5 rounded-[14px] border border-line bg-white py-1.5 pl-1.5 pr-3 shadow-[0_1px_2px_rgba(13,37,61,0.04)] transition-[background-color,border-color] duration-150 hover:border-line-input hover:bg-wash aria-expanded:border-line-input aria-expanded:bg-wash focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none max-sm:h-10 max-sm:rounded-full max-sm:p-0.5"
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-[13px] font-semibold text-white">
+          {initials}
+        </span>
+        <span className="max-w-[160px] truncate text-[15px] font-semibold leading-none text-ink max-sm:hidden">
+          {name}
+        </span>
+        <ChevronDown
+          size={15}
+          strokeWidth={2}
+          aria-hidden
+          className={cn(
+            'text-faint transition-transform duration-200 max-sm:hidden motion-reduce:transition-none',
+            open && 'rotate-180',
+          )}
+        />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          aria-label="Account menu"
+          className="glass-menu absolute right-0 top-full z-50 mt-2 w-[min(300px,calc(100vw-24px))] animate-panel-in rounded-2xl border border-line p-2 shadow-popover"
+        >
+          <div className="flex items-center gap-3 px-2 pb-2.5 pt-1.5">
+            <span
+              aria-hidden
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-[14px] font-semibold text-white"
+            >
+              {initials}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[14px] font-semibold text-ink">{name}</div>
+              <div className="truncate text-xs text-muted">{email}</div>
+            </div>
+          </div>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onLogout();
+            }}
+            className="flex h-10 w-full cursor-pointer items-center gap-2.5 rounded-[10px] border-none bg-transparent px-2.5 text-left text-[13.5px] text-danger transition-colors duration-150 hover:bg-danger-soft focus-visible:bg-danger-soft focus-visible:outline-none motion-reduce:transition-none"
+          >
+            <LogOut size={16} aria-hidden />
+            Log out
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

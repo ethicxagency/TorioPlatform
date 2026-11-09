@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 import { createPrismaClient, type PrismaClient } from '@torio/database';
 import { createHmac } from 'node:crypto';
 import request from 'supertest';
+import { lockMetaConfig } from './meta-lock';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 /** Real-PostgreSQL tests for the Meta OAuth + Messenger/Instagram layer. Meta's Graph API is replaced by a fake fetch. */
@@ -23,14 +24,23 @@ describe.skipIf(!url)('meta channels (real PostgreSQL, fake Graph API)', () => {
   const IG = `${Date.now() + 1}`.slice(-10);
   const calls: { url: string; method: string; body: unknown }[] = [];
   let granted = [
+    'business_management',
+    'whatsapp_business_management',
+    'whatsapp_business_messaging',
     'pages_show_list',
     'pages_manage_metadata',
     'pages_messaging',
     'instagram_basic',
     'instagram_manage_messages',
   ];
-  let withInstagram = true;
+  let release: () => Promise<void>;
+  let fake: typeof fetch;
+  let MetaGraphProvider: typeof import('../src/modules/meta/meta.graph-provider').MetaGraphProvider;
+  const withInstagram = true;
   let subscribeFails = false;
+  const WA_OK = `${Date.now() + 21}`.slice(-12);
+  const WA_NEW = `${Date.now() + 22}`.slice(-12);
+  const WABA_ID = `${Date.now() + 23}`.slice(-12);
   const http = () => request(app.getHttpServer());
   const sign = (raw: string) => `sha256=${createHmac('sha256', SECRET).update(raw).digest('hex')}`;
   const hook = (payload: object, signature?: string) => {
@@ -54,11 +64,15 @@ describe.skipIf(!url)('meta channels (real PostgreSQL, fake Graph API)', () => {
     object,
     entry: [{ id: entryId, time: Date.now(), messaging: [ev] }],
   });
-  const startFlow = async (provider: 'MESSENGER' | 'INSTAGRAM', user = ids.owner, ws = ids.wsA) => {
+  const startFlow = async (
+    products?: ('MESSENGER' | 'INSTAGRAM' | 'WHATSAPP')[],
+    user = ids.owner,
+    ws = ids.wsA,
+  ) => {
     const res = await http()
       .post(`/api/v1/workspaces/${ws}/channels/meta/start`)
       .set(await auth(user))
-      .send({ provider })
+      .send(products ? { products } : {})
       .expect(200);
     const state = new URL(res.body.url).searchParams.get('state')!;
     return { res, state };
@@ -70,22 +84,24 @@ describe.skipIf(!url)('meta channels (real PostgreSQL, fake Graph API)', () => {
 
   beforeAll(async () => {
     process.env.DATABASE_URL = url!;
+    release = await lockMetaConfig(url!);
     Object.assign(process.env, {
       META_APP_ID: APP_ID,
       META_APP_SECRET: SECRET,
       META_OAUTH_REDIRECT_URI: REDIRECT,
       META_WEBHOOK_VERIFY_TOKEN: VERIFY,
       CHANNEL_ENCRYPTION_KEY: 'x'.repeat(40),
+      META_DISCOVER_WHATSAPP: 'true',
     });
     const { AppModule } = await import('../src/app.module');
+    ({ MetaGraphProvider } = await import('../src/modules/meta/meta.graph-provider'));
     const { configureApp } = await import('../src/bootstrap');
-    const { MetaGraphProvider } = await import('../src/modules/meta/meta.graph-provider');
     app = (
       await Test.createTestingModule({ imports: [AppModule] }).compile()
     ).createNestApplication();
     configureApp(app);
     await app.init();
-    app.get(MetaGraphProvider).useFetch((async (u: URL | string, init?: RequestInit) => {
+    fake = (async (u: URL | string, init?: RequestInit) => {
       const target = new URL(String(u));
       const path = target.pathname.replace(/^\/v[\d.]+\//, '');
       calls.push({
@@ -114,6 +130,48 @@ describe.skipIf(!url)('meta channels (real PostgreSQL, fake Graph API)', () => {
             },
           ],
         });
+      if (path === 'me/businesses')
+        return json({
+          data: [
+            {
+              id: 'biz1',
+              name: 'Urban Nest Ltd',
+              owned_whatsapp_business_accounts: {
+                data: [
+                  {
+                    id: WABA_ID,
+                    name: 'Urban Nest WABA',
+                    phone_numbers: {
+                      data: [
+                        {
+                          id: WA_OK,
+                          display_phone_number: '+880 1711-000001',
+                          verified_name: 'Urban Nest',
+                          status: 'CONNECTED',
+                        },
+                        {
+                          id: WA_NEW,
+                          display_phone_number: '+880 1711-000002',
+                          verified_name: 'Urban Nest',
+                          status: 'PENDING',
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        });
+      if (path === WA_OK || path === WA_NEW)
+        return json({
+          id: path,
+          display_phone_number: '+880 1711-000001',
+          verified_name: 'Urban Nest',
+          status: path === WA_OK ? 'CONNECTED' : 'PENDING',
+        });
+      if (path.endsWith('/subscribed_apps') && path.startsWith(WABA_ID))
+        return json({ success: true });
       if (path.endsWith('/subscribed_apps'))
         return subscribeFails
           ? json({ error: { message: 'Permissions error', code: 200 } }, 403)
@@ -127,7 +185,8 @@ describe.skipIf(!url)('meta channels (real PostgreSQL, fake Graph API)', () => {
         last_name: 'Ahmed',
         username: 'sara.a',
       });
-    }) as typeof fetch);
+    }) as typeof fetch;
+    app.get(MetaGraphProvider).useFetch(fake);
     db = createPrismaClient(url!);
     const jwt = app.get(JwtService);
     auth = async (id) => ({
@@ -155,37 +214,71 @@ describe.skipIf(!url)('meta channels (real PostgreSQL, fake Graph API)', () => {
   });
 
   afterAll(async () => {
+    await release?.();
     await db?.$disconnect();
     await app?.close();
   });
 
-  it('starting needs channels:manage and returns a signed, least-privilege Meta URL', async () => {
+  const ALL = [
+    'business_management',
+    'whatsapp_business_management',
+    'whatsapp_business_messaging',
+    'pages_show_list',
+    'pages_manage_metadata',
+    'pages_messaging',
+    'instagram_basic',
+    'instagram_manage_messages',
+  ];
+  const sessionBody = async (id: string, user = ids.owner, ws = ids.wsA) =>
+    (
+      await http()
+        .get(`/api/v1/workspaces/${ws}/channels/meta/sessions/${id}`)
+        .set(await auth(user))
+        .expect(200)
+    ).body;
+  const selectKeys = async (
+    id: string,
+    keys: string[],
+    opts: { status?: number; user?: string; ws?: string } = {},
+  ) =>
+    (
+      await http()
+        .post(`/api/v1/workspaces/${opts.ws ?? ids.wsA}/channels/meta/sessions/${id}/select`)
+        .set(await auth(opts.user ?? ids.owner))
+        .send({ candidateKeys: keys })
+        .expect(opts.status ?? 200)
+    ).body;
+
+  it('starting needs channels:manage and returns a signed Facebook URL asking only for the chosen products', async () => {
     await http()
       .post(`/api/v1/workspaces/${ids.wsA}/channels/meta/start`)
       .set(await auth(ids.agent))
-      .send({ provider: 'MESSENGER' })
+      .send({})
       .expect(403);
     await http()
       .post(`/api/v1/workspaces/${ids.wsA}/channels/meta/start`)
       .set(await auth(ids.outsider))
-      .send({ provider: 'MESSENGER' })
-      .expect(404); // not a member: the workspace isn't even revealed
-    const { res } = await startFlow('MESSENGER');
-    const u = new URL(res.body.url);
+      .send({})
+      .expect(404); // not a member
+    const all = await startFlow();
+    const u = new URL(all.res.body.url);
     expect(u.hostname).toBe('www.facebook.com');
     expect(u.searchParams.get('client_id')).toBe(APP_ID);
     expect(u.searchParams.get('redirect_uri')).toBe(REDIRECT);
-    expect(u.searchParams.get('scope')).toBe(
+    expect(new Set(u.searchParams.get('scope')!.split(','))).toEqual(new Set(ALL));
+    expect(all.res.text).not.toContain(SECRET);
+    const one = await startFlow(['MESSENGER']);
+    expect(new URL(one.res.body.url).searchParams.get('scope')).toBe(
       'pages_show_list,pages_messaging,pages_manage_metadata',
     );
-    expect(res.text).not.toContain(SECRET);
   });
 
   it('the callback rejects forged, tampered and denied authorizations before any Meta call', async () => {
     const before = calls.length;
-    const forged = await callback('abc.def').expect(302);
-    expect(forged.headers.location).toContain('meta_error=invalid_state');
-    const { state } = await startFlow('MESSENGER');
+    expect((await callback('abc.def').expect(302)).headers.location).toContain(
+      'meta_error=invalid_state',
+    );
+    const { state } = await startFlow();
     const tampered = await callback(state.replace(/^./, (c) => (c === 'A' ? 'B' : 'A'))).expect(
       302,
     );
@@ -197,35 +290,67 @@ describe.skipIf(!url)('meta channels (real PostgreSQL, fake Graph API)', () => {
     expect(calls.length).toBe(before);
   });
 
-  it('reports missing permissions instead of connecting', async () => {
+  it('declined permissions are reported per product instead of failing everything', async () => {
     granted = ['pages_show_list'];
-    const { state } = await startFlow('MESSENGER');
-    const r = await callback(state).expect(302);
-    expect(r.headers.location).toContain('meta_error=missing_permissions');
-    granted = [
-      'pages_show_list',
-      'pages_manage_metadata',
-      'pages_messaging',
-      'instagram_basic',
-      'instagram_manage_messages',
-    ];
+    const none = await callback((await startFlow()).state).expect(302);
+    expect(none.headers.location).toContain('meta_error=missing_permissions');
+    granted = ALL.filter((x) => !x.startsWith('whatsapp') && x !== 'business_management');
+    const r = await callback((await startFlow()).state).expect(302);
+    const body = await sessionBody(sessionOf(r.headers.location)!);
+    expect(body.missingPermissions).toEqual(['WHATSAPP']);
+    expect(body.candidates.some((c: { provider: string }) => c.provider === 'WHATSAPP')).toBe(
+      false,
+    );
+    expect(body.candidates.some((c: { provider: string }) => c.provider === 'MESSENGER')).toBe(
+      true,
+    );
+    granted = ALL;
   });
 
-  it('Messenger: callback parks the Pages in a session; only its owner can read it; tokens never leave the server', async () => {
-    const { state } = await startFlow('MESSENGER');
-    const r = await callback(state).expect(302);
+  it('one authorization discovers Pages, Instagram accounts and WhatsApp numbers; tokens never leave the server', async () => {
+    const r = await callback((await startFlow()).state).expect(302);
     const id = sessionOf(r.headers.location)!;
-    expect(id).toBeTruthy();
     expect(r.headers.location).not.toContain('EAAG');
     ids.session = id;
-    const s = await http()
-      .get(`/api/v1/workspaces/${ids.wsA}/channels/meta/sessions/${id}`)
-      .set(await auth(ids.owner))
-      .expect(200);
-    expect(s.body.candidates).toEqual([
-      { id: PAGE, name: 'Urban Nest Page', detail: null, taken: false },
+    const body = await sessionBody(id);
+    expect(body.candidates).toEqual([
+      {
+        key: `MESSENGER:${PAGE}`,
+        provider: 'MESSENGER',
+        name: 'Urban Nest Page',
+        detail: `Page ID ${PAGE}`,
+        imageUrl: null,
+        eligible: true,
+        reason: null,
+        taken: false,
+      },
+      {
+        key: `INSTAGRAM:${IG}`,
+        provider: 'INSTAGRAM',
+        name: '@urbannest',
+        detail: 'Professional account · Linked Page: Urban Nest Page',
+        imageUrl: null,
+        eligible: true,
+        reason: null,
+        taken: false,
+      },
+      {
+        key: `WHATSAPP:${WA_OK}`,
+        provider: 'WHATSAPP',
+        name: '+880 1711-000001',
+        detail: 'Urban Nest · Urban Nest WABA',
+        imageUrl: null,
+        eligible: true,
+        reason: null,
+        taken: false,
+      },
+      expect.objectContaining({
+        key: `WHATSAPP:${WA_NEW}`,
+        eligible: false,
+        reason: expect.stringMatching(/Embedded Signup/),
+      }),
     ]);
-    expect(JSON.stringify(s.body)).not.toContain('EAAG');
+    expect(JSON.stringify(body)).not.toContain('EAAG');
     // another user in the same workspace, and another workspace entirely, can't see it
     await http()
       .get(`/api/v1/workspaces/${ids.wsA}/channels/meta/sessions/${id}`)
@@ -239,65 +364,96 @@ describe.skipIf(!url)('meta channels (real PostgreSQL, fake Graph API)', () => {
     expect(JSON.stringify(row.candidates)).not.toContain('EAAG-page-token-secret-value');
   });
 
-  it('selecting a Page subscribes it, stores the token encrypted and is single-use', async () => {
-    subscribeFails = true;
-    const failed = await http()
-      .post(`/api/v1/workspaces/${ids.wsA}/channels/meta/sessions/${ids.session}/select`)
-      .set(await auth(ids.owner))
-      .send({ candidateId: PAGE })
-      .expect(400);
-    expect(failed.body.message ?? JSON.stringify(failed.body)).toMatch(/subscribe/i);
+  it('each selected asset is provisioned on its own: failures and unready numbers never block the rest, and retry is safe', async () => {
+    subscribeFails = true; // Meta rejects the Page subscriptions
+    const first = await selectKeys(ids.session!, [
+      `MESSENGER:${PAGE}`,
+      `INSTAGRAM:${IG}`,
+      `WHATSAPP:${WA_OK}`,
+      `WHATSAPP:${WA_NEW}`,
+    ]);
+    const by = Object.fromEntries(first.results.map((r: { key: string }) => [r.key, r]));
+    expect(by[`MESSENGER:${PAGE}`]).toMatchObject({ status: 'FAILED', channelId: null });
+    expect(by[`MESSENGER:${PAGE}`].message).toMatch(/subscribe/i);
+    expect(by[`INSTAGRAM:${IG}`].status).toBe('FAILED');
+    expect(by[`WHATSAPP:${WA_OK}`]).toMatchObject({ status: 'CONNECTED' });
+    expect(by[`WHATSAPP:${WA_NEW}`]).toMatchObject({ status: 'ACTION_REQUIRED' });
+    expect(JSON.stringify(first)).not.toContain('EAAG');
     expect(
-      await db.channel.count({ where: { provider: 'MESSENGER', externalAccountId: PAGE } }),
-    ).toBe(0); // nothing saved
+      await db.channel.count({
+        where: {
+          provider: { in: ['MESSENGER', 'INSTAGRAM'] },
+          externalAccountId: { in: [PAGE, IG] },
+        },
+      }),
+    ).toBe(0); // nothing saved for failures
+    ids.waChannel = by[`WHATSAPP:${WA_OK}`].channelId;
+    // retry only the failed ones
     subscribeFails = false;
-    await http()
-      .post(`/api/v1/workspaces/${ids.wsA}/channels/meta/sessions/${ids.session}/select`)
-      .set(await auth(ids.owner))
-      .send({ candidateId: 'not-in-session' })
-      .expect(400);
-    const ok = await http()
-      .post(`/api/v1/workspaces/${ids.wsA}/channels/meta/sessions/${ids.session}/select`)
-      .set(await auth(ids.owner))
-      .send({ candidateId: PAGE })
-      .expect(200);
-    expect(JSON.stringify(ok.body)).not.toContain('EAAG');
-    expect(ok.body).toMatchObject({
-      provider: 'MESSENGER',
+    const retry = await selectKeys(ids.session!, [`MESSENGER:${PAGE}`, `INSTAGRAM:${IG}`]);
+    const r2 = Object.fromEntries(retry.results.map((r: { key: string }) => [r.key, r]));
+    expect(r2[`MESSENGER:${PAGE}`].status).toBe('CONNECTED');
+    expect(r2[`INSTAGRAM:${IG}`].status).toBe('CONNECTED');
+    ids.msgChannel = r2[`MESSENGER:${PAGE}`].channelId;
+    ids.igChannel = r2[`INSTAGRAM:${IG}`].channelId;
+    // choosing the same WhatsApp number again (new authorization) reuses the channel instead of duplicating it
+    const again = await callback((await startFlow()).state).expect(302);
+    const dup = await selectKeys(sessionOf(again.headers.location)!, [`WHATSAPP:${WA_OK}`]);
+    expect(dup.results[0]).toMatchObject({ status: 'CONNECTED', channelId: ids.waChannel });
+    expect(
+      await db.channel.count({ where: { provider: 'WHATSAPP', externalAccountId: WA_OK } }),
+    ).toBe(1);
+    // subscribed with the right fields and the Page token, stored encrypted
+    const sub = calls
+      .filter((c) => c.url.includes(`/${PAGE}/subscribed_apps`) && c.method === 'POST')
+      .at(-1)!;
+    expect(sub.url).toContain('subscribed_fields=messages');
+    for (const cid of [ids.msgChannel, ids.igChannel, ids.waChannel]) {
+      const cred = await db.channelCredential.findUniqueOrThrow({ where: { channelId: cid! } });
+      expect(cred.ciphertext.startsWith('v1.')).toBe(true);
+      expect(cred.ciphertext).not.toContain('EAAG');
+    }
+    const msg = await db.channel.findUniqueOrThrow({ where: { id: ids.msgChannel } });
+    expect(msg).toMatchObject({
       status: 'CONNECTED',
-      accountName: 'Urban Nest Page',
       webhookStatus: 'SUBSCRIBED',
+      provider: 'MESSENGER',
     });
-    ids.msgChannel = ok.body.id;
-    const sub = calls.find(
-      (c) => c.url.includes(`/${PAGE}/subscribed_apps`) && c.method === 'POST',
-    );
-    expect(sub?.url).toContain('subscribed_fields=messages');
-    const cred = await db.channelCredential.findUniqueOrThrow({
-      where: { channelId: ids.msgChannel },
-    });
-    expect(cred.ciphertext.startsWith('v1.')).toBe(true);
-    expect(cred.ciphertext).not.toContain('EAAG');
-    await http()
-      .post(`/api/v1/workspaces/${ids.wsA}/channels/meta/sessions/${ids.session}/select`)
-      .set(await auth(ids.owner))
-      .send({ candidateId: PAGE })
-      .expect(410); // already completed
+    // connected assets are no longer parked in the session; the failed/unready ones still are
+    const left = await sessionBody(ids.session!);
+    expect(left.candidates.map((c: { key: string }) => c.key)).toEqual([`WHATSAPP:${WA_NEW}`]);
+    await selectKeys(ids.session!, ['MESSENGER:nope'], { status: 400 });
   });
 
-  it('a Page already connected anywhere cannot be connected again', async () => {
-    const { state } = await startFlow('MESSENGER', ids.outsider, ids.wsB);
+  it('assets connected anywhere cannot be connected again, and cancelling discards the parked tokens', async () => {
+    const { state } = await startFlow(undefined, ids.outsider, ids.wsB);
     const id = sessionOf((await callback(state).expect(302)).headers.location)!;
-    const s = await http()
-      .get(`/api/v1/workspaces/${ids.wsB}/channels/meta/sessions/${id}`)
+    const s = await sessionBody(id, ids.outsider, ids.wsB);
+    expect(
+      s.candidates
+        .filter((c: { taken: boolean }) => c.taken)
+        .map((c: { provider: string }) => c.provider)
+        .sort(),
+    ).toEqual(['INSTAGRAM', 'MESSENGER', 'WHATSAPP']);
+    const res = await selectKeys(id, [`MESSENGER:${PAGE}`, `WHATSAPP:${WA_OK}`], {
+      user: ids.outsider,
+      ws: ids.wsB,
+    });
+    expect(
+      res.results.every(
+        (r: { status: string; message: string }) =>
+          r.status === 'FAILED' && /another workspace/.test(r.message),
+      ),
+    ).toBe(true);
+    await http()
+      .post(`/api/v1/workspaces/${ids.wsB}/channels/meta/sessions/${id}/cancel`)
       .set(await auth(ids.outsider))
       .expect(200);
-    expect(s.body.candidates[0].taken).toBe(true);
+    expect(await db.channelOAuthSession.count({ where: { id } })).toBe(0);
     await http()
-      .post(`/api/v1/workspaces/${ids.wsB}/channels/meta/sessions/${id}/select`)
+      .get(`/api/v1/workspaces/${ids.wsB}/channels/meta/sessions/${id}`)
       .set(await auth(ids.outsider))
-      .send({ candidateId: PAGE })
-      .expect(409);
+      .expect(404);
   });
 
   it('webhook verification checks the token; unsigned and badly signed posts are rejected', async () => {
@@ -451,64 +607,10 @@ describe.skipIf(!url)('meta channels (real PostgreSQL, fake Graph API)', () => {
       .send({ body: 'x' })
       .expect(201);
     expect(res.body.failureReason).toMatch(/reconnected/);
+    app.get(MetaGraphProvider).useFetch(fake);
   });
 
-  it('Instagram: only Pages with a linked professional account are offered, shown by @username', async () => {
-    withInstagram = false;
-    const { MetaGraphProvider } = await import('../src/modules/meta/meta.graph-provider');
-    const g = app.get(MetaGraphProvider);
-    // restore the fake (the previous test replaced it)
-    g.useFetch((async (u: URL | string, init?: RequestInit) => {
-      calls.push({
-        url: String(u),
-        method: init?.method ?? 'GET',
-        body: init?.body ? JSON.parse(String(init.body)) : null,
-      });
-      const path = new URL(String(u)).pathname.replace(/^\/v[\d.]+\//, '');
-      const json = (b: object) => new Response(JSON.stringify(b));
-      if (path === 'oauth/access_token') return json({ access_token: 'EAAG-user' });
-      if (path === 'me/permissions')
-        return json({ data: granted.map((permission) => ({ permission, status: 'granted' })) });
-      if (path === 'me/accounts')
-        return json({
-          data: [
-            {
-              id: PAGE,
-              name: 'Urban Nest Page',
-              access_token: 'EAAG-page',
-              ...(withInstagram && {
-                instagram_business_account: { id: IG, username: 'urbannest' },
-              }),
-            },
-          ],
-        });
-      if (path.endsWith('/subscribed_apps')) return json({ success: true });
-      if (path === 'debug_token') return json({ data: { is_valid: true, expires_at: 0 } });
-      return json({});
-    }) as typeof fetch);
-    const none = await callback((await startFlow('INSTAGRAM')).state).expect(302);
-    expect(none.headers.location).toContain('meta_error=no_accounts');
-    withInstagram = true;
-    const r = await callback((await startFlow('INSTAGRAM')).state).expect(302);
-    const id = sessionOf(r.headers.location)!;
-    const s = await http()
-      .get(`/api/v1/workspaces/${ids.wsA}/channels/meta/sessions/${id}`)
-      .set(await auth(ids.owner))
-      .expect(200);
-    expect(s.body.candidates[0]).toMatchObject({
-      id: IG,
-      name: '@urbannest',
-      detail: 'Linked Page: Urban Nest Page',
-      taken: false,
-    });
-    const ok = await http()
-      .post(`/api/v1/workspaces/${ids.wsA}/channels/meta/sessions/${id}/select`)
-      .set(await auth(ids.owner))
-      .send({ candidateId: IG })
-      .expect(200);
-    expect(ok.body).toMatchObject({ provider: 'INSTAGRAM', status: 'CONNECTED' });
-    ids.igChannel = ok.body.id;
-    // Instagram webhooks are keyed by the Instagram account id
+  it('Instagram webhooks are keyed by the Instagram account id and land in the same Inbox', async () => {
     const mid = `m_${sfx}_ig1`;
     await hook(
       messaging('instagram', IG, {
@@ -581,18 +683,16 @@ describe.skipIf(!url)('meta channels (real PostgreSQL, fake Graph API)', () => {
   it('WhatsApp Embedded Signup: server exchanges the code, subscribes the WABA, registers the number and keeps the PIN encrypted', async () => {
     const { WhatsAppGraphProvider } =
       await import('../src/modules/whatsapp/whatsapp.graph-provider');
-    app
-      .get(WhatsAppGraphProvider)
-      .useFetch(
-        (async () =>
-          new Response(
-            JSON.stringify({
-              id: 'p',
-              display_phone_number: '+880 1700-000111',
-              verified_name: 'Urban Nest',
-            }),
-          )) as typeof fetch,
-      );
+    app.get(WhatsAppGraphProvider).useFetch(
+      (async () =>
+        new Response(
+          JSON.stringify({
+            id: 'p',
+            display_phone_number: '+880 1700-000111',
+            verified_name: 'Urban Nest',
+          }),
+        )) as typeof fetch,
+    );
     const WA_PHONE = `${Date.now() + 7}`.slice(-12);
     const WABA = `${Date.now() + 9}`.slice(-12);
     const body = {

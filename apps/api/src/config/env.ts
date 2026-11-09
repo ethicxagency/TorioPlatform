@@ -44,6 +44,8 @@ export const envSchema = z
       .optional(),
     /** Where Meta sends the browser after OAuth: https://<api-host>/api/v1/channels/meta/callback. Must match the app settings exactly. */
     META_OAUTH_REDIRECT_URI: z.url().optional(),
+    /** Also request WhatsApp permissions in the Facebook authorization and list existing WhatsApp numbers. Needs those permissions approved (App Review) in production. */
+    META_DISCOVER_WHATSAPP: bool,
     /** WhatsApp Embedded Signup configuration id (Facebook Login for Business). Optional: without it only the manual token flow is offered. */
     META_WA_CONFIG_ID: z.string().min(4).optional(),
     META_APP_SECRET: z.string().min(8).optional(),
@@ -54,6 +56,11 @@ export const envSchema = z
       .default('v27.0'),
     /** Secret used to encrypt provider tokens at rest. Rotating it invalidates stored tokens. */
     CHANNEL_ENCRYPTION_KEY: z.string().min(32, 'must be at least 32 characters').optional(),
+    /** The key used before a rotation. Stored secrets under it stay readable until Super Admin re-encrypts them; then remove it. */
+    CHANNEL_ENCRYPTION_KEY_PREVIOUS: z
+      .string()
+      .min(32, 'must be at least 32 characters')
+      .optional(),
     /** JSON: { "starter": { "month": "price_…", "year": "price_…" }, … } */
     BILLING_PRICE_IDS: z
       .string()

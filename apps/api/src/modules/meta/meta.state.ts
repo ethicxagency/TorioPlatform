@@ -1,12 +1,15 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
+export type MetaProduct = 'MESSENGER' | 'INSTAGRAM' | 'WHATSAPP';
+const PRODUCTS = new Set<string>(['MESSENGER', 'INSTAGRAM', 'WHATSAPP']);
+
 export interface OAuthStatePayload {
   /** workspace id */
   w: string;
   /** user id */
   u: string;
-  /** provider */
-  p: 'MESSENGER' | 'INSTAGRAM';
+  /** products the user is authorizing */
+  p: MetaProduct[];
   /** random nonce */
   n: string;
   /** expiry, epoch ms */
@@ -26,9 +29,10 @@ export function signState(
   p: Omit<OAuthStatePayload, 'n' | 'e'>,
   secret: string,
   now = Date.now(),
+  ttlMs = STATE_TTL_MS,
 ): string {
   const body = b64(
-    JSON.stringify({ ...p, n: randomBytes(12).toString('base64url'), e: now + STATE_TTL_MS }),
+    JSON.stringify({ ...p, n: randomBytes(12).toString('base64url'), e: now + ttlMs }),
   );
   return `${body}.${b64(mac(secret, body))}`;
 }
@@ -46,7 +50,7 @@ export function verifyState(
   try {
     const p = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as OAuthStatePayload;
     if (!p.w || !p.u || !p.n || typeof p.e !== 'number' || p.e < now) return null;
-    if (p.p !== 'MESSENGER' && p.p !== 'INSTAGRAM') return null;
+    if (!Array.isArray(p.p) || !p.p.length || !p.p.every((x) => PRODUCTS.has(x))) return null;
     return p;
   } catch {
     return null;

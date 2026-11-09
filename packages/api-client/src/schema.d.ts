@@ -564,6 +564,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/channels/meta/sessions/{sessionId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["MetaController_cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/channels/whatsapp/embedded-signup": {
         parameters: {
             query?: never;
@@ -2116,6 +2132,214 @@ export interface paths {
         patch: operations["AdminController_updateSettings"];
         trace?: never;
     };
+    "/api/v1/admin/integrations/meta/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminMetaController_config"];
+        put: operations["AdminMetaController_save"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/meta/config/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminMetaController_preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/meta/secrets/app-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["AdminMetaController_setAppSecret"];
+        post?: never;
+        delete: operations["AdminMetaController_clearAppSecret"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/meta/secrets/webhook-verify-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["AdminMetaController_setVerifyToken"];
+        post?: never;
+        delete: operations["AdminMetaController_clearVerifyToken"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/meta/secrets/webhook-verify-token/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminMetaController_generateVerifyToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/meta/test/credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminMetaController_testCredentials"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/meta/test/oauth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminMetaController_testOAuth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/meta/test/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminMetaController_testWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/meta/test/connectivity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminMetaController_testConnectivity"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/meta/diagnostics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminMetaController_diagnostics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/meta/security": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminMetaController_security"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/meta/security/reencrypt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminMetaController_reencrypt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/meta/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminMetaController_activity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/dashboard/analytics": {
         parameters: {
             query?: never;
@@ -2661,10 +2885,14 @@ export interface components {
             appId: string | null;
             graphVersion: string;
             whatsappConfigId: string | null;
+            whatsappDiscovery: boolean;
+            permissions: {
+                scope: string;
+                reason: string;
+            }[];
         };
         MetaStartDto: {
-            /** @enum {string} */
-            provider: "MESSENGER" | "INSTAGRAM";
+            products?: ("MESSENGER" | "INSTAGRAM" | "WHATSAPP")[];
         };
         MetaStartResultDto: {
             /** Format: uri */
@@ -2673,20 +2901,35 @@ export interface components {
         MetaSessionDto: {
             /** Format: uuid */
             id: string;
-            /** @enum {string} */
-            provider: "MESSENGER" | "INSTAGRAM";
             /** Format: date-time */
             expiresAt: string;
             candidates: {
-                id: string;
+                key: string;
+                /** @enum {string} */
+                provider: "WHATSAPP" | "INSTAGRAM" | "MESSENGER";
                 name: string;
                 detail: string | null;
+                imageUrl: string | null;
+                eligible: boolean;
+                reason: string | null;
                 taken: boolean;
             }[];
+            missingPermissions: ("MESSENGER" | "INSTAGRAM" | "WHATSAPP")[];
         };
         MetaSelectDto: {
-            candidateId: string;
-            displayName?: string;
+            candidateKeys: string[];
+        };
+        MetaProvisionDto: {
+            results: {
+                key: string;
+                /** @enum {string} */
+                provider: "WHATSAPP" | "INSTAGRAM" | "MESSENGER";
+                name: string;
+                /** @enum {string} */
+                status: "CONNECTED" | "FAILED" | "ACTION_REQUIRED";
+                channelId: string | null;
+                message: string | null;
+            }[];
         };
         EmbeddedSignupDto: {
             code: string;
@@ -4889,6 +5132,233 @@ export interface components {
             registrationOpen?: boolean;
             reason?: string;
         };
+        MetaAdminConfigDto: {
+            values: {
+                appName: string | null;
+                appId: string | null;
+                apiVersion: string;
+                businessId: string | null;
+                appMode: ("DEVELOPMENT" | "LIVE") | null;
+                appDomain: string | null;
+                websiteUrl: string | null;
+                oauthRedirectUri: string | null;
+                allowedRedirectUris: string[];
+                oauthStateTtlMinutes: number;
+                allowedDomains: string[];
+                successUrl: string | null;
+                failureUrl: string | null;
+                webhookBaseUrl: string | null;
+                webhookEnabled: boolean;
+                whatsappConfigId: string | null;
+                discoverWhatsapp: boolean;
+                messengerEnabled: boolean;
+                instagramEnabled: boolean;
+                whatsappEnabled: boolean;
+            };
+            sources: {
+                [key: string]: "database" | "environment" | "default" | "unset";
+            };
+            secrets: {
+                appSecret: {
+                    configured: boolean;
+                    /** @enum {string} */
+                    source: "database" | "environment" | "default" | "unset";
+                };
+                webhookVerifyToken: {
+                    configured: boolean;
+                    /** @enum {string} */
+                    source: "database" | "environment" | "default" | "unset";
+                };
+            };
+            derived: {
+                callbackPath: string;
+                redirectUriToRegister: string | null;
+                metaWebhookUrl: string | null;
+                whatsappWebhookUrl: string | null;
+            };
+            /** @enum {string} */
+            status: "CONFIGURED" | "INCOMPLETE" | "INVALID" | "NEEDS_ATTENTION";
+            problems: {
+                field: string;
+                message: string;
+                /** @enum {string} */
+                severity: "error" | "warning";
+            }[];
+            deploymentLevel: {
+                name: string;
+                purpose: string;
+                configured: boolean;
+            }[];
+            updatedAt: string | null;
+            updatedBy: string[];
+        };
+        MetaConfigPreviewDto: {
+            patch: {
+                appName?: string | null;
+                appId?: string | null;
+                apiVersion?: string | null;
+                businessId?: string | null;
+                appMode?: ("DEVELOPMENT" | "LIVE") | null;
+                appDomain?: string | null;
+                websiteUrl?: string | null;
+                oauthRedirectUri?: string | null;
+                allowedRedirectUris?: string[];
+                oauthStateTtlMinutes?: number | null;
+                allowedDomains?: string[];
+                successUrl?: string | null;
+                failureUrl?: string | null;
+                webhookBaseUrl?: string | null;
+                webhookEnabled?: boolean | null;
+                whatsappConfigId?: string | null;
+                discoverWhatsapp?: boolean | null;
+                messengerEnabled?: boolean;
+                instagramEnabled?: boolean;
+                whatsappEnabled?: boolean;
+            };
+        };
+        MetaPreviewResultDto: {
+            changes: {
+                field: string;
+                before: string;
+                after: string;
+            }[];
+            impacts: {
+                /** @enum {string} */
+                severity: "warning" | "danger";
+                message: string;
+            }[];
+            requiresConfirmation: boolean;
+            errors: {
+                field: string;
+                message: string;
+            }[];
+        };
+        MetaConfigSaveDto: {
+            patch: {
+                appName?: string | null;
+                appId?: string | null;
+                apiVersion?: string | null;
+                businessId?: string | null;
+                appMode?: ("DEVELOPMENT" | "LIVE") | null;
+                appDomain?: string | null;
+                websiteUrl?: string | null;
+                oauthRedirectUri?: string | null;
+                allowedRedirectUris?: string[];
+                oauthStateTtlMinutes?: number | null;
+                allowedDomains?: string[];
+                successUrl?: string | null;
+                failureUrl?: string | null;
+                webhookBaseUrl?: string | null;
+                webhookEnabled?: boolean | null;
+                whatsappConfigId?: string | null;
+                discoverWhatsapp?: boolean | null;
+                messengerEnabled?: boolean;
+                instagramEnabled?: boolean;
+                whatsappEnabled?: boolean;
+            };
+            confirm?: boolean;
+        };
+        MetaSecretDto: {
+            value: string;
+            confirm?: boolean;
+        };
+        MetaSecretClearDto: {
+            /** @constant */
+            confirm: true;
+        };
+        MetaTokenGenerateDto: {
+            confirm?: boolean;
+        };
+        MetaGeneratedTokenDto: {
+            token: string;
+        };
+        MetaTestResultDto: {
+            ok: boolean;
+            /** Format: date-time */
+            checkedAt: string;
+            httpStatus: number | null;
+            metaCode: number | null;
+            message: string;
+            resolution: string[];
+            details: {
+                label: string;
+                value: string;
+            }[];
+        };
+        MetaDiagnosticsDto: {
+            /** Format: date-time */
+            checkedAt: string;
+            checks: {
+                key: string;
+                label: string;
+                /** @enum {string} */
+                status: "ok" | "warning" | "fail" | "unknown";
+                detail: string;
+            }[];
+            webhook: {
+                lastVerifiedAt: string | null;
+                lastReceivedAt: string | null;
+                processed24h: number;
+                failed24h: number;
+                pending: number;
+                recentErrors: {
+                    /** Format: date-time */
+                    at: string;
+                    provider: string;
+                    error: string;
+                }[];
+            };
+            products: {
+                /** @enum {string} */
+                key: "LOGIN" | "MESSENGER" | "INSTAGRAM" | "WHATSAPP";
+                label: string;
+                enabled: boolean;
+                requiredPermissions: string[];
+                connectedChannels: number;
+                attention: number;
+                /** @constant */
+                appReview: "unknown";
+                warnings: string[];
+            }[];
+        };
+        MetaSecurityStatusDto: {
+            algorithm: string;
+            masterKeyConfigured: boolean;
+            previousKeyConfigured: boolean;
+            secretsSealedWith: {
+                current: number;
+                previous: number;
+                unreadable: number;
+            };
+            rotationPending: boolean;
+            lastKeyRotationAt: string | null;
+            notes: string[];
+        };
+        MetaReencryptResultDto: {
+            reencrypted: number;
+            alreadyCurrent: number;
+            failed: number;
+        };
+        MetaActivityListDto: {
+            data: {
+                /** Format: uuid */
+                id: string;
+                action: string;
+                adminEmail: string;
+                reason: string | null;
+                metadata: {
+                    [key: string]: unknown;
+                } | null;
+                ipAddress: string | null;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
+            meta: {
+                page: number;
+                pageSize: number;
+                total: number;
+            };
+        };
         DashboardAnalyticsDto: {
             range: {
                 from: string;
@@ -5977,8 +6447,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChannelDto"];
+                    "application/json": components["schemas"]["MetaProvisionDto"];
                 };
+            };
+        };
+    };
+    MetaController_cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -8822,6 +9312,342 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminSettingsDto"];
+                };
+            };
+        };
+    };
+    AdminMetaController_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaAdminConfigDto"];
+                };
+            };
+        };
+    };
+    AdminMetaController_save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetaConfigSaveDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaAdminConfigDto"];
+                };
+            };
+        };
+    };
+    AdminMetaController_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetaConfigPreviewDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaPreviewResultDto"];
+                };
+            };
+        };
+    };
+    AdminMetaController_setAppSecret: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetaSecretDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaAdminConfigDto"];
+                };
+            };
+        };
+    };
+    AdminMetaController_clearAppSecret: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetaSecretClearDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaAdminConfigDto"];
+                };
+            };
+        };
+    };
+    AdminMetaController_setVerifyToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetaSecretDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaAdminConfigDto"];
+                };
+            };
+        };
+    };
+    AdminMetaController_clearVerifyToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetaSecretClearDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaAdminConfigDto"];
+                };
+            };
+        };
+    };
+    AdminMetaController_generateVerifyToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetaTokenGenerateDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaGeneratedTokenDto"];
+                };
+            };
+        };
+    };
+    AdminMetaController_testCredentials: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaTestResultDto"];
+                };
+            };
+        };
+    };
+    AdminMetaController_testOAuth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaTestResultDto"];
+                };
+            };
+        };
+    };
+    AdminMetaController_testWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaTestResultDto"];
+                };
+            };
+        };
+    };
+    AdminMetaController_testConnectivity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaTestResultDto"];
+                };
+            };
+        };
+    };
+    AdminMetaController_diagnostics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaDiagnosticsDto"];
+                };
+            };
+        };
+    };
+    AdminMetaController_security: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaSecurityStatusDto"];
+                };
+            };
+        };
+    };
+    AdminMetaController_reencrypt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaReencryptResultDto"];
+                };
+            };
+        };
+    };
+    AdminMetaController_activity: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                action?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaActivityListDto"];
                 };
             };
         };

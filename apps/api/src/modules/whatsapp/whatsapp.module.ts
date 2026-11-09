@@ -5,7 +5,6 @@ import { ChannelCryptoService } from './channel-crypto.service';
 import { WhatsAppController, WhatsAppWebhookController } from './whatsapp.controller';
 import { WhatsAppConnectionService } from './whatsapp.connection.service';
 import { WhatsAppDeliveryService } from './whatsapp.delivery.service';
-import { WhatsAppGraphProvider } from './whatsapp.graph-provider';
 import { WhatsAppWebhookService } from './whatsapp.webhook.service';
 
 @Module({
@@ -13,7 +12,6 @@ import { WhatsAppWebhookService } from './whatsapp.webhook.service';
   controllers: [WhatsAppWebhookController, WhatsAppController],
   providers: [
     ChannelCryptoService,
-    WhatsAppGraphProvider,
     WhatsAppWebhookService,
     WhatsAppDeliveryService,
     WhatsAppConnectionService,
@@ -21,7 +19,6 @@ import { WhatsAppWebhookService } from './whatsapp.webhook.service';
   exports: [
     WhatsAppDeliveryService,
     WhatsAppWebhookService,
-    WhatsAppGraphProvider,
     ChannelCryptoService,
     WhatsAppConnectionService,
   ],

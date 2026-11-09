@@ -1797,10 +1797,46 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ChannelDto"
+                  "$ref": "#/components/schemas/MetaProvisionDto"
                 }
               }
             }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "meta channels"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/channels/meta/sessions/{sessionId}/cancel": {
+      "post": {
+        "operationId": "MetaController_cancel",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
           }
         },
         "security": [
@@ -7777,6 +7813,438 @@
         ]
       }
     },
+    "/api/v1/admin/integrations/meta/config": {
+      "get": {
+        "operationId": "AdminMetaController_config",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaAdminConfigDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin meta"
+        ]
+      },
+      "put": {
+        "operationId": "AdminMetaController_save",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetaConfigSaveDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaAdminConfigDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin meta"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/meta/config/preview": {
+      "post": {
+        "operationId": "AdminMetaController_preview",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetaConfigPreviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaPreviewResultDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin meta"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/meta/secrets/app-secret": {
+      "put": {
+        "operationId": "AdminMetaController_setAppSecret",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetaSecretDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaAdminConfigDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin meta"
+        ]
+      },
+      "delete": {
+        "operationId": "AdminMetaController_clearAppSecret",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetaSecretClearDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaAdminConfigDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin meta"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/meta/secrets/webhook-verify-token": {
+      "put": {
+        "operationId": "AdminMetaController_setVerifyToken",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetaSecretDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaAdminConfigDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin meta"
+        ]
+      },
+      "delete": {
+        "operationId": "AdminMetaController_clearVerifyToken",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetaSecretClearDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaAdminConfigDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin meta"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/meta/secrets/webhook-verify-token/generate": {
+      "post": {
+        "operationId": "AdminMetaController_generateVerifyToken",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetaTokenGenerateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaGeneratedTokenDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin meta"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/meta/test/credentials": {
+      "post": {
+        "operationId": "AdminMetaController_testCredentials",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaTestResultDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin meta"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/meta/test/oauth": {
+      "post": {
+        "operationId": "AdminMetaController_testOAuth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaTestResultDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin meta"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/meta/test/webhook": {
+      "post": {
+        "operationId": "AdminMetaController_testWebhook",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaTestResultDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin meta"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/meta/test/connectivity": {
+      "post": {
+        "operationId": "AdminMetaController_testConnectivity",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaTestResultDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin meta"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/meta/diagnostics": {
+      "get": {
+        "operationId": "AdminMetaController_diagnostics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaDiagnosticsDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin meta"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/meta/security": {
+      "get": {
+        "operationId": "AdminMetaController_security",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaSecurityStatusDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin meta"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/meta/security/reencrypt": {
+      "post": {
+        "operationId": "AdminMetaController_reencrypt",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaReencryptResultDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin meta"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/meta/activity": {
+      "get": {
+        "operationId": "AdminMetaController_activity",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "action",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 80,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaActivityListDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin meta"
+        ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/dashboard/analytics": {
       "get": {
         "operationId": "DashboardController_analytics",
@@ -10682,28 +11150,54 @@
                 "type": "null"
               }
             ]
+          },
+          "whatsappDiscovery": {
+            "type": "boolean"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "scope": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "scope",
+                "reason"
+              ]
+            }
           }
         },
         "required": [
           "appId",
           "graphVersion",
-          "whatsappConfigId"
+          "whatsappConfigId",
+          "whatsappDiscovery",
+          "permissions"
         ]
       },
       "MetaStartDto": {
         "type": "object",
         "properties": {
-          "provider": {
-            "type": "string",
-            "enum": [
-              "MESSENGER",
-              "INSTAGRAM"
-            ]
+          "products": {
+            "minItems": 1,
+            "maxItems": 3,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "MESSENGER",
+                "INSTAGRAM",
+                "WHATSAPP"
+              ]
+            }
           }
-        },
-        "required": [
-          "provider"
-        ]
+        }
       },
       "MetaStartResultDto": {
         "type": "object",
@@ -10725,13 +11219,6 @@
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
           },
-          "provider": {
-            "type": "string",
-            "enum": [
-              "MESSENGER",
-              "INSTAGRAM"
-            ]
-          },
           "expiresAt": {
             "type": "string",
             "format": "date-time",
@@ -10742,8 +11229,16 @@
             "items": {
               "type": "object",
               "properties": {
-                "id": {
+                "key": {
                   "type": "string"
+                },
+                "provider": {
+                  "type": "string",
+                  "enum": [
+                    "WHATSAPP",
+                    "INSTAGRAM",
+                    "MESSENGER"
+                  ]
                 },
                 "name": {
                   "type": "string"
@@ -10759,42 +11254,150 @@
                     }
                   ]
                 },
+                "imageUrl": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "description": "Text, or null when not set"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "eligible": {
+                  "type": "boolean"
+                },
+                "reason": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "description": "Text, or null when not set"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "taken": {
                   "type": "boolean"
                 }
               },
               "required": [
-                "id",
+                "key",
+                "provider",
                 "name",
                 "detail",
+                "imageUrl",
+                "eligible",
+                "reason",
                 "taken"
+              ]
+            }
+          },
+          "missingPermissions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "MESSENGER",
+                "INSTAGRAM",
+                "WHATSAPP"
               ]
             }
           }
         },
         "required": [
           "id",
-          "provider",
           "expiresAt",
-          "candidates"
+          "candidates",
+          "missingPermissions"
         ]
       },
       "MetaSelectDto": {
         "type": "object",
         "properties": {
-          "candidateId": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 64
-          },
-          "displayName": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 60
+          "candidateKeys": {
+            "minItems": 1,
+            "maxItems": 30,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
           }
         },
         "required": [
-          "candidateId"
+          "candidateKeys"
+        ]
+      },
+      "MetaProvisionDto": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "provider": {
+                  "type": "string",
+                  "enum": [
+                    "WHATSAPP",
+                    "INSTAGRAM",
+                    "MESSENGER"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "CONNECTED",
+                    "FAILED",
+                    "ACTION_REQUIRED"
+                  ]
+                },
+                "channelId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "description": "Text, or null when not set"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "message": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "description": "Text, or null when not set"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "key",
+                "provider",
+                "name",
+                "status",
+                "channelId",
+                "message"
+              ]
+            }
+          }
+        },
+        "required": [
+          "results"
         ]
       },
       "EmbeddedSignupDto": {
@@ -22157,6 +22760,1312 @@
             "maxLength": 500
           }
         }
+      },
+      "MetaAdminConfigDto": {
+        "type": "object",
+        "properties": {
+          "values": {
+            "type": "object",
+            "properties": {
+              "appName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "appId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "apiVersion": {
+                "type": "string"
+              },
+              "businessId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "appMode": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "DEVELOPMENT",
+                      "LIVE"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "appDomain": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "websiteUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "oauthRedirectUri": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "allowedRedirectUris": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "oauthStateTtlMinutes": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "allowedDomains": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "successUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "failureUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "webhookBaseUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "webhookEnabled": {
+                "type": "boolean"
+              },
+              "whatsappConfigId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "discoverWhatsapp": {
+                "type": "boolean"
+              },
+              "messengerEnabled": {
+                "type": "boolean"
+              },
+              "instagramEnabled": {
+                "type": "boolean"
+              },
+              "whatsappEnabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "appName",
+              "appId",
+              "apiVersion",
+              "businessId",
+              "appMode",
+              "appDomain",
+              "websiteUrl",
+              "oauthRedirectUri",
+              "allowedRedirectUris",
+              "oauthStateTtlMinutes",
+              "allowedDomains",
+              "successUrl",
+              "failureUrl",
+              "webhookBaseUrl",
+              "webhookEnabled",
+              "whatsappConfigId",
+              "discoverWhatsapp",
+              "messengerEnabled",
+              "instagramEnabled",
+              "whatsappEnabled"
+            ]
+          },
+          "sources": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "database",
+                "environment",
+                "default",
+                "unset"
+              ]
+            }
+          },
+          "secrets": {
+            "type": "object",
+            "properties": {
+              "appSecret": {
+                "type": "object",
+                "properties": {
+                  "configured": {
+                    "type": "boolean"
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "database",
+                      "environment",
+                      "default",
+                      "unset"
+                    ]
+                  }
+                },
+                "required": [
+                  "configured",
+                  "source"
+                ]
+              },
+              "webhookVerifyToken": {
+                "type": "object",
+                "properties": {
+                  "configured": {
+                    "type": "boolean"
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "database",
+                      "environment",
+                      "default",
+                      "unset"
+                    ]
+                  }
+                },
+                "required": [
+                  "configured",
+                  "source"
+                ]
+              }
+            },
+            "required": [
+              "appSecret",
+              "webhookVerifyToken"
+            ]
+          },
+          "derived": {
+            "type": "object",
+            "properties": {
+              "callbackPath": {
+                "type": "string"
+              },
+              "redirectUriToRegister": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "metaWebhookUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "whatsappWebhookUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "callbackPath",
+              "redirectUriToRegister",
+              "metaWebhookUrl",
+              "whatsappWebhookUrl"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CONFIGURED",
+              "INCOMPLETE",
+              "INVALID",
+              "NEEDS_ATTENTION"
+            ]
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "severity": {
+                  "type": "string",
+                  "enum": [
+                    "error",
+                    "warning"
+                  ]
+                }
+              },
+              "required": [
+                "field",
+                "message",
+                "severity"
+              ]
+            }
+          },
+          "deploymentLevel": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "purpose": {
+                  "type": "string"
+                },
+                "configured": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "name",
+                "purpose",
+                "configured"
+              ]
+            }
+          },
+          "updatedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updatedBy": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "values",
+          "sources",
+          "secrets",
+          "derived",
+          "status",
+          "problems",
+          "deploymentLevel",
+          "updatedAt",
+          "updatedBy"
+        ]
+      },
+      "MetaConfigPreviewDto": {
+        "type": "object",
+        "properties": {
+          "patch": {
+            "type": "object",
+            "properties": {
+              "appName": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "appId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\d{6,20}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "apiVersion": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^v\\d+\\.\\d+$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "businessId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\d{5,25}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "appMode": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "DEVELOPMENT",
+                      "LIVE"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "appDomain": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,}$|^localhost$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "websiteUrl": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "oauthRedirectUri": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "allowedRedirectUris": {
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 500,
+                  "format": "uri"
+                }
+              },
+              "oauthStateTtlMinutes": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 60
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "allowedDomains": {
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,}$|^localhost$"
+                }
+              },
+              "successUrl": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "failureUrl": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "webhookBaseUrl": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "webhookEnabled": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "whatsappConfigId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 4,
+                    "maxLength": 40
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "discoverWhatsapp": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "messengerEnabled": {
+                "type": "boolean"
+              },
+              "instagramEnabled": {
+                "type": "boolean"
+              },
+              "whatsappEnabled": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "patch"
+        ]
+      },
+      "MetaPreviewResultDto": {
+        "type": "object",
+        "properties": {
+          "changes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "before": {
+                  "type": "string"
+                },
+                "after": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "field",
+                "before",
+                "after"
+              ]
+            }
+          },
+          "impacts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "severity": {
+                  "type": "string",
+                  "enum": [
+                    "warning",
+                    "danger"
+                  ]
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "severity",
+                "message"
+              ]
+            }
+          },
+          "requiresConfirmation": {
+            "type": "boolean"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "field",
+                "message"
+              ]
+            }
+          }
+        },
+        "required": [
+          "changes",
+          "impacts",
+          "requiresConfirmation",
+          "errors"
+        ]
+      },
+      "MetaConfigSaveDto": {
+        "type": "object",
+        "properties": {
+          "patch": {
+            "type": "object",
+            "properties": {
+              "appName": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "appId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\d{6,20}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "apiVersion": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^v\\d+\\.\\d+$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "businessId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\d{5,25}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "appMode": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "DEVELOPMENT",
+                      "LIVE"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "appDomain": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,}$|^localhost$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "websiteUrl": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "oauthRedirectUri": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "allowedRedirectUris": {
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 500,
+                  "format": "uri"
+                }
+              },
+              "oauthStateTtlMinutes": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 60
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "allowedDomains": {
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,}$|^localhost$"
+                }
+              },
+              "successUrl": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "failureUrl": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "webhookBaseUrl": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "webhookEnabled": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "whatsappConfigId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 4,
+                    "maxLength": 40
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "discoverWhatsapp": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "messengerEnabled": {
+                "type": "boolean"
+              },
+              "instagramEnabled": {
+                "type": "boolean"
+              },
+              "whatsappEnabled": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "confirm": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "patch"
+        ]
+      },
+      "MetaSecretDto": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 500
+          },
+          "confirm": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      },
+      "MetaSecretClearDto": {
+        "type": "object",
+        "properties": {
+          "confirm": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "confirm"
+        ]
+      },
+      "MetaTokenGenerateDto": {
+        "type": "object",
+        "properties": {
+          "confirm": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MetaGeneratedTokenDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "MetaTestResultDto": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "httpStatus": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "metaCode": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "resolution": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "label",
+                "value"
+              ]
+            }
+          }
+        },
+        "required": [
+          "ok",
+          "checkedAt",
+          "httpStatus",
+          "metaCode",
+          "message",
+          "resolution",
+          "details"
+        ]
+      },
+      "MetaDiagnosticsDto": {
+        "type": "object",
+        "properties": {
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "ok",
+                    "warning",
+                    "fail",
+                    "unknown"
+                  ]
+                },
+                "detail": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "status",
+                "detail"
+              ]
+            }
+          },
+          "webhook": {
+            "type": "object",
+            "properties": {
+              "lastVerifiedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "lastReceivedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "processed24h": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "failed24h": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "pending": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "recentErrors": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "provider": {
+                      "type": "string"
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "at",
+                    "provider",
+                    "error"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "lastVerifiedAt",
+              "lastReceivedAt",
+              "processed24h",
+              "failed24h",
+              "pending",
+              "recentErrors"
+            ]
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "enum": [
+                    "LOGIN",
+                    "MESSENGER",
+                    "INSTAGRAM",
+                    "WHATSAPP"
+                  ]
+                },
+                "label": {
+                  "type": "string"
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "requiredPermissions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "connectedChannels": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "attention": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "appReview": {
+                  "type": "string",
+                  "const": "unknown"
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "enabled",
+                "requiredPermissions",
+                "connectedChannels",
+                "attention",
+                "appReview",
+                "warnings"
+              ]
+            }
+          }
+        },
+        "required": [
+          "checkedAt",
+          "checks",
+          "webhook",
+          "products"
+        ]
+      },
+      "MetaSecurityStatusDto": {
+        "type": "object",
+        "properties": {
+          "algorithm": {
+            "type": "string"
+          },
+          "masterKeyConfigured": {
+            "type": "boolean"
+          },
+          "previousKeyConfigured": {
+            "type": "boolean"
+          },
+          "secretsSealedWith": {
+            "type": "object",
+            "properties": {
+              "current": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "previous": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "unreadable": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "current",
+              "previous",
+              "unreadable"
+            ]
+          },
+          "rotationPending": {
+            "type": "boolean"
+          },
+          "lastKeyRotationAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "algorithm",
+          "masterKeyConfigured",
+          "previousKeyConfigured",
+          "secretsSealedWith",
+          "rotationPending",
+          "lastKeyRotationAt",
+          "notes"
+        ]
+      },
+      "MetaReencryptResultDto": {
+        "type": "object",
+        "properties": {
+          "reencrypted": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "alreadyCurrent": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "failed": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "reencrypted",
+          "alreadyCurrent",
+          "failed"
+        ]
+      },
+      "MetaActivityListDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "action": {
+                  "type": "string"
+                },
+                "adminEmail": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "metadata": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "ipAddress": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "id",
+                "action",
+                "adminEmail",
+                "reason",
+                "metadata",
+                "ipAddress",
+                "createdAt"
+              ]
+            }
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "page": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "pageSize": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "total": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "page",
+              "pageSize",
+              "total"
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ]
       },
       "DashboardAnalyticsDto": {
         "type": "object",

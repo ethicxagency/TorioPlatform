@@ -243,6 +243,8 @@ export const channelState = {
   metaConfigured: false,
   starts: [] as unknown[],
   selects: [] as unknown[],
+  cancels: [] as string[],
+  failKeys: [] as string[],
   checks: [] as string[],
 };
 export const resetChannels = () => {
@@ -268,6 +270,8 @@ export const resetChannels = () => {
   channelState.metaConfigured = false;
   channelState.starts = [];
   channelState.selects = [];
+  channelState.cancels = [];
+  channelState.failKeys = [];
   channelState.checks = [];
 };
 resetChannels();
@@ -705,7 +709,48 @@ export const adminState = {
   }[],
   plans: [] as Record<string, unknown>[],
 };
+export const metaAdminState = {
+  values: {} as Record<string, unknown>,
+  appSecret: false,
+  verifyToken: false,
+  saves: [] as { patch: Record<string, unknown>; confirm?: boolean }[],
+  secrets: [] as { path: string; body: Record<string, unknown> }[],
+  tests: [] as string[],
+  reencrypts: 0,
+};
+export const resetMetaAdmin = () => {
+  metaAdminState.values = {
+    appName: 'Torio',
+    appId: '123456789',
+    apiVersion: 'v27.0',
+    businessId: null,
+    appMode: 'DEVELOPMENT',
+    appDomain: null,
+    websiteUrl: null,
+    oauthRedirectUri: 'https://app.example.test/api/v1/channels/meta/callback',
+    allowedRedirectUris: ['https://app.example.test/api/v1/channels/meta/callback'],
+    oauthStateTtlMinutes: 10,
+    allowedDomains: ['app.example.test'],
+    successUrl: null,
+    failureUrl: null,
+    webhookBaseUrl: 'https://app.example.test',
+    webhookEnabled: true,
+    whatsappConfigId: null,
+    discoverWhatsapp: false,
+    messengerEnabled: true,
+    instagramEnabled: true,
+    whatsappEnabled: true,
+  };
+  metaAdminState.appSecret = true;
+  metaAdminState.verifyToken = true;
+  metaAdminState.saves = [];
+  metaAdminState.secrets = [];
+  metaAdminState.tests = [];
+  metaAdminState.reencrypts = 0;
+};
+resetMetaAdmin();
 export const resetAdmin = () => {
+  resetMetaAdmin();
   adminState.signedIn = false;
   adminState.logins = [];
   adminState.posts = [];
@@ -1386,36 +1431,111 @@ export async function mockApi(page: Page, opts: { role?: 'OWNER' | 'ADMIN' | 'AG
           })),
         });
       if (rest === '/meta/config')
-        return reply({ appId: '1234567890', graphVersion: 'v21.0', whatsappConfigId: null });
+        return reply({
+          appId: '1234567890',
+          graphVersion: 'v27.0',
+          whatsappConfigId: null,
+          whatsappDiscovery: true,
+          permissions: [
+            { scope: 'pages_show_list', reason: 'See which Facebook Pages you manage' },
+            {
+              scope: 'pages_messaging',
+              reason: 'Receive and answer Messenger messages for your Page',
+            },
+          ],
+        });
       if (rest === '/meta/start') {
         channelState.starts.push(req.postDataJSON());
         return reply({
-          url: 'https://www.facebook.com/v21.0/dialog/oauth?client_id=1234567890&state=abc',
+          url: 'https://www.facebook.com/v27.0/dialog/oauth?client_id=1234567890&state=abc',
         });
       }
       if (rest.startsWith('/meta/sessions/')) {
         const sid = rest.split('/')[3];
+        if (rest.endsWith('/cancel')) {
+          channelState.cancels.push(sid);
+          return reply({ ok: true });
+        }
         if (rest.endsWith('/select')) {
-          channelState.selects.push(req.postDataJSON());
-          return reply(
-            chan(
-              '77777777-7777-4777-8777-0000000000aa',
-              'MESSENGER',
-              'Urban Nest Page',
-              'CONNECTED',
-              {
-                accountName: 'Urban Nest Page',
-              },
-            ),
-          );
+          const b = req.postDataJSON() as { candidateKeys: string[] };
+          channelState.selects.push(b);
+          return reply({
+            results: b.candidateKeys.map((key) => {
+              const [provider, id] = key.split(':');
+              const bad = channelState.failKeys.includes(key);
+              channelState.failKeys = channelState.failKeys.filter((k) => k !== key); // fails once, then retry works
+              return {
+                key,
+                provider,
+                name:
+                  id === '111'
+                    ? 'Urban Nest Page'
+                    : id === '222'
+                      ? '@urbannest'
+                      : '+880 1711-000001',
+                status: bad ? 'FAILED' : 'CONNECTED',
+                channelId: bad ? null : `77777777-7777-4777-8777-0000000000${id!.slice(0, 2)}`,
+                message: bad ? 'Couldn’t subscribe to messages. Meta rejected the request.' : null,
+              };
+            }),
+          });
         }
         return reply({
           id: sid,
-          provider: 'MESSENGER',
           expiresAt: iso(-10),
+          missingPermissions: [],
           candidates: [
-            { id: '111111111', name: 'Urban Nest Page', detail: null, taken: false },
-            { id: '222222222', name: 'Old Shop Page', detail: null, taken: true },
+            {
+              key: 'MESSENGER:111',
+              provider: 'MESSENGER',
+              name: 'Urban Nest Page',
+              detail: 'Page ID 111',
+              imageUrl: null,
+              eligible: true,
+              reason: null,
+              taken: false,
+            },
+            {
+              key: 'INSTAGRAM:222',
+              provider: 'INSTAGRAM',
+              name: '@urbannest',
+              detail: 'Professional account · Linked Page: Urban Nest Page',
+              imageUrl: null,
+              eligible: true,
+              reason: null,
+              taken: false,
+            },
+            {
+              key: 'MESSENGER:333',
+              provider: 'MESSENGER',
+              name: 'Old Shop Page',
+              detail: 'Page ID 333',
+              imageUrl: null,
+              eligible: true,
+              reason: null,
+              taken: true,
+            },
+            {
+              key: 'WHATSAPP:444',
+              provider: 'WHATSAPP',
+              name: '+880 1711-000001',
+              detail: 'Urban Nest · WABA',
+              imageUrl: null,
+              eligible: true,
+              reason: null,
+              taken: false,
+            },
+            {
+              key: 'WHATSAPP:555',
+              provider: 'WHATSAPP',
+              name: '+880 1711-000002',
+              detail: null,
+              imageUrl: null,
+              eligible: false,
+              reason:
+                'This number isn’t registered for the WhatsApp Cloud API yet. Finish setup with WhatsApp Embedded Signup.',
+              taken: false,
+            },
           ],
         });
       }
@@ -2038,6 +2158,172 @@ export async function mockApi(page: Page, opts: { role?: 'OWNER' | 'ADMIN' | 'AG
           401,
         );
       if (rest === '/auth/me') return reply(ADMIN_USER);
+      if (rest.startsWith('/integrations/meta')) {
+        const m = rest.slice('/integrations/meta'.length);
+        const st = metaAdminState;
+        const view = () => ({
+          values: st.values,
+          sources: { appId: 'database', oauthRedirectUri: 'database', apiVersion: 'database' },
+          secrets: {
+            appSecret: { configured: st.appSecret, source: st.appSecret ? 'database' : 'unset' },
+            webhookVerifyToken: {
+              configured: st.verifyToken,
+              source: st.verifyToken ? 'database' : 'unset',
+            },
+          },
+          derived: {
+            callbackPath: '/api/v1/channels/meta/callback',
+            redirectUriToRegister: st.values.oauthRedirectUri,
+            metaWebhookUrl: 'https://app.example.test/api/v1/webhooks/meta',
+            whatsappWebhookUrl: 'https://app.example.test/api/v1/webhooks/whatsapp',
+          },
+          status: 'CONFIGURED',
+          problems: [],
+          deploymentLevel: [
+            { name: 'CHANNEL_ENCRYPTION_KEY', purpose: 'Master key', configured: true },
+          ],
+          updatedAt: iso(30),
+          updatedBy: 'root@torio.test',
+        });
+        if (m === '/config' && method === 'GET') return reply(view());
+        if (m === '/config/preview') {
+          const patch = (req.postDataJSON() as { patch: Record<string, unknown> }).patch;
+          const changes = Object.keys(patch)
+            .filter((k) => JSON.stringify(patch[k]) !== JSON.stringify(st.values[k]))
+            .map((field) => ({
+              field,
+              before: String(st.values[field] ?? '(unset)'),
+              after: String(patch[field] ?? '(unset)'),
+            }));
+          const risky = changes.some((c) => c.field === 'appId');
+          const bad = typeof patch.appId === 'string' && !/^\d{6,20}$/.test(patch.appId);
+          return reply({
+            changes,
+            impacts: risky
+              ? [
+                  {
+                    severity: 'danger',
+                    message:
+                      'Changing the App ID points Torio at a different Meta app; connected channels will likely need to be reconnected.',
+                  },
+                ]
+              : [],
+            requiresConfirmation: risky,
+            errors: bad
+              ? [{ field: 'appId', message: 'The App ID is the numeric id from Meta' }]
+              : [],
+          });
+        }
+        if (m === '/config' && method === 'PUT') {
+          const b = req.postDataJSON() as { patch: Record<string, unknown>; confirm?: boolean };
+          st.saves.push(b);
+          Object.assign(st.values, b.patch);
+          return reply(view());
+        }
+        if (m.startsWith('/secrets/')) {
+          st.secrets.push({
+            path: `${method} ${m}`,
+            body: (req.postDataJSON() ?? {}) as Record<string, unknown>,
+          });
+          if (m.endsWith('/generate')) return reply({ token: 'generated-token-ABCDEF' });
+          if (method === 'PUT' && m.includes('app-secret')) st.appSecret = true;
+          if (method === 'PUT' && m.includes('verify-token')) st.verifyToken = true;
+          return reply(view());
+        }
+        if (m.startsWith('/test/')) {
+          st.tests.push(m.slice(6));
+          return reply({
+            ok: !m.endsWith('/webhook'),
+            checkedAt: iso(0),
+            httpStatus: 200,
+            metaCode: null,
+            message: m.endsWith('/webhook')
+              ? 'Meta’s registered webhooks don’t match what Torio serves.'
+              : 'Meta accepted the App ID and App Secret.',
+            resolution: m.endsWith('/webhook') ? 'Set the callback URL in Meta.' : null,
+            details: [{ label: 'API version used', value: 'v27.0' }],
+          });
+        }
+        if (m === '/diagnostics')
+          return reply({
+            checkedAt: iso(0),
+            checks: [
+              {
+                key: 'credentials',
+                label: 'App ID and App Secret',
+                status: 'ok',
+                detail: 'Configured.',
+              },
+              {
+                key: 'webhookVerify',
+                label: 'Webhook verified by Meta',
+                status: 'unknown',
+                detail: 'Not verified yet.',
+              },
+            ],
+            webhook: {
+              lastVerifiedAt: null,
+              lastReceivedAt: null,
+              processed24h: 4,
+              failed24h: 1,
+              pending: 0,
+              recentErrors: [
+                { at: iso(10), provider: 'MESSENGER', error: 'Could not load profile' },
+              ],
+            },
+            products: [
+              {
+                key: 'LOGIN',
+                label: 'Facebook Login for Business',
+                enabled: true,
+                requiredPermissions: ['pages_show_list'],
+                connectedChannels: 0,
+                attention: 0,
+                appReview: 'unknown',
+                warnings: [],
+              },
+              {
+                key: 'MESSENGER',
+                label: 'Messenger',
+                enabled: true,
+                requiredPermissions: ['pages_messaging'],
+                connectedChannels: 2,
+                attention: 1,
+                appReview: 'unknown',
+                warnings: [],
+              },
+            ],
+          });
+        if (m === '/security' && method === 'GET')
+          return reply({
+            algorithm: 'AES-256-GCM (per-secret random IV, authenticated)',
+            masterKeyConfigured: true,
+            previousKeyConfigured: true,
+            secretsSealedWith: { current: 3, previous: st.reencrypts ? 0 : 2, unreadable: 0 },
+            rotationPending: !st.reencrypts,
+            lastKeyRotationAt: null,
+            notes: ['The master key is a deployment secret.'],
+          });
+        if (m === '/security/reencrypt') {
+          st.reencrypts++;
+          return reply({ reencrypted: 2, alreadyCurrent: 3, failed: 0 });
+        }
+        if (m.startsWith('/activity'))
+          return reply({
+            data: [
+              {
+                id: ADM(90),
+                action: 'meta.config.update',
+                adminEmail: 'root@torio.test',
+                reason: null,
+                metadata: { status: 'success', fields: ['appId'] },
+                ipAddress: '127.0.0.1',
+                createdAt: iso(20),
+              },
+            ],
+            meta: { page: 1, pageSize: 15, total: 1 },
+          });
+      }
       if (method !== 'GET')
         adminState.posts.push({
           path: `${method} ${rest}`,

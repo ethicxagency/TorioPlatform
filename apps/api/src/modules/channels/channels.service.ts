@@ -9,6 +9,7 @@ import type { UpdateChannelInput } from '@torio/contracts';
 import { Inject } from '@nestjs/common';
 import { APP_CONFIG, type AppConfig } from '../../config/config.module';
 import { PrismaService } from '../../database/prisma.service';
+import { MetaConfigService } from '../meta-config/meta-config.service';
 
 type Provider = 'WHATSAPP' | 'INSTAGRAM' | 'MESSENGER';
 
@@ -50,6 +51,7 @@ export class ChannelsService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly mc: MetaConfigService,
   ) {}
 
   private readonly disconnectHooks: DisconnectHook[] = [];
@@ -59,9 +61,12 @@ export class ChannelsService {
   }
 
   private get whatsappReady() {
+    const c = this.mc.current;
     return !!(
-      this.config.META_APP_SECRET &&
-      this.config.META_WEBHOOK_VERIFY_TOKEN &&
+      c.appSecret &&
+      c.verifyToken &&
+      c.webhookEnabled &&
+      c.whatsappEnabled &&
       this.config.CHANNEL_ENCRYPTION_KEY
     );
   }
@@ -206,17 +211,19 @@ export class ChannelsService {
   }
 
   private get metaReady() {
-    const c = this.config;
+    const c = this.mc.current;
     return !!(
-      c.META_APP_ID &&
-      c.META_APP_SECRET &&
-      c.META_OAUTH_REDIRECT_URI &&
-      c.META_WEBHOOK_VERIFY_TOKEN &&
-      c.CHANNEL_ENCRYPTION_KEY
+      c.appId &&
+      c.appSecret &&
+      c.oauthRedirectUri &&
+      c.verifyToken &&
+      c.webhookEnabled &&
+      this.config.CHANNEL_ENCRYPTION_KEY
     );
   }
 
   async providers(ws: string) {
+    await this.mc.load();
     const counts = await this.prisma.client.channel.groupBy({
       by: ['provider'],
       where: { workspaceId: ws, status: { not: 'DISCONNECTED' } },
@@ -227,8 +234,13 @@ export class ChannelsService {
     return {
       data: (Object.keys(CATALOG) as Provider[]).map((p) => {
         const wa = p === 'WHATSAPP';
-        const ready = wa ? this.whatsappReady : this.metaReady;
-        const embedded = wa && this.metaReady && !!this.config.META_WA_CONFIG_ID;
+        const ready = wa
+          ? this.whatsappReady
+          : this.metaReady &&
+            (p === 'MESSENGER'
+              ? this.mc.current.messengerEnabled
+              : this.mc.current.instagramEnabled);
+        const embedded = wa && this.metaReady && !!this.mc.current.whatsappConfigId;
         return {
           provider: p,
           label: CATALOG[p].label,

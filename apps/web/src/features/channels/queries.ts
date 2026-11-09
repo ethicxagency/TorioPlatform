@@ -144,15 +144,15 @@ export function useMetaConfig(ws: string | null, enabled: boolean) {
   });
 }
 
-/** Asks the server for the signed Meta authorization URL. The browser then goes to Meta; no token ever passes through it. */
+/** Asks the server for the signed Facebook authorization URL. The browser then goes to Facebook; no token passes through it. */
 export function useMetaStart(ws: string | null) {
   return useMutation({
-    mutationFn: async (provider: 'MESSENGER' | 'INSTAGRAM') => {
+    mutationFn: async (products?: ('MESSENGER' | 'INSTAGRAM' | 'WHATSAPP')[]) => {
       const { data, error, response } = await api.POST(`${P}/meta/start`, {
         params: { path: { workspaceId: ws! } },
-        body: { provider },
+        body: products ? { products } : {},
       });
-      if (!data) throw fail(error, 'Could not start the Meta connection', response.status);
+      if (!data) throw fail(error, 'Could not start the Facebook connection', response.status);
       return data.url;
     },
   });
@@ -163,28 +163,40 @@ export function useMetaSession(ws: string | null, id: string | null) {
     queryKey: ['channels', ws ?? '', 'meta-session', id] as const,
     enabled: !!ws && !!id,
     retry: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error, response } = await api.GET(`${P}/meta/sessions/{sessionId}`, {
         params: { path: { workspaceId: ws!, sessionId: id! } },
       });
-      if (!data) throw fail(error, 'Could not load the authorized accounts', response.status);
+      if (!data) throw fail(error, 'Could not load the discovered accounts', response.status);
       return data;
     },
   });
 }
 
+/** Provisions the chosen assets one by one on the server; each comes back with its own status. */
 export function useMetaSelect(ws: string | null) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (a: { sessionId: string; candidateId: string; displayName?: string }) => {
+    mutationFn: async (a: { sessionId: string; candidateKeys: string[] }) => {
       const { data, error, response } = await api.POST(`${P}/meta/sessions/{sessionId}/select`, {
         params: { path: { workspaceId: ws!, sessionId: a.sessionId } },
-        body: { candidateId: a.candidateId, ...(a.displayName && { displayName: a.displayName }) },
+        body: { candidateKeys: a.candidateKeys },
       });
-      if (!data) throw fail(error, 'Could not connect this account', response.status);
-      return data;
+      if (!data) throw fail(error, 'Could not connect the selected accounts', response.status);
+      return data.results;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: channelKeys.all(ws ?? '') }),
+  });
+}
+
+export function useMetaCancel(ws: string | null) {
+  return useMutation({
+    mutationFn: async (sessionId: string) => {
+      await api.POST(`${P}/meta/sessions/{sessionId}/cancel`, {
+        params: { path: { workspaceId: ws!, sessionId } },
+      });
+    },
   });
 }
 

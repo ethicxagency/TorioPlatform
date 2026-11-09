@@ -4,7 +4,32 @@ export interface MetaPage {
   id: string;
   name: string;
   access_token?: string;
-  instagram_business_account?: { id: string; username?: string };
+  picture?: { data?: { url?: string } };
+  instagram_business_account?: {
+    id: string;
+    username?: string;
+    name?: string;
+    profile_picture_url?: string;
+  };
+}
+export interface MetaPhone {
+  id: string;
+  display_phone_number?: string;
+  verified_name?: string;
+  status?: string;
+  platform_type?: string;
+  code_verification_status?: string;
+  quality_rating?: string;
+}
+export interface MetaWaba {
+  id: string;
+  name?: string;
+  phone_numbers?: { data?: MetaPhone[] };
+}
+export interface MetaBusiness {
+  id: string;
+  name?: string;
+  owned_whatsapp_business_accounts?: { data?: MetaWaba[] };
 }
 
 type GraphBody = { error?: { message?: string; code?: number; error_subcode?: number } };
@@ -94,7 +119,8 @@ export class MetaGraph {
       }>('me/accounts', {
         token: userToken,
         query: {
-          fields: 'id,name,access_token,instagram_business_account{id,username}',
+          fields:
+            'id,name,access_token,picture{url},instagram_business_account{id,username,name,profile_picture_url}',
           limit: '100',
           ...(after && { after }),
         },
@@ -104,6 +130,61 @@ export class MetaGraph {
       if (!after) break;
     }
     return out;
+  }
+
+  /** App-level checks (credentials, subscriptions) use the app access token `{app-id}|{app-secret}`. */
+  appInfo(appId: string, appSecret: string) {
+    return this.call<{ id: string; name?: string }>(appId, {
+      query: { fields: 'id,name', access_token: `${appId}|${appSecret}` },
+    });
+  }
+
+  /** The webhook subscriptions registered for the app at Meta (object, callback URL, fields). */
+  async appSubscriptions(appId: string, appSecret: string) {
+    const r = await this.call<{
+      data?: {
+        object: string;
+        callback_url?: string;
+        active?: boolean;
+        fields?: { name: string }[];
+      }[];
+    }>(`${appId}/subscriptions`, { query: { access_token: `${appId}|${appSecret}` } });
+    return r.data ?? [];
+  }
+
+  /** Reachability + API version check without credentials: any answer from Graph (even an auth error) means it's reachable. */
+  async ping() {
+    try {
+      await this.call<object>('app');
+      return { status: 200, code: null as number | null };
+    } catch (e) {
+      if (e instanceof GraphError) return { status: e.status, code: e.code ?? null };
+      throw e;
+    }
+  }
+
+  /** Business portfolios the user can see, with their WhatsApp Business Accounts and phone numbers. */
+  async whatsappAccounts(userToken: string): Promise<MetaBusiness[]> {
+    const r = await this.call<{ data?: MetaBusiness[] }>('me/businesses', {
+      token: userToken,
+      query: {
+        fields:
+          'id,name,owned_whatsapp_business_accounts{id,name,phone_numbers{id,display_phone_number,verified_name,status,platform_type,code_verification_status,quality_rating}}',
+        limit: '50',
+      },
+    });
+    return r.data ?? [];
+  }
+
+  /** Current registration/verification state of one WhatsApp number. */
+  phoneState(phoneNumberId: string, token: string) {
+    return this.call<MetaPhone>(phoneNumberId, {
+      token,
+      query: {
+        fields:
+          'id,display_phone_number,verified_name,status,platform_type,code_verification_status,quality_rating',
+      },
+    });
   }
 
   subscribePage(pageId: string, pageToken: string, fields: string[]) {

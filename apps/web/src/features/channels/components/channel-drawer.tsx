@@ -151,7 +151,7 @@ export function ChannelDrawer({ channel: c, canManage, canAudit, onClose, onReco
                 onClick={() =>
                   c.provider === 'WHATSAPP'
                     ? onReconnect(c.provider)
-                    : start.mutate(c.provider as 'MESSENGER' | 'INSTAGRAM', {
+                    : start.mutate([c.provider as 'MESSENGER' | 'INSTAGRAM'], {
                         onSuccess: (url) => window.location.assign(url),
                         onError: err,
                       })

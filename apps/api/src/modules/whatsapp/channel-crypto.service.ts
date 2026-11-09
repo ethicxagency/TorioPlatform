@@ -9,11 +9,17 @@ import { APP_CONFIG, type AppConfig } from '../../config/config.module';
 @Injectable()
 export class ChannelCryptoService {
   private readonly key: Buffer | null;
+  /** The key in use before a rotation: blobs sealed with it still decrypt until they are re-encrypted. */
+  private readonly previous: Buffer | null;
 
   constructor(@Inject(APP_CONFIG) config: AppConfig) {
-    this.key = config.CHANNEL_ENCRYPTION_KEY
-      ? createHash('sha256').update(config.CHANNEL_ENCRYPTION_KEY).digest()
-      : null;
+    const k = (v?: string) => (v ? createHash('sha256').update(v).digest() : null);
+    this.key = k(config.CHANNEL_ENCRYPTION_KEY);
+    this.previous = k(config.CHANNEL_ENCRYPTION_KEY_PREVIOUS);
+  }
+
+  get hasPreviousKey() {
+    return this.previous !== null;
   }
 
   get configured() {
@@ -30,12 +36,42 @@ export class ChannelCryptoService {
       .join('.');
   }
 
-  decrypt(blob: string): string {
-    if (!this.key) throw new Error('CHANNEL_ENCRYPTION_KEY is not configured');
+  private open(blob: string, key: Buffer): string {
     const [v, iv, tag, data] = blob.split('.');
     if (v !== 'v1' || !iv || !tag || !data) throw new Error('Unsupported credential format');
-    const d = createDecipheriv('aes-256-gcm', this.key, Buffer.from(iv, 'base64url'));
+    const d = createDecipheriv('aes-256-gcm', key, Buffer.from(iv, 'base64url'));
     d.setAuthTag(Buffer.from(tag, 'base64url'));
     return Buffer.concat([d.update(Buffer.from(data, 'base64url')), d.final()]).toString('utf8');
+  }
+
+  decrypt(blob: string): string {
+    if (!this.key) throw new Error('CHANNEL_ENCRYPTION_KEY is not configured');
+    try {
+      return this.open(blob, this.key);
+    } catch (e) {
+      if (!this.previous) throw e;
+      return this.open(blob, this.previous); // sealed before the last rotation
+    }
+  }
+
+  /** Which key a stored blob is sealed with, without revealing anything about either key. */
+  keyOf(blob: string): 'current' | 'previous' | 'unreadable' {
+    try {
+      if (this.key) {
+        this.open(blob, this.key);
+        return 'current';
+      }
+    } catch {
+      /* try the previous key */
+    }
+    try {
+      if (this.previous) {
+        this.open(blob, this.previous);
+        return 'previous';
+      }
+    } catch {
+      /* unreadable */
+    }
+    return 'unreadable';
   }
 }

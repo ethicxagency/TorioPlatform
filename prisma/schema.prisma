@@ -1204,8 +1204,9 @@ model ChannelOAuthSession {
   id          String          @id @default(uuid(7)) @db.Uuid
   workspaceId String          @db.Uuid
   userId      String          @db.Uuid
-  provider    ChannelProvider
-  /// JSON array: [{ id, name, instagramId?, instagramUsername?, tokenCiphertext }]
+  /// Unused for the unified flow (each candidate carries its own provider); kept for sessions created earlier.
+  provider    ChannelProvider?
+  /// JSON array of discovered assets (Pages, Instagram accounts, WhatsApp numbers) with encrypted tokens.
   candidates  Json
   expiresAt   DateTime
   consumedAt  DateTime?
@@ -1214,4 +1215,42 @@ model ChannelOAuthSession {
   @@index([workspaceId, userId])
   @@index([expiresAt])
   @@map("channel_oauth_sessions")
+}
+
+/// Platform-wide Meta developer app configuration, managed by Super Admin. A single row (id = "default").
+/// Anything left NULL falls back to the deployment environment, so existing deployments keep working unchanged.
+/// Secrets are stored only as AES-GCM ciphertext (same master key as channel tokens).
+model MetaConfiguration {
+  id                  String   @id @default("default")
+  appName             String?
+  appId               String?
+  appSecretCiphertext String?
+  apiVersion          String?
+  businessId          String?
+  /// DEVELOPMENT | LIVE (informational: mirrors the mode set in Meta's dashboard)
+  appMode             String?
+  appDomain           String?
+  websiteUrl          String?
+  oauthRedirectUri    String?
+  allowedRedirectUris String[] @default([])
+  oauthStateTtlMinutes Int?
+  allowedDomains      String[] @default([])
+  successUrl          String?
+  failureUrl          String?
+  webhookBaseUrl      String?
+  webhookEnabled      Boolean?
+  verifyTokenCiphertext String?
+  whatsappConfigId    String?
+  discoverWhatsapp    Boolean?
+  messengerEnabled    Boolean  @default(true)
+  instagramEnabled    Boolean  @default(true)
+  whatsappEnabled     Boolean  @default(true)
+  lastWebhookVerifiedAt DateTime?
+  lastKeyRotationAt   DateTime?
+  updatedById         String?  @db.Uuid
+  updatedByEmail      String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("meta_configuration")
 }

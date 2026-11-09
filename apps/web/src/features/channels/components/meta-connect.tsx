@@ -1,12 +1,12 @@
 'use client';
 
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Check } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Modal } from '@/features/leads/components/modal';
 import { cn } from '@/lib/utils';
-import { useEmbeddedSignup, useMetaSelect, useMetaSession } from '../queries';
+import { useEmbeddedSignup, useMetaCancel, useMetaSelect, useMetaSession } from '../queries';
 import { ProviderMark } from './bits';
 
 /** What each `meta_error` the server redirects back with means, and what to do about it. */
@@ -43,48 +43,151 @@ export function MetaErrorBanner({ code, onDismiss }: { code: string; onDismiss: 
   );
 }
 
-/** After Meta redirects back: choose which Page or Instagram account to connect. Names only; the server holds the tokens. */
+type SessionCandidate = NonNullable<
+  ReturnType<typeof useMetaSession>['data']
+>['candidates'][number];
+type Result = NonNullable<ReturnType<typeof useMetaSelect>['data']>[number];
+
+const PRODUCT_TITLE = {
+  MESSENGER: 'Facebook Messenger',
+  INSTAGRAM: 'Instagram Messaging',
+  WHATSAPP: 'WhatsApp Business',
+} as const;
+const PRODUCT_ORDER = ['MESSENGER', 'INSTAGRAM', 'WHATSAPP'] as const;
+
+/** Real progress through the journey, derived from actual state (nothing here is a timer). */
+function Steps({ step }: { step: 0 | 1 | 2 | 3 }) {
+  const labels = ['Authorized with Facebook', 'Choose channels', 'Connecting', 'Done'];
+  return (
+    <ol
+      className="m-0 mb-4 flex list-none flex-wrap gap-x-4 gap-y-1 p-0 text-xs"
+      aria-label="Progress"
+    >
+      {labels.map((l, i) => (
+        <li
+          key={l}
+          aria-current={i === step ? 'step' : undefined}
+          className={cn(
+            'flex items-center gap-1.5',
+            i < step ? 'text-success' : i === step ? 'font-semibold text-ink' : 'text-faint',
+          )}
+        >
+          {i < step ? (
+            <Check size={12} aria-hidden />
+          ) : (
+            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-current" />
+          )}
+          {l}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function Avatar({ c }: { c: SessionCandidate }) {
+  // Public profile pictures from Meta's CDN; fall back to the channel mark when there is none.
+  return c.imageUrl ? (
+    // eslint-disable-next-line @next/next/no-img-element -- remote profile image, size fixed by CSS
+    <img
+      src={c.imageUrl}
+      alt=""
+      width={36}
+      height={36}
+      className="h-9 w-9 shrink-0 rounded-full object-cover"
+    />
+  ) : (
+    <ProviderMark provider={c.provider} />
+  );
+}
+
+/**
+ * After Facebook redirects back: everything the user can connect, grouped by product, to pick from. Connecting runs
+ * per asset, so a failure shows its own reason and can be retried while the rest stay connected.
+ */
 export function MetaSessionDialog({
   workspaceId,
   sessionId,
   onClose,
-  onConnected,
+  onDone,
 }: {
   workspaceId: string;
   sessionId: string;
   onClose: () => void;
-  onConnected: (name: string) => void;
+  /** Called with the connected accounts' names when the user leaves after connecting. */
+  onDone: (names: string[]) => void;
 }) {
   const q = useMetaSession(workspaceId, sessionId);
   const select = useMetaSelect(workspaceId);
-  const [sel, setSel] = useState('');
+  const cancel = useMetaCancel(workspaceId);
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [results, setResults] = useState<Record<string, Result>>({});
   const s = q.data;
-  const label = s?.provider === 'INSTAGRAM' ? 'Instagram account' : 'Facebook Page';
+  const selectable = (c: SessionCandidate) =>
+    c.eligible && !c.taken && results[c.key]?.status !== 'CONNECTED';
+  const eligible = (s?.candidates ?? []).filter(selectable);
+  const connected = Object.values(results).filter((r) => r.status === 'CONNECTED');
+  const ran = Object.keys(results).length > 0;
+  const step = select.isPending ? 2 : ran && !eligible.some((c) => !results[c.key]) ? 3 : 1;
+  const toggle = (k: string) =>
+    setSel((p) => {
+      const n = new Set(p);
+      if (n.has(k)) n.delete(k);
+      else n.add(k);
+      return n;
+    });
+  const connect = () =>
+    select.mutate(
+      { sessionId, candidateKeys: [...sel] },
+      {
+        onSuccess: (rs) => {
+          setResults((p) => ({ ...p, ...Object.fromEntries(rs.map((r) => [r.key, r])) }));
+          setSel(new Set(rs.filter((r) => r.status !== 'CONNECTED').map((r) => r.key)));
+        },
+      },
+    );
+  const close = () => {
+    if (connected.length) onDone(connected.map((r) => r.name));
+    else {
+      cancel.mutate(sessionId); // discard the parked tokens now instead of waiting for expiry
+      onClose();
+    }
+  };
+  const allDone =
+    ran &&
+    connected.length > 0 &&
+    !Object.values(results).some((r) => r.status !== 'CONNECTED' && sel.has(r.key));
+
   return (
     <Modal
-      title={`Choose a ${s ? label : 'account'}`}
-      description="Torio will receive this account’s messages and reply from it."
-      onClose={select.isPending ? () => undefined : onClose}
+      title={allDone && step === 3 ? 'Your channels are connected' : 'Choose what to connect'}
+      description="Torio only lists what your Facebook login can access."
+      onClose={select.isPending ? () => undefined : close}
+      className="sm:max-w-[640px]"
       footer={
         <>
-          <Button variant="outline" disabled={select.isPending} onClick={onClose}>
-            Cancel
+          <Button variant="outline" disabled={select.isPending} onClick={close}>
+            {connected.length ? 'Done' : 'Cancel'}
           </Button>
+          {connected.length > 0 && (
+            <Button variant="outline" asChild>
+              <a href="/inbox">Open Inbox</a>
+            </Button>
+          )}
           <Button
-            disabled={!sel || select.isPending || !s}
+            disabled={!sel.size || select.isPending || !s}
             loading={select.isPending}
-            onClick={() =>
-              select.mutate(
-                { sessionId, candidateId: sel },
-                { onSuccess: (c) => onConnected(c.accountName ?? c.displayName) },
-              )
-            }
+            onClick={connect}
           >
-            {select.isPending ? 'Connecting…' : 'Connect'}
+            {select.isPending
+              ? 'Connecting…'
+              : ran && sel.size
+                ? `Retry ${sel.size}`
+                : `Connect ${sel.size || ''}`.trim()}
           </Button>
         </>
       }
     >
+      <Steps step={q.isPending ? 0 : step} />
       {q.isPending ? (
         <div className="flex flex-col gap-2" aria-busy="true">
           <Skeleton className="h-14" />
@@ -95,34 +198,94 @@ export function MetaSessionDialog({
           {q.error.message}
         </p>
       ) : (
-        <div role="radiogroup" aria-label={label} className="flex flex-col gap-2">
-          {s!.candidates.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              role="radio"
-              aria-checked={sel === c.id}
-              disabled={c.taken}
-              onClick={() => setSel(c.id)}
-              className={cn(
-                'flex items-center gap-3 rounded-xl border p-3 text-left disabled:cursor-not-allowed disabled:opacity-60',
-                sel === c.id
-                  ? 'border-primary bg-primary-soft/60'
-                  : 'border-line enabled:hover:bg-wash',
-                !c.taken && 'cursor-pointer',
-              )}
+        <div className="flex flex-col gap-5">
+          {s!.missingPermissions.length > 0 && (
+            <p
+              role="status"
+              className="m-0 rounded-lg bg-warning-soft px-3 py-2 text-[12.5px] text-[#7A4700]"
             >
-              <ProviderMark provider={s!.provider} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium">{c.name}</span>
-                {(c.detail || c.taken) && (
-                  <span className="block truncate text-xs text-muted">
-                    {c.taken ? 'Already connected to a workspace' : c.detail}
-                  </span>
-                )}
-              </span>
+              Permissions for {s!.missingPermissions.map((p) => PRODUCT_TITLE[p]).join(', ')}{' '}
+              weren’t granted, so those accounts aren’t listed. Start again and approve them to
+              include them.
+            </p>
+          )}
+          {eligible.length > 1 && (
+            <button
+              type="button"
+              onClick={() => setSel(new Set(eligible.map((c) => c.key)))}
+              className="-mb-2 cursor-pointer self-start rounded border-none bg-transparent p-0 text-[12.5px] font-medium text-primary hover:underline"
+            >
+              Select all eligible ({eligible.length})
             </button>
-          ))}
+          )}
+          {PRODUCT_ORDER.map((prod) => {
+            const rows = s!.candidates.filter((c) => c.provider === prod);
+            if (!rows.length) return null;
+            return (
+              <section key={prod} aria-label={PRODUCT_TITLE[prod]}>
+                <h3 className="m-0 mb-2 text-[12px] font-semibold uppercase tracking-[0.04em] text-faint">
+                  {PRODUCT_TITLE[prod]}
+                </h3>
+                <ul className="m-0 flex list-none flex-col gap-2 p-0">
+                  {rows.map((c) => {
+                    const r = results[c.key];
+                    const can = selectable(c);
+                    const note = r
+                      ? r.status === 'CONNECTED'
+                        ? 'Connected'
+                        : (r.message ?? 'Couldn’t connect')
+                      : c.taken
+                        ? 'Already connected to a workspace'
+                        : !c.eligible
+                          ? c.reason
+                          : c.detail;
+                    return (
+                      <li key={c.key}>
+                        <label
+                          className={cn(
+                            'flex items-center gap-3 rounded-xl border p-3',
+                            can ? 'cursor-pointer' : 'opacity-90',
+                            sel.has(c.key) ? 'border-primary bg-primary-soft/60' : 'border-line',
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={sel.has(c.key)}
+                            disabled={!can || select.isPending}
+                            onChange={() => toggle(c.key)}
+                            aria-label={`${c.name} (${PRODUCT_TITLE[c.provider]})`}
+                            className="h-4 w-4 shrink-0 accent-[#5B5CE2]"
+                          />
+                          <Avatar c={c} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium">{c.name}</span>
+                            {note && (
+                              <span
+                                role={r && r.status !== 'CONNECTED' ? 'alert' : undefined}
+                                className={cn(
+                                  'block text-xs',
+                                  r?.status === 'CONNECTED'
+                                    ? 'text-success'
+                                    : r || (!c.eligible && !c.taken)
+                                      ? 'text-[#8F2424]'
+                                      : 'text-muted',
+                                )}
+                              >
+                                {note}
+                              </span>
+                            )}
+                          </span>
+                          {r?.status === 'CONNECTED' && (
+                            <Check size={16} aria-hidden className="shrink-0 text-success" />
+                          )}
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            );
+          })}
         </div>
       )}
       {select.error && (

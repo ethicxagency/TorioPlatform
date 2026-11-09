@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { controlCls } from '@/components/ui/input';
 import { adminRequest } from '@/lib/admin-api';
 
 export function AdminLoginForm() {
@@ -11,8 +12,7 @@ export function AdminLoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const field =
-    'h-10 w-full rounded-lg border border-line bg-white px-3 text-[14px] aria-[invalid=true]:border-danger';
+  const field = `${controlCls} h-10 px-3 text-[14px]`;
   return (
     <form
       noValidate

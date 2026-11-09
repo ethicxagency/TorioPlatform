@@ -6,7 +6,6 @@ import {
   Get,
   Headers,
   HttpCode,
-  Inject,
   Logger,
   Param,
   ParseUUIDPipe,
@@ -22,6 +21,7 @@ import {
   channelHealthSchema,
   channelSchema,
   metaConfigSchema,
+  metaProvisionResultSchema,
   metaSelectSchema,
   metaSessionSchema,
   metaStartResultSchema,
@@ -33,8 +33,8 @@ import { createZodDto } from 'nestjs-zod';
 import { CurrentUser, Public, RequirePermission } from '../../common/decorators';
 import { WorkspaceAccessGuard } from '../../common/guards/workspace-access.guard';
 import type { AuthUser } from '../../common/types';
-import { APP_CONFIG, type AppConfig } from '../../config/config.module';
 import { PrismaService } from '../../database/prisma.service';
+import { MetaConfigService } from '../meta-config/meta-config.service';
 import { verifyMetaSignature } from '../whatsapp/whatsapp.api';
 import { WhatsAppConnectionService } from '../whatsapp/whatsapp.connection.service';
 import { WhatsAppDeliveryService } from '../whatsapp/whatsapp.delivery.service';
@@ -45,6 +45,7 @@ import { MetaWebhookService, type MetaPayload } from './meta.webhook.service';
 class MetaStartDto extends createZodDto(metaStartSchema) {}
 class MetaStartResultDto extends createZodDto(metaStartResultSchema) {}
 class MetaSessionDto extends createZodDto(metaSessionSchema) {}
+class MetaProvisionDto extends createZodDto(metaProvisionResultSchema) {}
 class MetaSelectDto extends createZodDto(metaSelectSchema) {}
 class MetaConfigDto extends createZodDto(metaConfigSchema) {}
 class EmbeddedSignupDto extends createZodDto(whatsAppEmbeddedSignupSchema) {}
@@ -77,22 +78,30 @@ export class MetaWebhookController {
   private readonly log = new Logger(MetaWebhookController.name);
 
   constructor(
-    @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly mc: MetaConfigService,
     private readonly webhooks: MetaWebhookService,
   ) {}
 
   @Public()
   @SkipThrottle()
   @Get()
-  verify(
+  async verify(
     @Query('hub.mode') mode: string | undefined,
     @Query('hub.verify_token') token: string | undefined,
     @Query('hub.challenge') challenge: string | undefined,
     @Res() res: Response,
   ) {
-    const expected = this.config.META_WEBHOOK_VERIFY_TOKEN;
-    if (!expected || mode !== 'subscribe' || token !== expected || !challenge)
+    const cfg = await this.mc.load();
+    const expected = cfg.verifyToken;
+    if (
+      !cfg.webhookEnabled ||
+      !expected ||
+      mode !== 'subscribe' ||
+      token !== expected ||
+      !challenge
+    )
       throw new ForbiddenException('Verification failed');
+    void this.mc.markWebhookVerified();
     res.type('text/plain').send(challenge);
   }
 
@@ -104,8 +113,10 @@ export class MetaWebhookController {
     @Req() req: Request & { rawBody?: Buffer },
     @Headers('x-hub-signature-256') signature: string | undefined,
   ) {
-    const secret = this.config.META_APP_SECRET;
-    if (!secret) throw new ForbiddenException('Meta webhooks are not configured');
+    const cfg = await this.mc.load();
+    const secret = cfg.appSecret;
+    if (!secret || !cfg.webhookEnabled)
+      throw new ForbiddenException('Meta webhooks are not configured');
     if (!req.rawBody) throw new BadRequestException('Missing request body');
     if (!verifyMetaSignature(req.rawBody, signature, secret))
       throw new ForbiddenException('Invalid signature');
@@ -146,7 +157,7 @@ export class MetaController {
     @CurrentUser() u: AuthUser,
     @Body() body: MetaStartDto,
   ) {
-    return this.connection.start(ws, u.id, body.provider);
+    return this.connection.start(ws, u.id, body.products);
   }
 
   @Get('channels/meta/sessions/:sessionId')
@@ -163,7 +174,7 @@ export class MetaController {
   @Post('channels/meta/sessions/:sessionId/select')
   @HttpCode(200)
   @RequirePermission('channels:manage')
-  @ApiOkResponse({ type: ChannelDto })
+  @ApiOkResponse({ type: MetaProvisionDto })
   select(
     @Param('workspaceId', ParseUUIDPipe) ws: string,
     @Param('sessionId', ParseUUIDPipe) id: string,
@@ -171,6 +182,17 @@ export class MetaController {
     @Body() body: MetaSelectDto,
   ) {
     return this.connection.select(ws, u.id, id, body);
+  }
+
+  @Post('channels/meta/sessions/:sessionId/cancel')
+  @HttpCode(200)
+  @RequirePermission('channels:manage')
+  cancel(
+    @Param('workspaceId', ParseUUIDPipe) ws: string,
+    @Param('sessionId', ParseUUIDPipe) id: string,
+    @CurrentUser() u: AuthUser,
+  ) {
+    return this.connection.cancel(ws, u.id, id);
   }
 
   @Post('channels/whatsapp/embedded-signup')

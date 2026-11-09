@@ -820,6 +820,7 @@ export * from './automations';
 export * from './billing';
 export * from './admin';
 export * from './date-range';
+export * from './meta-admin';
 
 // ---------- Channels ----------
 
@@ -898,31 +899,54 @@ export const connectWhatsAppSchema = z.object({
   accessToken: z.string().trim().min(20).max(1000),
 });
 export type ConnectWhatsAppInput = z.infer<typeof connectWhatsAppSchema>;
-/** Messenger and Instagram connect through Meta OAuth: start returns the Meta dialog URL (state is signed server-side). */
-export const metaStartSchema = z.object({ provider: z.enum(['MESSENGER', 'INSTAGRAM']) });
+/** One Facebook authorization discovers Pages, Instagram accounts and (optionally) WhatsApp numbers. */
+export const metaProductSchema = z.enum(['MESSENGER', 'INSTAGRAM', 'WHATSAPP']);
+export const metaStartSchema = z.object({
+  /** Which products to ask permissions for; defaults to everything this server is configured for. */
+  products: z.array(metaProductSchema).min(1).max(3).optional(),
+});
 export type MetaStartInput = z.infer<typeof metaStartSchema>;
 export const metaStartResultSchema = z.object({ url: z.url() });
-/** What the user can pick after authorizing: names only, never tokens. */
+/** What was discovered: names and public profile data only, never tokens. */
 export const metaSessionSchema = z.object({
   id: z.uuid(),
-  provider: z.enum(['MESSENGER', 'INSTAGRAM']),
   expiresAt: z.iso.datetime(),
   candidates: z.array(
     z.object({
-      id: z.string(),
+      /** Stable key, e.g. MESSENGER:<page id>. */
+      key: z.string(),
+      provider: channelProviderSchema,
       name: z.string(),
-      /** e.g. the linked Instagram @username. */
+      /** Linked Page / business name / account type. */
       detail: nullableString,
+      imageUrl: nullableString,
+      /** False when it can't be connected right now; `reason` says why. */
+      eligible: z.boolean(),
+      reason: nullableString,
       /** Already connected to a workspace, so it can't be chosen again. */
       taken: z.boolean(),
     }),
   ),
+  /** Products the user declined permissions for, so the screen can explain empty sections. */
+  missingPermissions: z.array(metaProductSchema),
 });
 export const metaSelectSchema = z.object({
-  candidateId: z.string().trim().min(1).max(64),
-  displayName: z.string().trim().min(1).max(60).optional(),
+  candidateKeys: z.array(z.string().trim().min(1).max(100)).min(1).max(30),
 });
 export type MetaSelectInput = z.infer<typeof metaSelectSchema>;
+/** Each selected asset is provisioned independently, so one failure never hides the others. */
+export const metaProvisionResultSchema = z.object({
+  results: z.array(
+    z.object({
+      key: z.string(),
+      provider: channelProviderSchema,
+      name: z.string(),
+      status: z.enum(['CONNECTED', 'FAILED', 'ACTION_REQUIRED']),
+      channelId: nullableString,
+      message: nullableString,
+    }),
+  ),
+});
 /** WhatsApp Embedded Signup result: the code and ids the Facebook SDK returns in the browser; the token is exchanged on the server. */
 export const whatsAppEmbeddedSignupSchema = z.object({
   code: z.string().trim().min(10).max(2000),
@@ -936,6 +960,10 @@ export const metaConfigSchema = z.object({
   appId: nullableString,
   graphVersion: z.string(),
   whatsappConfigId: nullableString,
+  /** Whether the Facebook authorization also lists existing WhatsApp numbers. */
+  whatsappDiscovery: z.boolean(),
+  /** Permissions the Facebook dialog will request, each with the reason Torio needs it. */
+  permissions: z.array(z.object({ scope: z.string(), reason: z.string() })),
 });
 export const channelHealthSchema = z.object({
   ok: z.boolean(),

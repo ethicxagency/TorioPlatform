@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { adminState, mockApi, resetAdmin } from './mocks';
+import { adminState, metaAdminState, mockApi, resetAdmin } from './mocks';
 
 const signIn = async (page: Page) => {
   await page.goto('/admin/login');
@@ -41,10 +41,12 @@ test.describe('super admin', () => {
       'Workspaces',
       'Subscriptions & Billing',
       'Plans & Pricing',
+      'Meta Developer',
       'Activity & Logs',
       'Settings',
     ]);
     await expect(nav.getByText('MAIN')).toBeVisible();
+    await expect(nav.getByText('INTEGRATIONS')).toBeVisible();
     await expect(nav.getByText('PLATFORM')).toBeVisible();
     for (const t of [
       'Total customers',
@@ -59,7 +61,8 @@ test.describe('super admin', () => {
     ).toBeVisible();
     await expect(page.getByRole('region', { name: 'Revenue overview' })).toBeVisible();
     await expect(page.getByText('Platform Owner')).toBeVisible();
-    await page.getByRole('button', { name: 'Log out' }).click();
+    await page.getByRole('button', { name: 'Account menu' }).click();
+    await page.getByRole('menuitem', { name: 'Log out' }).click();
     await expect(page).toHaveURL(/\/admin\/login$/);
     await page.goto('/admin/customers');
     await expect(page).toHaveURL(/\/admin\/login$/);
@@ -241,5 +244,124 @@ test.describe('super admin', () => {
     await page.goto('/login');
     await expect(page.getByRole('heading', { name: 'Welcome Back' })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Admin' })).toHaveCount(0);
+  });
+
+  test.describe('Meta Developer configuration', () => {
+    const open = async (page: Page) => {
+      await signIn(page);
+      await page.getByRole('link', { name: 'Meta Developer' }).click();
+      await expect(page.getByRole('heading', { name: 'Meta Developer', level: 1 })).toBeVisible();
+    };
+
+    test('shows status and never reveals secrets; the app secret is masked and write-only', async ({
+      page,
+    }) => {
+      await open(page);
+      await expect(page.getByText('Configured', { exact: true }).first()).toBeVisible();
+      await page.getByRole('tab', { name: 'App Configuration' }).click();
+      await expect(page.getByText('••••••••••••••••').first()).toBeVisible();
+      await page.getByRole('button', { name: 'Replace' }).click();
+      const field = page.getByLabel('New Meta App Secret');
+      await expect(field).toHaveAttribute('type', 'password');
+      await field.fill('brand-new-secret-value');
+      await page.getByRole('button', { name: 'Show value' }).click();
+      await expect(field).toHaveAttribute('type', 'text');
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      await page.getByRole('alertdialog').getByRole('button', { name: 'Replace' }).click();
+      await expect.poll(() => metaAdminState.secrets.length).toBe(1);
+      expect(metaAdminState.secrets[0]).toMatchObject({
+        path: 'PUT /secrets/app-secret',
+        body: { value: 'brand-new-secret-value', confirm: true },
+      });
+      await expect(page.getByText('brand-new-secret-value')).toHaveCount(0); // gone from the page after saving
+    });
+
+    test('unsaved changes are flagged, validated, and saved only after reviewing risky impact', async ({
+      page,
+    }) => {
+      await open(page);
+      await page.getByRole('tab', { name: 'App Configuration' }).click();
+      await page.getByLabel('Meta App Name').fill('Torio Production');
+      await expect(page.getByRole('region', { name: 'Unsaved changes' })).toBeVisible();
+      // switching sections with edits asks before discarding
+      await page.getByRole('tab', { name: 'Security & Encryption' }).click();
+      const leave = page.getByRole('alertdialog', { name: 'Discard unsaved changes?' });
+      await leave.getByRole('button', { name: 'Keep editing' }).click();
+      await page.getByLabel('Meta App ID').fill('not-a-number');
+      await page.getByRole('button', { name: 'Save changes' }).click();
+      await expect(page.getByRole('alert').filter({ hasText: /numeric id/ })).toBeVisible();
+      expect(metaAdminState.saves).toHaveLength(0);
+      await page.getByLabel('Meta App ID').fill('987654321');
+      await page.getByRole('button', { name: 'Save changes' }).click();
+      const dlg = page.getByRole('alertdialog', { name: 'Review these changes' });
+      await expect(dlg).toContainText('connected channels will likely need to be reconnected');
+      await dlg.getByRole('button', { name: 'Save anyway' }).click();
+      await expect.poll(() => metaAdminState.saves.length).toBe(1);
+      expect(metaAdminState.saves[0]).toMatchObject({
+        confirm: true,
+        patch: { appName: 'Torio Production', appId: '987654321' },
+      });
+      await expect(page.getByRole('region', { name: 'Unsaved changes' })).toHaveCount(0);
+    });
+
+    test('OAuth: exact redirect URI to register, multiple URIs, primary choice; webhooks: copyable URLs and verify token', async ({
+      page,
+    }) => {
+      await open(page);
+      await page.getByRole('tab', { name: 'OAuth & Redirect URLs' }).click();
+      await expect(page.getByText('/api/v1/channels/meta/callback').first()).toBeVisible();
+      await page
+        .getByLabel('Add to Allowed OAuth redirect URIs')
+        .fill('https://backup.example.test/api/v1/channels/meta/callback');
+      await page
+        .getByRole('region', { name: 'Redirect URLs' })
+        .getByRole('button', { name: 'Add' })
+        .click();
+      await expect(page.getByLabel('Allowed OAuth redirect URIs 2')).toHaveValue(
+        'https://backup.example.test/api/v1/channels/meta/callback',
+      );
+      await page
+        .getByRole('button', {
+          name: 'Remove https://backup.example.test/api/v1/channels/meta/callback',
+        })
+        .click();
+      // adding then removing the entry restores the saved list, so nothing is left unsaved
+      await expect(page.getByRole('region', { name: 'Unsaved changes' })).toHaveCount(0);
+      await page.getByRole('tab', { name: 'Webhook Configuration' }).click();
+      await expect(
+        page.getByText('https://app.example.test/api/v1/webhooks/whatsapp'),
+      ).toBeVisible();
+      await page.getByRole('button', { name: 'Generate new' }).click();
+      await page.getByRole('alertdialog').getByRole('button', { name: 'Generate' }).click();
+      await expect(page.getByText('generated-token-ABCDEF')).toBeVisible(); // shown once
+      expect(metaAdminState.secrets[0]).toMatchObject({
+        path: 'POST /secrets/webhook-verify-token/generate',
+      });
+      await page.getByRole('button', { name: 'Test Webhook Verification' }).click();
+      await expect(page.getByText(/don.t match what Torio serves/)).toBeVisible();
+      await expect(page.getByText('Set the callback URL in Meta.')).toBeVisible();
+      await expect(page.getByText(/4 processed · 1 failed/)).toBeVisible();
+    });
+
+    test('diagnostics run real test calls; security explains rotation and re-encrypts only on confirmation; activity lists changes', async ({
+      page,
+    }) => {
+      await open(page);
+      await page.getByRole('tab', { name: 'Connection Diagnostics' }).click();
+      await page.getByRole('button', { name: 'Test Meta App Credentials' }).click();
+      await expect(page.getByText('Meta accepted the App ID and App Secret.')).toBeVisible();
+      expect(metaAdminState.tests).toContain('credentials');
+      await expect(page.getByText('Not verified yet.')).toBeVisible();
+      await page.getByRole('tab', { name: 'Permissions & Products' }).click();
+      await expect(page.getByText(/Unknown: Meta doesn.t expose approval/).first()).toBeVisible();
+      await page.getByRole('tab', { name: 'Security & Encryption' }).click();
+      await expect(page.getByText(/CHANNEL_ENCRYPTION_KEY_PREVIOUS/).first()).toBeVisible();
+      await page.getByRole('button', { name: /Re-encrypt stored secrets/ }).click();
+      await page.getByRole('alertdialog').getByRole('button', { name: 'Re-encrypt' }).click();
+      await expect.poll(() => metaAdminState.reencrypts).toBe(1);
+      await page.getByRole('tab', { name: 'Activity Logs' }).click();
+      await expect(page.getByText('meta.config.update')).toBeVisible();
+      await expect(page.getByText(/changed: appId/)).toBeVisible();
+    });
   });
 });

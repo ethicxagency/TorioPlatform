@@ -281,8 +281,8 @@ export function ChannelsPage() {
           workspaceId={ws}
           sessionId={metaSession}
           onClose={clearMeta}
-          onConnected={(name) => {
-            toast(`${name} connected`);
+          onDone={(names) => {
+            toast(`${names.length} channel${names.length === 1 ? '' : 's'} connected`);
             clearMeta();
           }}
         />

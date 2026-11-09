@@ -21,6 +21,7 @@ import { BillingModule } from './modules/billing/billing.module';
 import { AutomationModule } from './modules/automation/automation.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { ChannelsModule } from './modules/channels/channels.module';
+import { MetaConfigModule } from './modules/meta-config/meta-config.module';
 import { MetaModule } from './modules/meta/meta.module';
 import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
 import { LeadsModule } from './modules/leads/leads.module';
@@ -81,6 +82,7 @@ const REQUEST_ID = /^[A-Za-z0-9._-]{8,64}$/;
     BrainModule,
     ChannelsModule,
     WhatsAppModule,
+    MetaConfigModule,
     MetaModule,
     OrdersModule,
     AutomationModule,

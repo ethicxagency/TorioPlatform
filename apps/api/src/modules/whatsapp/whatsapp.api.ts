@@ -35,7 +35,7 @@ export class GraphError extends Error {
 /** Minimal WhatsApp Cloud API client. `fetchImpl` is injectable so tests never touch the network. */
 export class WhatsAppGraph {
   constructor(
-    private readonly version: string,
+    readonly version: string,
     private readonly fetchImpl: Fetch = fetch,
   ) {}
 

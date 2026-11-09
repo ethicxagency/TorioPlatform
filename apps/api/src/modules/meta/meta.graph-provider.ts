@@ -1,19 +1,26 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { APP_CONFIG, type AppConfig } from '../../config/config.module';
+import { Injectable } from '@nestjs/common';
 import type { Fetch } from '../whatsapp/whatsapp.api';
+import { MetaConfigService } from '../meta-config/meta-config.service';
 import { MetaGraph } from './meta.graph';
 
-/** Holds the Graph client so tests can swap the network layer without patching globals. */
+/**
+ * Holds the Graph client. The API version always follows the saved configuration (changes apply on the next call);
+ * tests can swap the network layer without patching globals.
+ */
 @Injectable()
 export class MetaGraphProvider {
-  private client: MetaGraph;
-  constructor(@Inject(APP_CONFIG) config: AppConfig) {
-    this.client = new MetaGraph(config.META_GRAPH_VERSION);
-  }
+  private fetchImpl?: Fetch;
+  private client?: MetaGraph;
+  constructor(private readonly config: MetaConfigService) {}
   get() {
+    const version = this.config.current.apiVersion;
+    if (!this.client || this.client.version !== version)
+      this.client = new MetaGraph(version, this.fetchImpl);
     return this.client;
   }
-  useFetch(f: Fetch, version = 'v27.0') {
-    this.client = new MetaGraph(version, f);
+  useFetch(f: Fetch, version?: string) {
+    this.fetchImpl = f;
+    this.client = new MetaGraph(version ?? this.config.current.apiVersion, f);
+    void version;
   }
 }

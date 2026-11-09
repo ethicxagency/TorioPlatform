@@ -6,7 +6,6 @@ import {
   Get,
   Headers,
   HttpCode,
-  Inject,
   Param,
   ParseUUIDPipe,
   Post,
@@ -23,7 +22,7 @@ import { createZodDto } from 'nestjs-zod';
 import { CurrentUser, Public, RequirePermission } from '../../common/decorators';
 import { WorkspaceAccessGuard } from '../../common/guards/workspace-access.guard';
 import type { AuthUser } from '../../common/types';
-import { APP_CONFIG, type AppConfig } from '../../config/config.module';
+import { MetaConfigService } from '../meta-config/meta-config.service';
 import { verifyMetaSignature } from './whatsapp.api';
 import { WhatsAppConnectionService } from './whatsapp.connection.service';
 import { WhatsAppWebhookService, type WaPayload } from './whatsapp.webhook.service';
@@ -36,22 +35,30 @@ class ChannelDto extends createZodDto(channelSchema) {}
 @Controller('webhooks/whatsapp')
 export class WhatsAppWebhookController {
   constructor(
-    @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly mc: MetaConfigService,
     private readonly webhooks: WhatsAppWebhookService,
   ) {}
 
   @Public()
   @SkipThrottle()
   @Get()
-  verify(
+  async verify(
     @Query('hub.mode') mode: string | undefined,
     @Query('hub.verify_token') token: string | undefined,
     @Query('hub.challenge') challenge: string | undefined,
     @Res() res: Response,
   ) {
-    const expected = this.config.META_WEBHOOK_VERIFY_TOKEN;
-    if (!expected || mode !== 'subscribe' || token !== expected || !challenge)
+    const cfg = await this.mc.load();
+    const expected = cfg.verifyToken;
+    if (
+      !cfg.webhookEnabled ||
+      !expected ||
+      mode !== 'subscribe' ||
+      token !== expected ||
+      !challenge
+    )
       throw new ForbiddenException('Verification failed');
+    void this.mc.markWebhookVerified();
     res.type('text/plain').send(challenge);
   }
 
@@ -63,8 +70,11 @@ export class WhatsAppWebhookController {
     @Req() req: Request & { rawBody?: Buffer },
     @Headers('x-hub-signature-256') signature: string | undefined,
   ) {
-    const secret = this.config.META_APP_SECRET;
-    if (!secret) throw new ForbiddenException('WhatsApp webhooks are not configured');
+    const cfg = await this.mc.load();
+    const secret = cfg.appSecret;
+    if (!secret || !cfg.webhookEnabled)
+      throw new ForbiddenException('WhatsApp webhooks are not configured');
+    if (!cfg.whatsappEnabled) return { received: true, ignored: true };
     if (!req.rawBody) throw new BadRequestException('Missing request body');
     if (!verifyMetaSignature(req.rawBody, signature, secret))
       throw new ForbiddenException('Invalid signature');
