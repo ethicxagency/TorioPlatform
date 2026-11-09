@@ -1,5 +1,6 @@
 'use client';
 
+import { CardHeader } from '@/components/ui/card';
 import { formatMoney } from '@torio/contracts';
 import { Pill } from '@/features/brain/components/bits';
 import { cn } from '@/lib/utils';
@@ -110,10 +111,7 @@ export function Card({
 }) {
   return (
     <section aria-label={title} className="rounded-card border border-line bg-white p-4 sm:p-5">
-      <div className="mb-3 flex items-center gap-2">
-        <h2 className="m-0 flex-1 text-[14.5px] font-semibold">{title}</h2>
-        {action}
-      </div>
+      <CardHeader title={title} action={action} className="mb-3 items-center" />
       {children}
     </section>
   );

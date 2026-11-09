@@ -14,7 +14,7 @@ export function OrderDrawer() {
   const close = () => openOrder(null);
   return (
     <>
-      <div onClick={close} className="fixed inset-0 z-[80] bg-[rgba(13,37,61,0.25)]" />
+      <div onClick={close} className="fixed inset-0 z-[80] glass-scrim" />
       <aside
         role="dialog"
         aria-modal="true"

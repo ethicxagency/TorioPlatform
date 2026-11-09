@@ -289,7 +289,7 @@ export function Drawer({
   useEffect(() => registerEscape(onClose), [registerEscape, onClose]);
   return (
     <>
-      <div className="fixed inset-0 z-[70] bg-[rgba(13,37,61,0.25)]" onClick={onClose} />
+      <div className="fixed inset-0 z-[70] glass-scrim" onClick={onClose} />
       <aside
         role="dialog"
         aria-modal="true"

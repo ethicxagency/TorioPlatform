@@ -92,4 +92,4 @@ export function NavItem({
 }
 
 /** Stroke settings every navigation icon uses (main sidebar glyphs and Settings glyphs alike). */
-export const NAV_ICON = { size: 19, strokeWidth: 1.8 } as const;
+export const NAV_ICON = { size: 18, strokeWidth: 1.75 } as const;

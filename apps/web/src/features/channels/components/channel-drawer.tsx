@@ -11,7 +11,12 @@ import { fmtAgo } from '@/features/inbox/format';
 import { useTeams } from '@/features/team/queries';
 import { useMembers } from '@/features/inbox/queries';
 import { useWorkspace } from '@/lib/workspace';
-import { useChannelActivity, useChannelMutations } from '../queries';
+import {
+  useChannelActivity,
+  useChannelHealth,
+  useChannelMutations,
+  useMetaStart,
+} from '../queries';
 import { STATUS_INFO, type Channel } from '../types';
 import { Hint, ProviderMark, StatusPill } from './bits';
 
@@ -20,9 +25,11 @@ interface Props {
   canManage: boolean;
   canAudit: boolean;
   onClose: () => void;
+  /** WhatsApp has no redirect flow: reopen the connect dialog on it. */
+  onReconnect: (provider: string) => void;
 }
 const heading = 'm-0 mb-1.5 text-[12px] font-semibold uppercase tracking-[0.04em] text-faint';
-const HEALTH = [
+const _UNUSED_HEALTH = [
   ['Authorization', 'Whether the provider still allows Torio to act for this account.'],
   ['API connectivity', 'Whether Torio can reach the provider right now.'],
   ['Webhook', 'Whether the provider is delivering events to Torio.'],
@@ -30,10 +37,42 @@ const HEALTH = [
   ['Receiving messages', 'Whether new customer messages arrive.'],
 ] as const;
 
-export function ChannelDrawer({ channel: c, canManage, canAudit, onClose }: Props) {
+function HealthRow({
+  label,
+  tip,
+  value,
+  tone,
+}: {
+  label: string;
+  tip: string;
+  value: string;
+  tone: 'ok' | 'bad' | 'neutral';
+}) {
+  return (
+    <li className="flex items-center gap-2 px-3 py-2 text-[13px]">
+      {tone === 'ok' ? (
+        <Check size={14} className="text-success" aria-hidden />
+      ) : tone === 'bad' ? (
+        <X size={14} className="text-danger" aria-hidden />
+      ) : (
+        <Minus size={14} className="text-faint" aria-hidden />
+      )}
+      <span className="flex-1">
+        {label} <Hint text={tip} />
+      </span>
+      <span className={tone === 'bad' ? 'text-xs font-medium text-danger' : 'text-xs text-muted'}>
+        {value}
+      </span>
+    </li>
+  );
+}
+
+export function ChannelDrawer({ channel: c, canManage, canAudit, onClose, onReconnect }: Props) {
   const { toast, registerEscape } = useShell();
   const { workspaceId: ws } = useWorkspace();
   const mut = useChannelMutations(ws);
+  const check = useChannelHealth(ws);
+  const start = useMetaStart(ws);
   const members = useMembers(ws);
   const teams = useTeams(ws);
   const acts = useChannelActivity(ws, c.id, canAudit);
@@ -62,7 +101,7 @@ export function ChannelDrawer({ channel: c, canManage, canAudit, onClose }: Prop
 
   return (
     <>
-      <div className="fixed inset-0 z-[70] bg-[rgba(13,37,61,0.25)]" onClick={onClose} />
+      <div className="fixed inset-0 z-[70] glass-scrim" onClick={onClose} />
       <aside
         role="dialog"
         aria-modal="true"
@@ -104,15 +143,39 @@ export function ChannelDrawer({ channel: c, canManage, canAudit, onClose }: Prop
                 Open Inbox
               </Link>
             </Button>
-            {(needsFix || disconnected) && (
+            {canManage && !c.isSample && (needsFix || disconnected) && (
               <Button
                 size="sm"
                 variant="outline"
-                disabled
-                title="Reconnecting needs the provider connection, which isn’t built yet."
+                loading={start.isPending}
+                onClick={() =>
+                  c.provider === 'WHATSAPP'
+                    ? onReconnect(c.provider)
+                    : start.mutate(c.provider as 'MESSENGER' | 'INSTAGRAM', {
+                        onSuccess: (url) => window.location.assign(url),
+                        onError: err,
+                      })
+                }
               >
                 <RefreshCw size={13} />
                 Reconnect
+              </Button>
+            )}
+            {canManage && !c.isSample && !disconnected && (
+              <Button
+                size="sm"
+                variant="outline"
+                loading={check.isPending}
+                onClick={() =>
+                  check.mutate(c.id, {
+                    onSuccess: (r) =>
+                      toast(r.ok ? 'Connection is healthy' : (r.error ?? 'The check failed')),
+                    onError: err,
+                  })
+                }
+              >
+                <Check size={13} />
+                Check connection
               </Button>
             )}
             {canManage && !disconnected && (
@@ -132,8 +195,10 @@ export function ChannelDrawer({ channel: c, canManage, canAudit, onClose }: Prop
               role="status"
               className="mb-4 mt-0 rounded-lg bg-[#FBFBFC] p-3 text-[13px] text-muted"
             >
-              {STATUS_INFO[c.status].help} Reconnecting isn&apos;t available yet because provider
-              connections aren&apos;t built.
+              {STATUS_INFO[c.status].help}
+              {canManage &&
+                !c.isSample &&
+                ' Use Reconnect to authorize again; your conversations are kept.'}
             </p>
           )}
           {c.isSample && (
@@ -190,15 +255,44 @@ export function ChannelDrawer({ channel: c, canManage, canAudit, onClose }: Prop
               Connection health
             </h3>
             <ul className="m-0 list-none divide-y divide-line-subtle overflow-hidden rounded-[10px] border border-line p-0">
-              {HEALTH.map(([k, tip]) => (
-                <li key={k} className="flex items-center gap-2 px-3 py-2 text-[13px]">
-                  <Minus size={14} className="text-faint" aria-hidden />
-                  <span className="flex-1">
-                    {k} <Hint text={tip} />
-                  </span>
-                  <span className="text-xs text-muted">Not monitored yet</span>
-                </li>
-              ))}
+              <HealthRow
+                label="Webhook subscription"
+                tip="Whether Meta was told to deliver this account's events to Torio."
+                value={
+                  c.webhookStatus === 'SUBSCRIBED'
+                    ? 'Subscribed'
+                    : c.webhookStatus === 'FAILED'
+                      ? 'Subscription failed'
+                      : 'Not recorded'
+                }
+                tone={
+                  c.webhookStatus === 'SUBSCRIBED'
+                    ? 'ok'
+                    : c.webhookStatus === 'FAILED'
+                      ? 'bad'
+                      : 'neutral'
+                }
+              />
+              <HealthRow
+                label="Last event received"
+                tip="The last time Meta delivered any event for this account."
+                value={c.lastEventAt ? `${fmtAgo(c.lastEventAt)} ago` : 'None yet'}
+                tone={c.lastEventAt ? 'ok' : 'neutral'}
+              />
+              <HealthRow
+                label="Authorization"
+                tip="When the stored access token stops working."
+                value={
+                  c.status === 'EXPIRED'
+                    ? 'Expired'
+                    : c.tokenExpiresAt
+                      ? `Expires ${new Date(c.tokenExpiresAt).toLocaleDateString('en-US', { dateStyle: 'medium' })}`
+                      : c.lastHealthCheckAt
+                        ? 'No expiry reported'
+                        : 'Not verified'
+                }
+                tone={c.status === 'EXPIRED' ? 'bad' : 'neutral'}
+              />
             </ul>
             <p className="m-0 mt-2 flex items-start gap-1.5 text-xs text-faint">
               <CircleHelp size={12} className="mt-0.5 shrink-0" />

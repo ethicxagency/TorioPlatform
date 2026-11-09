@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowDown } from 'lucide-react';
+import { ArrowDown, MessagesSquare } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -21,6 +21,7 @@ interface Props {
 }
 
 const NEAR_BOTTOM = 80;
+const GROUP_GAP_MS = 5 * 60_000;
 
 export function MessageTimeline({
   conversationId,
@@ -59,6 +60,11 @@ export function MessageTimeline({
       return;
     }
     if (count > lastCount.current) {
+      // Only messages that arrive while the thread is open ease in; history and the first load never animate.
+      const rows = ref.current?.children;
+      if (rows)
+        for (let i = Math.max(0, rows.length - (count - lastCount.current)); i < rows.length; i++)
+          rows[i]!.classList.add('animate-message-in');
       if (atBottom.current) scrollDown();
       else requestAnimationFrame(() => setHasNew(true));
     }
@@ -103,21 +109,32 @@ export function MessageTimeline({
           </div>
         )}
         {messages && messages.length === 0 && (
-          <div className="px-6 py-12 text-center text-[13px] text-muted">
-            No messages in this conversation yet.
+          <div className="flex flex-col items-center px-6 py-16 text-center">
+            <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-[14px] bg-primary-soft">
+              <MessagesSquare size={24} aria-hidden className="text-primary" />
+            </span>
+            <div className="text-[14.5px] font-semibold text-ink">No messages yet</div>
+            <div className="mt-1 max-w-[280px] text-[13px] text-muted">
+              Messages with {customerName} will appear here.
+            </div>
           </div>
         )}
         {messages?.map((m, i) => {
           const prev = messages[i - 1];
           const next = messages[i + 1];
           const newDay = !prev || dayLabel(prev.createdAt) !== dayLabel(m.createdAt);
+          // One group = same kind, same author, same day, at most 5 minutes apart.
           const sameGroup = (a?: Message) =>
-            !!a && a.kind === m.kind && dayLabel(a.createdAt) === dayLabel(m.createdAt);
+            !!a &&
+            a.kind === m.kind &&
+            (a.author?.id ?? null) === (m.author?.id ?? null) &&
+            dayLabel(a.createdAt) === dayLabel(m.createdAt) &&
+            Math.abs(Date.parse(a.createdAt) - Date.parse(m.createdAt)) <= GROUP_GAP_MS;
           return (
             <div key={m.id}>
               {newDay && (
-                <div className="my-3 flex items-center justify-center">
-                  <span className="rounded-full bg-white/80 px-3 py-0.5 text-[11.5px] font-medium text-faint shadow-[0_0_0_1px_rgba(229,231,235,0.9)]">
+                <div className="mb-1 mt-4 flex items-center justify-center">
+                  <span className="rounded-full bg-white px-3 py-1 text-[11.5px] font-medium text-muted shadow-[0_0_0_1px_rgba(229,231,235,0.9)]">
                     {dayLabel(m.createdAt)}
                   </span>
                 </div>
@@ -139,7 +156,7 @@ export function MessageTimeline({
         <button
           type="button"
           onClick={toBottom}
-          className="absolute bottom-3 left-1/2 flex -translate-x-1/2 cursor-pointer items-center gap-1.5 rounded-full bg-ink px-3 py-1.5 text-xs font-medium text-white shadow-popover"
+          className="absolute bottom-3 left-1/2 flex -translate-x-1/2 animate-panel-in cursor-pointer items-center gap-1.5 rounded-full bg-ink px-3 py-1.5 text-xs font-medium text-white shadow-popover hover:bg-ink-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           <ArrowDown size={13} /> New messages
         </button>

@@ -1,6 +1,7 @@
 'use client';
 
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight02Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
 import Link from 'next/link';
 import { useId, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -85,7 +86,7 @@ export function ConversationOverview({
           href={inboxHref}
           className="inline-flex shrink-0 items-center gap-1 text-[13.5px] font-medium text-primary no-underline hover:text-primary-hover hover:no-underline"
         >
-          Open Inbox <ArrowRight size={14} aria-hidden />
+          Open Inbox <Icon icon={ArrowRight02Icon} size={14} />
         </Link>
       </header>
 

@@ -1,6 +1,7 @@
 'use client';
 
-import { Check, ChevronDown, Layers } from 'lucide-react';
+import { ArrowDown01Icon, Layers01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
 import { useEffect, useId, useRef, useState } from 'react';
 import { ChannelIcon } from '@/components/channel-icon';
 import { useShell } from '@/components/shell/shell-context';
@@ -115,10 +116,10 @@ export function ChannelSelect({ value, onChange, className }: Props) {
         <span className="min-w-0 flex-1 truncate text-left font-semibold text-ink">
           {current.label}
         </span>
-        <ChevronDown
+        <Icon
+          icon={ArrowDown01Icon}
           size={16}
           strokeWidth={2}
-          aria-hidden
           className={cn(
             'shrink-0 text-faint transition-transform duration-200 motion-reduce:transition-none',
             open && 'rotate-180 text-primary',
@@ -133,7 +134,7 @@ export function ChannelSelect({ value, onChange, className }: Props) {
           role="listbox"
           aria-label="Channel"
           onKeyDown={onListKey}
-          className="absolute left-0 top-[52px] z-[45] w-[min(264px,calc(100vw-32px))] animate-panel-in rounded-[14px] border border-line bg-white p-1.5 shadow-popover"
+          className="absolute left-0 top-[52px] z-[45] w-[min(264px,calc(100vw-32px))] animate-panel-in rounded-[14px] border border-line glass-menu p-1.5 shadow-popover"
         >
           {OPTIONS.map((o) => {
             const on = o.key === value;
@@ -155,7 +156,7 @@ export function ChannelSelect({ value, onChange, className }: Props) {
                   {o.key ? (
                     <ChannelIcon channel={o.key} size={18} decorative />
                   ) : (
-                    <Layers size={16} aria-hidden className="text-primary" />
+                    <Icon icon={Layers01Icon} size={16} className="text-primary" />
                   )}
                 </span>
                 <span className="min-w-0 flex-1">
@@ -182,7 +183,9 @@ export function ChannelSelect({ value, onChange, className }: Props) {
                     </span>
                   )}
                 </span>
-                {on && <Check size={16} strokeWidth={2.25} aria-hidden className="text-primary" />}
+                {on && (
+                  <Icon icon={Tick02Icon} size={16} strokeWidth={2.25} className="text-primary" />
+                )}
               </button>
             );
           })}

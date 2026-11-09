@@ -1,12 +1,13 @@
 'use client';
 
-import { Check, ChevronLeft } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { ConfirmDialog } from '@/features/inbox/components/confirm-dialog';
 import { useSettingsGuard } from './guard';
-import { Button } from '@/components/ui/button';
+import { CardHeader } from '@/components/ui/card';
+import { controlCls } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 /** A link that asks before leaving a Settings page with unsaved edits. */
@@ -86,29 +87,34 @@ export function Section({
   description,
   children,
   danger,
+  icon,
+  id,
 }: {
   title: string;
   description?: string;
   children: React.ReactNode;
   danger?: boolean;
+  /** Small icon tile before the title. */
+  icon?: React.ReactNode;
+  /** Anchor, so old URLs and links can jump to this section. */
+  id?: string;
 }) {
   return (
     <section
+      id={id}
       aria-label={title}
       className={cn(
-        'mb-4 rounded-card border bg-white p-4 sm:p-5',
+        'mb-4 scroll-mt-20 rounded-card border bg-white p-4 sm:p-5',
         danger ? 'border-[#F3C4C4]' : 'border-line',
       )}
     >
-      <h2 className="m-0 font-card-title">{title}</h2>
-      {description && <p className="m-0 mt-0.5 text-[12.5px] text-muted">{description}</p>}
+      <CardHeader title={title} description={description} icon={icon} />
       <div className="mt-4">{children}</div>
     </section>
   );
 }
 
-export const inputCls =
-  'h-9 w-full rounded-lg border border-line bg-white px-2.5 text-[13px] text-ink disabled:cursor-not-allowed disabled:bg-wash disabled:text-muted aria-[invalid=true]:border-danger';
+export const inputCls = controlCls;
 
 export function Field({
   label,
@@ -144,40 +150,6 @@ export function Field({
       ) : (
         hint && <span className="text-xs text-faint">{hint}</span>
       )}
-    </div>
-  );
-}
-
-/** Save / Cancel row. Sticks to the bottom of the viewport on phones so it is always reachable. */
-export function SaveBar({
-  dirty,
-  busy,
-  saved,
-  onCancel,
-  label = 'Save changes',
-}: {
-  dirty: boolean;
-  busy: boolean;
-  saved: boolean;
-  onCancel: () => void;
-  label?: string;
-}) {
-  return (
-    <div className="sticky bottom-0 z-10 -mx-4 flex items-center gap-2 border-t border-line-subtle bg-white/95 px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))] sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">
-      <Button type="submit" disabled={!dirty || busy}>
-        {busy ? 'Saving…' : label}
-      </Button>
-      <Button type="button" variant="outline" disabled={!dirty || busy} onClick={onCancel}>
-        Cancel
-      </Button>
-      <span aria-live="polite" className="ml-1 text-xs text-muted">
-        {saved && !dirty && (
-          <span className="inline-flex items-center gap-1 text-success">
-            <Check size={13} /> Saved
-          </span>
-        )}
-        {dirty && !busy && 'Unsaved changes'}
-      </span>
     </div>
   );
 }

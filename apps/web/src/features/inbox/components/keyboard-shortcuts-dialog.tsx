@@ -9,7 +9,7 @@ export function KeyboardShortcutsDialog({ onClose }: { onClose: () => void }) {
   useEffect(() => closeRef.current?.focus(), []);
   return (
     <div
-      className="fixed inset-0 z-[90] flex items-center justify-center bg-[rgba(13,37,61,0.3)] p-4"
+      className="fixed inset-0 z-[90] flex items-center justify-center glass-scrim p-4"
       onClick={onClose}
     >
       <div
@@ -18,7 +18,7 @@ export function KeyboardShortcutsDialog({ onClose }: { onClose: () => void }) {
         aria-labelledby="shortcuts-title"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.key === 'Escape' && onClose()}
-        className="w-full max-w-[420px] animate-panel-in rounded-2xl bg-white p-5 shadow-popover"
+        className="w-full max-w-[420px] animate-modal-in rounded-2xl bg-white p-5 shadow-popover"
       >
         <div className="mb-3 flex items-center">
           <h2 id="shortcuts-title" className="m-0 flex-1 text-[15px] font-semibold">

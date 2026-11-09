@@ -27,7 +27,7 @@ export const Readiness = forwardRef<
     <section
       ref={ref}
       aria-label="Knowledge readiness"
-      className="rounded-[14px] border border-line bg-white p-5"
+      className="rounded-card border border-line bg-white p-5"
     >
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="m-0 text-[15px] font-semibold">Knowledge readiness</h2>

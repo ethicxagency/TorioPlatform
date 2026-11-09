@@ -10,7 +10,7 @@ import { X } from 'lucide-react';
 import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { AREA, controlCls, Input } from '@/components/ui/input';
 import { Modal } from '@/features/leads/components/modal';
 import { SOURCES } from '@/features/leads/constants';
 import { ApiRequestError } from '@/features/leads/queries';
@@ -27,8 +27,7 @@ interface Props {
 
 const label = 'flex flex-col gap-1.5 text-[13px] font-medium';
 const err = 'text-xs font-normal text-danger';
-const selectCls =
-  'h-10 w-full rounded-[10px] border border-line bg-white px-2.5 text-sm font-normal';
+const selectCls = controlCls;
 
 export function CustomerFormDialog({ customer, owners, onClose, onSubmit }: Props) {
   const editing = !!customer;
@@ -228,12 +227,7 @@ export function CustomerFormDialog({ customer, owners, onClose, onSubmit }: Prop
         </div>
         <label className={`${label} sm:col-span-2`}>
           Internal notes
-          <textarea
-            rows={3}
-            maxLength={5000}
-            className="w-full resize-y rounded-[10px] border border-line p-2.5 text-sm font-normal"
-            {...register('notes')}
-          />
+          <textarea rows={3} maxLength={5000} className={AREA} {...register('notes')} />
         </label>
         {errors.root && (
           <p role="alert" className="m-0 text-[13px] text-danger sm:col-span-2">

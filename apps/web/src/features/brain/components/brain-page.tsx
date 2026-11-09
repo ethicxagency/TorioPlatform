@@ -362,7 +362,7 @@ function BrainEditor({
   );
 
   return (
-    <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 pb-10 pt-5 sm:px-6">
+    <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 pb-8 pt-5 sm:px-6">
       <header className="flex flex-wrap items-start gap-4">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary-line bg-primary-soft">
           <Brain size={22} className="text-primary" />
@@ -427,7 +427,7 @@ function BrainEditor({
                 Unsaved changes ({changed.length})
               </button>
               {showChanges && (
-                <div className="absolute right-0 top-11 z-30 w-60 animate-panel-in rounded-xl border border-line bg-white p-3 shadow-popover">
+                <div className="absolute right-0 top-11 z-30 w-60 animate-panel-in rounded-xl border border-line glass-menu p-3 shadow-popover">
                   <div className="mb-1 text-xs font-semibold text-faint">Changed sections</div>
                   <ul className="m-0 mb-2 list-none p-0 text-[13px]">
                     {changed.map((c) => (

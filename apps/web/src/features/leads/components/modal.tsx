@@ -50,7 +50,7 @@ export function Modal({ title, description, onClose, children, footer, className
 
   return (
     <div
-      className="fixed inset-0 z-[90] flex items-end justify-center bg-[rgba(13,37,61,0.35)] sm:items-center sm:p-4"
+      className="fixed inset-0 z-[90] flex items-end justify-center glass-scrim sm:items-center sm:p-4"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
@@ -60,7 +60,7 @@ export function Modal({ title, description, onClose, children, footer, className
         aria-label={title}
         onKeyDown={onKeyDown}
         className={cn(
-          'flex max-h-[92vh] w-full animate-panel-in flex-col rounded-t-2xl bg-white shadow-popover sm:max-w-[560px] sm:rounded-2xl',
+          'flex max-h-[92vh] w-full animate-modal-in flex-col rounded-t-2xl bg-white shadow-popover sm:max-w-[560px] sm:rounded-2xl',
           className,
         )}
       >

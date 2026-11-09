@@ -1,7 +1,7 @@
 'use client';
 
-import { Plus } from 'lucide-react';
-import { type Template } from '@torio/contracts';
+import { ArrowRight, LayoutTemplate, Plus, X } from 'lucide-react';
+import { TEMPLATES, type Template } from '@torio/contracts';
 import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
 import { useShell } from '@/components/shell/shell-context';
@@ -11,12 +11,7 @@ import { useDebounced } from '@/features/leads/use-debounced';
 import { useWorkspace } from '@/lib/workspace';
 import { cn } from '@/lib/utils';
 import { PAGE_SIZE } from '../constants';
-import {
-  useAutomationMutations,
-  useAutomations,
-  useAutomationSummary,
-  useExecutions,
-} from '../queries';
+import { useAutomationMutations, useAutomations, useExecutions } from '../queries';
 import {
   EMPTY_DIRECTORY,
   type AutomationItem,
@@ -25,9 +20,8 @@ import {
 } from '../types';
 import { Directory } from './directory';
 import { ExecutionDrawer, HistoryView } from './history';
-import { AutomationKpis } from './kpi-cards';
 import { NameDialog } from './name-dialog';
-import { TemplateGallery } from './templates';
+import { LibraryModal, PreviewDialog, TemplateExplorer, TemplateCard } from './template-views';
 
 const TABS = [
   { key: 'all', label: 'All automations' },
@@ -53,6 +47,32 @@ export function AutomationPage() {
   const [runPage, setRunPage] = useState(1);
   const [openRun, setOpenRun] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [library, setLibrary] = useState(false);
+  const [preview, setPreview] = useState<Template | null>(null);
+  const [hideFeatured, setHideFeatured] = useState(() => {
+    try {
+      return localStorage.getItem('torio.automation.featured') === 'hidden';
+    } catch {
+      return false;
+    }
+  });
+  const setFeatured = (hide: boolean) => {
+    setHideFeatured(hide);
+    try {
+      localStorage.setItem('torio.automation.featured', hide ? 'hidden' : 'shown');
+    } catch {
+      /* preference only */
+    }
+  };
+  const useTemplate = async (t: Template) => {
+    const d = await m.create.mutateAsync({
+      name: t.name,
+      description: t.description,
+      templateKey: t.key,
+    });
+    toast('Draft created. Review it before activating.');
+    router.push(`/automation/${d.id}`);
+  };
   const [renaming, setRenaming] = useState<AutomationItem | null>(null);
   const [deleting, setDeleting] = useState<AutomationItem | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -61,7 +81,6 @@ export function AutomationPage() {
   const status = tab === 'active' ? ['ACTIVE'] : tab === 'drafts' ? ['DRAFT'] : [];
   const list = useAutomations(ws, { ...filters, q }, status, page);
   const names = useAutomations(ws, EMPTY_DIRECTORY, [], 1);
-  const summary = useAutomationSummary(ws);
   const runs = useExecutions(
     ws,
     { status: runStatus ? [runStatus] : [], automationId: runAutomation, page: runPage },
@@ -119,7 +138,8 @@ export function AutomationPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setTab('templates')}>
+          <Button variant="outline" onClick={() => setLibrary(true)}>
+            <LayoutTemplate size={14} />
             Templates
           </Button>
           <Button
@@ -133,33 +153,83 @@ export function AutomationPage() {
         </div>
       </header>
 
-      <AutomationKpis
-        summary={summary.data}
-        loading={summary.isPending}
-        error={summary.isError && !summary.data}
-        onRetry={() => summary.refetch()}
-      />
+      {dirTab && !hideFeatured && (
+        <section aria-label="Featured templates" className="flex flex-col gap-3">
+          <div className="-mb-1 flex items-center justify-end gap-1">
+            <Button variant="ghost" size="sm" onClick={() => setLibrary(true)}>
+              Browse all templates
+              <ArrowRight size={13} aria-hidden />
+            </Button>
+            <button
+              type="button"
+              aria-label="Hide featured templates"
+              title="Hide featured templates"
+              onClick={() => setFeatured(true)}
+              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-faint transition-colors duration-150 hover:bg-wash hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
+            >
+              <X size={14} />
+            </button>
+          </div>
+          <ul className="m-0 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2 xl:grid-cols-4">
+            {TEMPLATES.slice(0, 4).map((t) => (
+              <li key={t.key}>
+                <TemplateCard t={t} onOpen={setPreview} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {dirTab && hideFeatured && (
+        <button
+          type="button"
+          onClick={() => setFeatured(false)}
+          className="-mb-2 self-start cursor-pointer rounded border-none bg-transparent p-0 text-[12.5px] text-muted hover:text-primary"
+        >
+          Show featured templates
+        </button>
+      )}
 
       <div
         role="tablist"
         aria-label="Automation views"
-        className="flex gap-1 overflow-x-auto border-b border-line"
+        onKeyDown={(e) => {
+          const i = TABS.findIndex((t) => t.key === tab);
+          const n =
+            e.key === 'ArrowRight'
+              ? i + 1
+              : e.key === 'ArrowLeft'
+                ? i - 1
+                : e.key === 'Home'
+                  ? 0
+                  : e.key === 'End'
+                    ? TABS.length - 1
+                    : -1;
+          if (n < 0) return;
+          e.preventDefault();
+          const next = TABS[(n + TABS.length) % TABS.length]!;
+          setTab(next.key);
+          setPage(1);
+          requestAnimationFrame(() => document.getElementById(`auto-tab-${next.key}`)?.focus());
+        }}
+        className="flex max-w-full gap-0.5 self-start overflow-x-auto rounded-xl bg-wash-2 p-1"
       >
         {TABS.map((t) => (
           <button
             key={t.key}
+            id={`auto-tab-${t.key}`}
             role="tab"
             type="button"
+            tabIndex={tab === t.key ? 0 : -1}
             aria-selected={tab === t.key}
             onClick={() => {
               setTab(t.key);
               setPage(1);
             }}
             className={cn(
-              '-mb-px h-9 shrink-0 cursor-pointer border-b-2 px-3 text-[13px]',
+              'h-8 shrink-0 cursor-pointer rounded-lg border-none px-3 text-[13px] transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary',
               tab === t.key
-                ? 'border-primary font-semibold text-primary-hover'
-                : 'border-transparent text-muted hover:text-ink',
+                ? 'bg-white font-semibold text-primary shadow-[0_1px_2px_rgba(23,24,28,0.08)]'
+                : 'bg-transparent text-muted hover:text-ink',
             )}
           >
             {t.label}
@@ -201,21 +271,18 @@ export function AutomationPage() {
           }}
           onRetry={() => list.refetch()}
           onCreate={() => setCreating(true)}
+          onExplore={() => setLibrary(true)}
         />
       )}
       {tab === 'templates' && (
-        <TemplateGallery
-          canWrite={canWrite}
-          onUse={async (t: Template) => {
-            const d = await m.create.mutateAsync({
-              name: t.name,
-              description: t.description,
-              templateKey: t.key,
-            });
-            toast('Draft created. Review it before activating.');
-            router.push(`/automation/${d.id}`);
-          }}
-        />
+        <div className="flex flex-col gap-3">
+          <p className="m-0 text-[13px] text-muted">
+            Templates create a <b>draft</b>. Review every condition and message, then activate it
+            yourself: nothing runs automatically. All of them use only Torio’s own data, so no
+            integration is required.
+          </p>
+          <TemplateExplorer onOpen={setPreview} />
+        </div>
       )}
       {tab === 'history' && (
         <HistoryView
@@ -241,6 +308,16 @@ export function AutomationPage() {
         />
       )}
 
+      {library && <LibraryModal onClose={() => setLibrary(false)} onOpen={setPreview} />}
+      {preview && (
+        <PreviewDialog
+          t={preview}
+          canWrite={canWrite}
+          backLabel={library ? 'Back to library' : 'Close'}
+          onClose={() => setPreview(null)}
+          onUse={useTemplate}
+        />
+      )}
       {openRun && (
         <ExecutionDrawer id={openRun} canRetry={canActivate} onClose={() => setOpenRun(null)} />
       )}

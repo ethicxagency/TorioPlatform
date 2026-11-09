@@ -8,10 +8,41 @@ test.describe('leads', () => {
     await page.goto('/leads');
   });
 
-  test('shows real KPIs and the lead table', async ({ page }) => {
+  test('shows real KPIs above the toolbar, and the lead table', async ({ page }) => {
     await expect(page.getByRole('heading', { name: 'Leads', level: 1 })).toBeVisible();
     await expect(page.getByRole('row', { name: /Nusrat Jahan/ })).toBeVisible();
-    await expect(page.getByText('No closed leads yet')).toBeVisible(); // conversion rate is null, not invented
+    for (const t of ['Total leads', 'New', 'Qualified', 'Conversion rate', 'Unassigned'])
+      await expect(page.getByText(t, { exact: true }).first()).toBeVisible();
+    // The supporting lines under the numbers are gone.
+    for (const t of [
+      /added in 30 days/,
+      'Not yet contacted',
+      'Ready for a proposal',
+      /won · \d+ lost/,
+      'Need an owner',
+      'No closed leads yet',
+    ])
+      await expect(page.getByText(t)).toHaveCount(0);
+    await expect(page.getByText('Total leads', { exact: true })).toBeVisible();
+    const kpi = (await page.getByText('Total leads', { exact: true }).boundingBox())!;
+    const search = (await page.getByRole('searchbox', { name: 'Search leads' }).boundingBox())!;
+    expect(kpi.y).toBeLessThan(search.y);
+  });
+
+  test('sort menu lists supported orders and sends the choice with search kept', async ({
+    page,
+  }) => {
+    await expect(page.getByRole('row', { name: /Nusrat Jahan/ })).toBeVisible();
+    await page.getByRole('searchbox', { name: 'Search leads' }).fill('imran');
+    await page.getByRole('button', { name: /^Sort:/ }).click();
+    await page
+      .getByRole('listbox', { name: 'Sort' })
+      .getByRole('option', { name: 'Name A–Z' })
+      .click();
+    await expect
+      .poll(() => leadRequests.some((r) => r.includes('sort=name') && r.includes('q=imran')))
+      .toBe(true);
+    await expect(page.getByRole('button', { name: 'Sort: Name A–Z' })).toBeVisible();
   });
 
   test('search is debounced and sent to the server', async ({ page }) => {

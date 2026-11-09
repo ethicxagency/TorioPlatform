@@ -7,18 +7,34 @@ interface Props {
   title: string;
   body: string;
   confirmLabel: string;
+  /** Defaults to "Cancel". */
+  cancelLabel?: string;
   busy?: boolean;
+  /** Style the confirm button as destructive. Defaults on for delete/remove/disconnect-style labels. */
+  destructive?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
+const DESTRUCTIVE =
+  /^(delete|remove|disconnect|deactivate|discard|suspend|cancel (order|invitation))/i;
+
 /** Modal confirmation. Focus moves to Cancel (the safe default); Escape cancels. */
-export function ConfirmDialog({ title, body, confirmLabel, busy, onConfirm, onCancel }: Props) {
+export function ConfirmDialog({
+  title,
+  body,
+  confirmLabel,
+  cancelLabel = 'Cancel',
+  busy,
+  destructive = DESTRUCTIVE.test(confirmLabel),
+  onConfirm,
+  onCancel,
+}: Props) {
   const cancelRef = useRef<HTMLButtonElement>(null);
   useEffect(() => cancelRef.current?.focus(), []);
   return (
     <div
-      className="fixed inset-0 z-[90] flex items-center justify-center bg-[rgba(13,37,61,0.3)] p-4"
+      className="fixed inset-0 z-[90] flex items-center justify-center glass-scrim p-4"
       onClick={onCancel}
     >
       <div
@@ -28,7 +44,7 @@ export function ConfirmDialog({ title, body, confirmLabel, busy, onConfirm, onCa
         aria-describedby="confirm-body"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.key === 'Escape' && onCancel()}
-        className="w-full max-w-[380px] animate-panel-in rounded-2xl bg-white p-5 shadow-popover"
+        className="w-full max-w-[380px] animate-modal-in rounded-2xl bg-white p-5 shadow-popover"
       >
         <h2 id="confirm-title" className="m-0 text-[15px] font-semibold">
           {title}
@@ -38,9 +54,14 @@ export function ConfirmDialog({ title, body, confirmLabel, busy, onConfirm, onCa
         </p>
         <div className="flex justify-end gap-2">
           <Button ref={cancelRef} variant="outline" size="sm" onClick={onCancel}>
-            Cancel
+            {cancelLabel}
           </Button>
-          <Button size="sm" onClick={onConfirm} disabled={busy}>
+          <Button
+            size="sm"
+            variant={destructive ? 'destructive' : 'primary'}
+            onClick={onConfirm}
+            disabled={busy}
+          >
             {confirmLabel}
           </Button>
         </div>

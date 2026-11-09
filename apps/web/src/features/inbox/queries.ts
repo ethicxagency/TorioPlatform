@@ -87,6 +87,21 @@ export function useMembers(ws: string | null) {
   });
 }
 
+/** Distinct customer tags in the workspace. Keyed under conversations so it refreshes with the list. */
+export function useWorkspaceTags(ws: string | null) {
+  return useQuery({
+    queryKey: [...keys.conversations(ws ?? ''), 'tags'] as const,
+    enabled: !!ws,
+    queryFn: async () => {
+      const { data, error } = await api.GET('/api/v1/workspaces/{workspaceId}/customers/tags', {
+        params: { path: { workspaceId: ws! } },
+      });
+      if (!data) throw fail(error, 'Could not load tags');
+      return data.data;
+    },
+  });
+}
+
 export function useSavedReplies(ws: string | null) {
   return useQuery({
     queryKey: keys.savedReplies(ws ?? ''),

@@ -14,6 +14,9 @@ interface Props {
   onPick: (agentId: string | null) => void;
   onClose: () => void;
   align?: 'left' | 'right';
+  /** Offer "Unassign" even with no current assignee (bulk use). */
+  showUnassign?: boolean;
+  label?: string;
 }
 
 export function AssignmentMenu({
@@ -23,6 +26,8 @@ export function AssignmentMenu({
   onPick,
   onClose,
   align = 'right',
+  showUnassign = false,
+  label = 'Assign conversation',
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   useDismiss(ref, true, onClose);
@@ -31,9 +36,9 @@ export function AssignmentMenu({
     <div
       ref={ref}
       role="menu"
-      aria-label="Assign conversation"
+      aria-label={label}
       className={cn(
-        'absolute top-11 z-30 max-h-[min(360px,calc(100vh-140px))] w-[min(230px,calc(100vw-24px))] overflow-y-auto animate-panel-in rounded-xl border border-line bg-white p-1.5 shadow-popover',
+        'absolute top-11 z-30 max-h-[min(360px,calc(100vh-140px))] w-[min(230px,calc(100vw-24px))] overflow-y-auto animate-panel-in rounded-xl border border-line glass-menu p-1.5 shadow-popover',
         align === 'right' ? 'right-0' : 'left-0',
       )}
     >
@@ -59,7 +64,7 @@ export function AssignmentMenu({
           {a.id === currentId && <Check size={14} className="text-primary" />}
         </button>
       ))}
-      {currentId && (
+      {(currentId || showUnassign) && (
         <>
           <div className="my-1 h-px bg-line-subtle" />
           <button

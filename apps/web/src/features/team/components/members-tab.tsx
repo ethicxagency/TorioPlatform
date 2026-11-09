@@ -1,5 +1,6 @@
 'use client';
 
+import { CONTROL } from '@/components/ui/input';
 import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -33,7 +34,7 @@ interface Props {
   canManage: boolean;
 }
 
-const selectCls = 'h-9 rounded-[10px] border border-line bg-white px-2.5 text-[13px]';
+const selectCls = CONTROL;
 const th = 'px-3 py-2.5 text-left text-[12px] font-semibold text-muted whitespace-nowrap';
 
 export function MembersTab(p: Props) {
@@ -43,7 +44,7 @@ export function MembersTab(p: Props) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <label className="flex h-9 min-w-[200px] flex-1 items-center gap-2 rounded-[10px] border border-line bg-white px-2.5 sm:max-w-[320px]">
+        <label className="flex h-9 min-w-[200px] flex-1 items-center gap-2 rounded-[var(--radius-control)] border border-line bg-white px-2.5 sm:max-w-[320px]">
           <Search size={15} className="shrink-0 text-faint" aria-hidden />
           <input
             type="search"

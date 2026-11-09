@@ -10,6 +10,7 @@ import { SOCKET_EVENTS } from '@torio/types';
 import { PrismaService } from '../../database/prisma.service';
 import { AutomationEngine } from '../automation/automation.engine';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { MetaDeliveryService } from '../meta/meta.delivery.service';
 import { WhatsAppDeliveryService } from '../whatsapp/whatsapp.delivery.service';
 import {
   conversationInclude,
@@ -30,6 +31,7 @@ export class ConversationsService {
     private readonly realtime: RealtimeGateway,
     private readonly automation: AutomationEngine,
     private readonly whatsapp: WhatsAppDeliveryService,
+    private readonly meta: MetaDeliveryService,
   ) {}
 
   async list(workspaceId: string, userId: string, q: ConversationQuery) {
@@ -71,7 +73,7 @@ export class ConversationsService {
             ]
           : [{ waitingSince: { sort: 'asc', nulls: 'last' } }, { lastMessageAt: 'desc' }];
 
-    const [total, rows, grouped] = await Promise.all([
+    const [total, rows, grouped, byChannel] = await Promise.all([
       db.conversation.count({ where }),
       db.conversation.findMany({
         where,
@@ -80,9 +82,31 @@ export class ConversationsService {
         skip: (q.page - 1) * q.pageSize,
         take: q.pageSize,
       }),
-      db.conversation.groupBy({ by: ['status'], where: { workspaceId }, _count: { _all: true } }),
+      // Status counts follow the channel tab (so "4 open" matches the list) but no other filter.
+      db.conversation.groupBy({
+        by: ['status'],
+        where: { workspaceId, ...(q.channel && { channel: { provider: q.channel } }) },
+        _count: { _all: true },
+      }),
+      // Channel badges follow the status tab but no other filter (see conversationChannelCountsSchema).
+      db.conversation.groupBy({
+        by: ['channelId'],
+        where: { workspaceId, status: q.status },
+        _count: { _all: true },
+      }),
     ]);
     const count = (s: string) => grouped.find((g) => g.status === s)?._count._all ?? 0;
+    const providers = await db.channel.findMany({
+      where: { id: { in: byChannel.map((g) => g.channelId) } },
+      select: { id: true, provider: true },
+    });
+    const channelCounts = { all: 0, WHATSAPP: 0, INSTAGRAM: 0, MESSENGER: 0 };
+    for (const g of byChannel) {
+      const provider = providers.find((c) => c.id === g.channelId)?.provider;
+      if (!provider) continue;
+      channelCounts[provider] += g._count._all;
+      channelCounts.all += g._count._all;
+    }
     return {
       data: rows.map(toConversationDto),
       meta: {
@@ -92,6 +116,7 @@ export class ConversationsService {
         totalPages: Math.max(1, Math.ceil(total / q.pageSize)),
       },
       counts: { open: count('OPEN'), snoozed: count('SNOOZED'), resolved: count('RESOLVED') },
+      channelCounts,
     };
   }
 
@@ -167,9 +192,10 @@ export class ConversationsService {
       messageId: message.id,
     });
     if (!isNote) {
-      // Hands the reply to the provider (WhatsApp only; other channels stay PENDING). Failures are recorded on the
+      // Hands the reply to the provider (WhatsApp, Messenger and Instagram; other channels stay PENDING). Failures are recorded on the
       // message (FAILED + reason) and can be retried, so they never fail the agent's request.
       await this.whatsapp.deliver(workspaceId, message.id).catch(() => undefined);
+      await this.meta.deliver(workspaceId, message.id).catch(() => undefined);
       const fresh = await this.prisma.client.message.findUnique({
         where: { id: message.id },
         include: messageInclude,
@@ -286,8 +312,35 @@ export class ConversationsService {
       case 'ASSIGN_ME':
         data = { assigneeId: userId };
         break;
+      case 'ASSIGN': {
+        const assigneeId = input.assigneeId ?? null;
+        if (assigneeId) {
+          const m = await this.prisma.client.workspaceMembership.findUnique({
+            where: { workspaceId_userId: { workspaceId, userId: assigneeId } },
+            select: { userId: true },
+          });
+          if (!m) throw new BadRequestException('Assignee is not a member of this workspace');
+        }
+        data = { assigneeId };
+        break;
+      }
       case 'MARK_READ':
         data = { unreadCount: 0 };
+        break;
+      case 'MARK_UNREAD': {
+        // Same rule as a single conversation: already-unread ones keep their count, the rest show 1.
+        const found = await this.prisma.client.conversation.count({ where });
+        await this.prisma.client.conversation.updateMany({
+          where: { ...where, unreadCount: 0 },
+          data: { unreadCount: 1 },
+        });
+        input.ids.forEach((id) =>
+          this.emit(workspaceId, id, SOCKET_EVENTS.conversationUpdated, { conversationId: id }),
+        );
+        return { updated: found };
+      }
+      case 'SET_PRIORITY':
+        data = { priority: input.priority! };
         break;
       case 'RESOLVE':
         data = {

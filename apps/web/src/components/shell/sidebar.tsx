@@ -14,8 +14,6 @@ const HREFS: Record<string, string> = {
   Leads: '/leads',
   Customers: '/customers',
   Orders: '/orders',
-  Team: '/team',
-  Channels: '/channels',
   Brain: '/brain',
   Settings: '/settings',
   Automation: '/automation',
@@ -52,11 +50,11 @@ export function Sidebar() {
       {mobile && mobileNav && (
         <div
           onClick={() => setMobileNav(false)}
-          className="fixed inset-x-0 bottom-0 top-14 z-[55] bg-[rgba(13,37,61,0.25)]"
+          className="fixed inset-x-0 bottom-0 top-14 z-[55] glass-scrim"
         />
       )}
       <div
-        className="relative shrink-0 transition-[width] duration-[280ms] ease-in-out motion-reduce:transition-none"
+        className="relative shrink-0 transition-[width] duration-[220ms] ease-[var(--ease-standard)] motion-reduce:transition-none"
         style={{ width: sbPx }}
       >
         <nav
@@ -65,7 +63,7 @@ export function Sidebar() {
           onMouseLeave={() => setSidebarHover(false)}
           className={cn(
             NAV_PANEL_CLASS,
-            'z-[60] overflow-y-auto overflow-x-hidden border-r border-line transition-[width] duration-[280ms] ease-in-out motion-reduce:transition-none',
+            'z-[60] overflow-y-auto overflow-x-hidden border-r border-line transition-[width] duration-[220ms] ease-[var(--ease-standard)] motion-reduce:transition-none',
             sidebarMode === 'full'
               ? 'relative h-full'
               : sidebarMode === 'rail'
@@ -123,7 +121,7 @@ export function Sidebar() {
                           onClick={() => setMobileNav(false)}
                           aria-current={on ? 'page' : undefined}
                           className={cn(
-                            'flex h-8 items-center gap-2.5 rounded-[8px] px-2.5 text-[13.5px] no-underline transition-colors duration-150 hover:bg-[rgba(13,37,61,0.045)] hover:no-underline motion-reduce:transition-none',
+                            'flex h-8 items-center gap-2.5 rounded-[8px] px-2.5 text-[13.5px] no-underline transition-colors duration-150 hover:glass-scrim hover:no-underline motion-reduce:transition-none',
                             on
                               ? 'bg-[rgba(91,92,226,0.09)] font-semibold text-primary-hover hover:text-primary-hover'
                               : 'font-medium text-[#3C4F68] hover:text-ink',

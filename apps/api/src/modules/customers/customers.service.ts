@@ -121,6 +121,13 @@ export class CustomersService {
     };
   }
 
+  async tags(workspaceId: string) {
+    const rows = await this.prisma.client.$queryRaw<{ tag: string }[]>`
+      SELECT DISTINCT unnest(tags) AS tag FROM customers WHERE "workspaceId" = ${workspaceId}::uuid
+      ORDER BY tag LIMIT 500`;
+    return { data: rows.map((r) => r.tag) };
+  }
+
   async summary(workspaceId: string) {
     const db = this.prisma.client;
     const now = Date.now();

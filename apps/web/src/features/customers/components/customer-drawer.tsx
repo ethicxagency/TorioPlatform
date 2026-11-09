@@ -1,9 +1,22 @@
 'use client';
 
+import { ChannelIcon } from '@/components/channel-icon';
 import {
-  Copy,
+  ContactRow,
+  InfoRow,
+  ProfileBody,
+  ProfileHeader,
+  ProfileMetric,
+  ProfileShell,
+} from '@/components/ui/profile-sidebar';
+import { AREA, CONTROL } from '@/components/ui/input';
+import {
+  Building2,
+  Mail,
+  MapPin,
   MessageSquare,
   Pencil,
+  Phone,
   Plus,
   ShoppingBag,
   StickyNote,
@@ -11,12 +24,16 @@ import {
   UserRound,
   X,
   Check,
+  type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useShell } from '@/components/shell/shell-context';
 import { ConfirmDialog } from '@/features/inbox/components/confirm-dialog';
+import { SearchSelect } from '@/features/inbox/components/search-select';
+import { useTimeZone } from '@/features/settings/queries';
+import { fmtDateTime } from '@/lib/datetime';
 import { CHANNELS } from '@/features/inbox/constants';
 import { fmtAgo, initialsOf } from '@/features/inbox/format';
 import { SourceBadge } from '@/features/leads/components/badges';
@@ -49,7 +66,8 @@ const ICON: Record<CustomerActivity['type'], typeof Plus> = {
   CONVERSATION: MessageSquare,
   NOTE: StickyNote,
 };
-const heading = 'm-0 mb-1.5 text-[12px] font-semibold uppercase tracking-[0.04em] text-faint';
+const heading = 'm-0 mb-2 text-[12px] font-semibold uppercase tracking-[0.05em] text-faint';
+const STATUS_LABEL = { OPEN: 'Open', SNOOZED: 'Snoozed', RESOLVED: 'Resolved' } as const;
 
 export function CustomerDrawer({
   customer: initial,
@@ -61,7 +79,7 @@ export function CustomerDrawer({
   onDelete,
   onOpenConversation,
 }: Props) {
-  const { toast, registerEscape } = useShell();
+  const { toast } = useShell();
   const { user } = useAuth();
   const { workspaceId: ws } = useWorkspace();
   const one = useCustomer(ws, initial.id, initial);
@@ -74,23 +92,20 @@ export function CustomerDrawer({
   const [editing, setEditing] = useState<{ id: string; body: string } | null>(null);
   const [delNote, setDelNote] = useState<string | null>(null);
   const [tag, setTag] = useState('');
-  const closeRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    const prev = document.activeElement as HTMLElement | null;
-    closeRef.current?.focus();
-    return () => prev?.focus();
-  }, []);
-  useEffect(() => registerEscape(onClose), [registerEscape, onClose]);
+  const timeZone = useTimeZone();
 
   const err = (e: unknown) => toast(e instanceof Error ? e.message : 'Something went wrong');
   const patch = (body: Parameters<typeof m.update.mutate>[0]['body'], ok: string) =>
     m.update.mutate({ id: c.id, body }, { onSuccess: () => toast(ok), onError: err });
-  const copy = (text: string, what: string) =>
-    void navigator.clipboard?.writeText(text).then(
-      () => toast(`${what} copied`),
-      () => toast("Couldn't copy"),
-    );
+  const contactRow = (
+    icon: LucideIcon,
+    label: string,
+    value: string | null,
+    kind?: 'mail' | 'tel',
+  ) => <ContactRow icon={icon} label={label} value={value} kind={kind} />;
+  const detailRow = (label: string, value: React.ReactNode) => (
+    <InfoRow label={label}>{value}</InfoRow>
+  );
   const addTag = () => {
     const t = tag.trim().slice(0, 40);
     setTag('');
@@ -98,124 +113,90 @@ export function CustomerDrawer({
       patch({ tags: [...c.tags, t] }, 'Tag added');
   };
 
-  const row = (label: string, value: React.ReactNode, copyText?: string | null) => (
-    <div className="flex items-start gap-3 py-1.5 text-[13px]">
-      <dt className="w-24 shrink-0 text-faint">{label}</dt>
-      <dd className="m-0 min-w-0 flex-1 break-words">
-        {value || <span className="text-faint">—</span>}
-      </dd>
-      {copyText && (
-        <button
-          type="button"
-          aria-label={`Copy ${label.toLowerCase()}`}
-          onClick={() => copy(copyText, label)}
-          className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-faint hover:bg-wash-2"
-        >
-          <Copy size={13} />
-        </button>
-      )}
-    </div>
-  );
-
   return (
     <>
-      <div className="fixed inset-0 z-[70] bg-[rgba(13,37,61,0.25)]" onClick={onClose} />
-      <aside
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Customer profile: ${c.name}`}
-        className="fixed inset-y-0 right-0 z-[71] flex w-full animate-drawer-in flex-col bg-white shadow-[-12px_0_40px_rgba(0,55,112,0.16)] sm:w-[500px]"
-      >
-        <header className="flex items-start gap-3 border-b border-line-subtle px-5 py-4">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-line-subtle text-sm font-semibold text-muted">
-            {initialsOf(c.name)}
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <h2 className="m-0 truncate text-base font-semibold">{c.name}</h2>
+      <ProfileShell label={`Customer profile: ${c.name}`} onClose={onClose}>
+        <ProfileHeader
+          initials={initialsOf(c.name)}
+          name={c.name}
+          closeLabel="Close customer profile"
+          onClose={onClose}
+          badges={
+            <>
               <CustomerStatusBadge status={c.status} className="shrink-0" />
-            </div>
-            <div className="truncate text-[13px] text-muted">
-              {[c.email, c.phone].filter(Boolean).join(' · ') || 'No contact details'}
-            </div>
-            {c.isSample && (
-              <span className="mt-1 inline-block rounded-md bg-wash-2 px-2 py-0.5 text-[11px] text-faint">
-                Sample customer
-              </span>
-            )}
-          </div>
-          <button
-            ref={closeRef}
-            type="button"
-            aria-label="Close customer profile"
-            onClick={onClose}
-            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg hover:bg-wash"
-          >
-            <X size={16} />
-          </button>
-        </header>
+              {c.isSample && (
+                <span className="rounded-md bg-wash-2 px-1.5 py-0.5 text-[11px] text-muted">
+                  Sample customer
+                </span>
+              )}
+            </>
+          }
+          summary={[c.email, c.phone].filter(Boolean).join(' · ') || 'No contact details'}
+          actions={
+            <>
+              {c.conversationId ? (
+                <Button size="md" onClick={() => onOpenConversation(c.conversationId!)}>
+                  <MessageSquare size={15} />
+                  Open conversation
+                </Button>
+              ) : (
+                <span className="self-center text-xs text-faint">No conversation yet</span>
+              )}
+              {canWrite && (
+                <Button variant="outline" size="md" onClick={() => onEdit(c)}>
+                  <Pencil size={14} />
+                  Edit
+                </Button>
+              )}
+              {canDelete && (
+                <Button
+                  variant="ghost"
+                  size="md"
+                  className="ml-auto text-danger hover:bg-danger-soft hover:text-danger"
+                  onClick={() => onDelete(c)}
+                >
+                  <Trash2 size={14} />
+                  Delete
+                </Button>
+              )}
+            </>
+          }
+        />
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          <div className="mb-4 flex flex-wrap gap-2">
-            {c.conversationId ? (
-              <Button size="sm" onClick={() => onOpenConversation(c.conversationId!)}>
-                <MessageSquare size={13} />
-                Open conversation
-              </Button>
-            ) : (
-              <span className="self-center text-xs text-faint">No conversation yet</span>
-            )}
-            {canWrite && (
-              <Button variant="outline" size="sm" onClick={() => onEdit(c)}>
-                <Pencil size={13} />
-                Edit
-              </Button>
-            )}
-            {canDelete && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="ml-auto text-danger"
-                onClick={() => onDelete(c)}
-              >
-                <Trash2 size={13} />
-                Delete
-              </Button>
-            )}
-          </div>
-
+        <ProfileBody>
           <section aria-labelledby="cu-overview">
             <h3 id="cu-overview" className={heading}>
-              Overview
+              Customer overview
             </h3>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-lg border border-line-subtle bg-[#FBFBFC] p-2.5">
-                <div className="text-xs text-faint">Conversations</div>
-                <div className="text-lg font-semibold tabular-nums">{c.conversationCount}</div>
-              </div>
-              <div className="rounded-lg border border-line-subtle bg-[#FBFBFC] p-2.5">
-                <div className="text-xs text-faint">Last activity</div>
-                <div className="text-sm font-semibold">{fmtAgo(c.lastActivityAt)} ago</div>
-              </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              <ProfileMetric label="Conversations" value={c.conversationCount} />
+              <ProfileMetric label="Last activity" value={`${fmtAgo(c.lastActivityAt)} ago`} />
             </div>
-            <p className="m-0 mt-2 flex items-start gap-2 rounded-lg bg-[#FBFBFC] p-2.5 text-[13px] text-muted">
-              <ShoppingBag size={14} className="mt-0.5 shrink-0 text-faint" />
-              Orders, lifetime value and purchase dates aren&apos;t available yet — they need the
-              Orders module.
+            <p className="m-0 mt-2.5 flex items-center gap-1.5 text-xs text-muted">
+              <ShoppingBag size={13} aria-hidden className="shrink-0 text-faint" />
+              Orders, lifetime value and purchase dates aren&apos;t available yet.
             </p>
           </section>
 
-          <section aria-labelledby="cu-contact" className="mt-5">
+          <section aria-labelledby="cu-contact" className="mt-6">
             <h3 id="cu-contact" className={heading}>
-              Contact & ownership
+              Contact information
+            </h3>
+            <dl className="m-0 divide-y divide-line-subtle">
+              {contactRow(Mail, 'Email', c.email, 'mail')}
+              {contactRow(Phone, 'Phone', c.phone, 'tel')}
+              {contactRow(Building2, 'Company', c.company)}
+              {contactRow(MapPin, 'Address', c.address)}
+            </dl>
+          </section>
+
+          <section aria-labelledby="cu-owner" className="mt-6">
+            <h3 id="cu-owner" className={heading}>
+              Ownership &amp; details
             </h3>
             <dl className="m-0">
-              {row('Email', c.email, c.email)}
-              {row('Phone', c.phone, c.phone)}
-              {row('Company', c.company)}
-              {row('Address', c.address)}
-              {row('Source', <SourceBadge source={c.source} />)}
-              {row(
+              {detailRow('Source', <SourceBadge source={c.source} />)}
+              {detailRow(
                 'Status',
                 canWrite ? (
                   <select
@@ -225,7 +206,7 @@ export function CustomerDrawer({
                     onChange={(e) =>
                       patch({ status: e.target.value as CustomerStatus }, 'Status updated')
                     }
-                    className="h-8 rounded-lg border border-line bg-white px-2 text-[13px]"
+                    className={`${CONTROL} w-36`}
                   >
                     {STATUSES.map((s) => (
                       <option key={s.key} value={s.key}>
@@ -237,45 +218,46 @@ export function CustomerDrawer({
                   <CustomerStatusBadge status={c.status} />
                 ),
               )}
-              {row(
+              {detailRow(
                 'Owner',
                 canWrite ? (
-                  <select
-                    aria-label="Customer owner"
-                    disabled={m.update.isPending}
-                    value={c.owner?.id ?? ''}
-                    onChange={(e) => patch({ ownerId: e.target.value || null }, 'Owner updated')}
-                    className="h-8 w-full max-w-[220px] rounded-lg border border-line bg-white px-2 text-[13px]"
-                  >
-                    <option value="">Unassigned</option>
-                    {owners.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="max-w-[240px]">
+                    <SearchSelect
+                      label="Customer owner"
+                      hideLabel
+                      anyLabel="Unassigned"
+                      searchPlaceholder="Search team members"
+                      emptyText="No team members."
+                      disabled={m.update.isPending}
+                      options={owners.map((o) => ({
+                        value: o.id,
+                        label: o.name,
+                        lead: (
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#E6E6FA] text-[9px] font-semibold text-primary-hover">
+                            {initialsOf(o.name)}
+                          </span>
+                        ),
+                      }))}
+                      value={c.owner?.id ?? ''}
+                      onChange={(id) => patch({ ownerId: id || null }, 'Owner updated')}
+                    />
+                  </div>
                 ) : (
-                  c.owner?.name
+                  (c.owner?.name ?? <span className="text-faint">Unassigned</span>)
                 ),
               )}
-              {row(
+              {detailRow(
                 'Created',
-                new Date(c.createdAt).toLocaleString('en-US', {
-                  dateStyle: 'medium',
-                  timeStyle: 'short',
-                }),
+                <span className="text-muted">{fmtDateTime(c.createdAt, timeZone)}</span>,
               )}
-              {row(
+              {detailRow(
                 'Updated',
-                new Date(c.updatedAt).toLocaleString('en-US', {
-                  dateStyle: 'medium',
-                  timeStyle: 'short',
-                }),
+                <span className="text-muted">{fmtDateTime(c.updatedAt, timeZone)}</span>,
               )}
             </dl>
           </section>
 
-          <section aria-labelledby="cu-tags" className="mt-5">
+          <section aria-labelledby="cu-tags" className="mt-6">
             <h3 id="cu-tags" className={heading}>
               Tags
             </h3>
@@ -283,15 +265,15 @@ export function CustomerDrawer({
               {c.tags.map((t) => (
                 <span
                   key={t}
-                  className="inline-flex items-center gap-1 rounded-full bg-primary-soft py-[3px] pl-2.5 pr-1.5 text-xs font-medium text-primary-hover"
+                  className="inline-flex max-w-full items-center gap-1 rounded-md bg-primary-soft py-0.5 pl-2 pr-1 text-xs font-medium text-primary-hover"
                 >
-                  {t}
+                  <span className="truncate">{t}</span>
                   {canWrite && (
                     <button
                       type="button"
                       aria-label={`Remove tag ${t}`}
                       onClick={() => patch({ tags: c.tags.filter((x) => x !== t) }, 'Tag removed')}
-                      className="flex h-4 w-4 cursor-pointer items-center justify-center rounded-full hover:bg-white/70"
+                      className="flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded hover:bg-white/70"
                     >
                       <X size={11} />
                     </button>
@@ -313,42 +295,40 @@ export function CustomerDrawer({
                     }
                   }}
                   placeholder="+ Add tag"
-                  className="h-6 w-24 rounded-full border border-dashed border-[#C9CBD3] px-2.5 text-xs"
+                  className="h-6 w-24 rounded-md border border-dashed border-line-input bg-transparent px-2 text-xs transition-colors duration-150 placeholder:text-faint hover:border-primary focus:border-primary focus:outline-none motion-reduce:transition-none"
                 />
               )}
             </div>
           </section>
 
-          <section aria-labelledby="cu-convs" className="mt-5">
+          <section aria-labelledby="cu-convs" className="mt-6">
             <h3 id="cu-convs" className={heading}>
-              Conversations
+              Recent conversations
             </h3>
-            {convs.isPending && <Skeleton className="h-10" />}
+            {convs.isPending && <Skeleton className="h-12" />}
             {convs.data?.length === 0 && (
-              <p className="m-0 text-[13px] text-muted">No linked conversations.</p>
+              <p className="m-0 text-[13px] text-muted">No conversations with this customer yet.</p>
             )}
-            <ul className="m-0 flex list-none flex-col gap-1 p-0">
+            <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
               {convs.data?.map((x) => (
                 <li key={x.id}>
                   <button
                     type="button"
                     onClick={() => onOpenConversation(x.id)}
-                    className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg border border-line-subtle p-2 text-left hover:bg-wash"
+                    className="flex w-full cursor-pointer items-center gap-3 rounded-xl border border-line px-3 py-2.5 text-left transition-colors duration-150 hover:border-line-input hover:bg-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
                   >
-                    <span
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ background: CHANNELS[x.provider].color }}
-                      aria-hidden
-                    />
+                    <ChannelIcon channel={x.provider} size={18} decorative />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13px]">
+                      <span className="block truncate text-[13px] text-ink">
                         {x.preview || 'No messages'}
                       </span>
-                      <span className="block text-xs text-faint">
-                        {CHANNELS[x.provider].label} · {x.status.toLowerCase()} ·{' '}
-                        {fmtAgo(x.lastMessageAt)}
-                        {x.assignee ? ` · ${x.assignee.name}` : ''}
+                      <span className="block truncate text-xs text-muted">
+                        {CHANNELS[x.provider].label}
+                        {x.assignee ? ` · ${x.assignee.name}` : ''} · {fmtAgo(x.lastMessageAt)}
                       </span>
+                    </span>
+                    <span className="shrink-0 rounded-full bg-wash-2 px-2 py-0.5 text-[11px] font-medium text-muted">
+                      {STATUS_LABEL[x.status]}
                     </span>
                   </button>
                 </li>
@@ -369,7 +349,7 @@ export function CustomerDrawer({
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Visible to your team only…"
-                  className="w-full resize-y rounded-[10px] border border-line p-2.5 text-[13px]"
+                  className={AREA}
                 />
                 <div className="mt-1.5 flex justify-end">
                   <Button
@@ -540,8 +520,8 @@ export function CustomerDrawer({
               Tag and field change history isn&apos;t recorded yet.
             </p>
           </section>
-        </div>
-      </aside>
+        </ProfileBody>
+      </ProfileShell>
       {delNote && (
         <ConfirmDialog
           title="Delete this note?"

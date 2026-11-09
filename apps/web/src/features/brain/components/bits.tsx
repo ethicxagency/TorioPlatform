@@ -2,12 +2,11 @@
 
 import { Check, Plus, X } from 'lucide-react';
 import { useId, useState } from 'react';
+import { AREA, controlCls } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
-export const inputCls =
-  'h-10 w-full rounded-[10px] border border-line bg-white px-3 text-sm text-ink placeholder:text-[#9A9DA5] focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-[#FBFBFC] disabled:text-muted';
-export const areaCls =
-  'w-full resize-y rounded-[10px] border border-line bg-white p-3 text-sm text-ink placeholder:text-[#9A9DA5] focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-[#FBFBFC] disabled:text-muted';
+export const inputCls = controlCls;
+export const areaCls = AREA;
 
 export function Field({
   label,
@@ -344,7 +343,7 @@ export function SectionCard({
     <section
       id={id}
       aria-labelledby={`${id}-h`}
-      className="scroll-mt-16 rounded-[14px] border border-line bg-white"
+      className="scroll-mt-16 rounded-card border border-line bg-white"
     >
       <header className="flex flex-wrap items-start gap-3 border-b border-line-subtle px-5 py-4">
         <div className="min-w-0 flex-1">
@@ -374,7 +373,7 @@ export function Drawer({
 }) {
   return (
     <>
-      <div className="fixed inset-0 z-[80] bg-[rgba(13,37,61,0.25)]" onClick={onClose} />
+      <div className="fixed inset-0 z-[80] glass-scrim" onClick={onClose} />
       <aside
         role="dialog"
         aria-modal="true"

@@ -11,7 +11,7 @@ const digits = (v: string) => v.replace(/\D/g, '');
 
 interface WaMessage {
   id: string;
-  from: string;
+  from?: string;
   timestamp?: string;
   type: string;
   text?: { body: string };
@@ -163,6 +163,11 @@ export class WhatsAppWebhookService {
   private async inbound(ch: { id: string; workspaceId: string }, v: WaValue, m: WaMessage) {
     const db = this.prisma.client;
     const ws = ch.workspaceId;
+    // Users who adopted a WhatsApp username may arrive without a phone number (only a business-scoped user id).
+    if (!m.from)
+      throw new Error(
+        'This sender has no phone number (WhatsApp username users aren’t supported yet)',
+      );
     const key = digits(m.from);
     const name = v.contacts?.find((c) => c.wa_id === m.from)?.profile?.name;
     const at = m.timestamp ? new Date(Number(m.timestamp) * 1000) : new Date();

@@ -8,9 +8,10 @@ import { useWorkspace } from '@/lib/workspace';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Modal } from '@/features/leads/components/modal';
 import { cn } from '@/lib/utils';
-import { useConnectWhatsApp } from '../queries';
+import { useConnectWhatsApp, useMetaConfig, useMetaStart } from '../queries';
 import type { ProviderInfo } from '../types';
 import { ProviderMark } from './bits';
+import { useWhatsAppSignup } from './meta-connect';
 
 interface Props {
   providers: ProviderInfo[] | undefined;
@@ -18,19 +19,45 @@ interface Props {
   error?: string;
   onRetry: () => void;
   onClose: () => void;
+  /** Preselect a platform, e.g. when reconnecting a channel. */
+  initialProvider?: string;
 }
 
 /**
  * Provider picker + prerequisites. A provider is only startable when the API reports `available`. Today none are,
  * so the flow explains what a connection will need and never pretends to connect.
  */
-export function ConnectDialog({ providers, loading, error, onRetry, onClose }: Props) {
-  const [sel, setSel] = useState<string>('');
+export function ConnectDialog({
+  providers,
+  loading,
+  error,
+  onRetry,
+  onClose,
+  initialProvider,
+}: Props) {
+  const [sel, setSel] = useState<string>(initialProvider ?? '');
   const chosen = providers?.find((p) => p.provider === sel);
   const { workspaceId } = useWorkspace();
   const connect = useConnectWhatsApp(workspaceId);
+  const start = useMetaStart(workspaceId);
+  const metaCfg = useMetaConfig(workspaceId, true);
+  const [manual, setManual] = useState(false);
+  const embedded =
+    chosen?.provider === 'WHATSAPP' &&
+    chosen.method === 'embedded_signup' &&
+    !manual &&
+    metaCfg.data?.appId &&
+    metaCfg.data.whatsappConfigId
+      ? {
+          appId: metaCfg.data.appId,
+          graphVersion: metaCfg.data.graphVersion,
+          configId: metaCfg.data.whatsappConfigId,
+        }
+      : null;
+  const signup = useWhatsAppSignup(workspaceId, embedded);
+  const oauth = chosen?.state === 'available' && chosen.method === 'oauth';
   const [wa, setWa] = useState({ displayName: '', phoneNumberId: '', accessToken: '' });
-  const isWa = chosen?.provider === 'WHATSAPP' && chosen.state === 'available';
+  const isWa = chosen?.provider === 'WHATSAPP' && chosen.state === 'available' && !embedded;
   const waReady =
     wa.displayName.trim() &&
     /^\d{5,30}$/.test(wa.phoneNumberId.trim()) &&
@@ -45,15 +72,36 @@ export function ConnectDialog({ providers, loading, error, onRetry, onClose }: P
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          <Button
-            disabled={
-              !chosen || chosen.state !== 'available' || !isWa || !waReady || connect.isPending
-            }
-            title={chosen?.state === 'unavailable' ? chosen.reason : undefined}
-            onClick={() => connect.mutate(wa, { onSuccess: onClose })}
-          >
-            {connect.isPending ? 'Verifying with Meta…' : `Connect ${chosen?.label ?? 'channel'}`}
-          </Button>
+          {oauth ? (
+            <Button
+              loading={start.isPending}
+              onClick={() =>
+                start.mutate(chosen!.provider as 'MESSENGER' | 'INSTAGRAM', {
+                  onSuccess: (url) => window.location.assign(url),
+                })
+              }
+            >
+              {start.isPending ? 'Opening Meta…' : 'Continue with Meta'}
+            </Button>
+          ) : embedded ? (
+            <Button
+              disabled={!wa.displayName.trim()}
+              loading={signup.busy}
+              onClick={() => void signup.start(wa.displayName.trim(), onClose)}
+            >
+              {signup.busy ? 'Waiting for Meta…' : 'Continue with Meta'}
+            </Button>
+          ) : (
+            <Button
+              disabled={
+                !chosen || chosen.state !== 'available' || !isWa || !waReady || connect.isPending
+              }
+              title={chosen?.state === 'unavailable' ? chosen.reason : undefined}
+              onClick={() => connect.mutate(wa, { onSuccess: onClose })}
+            >
+              {connect.isPending ? 'Verifying with Meta…' : `Connect ${chosen?.label ?? 'channel'}`}
+            </Button>
+          )}
         </>
       }
     >
@@ -155,6 +203,66 @@ export function ConnectDialog({ providers, loading, error, onRetry, onClose }: P
                     <p role="alert" className="m-0 text-xs text-danger">
                       {connect.error.message}
                     </p>
+                  )}
+                </div>
+              )}
+              {oauth && (
+                <div className="mt-3 flex flex-col gap-1.5 text-xs text-muted">
+                  <p className="m-0">
+                    You&apos;ll sign in with Facebook and choose{' '}
+                    {chosen.provider === 'INSTAGRAM' ? 'an Instagram account' : 'a Page'}. Torio
+                    asks only for permission to{' '}
+                    {chosen.provider === 'INSTAGRAM'
+                      ? 'read the account list, '
+                      : 'list your Pages, '}
+                    receive messages and reply to them. Your Meta password is never shared with
+                    Torio.
+                  </p>
+                  {start.error && (
+                    <p role="alert" className="m-0 text-danger">
+                      {start.error.message}
+                    </p>
+                  )}
+                </div>
+              )}
+              {chosen.provider === 'WHATSAPP' && chosen.method === 'embedded_signup' && (
+                <div className="mt-3 flex flex-col gap-2">
+                  <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+                    Display name
+                    <Input
+                      value={wa.displayName}
+                      maxLength={60}
+                      onChange={(e) => setWa({ ...wa, displayName: e.target.value })}
+                    />
+                  </label>
+                  {!manual ? (
+                    <>
+                      <p className="m-0 text-xs text-muted">
+                        Meta&apos;s Embedded Signup lets you choose or create your business
+                        portfolio, WhatsApp Business Account and phone number, then verify the
+                        number.
+                      </p>
+                      {signup.error && (
+                        <p role="alert" className="m-0 text-xs text-danger">
+                          {signup.error}
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setManual(true)}
+                        className="cursor-pointer self-start rounded border-none bg-transparent p-0 text-xs font-medium text-primary hover:underline"
+                      >
+                        Use a Cloud API access token instead
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setManual(false)}
+                      className="cursor-pointer self-start rounded border-none bg-transparent p-0 text-xs font-medium text-primary hover:underline"
+                    >
+                      Back to Embedded Signup
+                    </button>
                   )}
                 </div>
               )}

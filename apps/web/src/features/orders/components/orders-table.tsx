@@ -109,7 +109,7 @@ function RowMenu({ o, p }: { o: OrderItem; p: Props }) {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-9 z-20 w-[210px] animate-panel-in rounded-xl border border-line bg-white p-1.5 shadow-popover"
+          className="absolute right-0 top-9 z-20 w-[210px] animate-panel-in rounded-xl border border-line glass-menu p-1.5 shadow-popover"
         >
           <button
             role="menuitem"
@@ -295,11 +295,8 @@ export function OrdersTable(p: Props) {
                 }}
                 className={cn(
                   'cursor-pointer border-b border-line-subtle last:border-0 focus-visible:outline-offset-[-2px]',
-                  p.selected.has(o.id)
-                    ? 'bg-primary-soft'
-                    : p.activeId === o.id
-                      ? 'bg-[#F1F1FF]'
-                      : 'hover:bg-[#F7F7F9]',
+                  'transition-colors duration-150 motion-reduce:transition-none',
+                  p.selected.has(o.id) || p.activeId === o.id ? 'bg-primary-soft' : 'hover:bg-wash',
                 )}
               >
                 <td className="w-10 px-3 py-2.5">

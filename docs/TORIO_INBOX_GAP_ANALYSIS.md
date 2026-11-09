@@ -15,7 +15,7 @@ Date: 2026-11-02. Audited against the code on `main`: Prisma schema, NestJS modu
   bulk actions, saved replies (list/create/delete), customers (incl. activity and conversations), leads
   (pipeline + activity), orders (full CRUD), automations, WhatsApp Cloud webhooks/send/retry, realtime gateway
   (socket.io, ids only).
-- **Inbox UI:** navigation column, list with filters/search/sort/bulk, chat with grouping, notes, reply-to, retry,
+- **Inbox UI:** channel tabs, list with search + Conversations/Status dropdowns + sort + filters, bulk, chat with grouping, notes, reply-to, retry,
   new-message indicator, assignment, snooze, resolve, urgent, Quick Customer Details panel, saved replies picker,
   emoji, Create Order drawer, responsive one-pane mobile flow.
 
@@ -23,16 +23,16 @@ Date: 2026-11-02. Audited against the code on `main`: Prisma schema, NestJS modu
 
 | Feature                                   | Existing | Partial | Missing | Action                                                                             |
 | ----------------------------------------- | :------: | :-----: | :-----: | ---------------------------------------------------------------------------------- |
-| Channel tabs WhatsApp/Instagram/Messenger |    ✓     |         |         | Keep (nav column + chips)                                                          |
+| Channel tabs WhatsApp/Instagram/Messenger |    ✓     |         |         | Tabs above the list heading; status counts follow the channel                      |
 | Facebook / Instagram comments             |          |         |    ✓    | Needs new provider ingestion + data model; not started                             |
-| Unread counts per channel                 |          |    ✓    |         | API returns status counts only; add per-channel unread counts                      |
+| Conversation counts per channel           |    ✓     |         |         | Tab badges: conversations in the selected status per channel (see below)           |
 | Agent availability (Available/Busy/Away)  |          |         |    ✓    | Needs a membership field + API + realtime; not started                             |
 | Filters: Unread, Priority                 |    ✓     |         |         | Keep                                                                               |
 | Filters: Ad replies, Follow up            |          |         |    ✓    | No ad-referral or follow-up data captured; not started                             |
 | Assign to agent / reassign / unassign     |    ✓     |         |         | Keep                                                                               |
 | Assign to team                            |          |    ✓    |         | Teams exist; conversations have no team field                                      |
-| Conversation tags                         |          |    ✓    |         | Tags live on customers, not conversations                                          |
-| Mark read/unread, snooze, resolve, bulk   |    ✓     |         |         | Keep                                                                               |
+| Conversation tags                         |          |    ✓    |         | Tags live on customers; filter lists workspace tags. No bulk tag edit yet          |
+| Mark read/unread, snooze, resolve, bulk   |    ✓     |         |         | Manage mode: bulk assign/unassign, read, unread, priority, snooze, resolve         |
 | Conversation list pagination              |          |    ✓    |         | API pages; UI loads first 100 only                                                 |
 | Message history pagination                |          |    ✓    |         | API pages; UI loads first 200 only                                                 |
 | Images, documents, audio, video           |          |         |    ✓    | Message is text only; needs attachment model, storage and provider media           |
@@ -60,6 +60,15 @@ Date: 2026-11-02. Audited against the code on `main`: Prisma schema, NestJS modu
 | Business hours, SLA notifications         |          |         |    ✓    | No schedule model; notifications not built                                         |
 | Messenger / Instagram sending             |          |    ✓    |         | Channels modelled; sending only implemented for WhatsApp                           |
 | Realtime updates                          |    ✓     |         |         | socket.io; unavailable on Vercel functions                                         |
+
+## Channel badge definition
+
+Each channel tab shows how many conversations in the selected status (Open by default) belong to that channel,
+across the whole workspace. View (Unread, Mine, Unassigned), search and advanced filters do not change the
+badges, so they stay stable while you narrow the list. "All messages" is the sum of the three providers, so no
+conversation is counted twice. The Status dropdown is the mirror image: its counts follow the selected channel.
+Both come from the same list response (`counts`, `channelCounts`) and refresh whenever the list refetches
+(after any conversation change or realtime event). Unread totals are not shown: the API has no unread aggregate.
 
 ## Recommended order
 

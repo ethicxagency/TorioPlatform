@@ -5,7 +5,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  'inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full font-semibold transition-[background-color,border-color,color,box-shadow] duration-150 ease-[var(--ease-standard)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none',
+  'inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-control)] font-semibold [&_svg]:shrink-0 transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-[var(--ease-standard)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:translate-y-px disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none',
   {
     variants: {
       variant: {
@@ -13,12 +13,14 @@ const buttonVariants = cva(
           'bg-primary text-white shadow-[0_1px_3px_rgba(0,55,112,0.08)] hover:bg-primary-hover active:bg-primary-press',
         outline: 'border border-line bg-surface text-ink hover:border-[#D5D7DD] hover:bg-wash',
         ghost: 'bg-transparent text-muted hover:bg-wash',
+        destructive:
+          'bg-danger text-white shadow-[0_1px_3px_rgba(0,55,112,0.08)] hover:bg-[#A82828] active:bg-[#8F2424] focus-visible:outline-danger',
         dark: 'bg-ink text-white',
       },
       size: {
-        sm: 'h-[30px] px-3.5 text-[12.5px]',
-        md: 'h-9 px-4 text-[13.5px]',
-        icon: 'h-9 w-9 rounded-[var(--radius-control)]',
+        sm: 'h-8 rounded-lg px-3 text-[12.5px] [&_svg]:size-3.5',
+        md: 'h-9 px-4 text-[13.5px] [&_svg]:size-4',
+        icon: 'h-9 w-9 px-0 [&_svg]:size-[18px]',
       },
     },
     defaultVariants: { variant: 'primary', size: 'md' },

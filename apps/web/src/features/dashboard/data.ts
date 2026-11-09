@@ -138,11 +138,6 @@ export const NAV: NavDef[] = [
     icon: 'M9 11.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4zM3 20c0-3.6 2.8-6 6-6s6 2.4 6 6M16 6.4a2.6 2.6 0 0 1 0 5.2M14 15c2.4.3 4 2 4 5',
   },
   { label: 'Orders', icon: 'M4 8l8-4 8 4-8 4-8-4zM4 8v9l8 4 8-4V8M12 12v9' },
-  { label: 'Team', icon: IC.team },
-  {
-    label: 'Channels',
-    icon: 'M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM12 13.6a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2zM17 7l3-3M4 20l3-3',
-  },
   { label: 'Automation', icon: 'M13 2L5 14h6l-2 8 10-12h-6z' },
   { label: 'Brain', icon: IC.brain },
   // Always last in the customer portal navigation.

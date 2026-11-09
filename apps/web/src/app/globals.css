@@ -36,8 +36,9 @@
   --radius-2xl: 16px;
   --radius-card: 12px;
   --radius-panel: 16px;
-  --radius-control: 8px;
-  --radius-input: 6px;
+  --radius-control: 10px;
+  --radius-input: 8px;
+  --radius-menu: 10px;
 
   /* Weight hierarchy (DESIGN.md): 400 text, 500 navigation/values, 560 labels, 600 titles, 650 sections, 700
      page titles and metrics. Inter Variable renders every step. */
@@ -51,12 +52,26 @@
   --shadow-card-hover: 0 1px 3px rgba(0, 55, 112, 0.08), 0 6px 16px -4px rgba(0, 55, 112, 0.1);
   --shadow-popover: 0 8px 24px rgba(0, 55, 112, 0.08), 0 2px 6px rgba(0, 55, 112, 0.04);
 
+  /* Motion tokens: keep UI motion at or under --duration-complex. Use transform and opacity only. */
+  --duration-instant: 100ms;
+  --duration-fast: 140ms;
+  --duration-standard: 180ms;
+  --duration-smooth: 220ms;
+  --duration-emphasis: 280ms;
+  --duration-complex: 320ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
 
-  --animate-panel-in: panel-in 0.15s ease-out;
+  --animate-panel-in: panel-in var(--duration-standard) var(--ease-standard);
+  --animate-fade-in: fade-in var(--duration-fast) var(--ease-enter);
+  --animate-modal-in: modal-in var(--duration-standard) var(--ease-enter);
+  --animate-page-in: page-in var(--duration-smooth) var(--ease-enter);
+  --animate-message-in: message-in var(--duration-standard) var(--ease-enter);
   --animate-toast-in: toast-in 0.18s ease-out;
-  --animate-drawer-in: drawer-in 0.18s ease-out;
+  --animate-drawer-in: drawer-in var(--duration-smooth) var(--ease-standard);
   --animate-pulse-soft: pulse-soft 1.2s ease-in-out infinite;
+  --animate-badge-in: badge-in 0.18s ease-out;
 
   @keyframes panel-in {
     from {
@@ -66,6 +81,44 @@
     to {
       opacity: 1;
       transform: translateY(0);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes modal-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.985);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  @keyframes page-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes message-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
     }
   }
   @keyframes toast-in {
@@ -86,6 +139,16 @@
     to {
       transform: translateX(0);
       opacity: 1;
+    }
+  }
+  @keyframes badge-in {
+    from {
+      opacity: 0;
+      transform: scale(0.6);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
     }
   }
   @keyframes pulse-soft {
@@ -164,6 +227,10 @@
   h3 {
     text-wrap: balance;
   }
+  /* One stroke weight for the whole icon set. */
+  .lucide {
+    stroke-width: 1.75;
+  }
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -213,7 +280,7 @@
 @utility font-page-title {
   font-size: 26px;
   line-height: 1.2;
-  font-weight: 700;
+  font-weight: 650;
   letter-spacing: -0.02em;
 }
 @utility font-section-title {
@@ -228,7 +295,7 @@
   font-weight: 600;
 }
 @utility font-metric {
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.15;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
@@ -254,4 +321,43 @@
   font-weight: 400;
   color: var(--color-faint);
   font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Material system. Solid white is the default surface; glass is reserved for three things:
+ *  - glass-header: the top bar, the one surface content scrolls under.
+ *  - glass-menu: small floating menus and popovers (never inside another glass layer, never on tables or forms).
+ *  - glass-scrim: the dim layer behind dialogs and drawers.
+ * Each falls back to a solid surface when the user asks for reduced transparency.
+ */
+@utility glass-header {
+  background-color: color-mix(in srgb, var(--color-surface) 86%, transparent);
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  @media (prefers-reduced-transparency: reduce) {
+    background-color: var(--color-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+@utility glass-menu {
+  background-color: color-mix(in srgb, var(--color-surface) 93%, transparent);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  @media (prefers-reduced-transparency: reduce) {
+    background-color: var(--color-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+@utility glass-scrim {
+  animation: var(--animate-fade-in);
+  background-color: rgba(13, 37, 61, 0.32);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  @media (prefers-reduced-transparency: reduce) {
+    background-color: rgba(13, 37, 61, 0.45);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }

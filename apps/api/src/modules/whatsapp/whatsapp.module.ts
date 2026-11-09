@@ -23,6 +23,7 @@ import { WhatsAppWebhookService } from './whatsapp.webhook.service';
     WhatsAppWebhookService,
     WhatsAppGraphProvider,
     ChannelCryptoService,
+    WhatsAppConnectionService,
   ],
 })
 export class WhatsAppModule {}

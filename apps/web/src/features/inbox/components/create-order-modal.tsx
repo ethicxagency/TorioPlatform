@@ -4,6 +4,7 @@ import { currencyDef, MAX_ORDER_LINES } from '@torio/contracts';
 import { Loader2, Minus, Package, Plus, Search, Trash2, X } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from './confirm-dialog';
 import { useBrain } from '@/features/brain/queries';
 import { CURRENCIES, DEFAULT_CURRENCY } from '@/features/orders/constants';
 import { formatMoney, parseMinor } from '@/features/orders/money';
@@ -53,11 +54,11 @@ const label = 'mb-1.5 block font-label text-ink';
 const optional = <span className="font-normal text-faint"> · Optional</span>;
 
 /**
- * Create order from a conversation, as a right-side drawer (full screen on phones). The customer and
+ * Create order from a conversation, as a centered modal (near full screen on phones). The customer and
  * conversation come from the chat. Items come from the Brain product catalogue or are typed by hand;
  * the order is saved through the existing Orders API, which computes the final totals.
  */
-export function CreateOrderDrawer({ c, offerSummary, onClose, onCreate }: Props) {
+export function CreateOrderModal({ c, offerSummary, onClose, onCreate }: Props) {
   const { workspaceId: ws, workspace } = useWorkspace();
   const brain = useBrain(ws);
   const titleId = useId();
@@ -79,11 +80,26 @@ export function CreateOrderDrawer({ c, offerSummary, onClose, onCreate }: Props)
   const [addSummary, setAddSummary] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   // One key per drawer session: a retry after a network failure can't create a second order.
   const requestId = useRef(crypto.randomUUID());
   const searchRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => searchRef.current?.focus(), []);
+  // Capture the opener before the search field takes focus, and hand focus back to it on close.
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    searchRef.current?.focus();
+    // Deferred: closing from an outside mousedown would otherwise be followed by the browser moving focus to <body>.
+    return () => {
+      setTimeout(() => prev?.focus(), 0);
+    };
+  }, []);
+  /** Anything typed or picked that an accidental outside click would throw away. */
+  const dirty =
+    lines.some((l) => l.name.trim() || l.price.trim()) ||
+    !!description.trim() ||
+    !!discount.trim() ||
+    !!shipping.trim();
 
   const products: Product[] = useMemo(
     () =>
@@ -174,25 +190,29 @@ export function CreateOrderDrawer({ c, offerSummary, onClose, onCreate }: Props)
   const money = (minor: number) => formatMoney(minor, currency);
 
   return (
-    <>
+    <div
+      className="fixed inset-0 z-[80] flex items-end justify-center glass-scrim sm:items-center sm:p-4"
+      onMouseDown={(e) => {
+        // An outside click only closes straight away when nothing would be lost.
+        if (e.target !== e.currentTarget || busy) return;
+        if (dirty) setConfirmDiscard(true);
+        else onClose();
+      }}
+    >
       <div
-        className="fixed inset-0 z-[80] animate-panel-in bg-[rgba(13,37,61,0.25)]"
-        onClick={() => !busy && onClose()}
-      />
-      <aside
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        // Escape closes only the drawer (the search results first); it doesn't reach the Inbox's own handler.
+        // Escape closes only the modal (the search results first); it doesn't reach the Inbox's own handler.
         onKeyDown={(e) => {
           if (e.key !== 'Escape') return;
           e.stopPropagation();
           if (searchOpen) setSearchOpen(false);
           else if (!busy) onClose();
         }}
-        className="fixed inset-y-0 right-0 z-[81] flex w-full animate-drawer-in flex-col bg-white shadow-[-8px_0_32px_rgba(0,55,112,0.14)] sm:w-[min(460px,100vw)]"
+        className="flex h-[calc(100dvh-32px)] w-full animate-modal-in flex-col overflow-hidden rounded-t-2xl border border-line bg-white shadow-popover motion-reduce:animate-none sm:h-auto sm:max-h-[min(720px,calc(100dvh-48px))] sm:max-w-[560px] sm:rounded-2xl"
       >
-        <header className="flex items-center gap-3 px-5 pb-2 pt-4">
+        <header className="flex shrink-0 items-center gap-3 border-b border-line-subtle px-5 py-3.5">
           <h2 id={titleId} className="m-0 flex-1 font-section-title text-ink">
             Create order
           </h2>
@@ -591,12 +611,21 @@ export function CreateOrderDrawer({ c, offerSummary, onClose, onCreate }: Props)
           )}
         </div>
 
-        <footer className="flex justify-end border-t border-line px-5 py-3.5 pb-[max(14px,env(safe-area-inset-bottom))]">
+        <footer className="flex shrink-0 justify-end border-t border-line-subtle bg-white px-5 py-3.5 pb-[max(14px,env(safe-area-inset-bottom))]">
           <Button disabled={!valid} loading={busy} onClick={() => void submit()}>
             {busy ? 'Creating…' : 'Create order'}
           </Button>
         </footer>
-      </aside>
-    </>
+      </div>
+      {confirmDiscard && (
+        <ConfirmDialog
+          title="Discard this order?"
+          body="You have items or details that haven't been saved. Closing now will lose them."
+          confirmLabel="Discard order"
+          onCancel={() => setConfirmDiscard(false)}
+          onConfirm={onClose}
+        />
+      )}
+    </div>
   );
 }

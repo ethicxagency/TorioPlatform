@@ -38,12 +38,20 @@ export const envSchema = z
     STRIPE_SECRET_KEY: z.string().min(8).optional(),
     STRIPE_WEBHOOK_SECRET: z.string().min(8).optional(),
     // Meta / WhatsApp Cloud API (all optional: without them WhatsApp can't be connected and the UI says so).
+    META_APP_ID: z
+      .string()
+      .regex(/^\d{6,}$/, 'must be the numeric Meta app id')
+      .optional(),
+    /** Where Meta sends the browser after OAuth: https://<api-host>/api/v1/channels/meta/callback. Must match the app settings exactly. */
+    META_OAUTH_REDIRECT_URI: z.url().optional(),
+    /** WhatsApp Embedded Signup configuration id (Facebook Login for Business). Optional: without it only the manual token flow is offered. */
+    META_WA_CONFIG_ID: z.string().min(4).optional(),
     META_APP_SECRET: z.string().min(8).optional(),
     META_WEBHOOK_VERIFY_TOKEN: z.string().min(8).optional(),
     META_GRAPH_VERSION: z
       .string()
       .regex(/^v\d+\.\d+$/)
-      .default('v21.0'),
+      .default('v27.0'),
     /** Secret used to encrypt provider tokens at rest. Rotating it invalidates stored tokens. */
     CHANNEL_ENCRYPTION_KEY: z.string().min(32, 'must be at least 32 characters').optional(),
     /** JSON: { "starter": { "month": "price_…", "year": "price_…" }, … } */

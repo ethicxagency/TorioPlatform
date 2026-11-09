@@ -27,6 +27,7 @@ import {
   customerNoteListSchema,
   customerQuerySchema,
   customerSummarySchema,
+  customerTagListSchema,
   leadImportResultSchema,
   updateCustomerSchema,
 } from '@torio/contracts';
@@ -42,6 +43,7 @@ class CustomerExportQueryDto extends createZodDto(customerExportQuerySchema) {}
 class CustomerDirectoryDto extends createZodDto(customerDirectorySchema) {}
 class CustomerItemDto extends createZodDto(customerListItemSchema) {}
 class CustomerSummaryDto extends createZodDto(customerSummarySchema) {}
+class CustomerTagListDto extends createZodDto(customerTagListSchema) {}
 class CreateCustomerDto extends createZodDto(customerInputSchema) {}
 class UpdateCustomerDto extends createZodDto(updateCustomerSchema) {}
 class CustomerNoteListDto extends createZodDto(customerNoteListSchema) {}
@@ -68,6 +70,13 @@ export class CustomersController {
   @ApiOkResponse({ type: CustomerDirectoryDto })
   list(@Param('workspaceId', ParseUUIDPipe) ws: string, @Query() q: CustomerQueryDto) {
     return this.customers.list(ws, q);
+  }
+
+  @Get('tags')
+  @RequirePermission('customers:read')
+  @ApiOkResponse({ type: CustomerTagListDto })
+  tags(@Param('workspaceId', ParseUUIDPipe) ws: string) {
+    return this.customers.tags(ws);
   }
 
   @Get('summary')

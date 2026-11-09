@@ -107,7 +107,7 @@ function RowMenu({ c, p }: { c: CustomerItem; p: Props }) {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-9 z-20 w-[200px] animate-panel-in rounded-xl border border-line bg-white p-1.5 shadow-popover"
+          className="absolute right-0 top-9 z-20 w-[200px] animate-panel-in rounded-xl border border-line glass-menu p-1.5 shadow-popover"
         >
           <button
             role="menuitem"
@@ -301,11 +301,8 @@ export function CustomersTable(p: Props) {
                 }}
                 className={cn(
                   'cursor-pointer border-b border-line-subtle last:border-0 focus-visible:outline-offset-[-2px]',
-                  p.selected.has(c.id)
-                    ? 'bg-primary-soft'
-                    : p.activeId === c.id
-                      ? 'bg-[#F1F1FF]'
-                      : 'hover:bg-[#F7F7F9]',
+                  'transition-colors duration-150 motion-reduce:transition-none',
+                  p.selected.has(c.id) || p.activeId === c.id ? 'bg-primary-soft' : 'hover:bg-wash',
                 )}
               >
                 <td className="w-10 px-3 py-2.5">
@@ -344,7 +341,7 @@ export function CustomersTable(p: Props) {
                     {c.tags.slice(0, 2).map((t) => (
                       <span
                         key={t}
-                        className="truncate rounded-full bg-primary-soft px-2 py-px text-xs text-primary-hover"
+                        className="inline-flex h-[18px] max-w-[110px] items-center truncate rounded-full bg-wash-2 px-2 text-[11px] leading-none text-muted"
                       >
                         {t}
                       </span>

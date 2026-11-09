@@ -80,3 +80,22 @@ test('accept-invite page explains an invalid link', async ({ page }) => {
   await page.goto('/accept-invite?token=short');
   await expect(page.getByRole('alert').filter({ hasText: 'Invitation unavailable' })).toBeVisible();
 });
+
+test.describe('teams tab', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockApi(page);
+    await page.goto('/team');
+    await page.getByRole('tab', { name: /^Teams/ }).click();
+  });
+
+  test('search and sort work on the loaded teams', async ({ page }) => {
+    const search = page.getByRole('searchbox', { name: 'Search teams' });
+    await expect(search).toHaveAttribute('placeholder', 'Search team name or description');
+    await search.fill('zzzz');
+    await expect(page.getByText(/No teams match/)).toBeVisible();
+    await page.getByRole('button', { name: 'Clear search', exact: true }).last().click();
+    await expect(page.getByRole('heading', { name: 'Support' })).toBeVisible();
+    await page.getByRole('button', { name: /^Sort:/ }).click();
+    await expect(page.getByRole('listbox', { name: 'Sort' }).getByRole('option')).toHaveCount(4);
+  });
+});

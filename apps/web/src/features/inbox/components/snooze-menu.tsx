@@ -11,9 +11,15 @@ interface Props {
   onPick: (until: Date) => void;
   onClose: () => void;
   align?: 'left' | 'right';
+  label?: string;
 }
 
-export function SnoozeMenu({ onPick, onClose, align = 'right' }: Props) {
+export function SnoozeMenu({
+  onPick,
+  onClose,
+  align = 'right',
+  label = 'Snooze conversation',
+}: Props) {
   const ref = useRef<HTMLDivElement>(null);
   useDismiss(ref, true, onClose);
   useKeepInView(ref);
@@ -22,9 +28,9 @@ export function SnoozeMenu({ onPick, onClose, align = 'right' }: Props) {
     <div
       ref={ref}
       role="menu"
-      aria-label="Snooze conversation"
+      aria-label={label}
       className={cn(
-        'absolute top-11 z-30 max-h-[min(360px,calc(100vh-140px))] w-[min(230px,calc(100vw-24px))] overflow-y-auto animate-panel-in rounded-xl border border-line bg-white p-1.5 shadow-popover',
+        'absolute top-11 z-30 max-h-[min(360px,calc(100vh-140px))] w-[min(230px,calc(100vw-24px))] overflow-y-auto animate-panel-in rounded-xl border border-line glass-menu p-1.5 shadow-popover',
         align === 'right' ? 'right-0' : 'left-0',
       )}
     >

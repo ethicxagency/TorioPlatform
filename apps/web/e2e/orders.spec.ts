@@ -22,7 +22,17 @@ test.describe('orders (owner)', () => {
     const kpis = page.getByRole('region', { name: /Order metrics/ });
     await expect(kpis.getByText('Total orders')).toBeVisible();
     await expect(kpis.getByText('Revenue collected')).toBeVisible();
-    await expect(kpis.getByText('Recorded payments, excl. cancelled')).toBeVisible();
+    for (const t of ['Pending payments', 'Processing', 'Completed'])
+      await expect(kpis.getByText(t, { exact: true })).toBeVisible();
+    // The supporting lines under the values are gone.
+    for (const t of [
+      /\d+ cancelled/,
+      'Recorded payments, excl. cancelled',
+      /outstanding/,
+      'Confirmed or in progress',
+      'Fulfilled and paid',
+    ])
+      await expect(kpis.getByText(t)).toHaveCount(0);
   });
 
   test('search, status filter and sort query the API', async ({ page }) => {
@@ -30,7 +40,7 @@ test.describe('orders (owner)', () => {
     await expect(page.getByRole('checkbox', { name: /Select order #1001/ })).toHaveCount(0);
     await expect(page.getByRole('checkbox', { name: /Select order #1002/ })).toBeVisible();
     await page.getByLabel('Search orders').fill('');
-    await page.getByRole('button', { name: 'Filters' }).click();
+    await page.getByRole('button', { name: 'Filters', exact: true }).click();
     await page.getByRole('button', { name: 'Cancelled', exact: true }).click();
     await expect(page.getByRole('checkbox', { name: /Select order #1003/ })).toBeVisible();
     await expect(page.getByRole('checkbox', { name: /Select order #1001/ })).toHaveCount(0);
@@ -40,13 +50,30 @@ test.describe('orders (owner)', () => {
     await expect(page.getByRole('checkbox', { name: /Select order #1001/ })).toBeVisible();
   });
 
-  test('drawer shows items, financial summary, honest payment and shipping notes', async ({
+  test('sort menu and order date filter combine with search', async ({ page }) => {
+    await expect(page.getByRole('row', { name: /#1002/ })).toBeVisible();
+    await page.getByLabel('Search orders').fill('1002');
+    await page.getByRole('button', { name: /^Sort:/ }).click();
+    await page
+      .getByRole('listbox', { name: 'Sort' })
+      .getByRole('option', { name: 'Highest value' })
+      .click();
+    await expect(page.getByRole('button', { name: 'Sort: Highest value' })).toBeVisible();
+    await page.getByRole('button', { name: 'Filters', exact: true }).click();
+    await page.getByLabel('Order date').selectOption('30d');
+    await expect(page.getByRole('button', { name: 'Filters, 1 applied' })).toBeVisible();
+    await expect(page.getByLabel('Search orders')).toHaveValue('1002');
+  });
+
+  test('details page shows items, financial summary, honest payment and shipping notes', async ({
     page,
   }) => {
     await page.getByRole('row', { name: /#1001/ }).click();
-    const d = page.getByRole('dialog', { name: 'Order #1001' });
+    const d = page.getByRole('main');
+    await expect(page).toHaveURL(/\/orders\/[^/]+$/);
+    await expect(d.getByRole('heading', { name: /Order #1001/ })).toBeVisible();
     await expect(d.getByText('Linen sofa')).toBeVisible();
-    await expect(d.getByText('Outstanding')).toBeVisible();
+    await expect(d.getByText('Outstanding').first()).toBeVisible();
     await expect(d.getByText('No payments recorded yet.')).toBeVisible();
     await expect(d.getByText(/Refunds aren.t supported/)).toBeVisible();
     await expect(d.getByText(/Torio isn.t connected to a carrier/)).toBeVisible();
@@ -54,13 +81,33 @@ test.describe('orders (owner)', () => {
       'href',
       /\/customers\?customer=/,
     );
-    await page.keyboard.press('Escape');
-    await expect(d).toHaveCount(0);
+    await d.getByRole('button', { name: 'Back to Orders' }).click();
+    await expect(page).toHaveURL(/\/orders$/);
+  });
+
+  test('back keeps the search, and a direct or invalid link behaves', async ({ page }) => {
+    await page.goto('/orders');
+    await page.getByLabel('Search orders').fill('1001');
+    await page.getByRole('row', { name: /#1001/ }).click();
+    await expect(page.getByRole('heading', { name: /Order #1001/ })).toBeVisible();
+    await page.getByRole('button', { name: 'Back to Orders' }).click();
+    await expect(page.getByLabel('Search orders')).toHaveValue('1001');
+    await page.getByRole('row', { name: /#1001/ }).click();
+    await expect(page).toHaveURL(/\/orders\/[^/]+$/);
+    await page.reload();
+    await expect(page.getByRole('heading', { name: /Order #1001/ })).toBeVisible();
+    await page.goto('/orders/does-not-exist');
+    await expect(page.getByRole('main').getByRole('alert')).toContainText(
+      /Order not found|load this order/,
+    );
+    await expect(page.getByRole('button', { name: 'Back to Orders' }).first()).toBeVisible();
   });
 
   test('moves through the lifecycle: next step is applied only by the server', async ({ page }) => {
     await page.getByRole('row', { name: /#1001/ }).click();
-    const d = page.getByRole('dialog', { name: 'Order #1001' });
+    const d = page.getByRole('main');
+    await expect(page).toHaveURL(/\/orders\/[^/]+$/);
+    await expect(d.getByRole('heading', { name: /Order #1001/ })).toBeVisible();
     await d.getByRole('button', { name: 'Start processing' }).click();
     await expect.poll(() => orderState.statuses.length).toBe(1);
     expect(orderState.statuses[0]).toEqual({ status: 'PROCESSING' });
@@ -75,7 +122,9 @@ test.describe('orders (owner)', () => {
 
   test('records a payment manually and states that nothing is charged', async ({ page }) => {
     await page.getByRole('row', { name: /#1001/ }).click();
-    const d = page.getByRole('dialog', { name: 'Order #1001' });
+    const d = page.getByRole('main');
+    await expect(page).toHaveURL(/\/orders\/[^/]+$/);
+    await expect(d.getByRole('heading', { name: /Order #1001/ })).toBeVisible();
     await d.getByRole('button', { name: 'Record payment' }).click();
     const p = page.getByRole('dialog', { name: /Record payment/ });
     await expect(p.getByText(/doesn.t charge cards/)).toBeVisible();
@@ -93,13 +142,17 @@ test.describe('orders (owner)', () => {
 
   test('cancel needs confirmation and warns that refunds are not handled', async ({ page }) => {
     await page.getByRole('row', { name: /#1001/ }).click();
-    const d = page.getByRole('dialog', { name: 'Order #1001' });
-    await d.getByRole('button', { name: 'Cancel order' }).click();
+    const d = page.getByRole('main');
+    await expect(page).toHaveURL(/\/orders\/[^/]+$/);
+    await expect(d.getByRole('heading', { name: /Order #1001/ })).toBeVisible();
+    await d.getByRole('button', { name: 'More actions' }).click();
+    await d.getByRole('menuitem', { name: 'Cancel order' }).click();
     const c = page.getByRole('alertdialog');
     await expect(c).toContainText('can’t be undone');
     await c.getByRole('button', { name: 'Cancel', exact: true }).click();
     expect(orderState.statuses).toHaveLength(0);
-    await d.getByRole('button', { name: 'Cancel order' }).click();
+    await d.getByRole('button', { name: 'More actions' }).click();
+    await d.getByRole('menuitem', { name: 'Cancel order' }).click();
     await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel order' }).click();
     await expect.poll(() => orderState.statuses.length).toBe(1);
     expect(orderState.statuses[0]).toEqual({ status: 'CANCELLED' });
@@ -134,7 +187,115 @@ test.describe('orders (owner)', () => {
     });
     expect(orderState.created[0]).not.toHaveProperty('totalMinor');
     expect(orderState.created[0]).toHaveProperty('requestId');
-    await expect(page.getByRole('dialog', { name: /Order #1011/ })).toBeVisible();
+    await expect(page).toHaveURL(/\/orders\/[^/]+$/);
+    await expect(page.getByRole('heading', { name: /Order #1011/ })).toBeVisible();
+  });
+
+  test('editing: save is grey until something changes, restores clear, one save persists everything', async ({
+    page,
+  }) => {
+    await page.getByRole('row', { name: /#1002/ }).click();
+    const main = page.getByRole('main');
+    await expect(main.getByRole('heading', { name: /Order #1002/ })).toBeVisible();
+    const save = main.getByRole('button', { name: 'Save changes' });
+    await expect(save).toBeDisabled();
+    await main.getByRole('button', { name: 'Edit', exact: true }).first().click();
+    const qty = main.getByLabel('Item 1 quantity');
+    await qty.focus();
+    await expect(save).toBeDisabled(); // touching is not changing
+    await qty.fill('3');
+    await expect(save).toBeEnabled();
+    await expect(main.getByText('Unsaved changes')).toBeVisible();
+    await qty.fill('2');
+    await expect(save).toBeDisabled(); // restored value clears the dirty state
+    await qty.fill('3');
+    await main.getByLabel('Discount').fill('10');
+    await main.getByLabel('Shipping address').fill('House 4, Road 2');
+    await save.click();
+    await expect.poll(() => orderState.updates.length).toBe(1);
+    expect(orderState.updates[0]).toMatchObject({
+      items: [{ name: 'Oak table', quantity: 3, unitPriceMinor: 9_500 }],
+      discountMinor: 1_000,
+      shippingAddress: 'House 4, Road 2',
+    });
+    await expect(page.getByRole('status').filter({ hasText: 'Order changes saved' })).toBeVisible();
+    await expect(save).toBeDisabled();
+    await page.reload();
+    await expect(main.getByText('House 4, Road 2')).toBeVisible();
+    await expect(main.getByText('$285.00').first()).toBeVisible(); // 3 x 95 - 10 + 10 shipping
+  });
+
+  test('a failed save keeps the edits and the save button', async ({ page }) => {
+    orderState.failUpdate = true;
+    await page.getByRole('row', { name: /#1002/ }).click();
+    const main = page.getByRole('main');
+    await main.getByRole('button', { name: 'Edit', exact: true }).first().click();
+    await main.getByLabel('Item 1 quantity').fill('5');
+    await main.getByRole('button', { name: 'Save changes' }).click();
+    await expect(
+      main.getByRole('alert').filter({ hasText: 'changed while you were editing' }),
+    ).toBeVisible();
+    await expect(main.getByLabel('Item 1 quantity')).toHaveValue('5');
+    await expect(main.getByRole('button', { name: 'Save changes' })).toBeEnabled();
+  });
+
+  test('invalid quantity blocks saving and is explained', async ({ page }) => {
+    await page.getByRole('row', { name: /#1002/ }).click();
+    const main = page.getByRole('main');
+    await main.getByRole('button', { name: 'Edit', exact: true }).first().click();
+    await main.getByLabel('Item 1 quantity').fill('');
+    await main.getByRole('button', { name: 'Save changes' }).click();
+    await expect(main.getByText(/Quantity must be a whole number/)).toBeVisible();
+    expect(orderState.updates).toHaveLength(0);
+  });
+
+  test('unsaved edits are protected: leaving asks first, processing never silently discards', async ({
+    page,
+  }) => {
+    await page.getByRole('row', { name: /#1002/ }).click();
+    const main = page.getByRole('main');
+    await main.getByRole('button', { name: 'Edit', exact: true }).first().click();
+    await main.getByLabel('Item 1 quantity').fill('5');
+    await main.getByRole('button', { name: 'Back to Orders' }).click();
+    const leave = page.getByRole('alertdialog', { name: 'Discard unsaved changes?' });
+    await leave.getByRole('button', { name: 'Keep editing' }).click();
+    await expect(page).toHaveURL(/\/orders\/[^/]+$/);
+    await page.getByRole('link', { name: 'Customers' }).first().click();
+    await expect(leave).toBeVisible();
+    await leave.getByRole('button', { name: 'Keep editing' }).click();
+    await main.getByRole('button', { name: 'Confirm order' }).click();
+    const ask = page.getByRole('alertdialog', { name: 'Save your changes first?' });
+    await ask.getByRole('button', { name: 'Keep editing' }).click();
+    expect(orderState.statuses).toHaveLength(0);
+    await main.getByRole('button', { name: 'Confirm order' }).click();
+    await ask.getByRole('button', { name: 'Save and continue' }).click();
+    await expect.poll(() => orderState.statuses.length).toBe(1);
+    expect(orderState.updates).toHaveLength(1);
+  });
+
+  test('discard drops the edits and leaving is then unblocked', async ({ page }) => {
+    await page.getByRole('row', { name: /#1002/ }).click();
+    const main = page.getByRole('main');
+    await main.getByRole('button', { name: 'Edit', exact: true }).first().click();
+    await main.getByLabel('Item 1 quantity').fill('5');
+    await main.getByRole('button', { name: 'Discard' }).click();
+    await expect(main.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+    await main.getByRole('button', { name: 'Back to Orders' }).click();
+    await expect(page).toHaveURL(/\/orders$/);
+  });
+
+  test('a confirmed order locks items and pricing but still allows shipping details', async ({
+    page,
+  }) => {
+    await page.getByRole('row', { name: /#1001/ }).click();
+    const main = page.getByRole('main');
+    await main.getByRole('button', { name: 'Edit', exact: true }).first().click();
+    await expect(main.getByText(/can only change while the order is Pending/)).toBeVisible();
+    await expect(main.getByLabel('Item 1 quantity')).toHaveCount(0);
+    await main.getByLabel('Shipping method').fill('Courier');
+    await main.getByRole('button', { name: 'Save changes' }).click();
+    await expect.poll(() => orderState.updates.length).toBe(1);
+    expect(orderState.updates[0]).toEqual({ shippingAddress: null, shippingMethod: 'Courier' });
   });
 
   test('bulk status change reports orders that were skipped', async ({ page }) => {
@@ -166,7 +327,9 @@ test.describe('orders (agent)', () => {
     await page.goto('/orders');
     await expect(page.getByRole('button', { name: 'Create Order' })).toBeEnabled();
     await page.getByRole('row', { name: /#1001/ }).click();
-    const d = page.getByRole('dialog', { name: 'Order #1001' });
+    const d = page.getByRole('main');
+    await expect(page).toHaveURL(/\/orders\/[^/]+$/);
+    await expect(d.getByRole('heading', { name: /Order #1001/ })).toBeVisible();
     await expect(d.getByRole('button', { name: 'Record payment' })).toHaveCount(0);
     await expect(d.getByText(/needs an Owner or Admin role/)).toBeVisible();
   });

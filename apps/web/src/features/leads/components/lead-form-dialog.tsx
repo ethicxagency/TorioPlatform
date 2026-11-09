@@ -7,7 +7,7 @@ import { X } from 'lucide-react';
 import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { AREA, controlCls, Input } from '@/components/ui/input';
 import { ApiRequestError } from '../queries';
 import { SOURCES, STAGES } from '../constants';
 import type { Lead } from '../types';
@@ -23,8 +23,7 @@ interface Props {
 
 const label = 'flex flex-col gap-1.5 text-[13px] font-medium';
 const err = 'text-xs font-normal text-danger';
-const selectCls =
-  'h-10 w-full rounded-[10px] border border-line bg-white px-2.5 text-sm font-normal';
+const selectCls = controlCls;
 
 export function LeadFormDialog({ lead, owners, onClose, onSubmit }: Props) {
   const editing = !!lead;
@@ -259,12 +258,7 @@ export function LeadFormDialog({ lead, owners, onClose, onSubmit }: Props) {
         </div>
         <label className={`${label} sm:col-span-2`}>
           Notes
-          <textarea
-            rows={3}
-            maxLength={5000}
-            className="w-full resize-y rounded-[10px] border border-line p-2.5 text-sm font-normal"
-            {...register('notes')}
-          />
+          <textarea rows={3} maxLength={5000} className={AREA} {...register('notes')} />
           {errors.notes && (
             <span role="alert" className={err}>
               {errors.notes.message}

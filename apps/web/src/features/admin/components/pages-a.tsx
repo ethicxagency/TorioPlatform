@@ -1,5 +1,6 @@
 'use client';
 
+import { MetricCard } from '@/components/ui/card';
 import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -37,15 +38,7 @@ import { useAdminShell } from './admin-shell';
 // ---------- Dashboard ----------
 
 function Stat({ label, value, sub }: { label: string; value: React.ReactNode; sub?: string }) {
-  return (
-    <div className="min-w-0 rounded-card border border-line bg-white p-3.5">
-      <div className="truncate text-[12.5px] font-medium text-muted">{label}</div>
-      <div className="mt-1 truncate text-2xl font-semibold tabular-nums tracking-[-0.02em]">
-        {value}
-      </div>
-      <div className="mt-1 truncate text-xs text-faint">{sub}</div>
-    </div>
-  );
+  return <MetricCard label={label} value={value} sub={sub} />;
 }
 
 function RevenueChart({ d }: { d: Dashboard }) {

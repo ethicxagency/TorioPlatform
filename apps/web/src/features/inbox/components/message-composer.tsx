@@ -1,21 +1,63 @@
 'use client';
 
 import {
+  DollarSign,
   MessageSquareText,
   Search,
   Send,
-  ShoppingBag,
   Smile,
   Sparkles,
   StickyNote,
   X,
 } from 'lucide-react';
-import { forwardRef, useMemo, useRef, useState } from 'react';
+import { forwardRef, useMemo, useRef, useState, type Ref } from 'react';
 import { cn } from '@/lib/utils';
 import { MAX_MESSAGE_LENGTH } from '@torio/contracts';
 import { renderTemplate } from '../format';
 import { useDismiss } from '../use-dismiss';
 import type { SavedReply } from '../types';
+
+type ToolActionProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  icon: React.ReactNode;
+  /** Visible on hover/keyboard focus (and while active); always the accessible name. */
+  label: string;
+  active?: boolean;
+  ref?: Ref<HTMLButtonElement>;
+};
+
+/**
+ * Composer toolbar action: icon only at rest, sliding its label out on hover or keyboard focus. Touch screens
+ * (no hover) keep the compact icon and rely on the accessible name. Only the later buttons in the row move.
+ */
+function ToolAction({ icon, label, active, className, ref, ...rest }: ToolActionProps) {
+  return (
+    <button
+      ref={ref}
+      type="button"
+      aria-label={label}
+      title={label}
+      {...rest}
+      className={cn(
+        'group/act flex h-8 shrink-0 cursor-pointer items-center rounded-lg px-2 text-[12.5px] font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none',
+        active ? 'bg-primary-soft text-primary-hover' : 'text-muted hover:bg-wash-2 hover:text-ink',
+        className,
+      )}
+    >
+      <span className="flex h-4 w-4 shrink-0 items-center justify-center">{icon}</span>
+      <span
+        aria-hidden
+        className={cn(
+          'overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] duration-200 ease-out motion-reduce:transition-none',
+          active
+            ? 'ml-1.5 max-w-[120px] opacity-100'
+            : 'ml-0 max-w-0 opacity-0 group-hover/act:ml-1.5 group-hover/act:max-w-[120px] group-hover/act:opacity-100 group-focus-visible/act:ml-1.5 group-focus-visible/act:max-w-[120px] group-focus-visible/act:opacity-100',
+        )}
+      >
+        {label}
+      </span>
+    </button>
+  );
+}
 
 const EMOJIS = [
   '😀',
@@ -167,9 +209,6 @@ export const MessageComposer = forwardRef<HTMLTextAreaElement, Props>(
       setMenu(null);
     };
 
-    const iconBtn =
-      'flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-wash-2 disabled:cursor-not-allowed disabled:opacity-40';
-
     return (
       <div ref={wrap} className="relative px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-1">
         {p.replyTo && (
@@ -193,7 +232,7 @@ export const MessageComposer = forwardRef<HTMLTextAreaElement, Props>(
           <div
             role="listbox"
             aria-label="Saved replies"
-            className="absolute inset-x-3 bottom-full z-20 mb-1 max-h-60 animate-panel-in overflow-y-auto rounded-xl border border-line bg-white p-1.5 shadow-popover"
+            className="absolute inset-x-3 bottom-full z-20 mb-1 max-h-60 animate-panel-in overflow-y-auto rounded-xl border border-line glass-menu p-1.5 shadow-popover"
           >
             {slash.map((r, i) => (
               <button
@@ -232,7 +271,7 @@ export const MessageComposer = forwardRef<HTMLTextAreaElement, Props>(
                 closeSaved();
               }
             }}
-            className="absolute bottom-full left-3 z-20 mb-1 flex max-h-[min(360px,calc(100vh-200px))] w-[min(360px,calc(100%-24px))] animate-panel-in flex-col rounded-xl border border-line bg-white shadow-popover"
+            className="absolute bottom-full left-3 z-20 mb-1 flex max-h-[min(360px,calc(100vh-200px))] w-[min(360px,calc(100%-24px))] animate-panel-in flex-col rounded-xl border border-line glass-menu shadow-popover"
           >
             <label className="m-1.5 flex h-8 items-center gap-2 rounded-[var(--radius-input)] border border-line px-2 focus-within:border-primary focus-within:ring-[3px] focus-within:ring-primary/15">
               <Search size={14} className="shrink-0 text-faint" aria-hidden />
@@ -287,7 +326,7 @@ export const MessageComposer = forwardRef<HTMLTextAreaElement, Props>(
           <div
             role="menu"
             aria-label="Emoji"
-            className="absolute bottom-full right-3 z-20 mb-1 grid animate-panel-in grid-cols-8 gap-0.5 rounded-xl border border-line bg-white p-1.5 shadow-popover"
+            className="absolute bottom-full right-3 z-20 mb-1 grid animate-panel-in grid-cols-8 gap-0.5 rounded-xl border border-line glass-menu p-1.5 shadow-popover"
           >
             {EMOJIS.map((e) => (
               <button
@@ -361,7 +400,7 @@ export const MessageComposer = forwardRef<HTMLTextAreaElement, Props>(
             placeholder={
               isNote
                 ? 'Write an internal note — only your team sees this'
-                : `Reply to ${p.customerName.split(' ')[0]} on ${p.channelLabel} · type / for saved replies`
+                : `Reply to ${p.customerName.split(' ')[0]} on ${p.channelLabel}… (type / for saved replies)`
             }
             onChange={(e) => {
               p.onDraft(e.target.value);
@@ -370,57 +409,44 @@ export const MessageComposer = forwardRef<HTMLTextAreaElement, Props>(
             onKeyDown={onKeyDown}
             className="block max-h-40 w-full resize-none border-none bg-transparent px-3.5 py-2 text-sm leading-[1.5] text-ink"
           />
-          <div className="flex items-center gap-0.5 px-2 pb-2">
+          <div className="flex items-center gap-1 px-2 pb-2">
             {p.onCreateOrder && (
-              <button
-                type="button"
-                aria-label="Create order"
-                title="Create order"
+              <ToolAction
+                icon={<DollarSign size={16} />}
+                label="Create order"
                 aria-haspopup="dialog"
                 onClick={() => {
                   setMenu(null);
                   p.onCreateOrder?.();
                 }}
-                className={iconBtn}
-              >
-                <ShoppingBag size={16} />
-              </button>
+              />
             )}
-            <button
+            <ToolAction
               ref={savedBtn}
-              type="button"
-              aria-label="Saved replies"
+              icon={<MessageSquareText size={16} />}
+              label="Saved replies"
+              title="Saved replies (or type /)"
               aria-haspopup="dialog"
               aria-expanded={menu === 'saved'}
-              title="Saved replies (or type /)"
+              active={menu === 'saved'}
               onClick={() => (menu === 'saved' ? closeSaved() : setMenu('saved'))}
-              className={cn(iconBtn, menu === 'saved' && 'bg-wash-2 text-ink')}
-            >
-              <MessageSquareText size={16} />
-            </button>
-            <button
-              type="button"
+            />
+            <ToolAction
+              icon={<Smile size={16} />}
+              label="Emoji"
               aria-label="Insert emoji"
-              title="Emoji"
               aria-expanded={menu === 'emoji'}
+              active={menu === 'emoji'}
               onClick={() => setMenu(menu === 'emoji' ? null : 'emoji')}
-              className={cn(iconBtn, menu === 'emoji' && 'bg-wash-2 text-ink')}
-            >
-              <Smile size={16} />
-            </button>
+            />
             {!isNote && (
-              <button
-                type="button"
+              <ToolAction
+                icon={<Sparkles size={15} />}
+                label="AI Assist"
                 aria-pressed={p.aiOpen}
+                active={p.aiOpen}
                 onClick={p.onToggleAi}
-                className={cn(
-                  'ml-1 flex h-8 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 text-[12.5px] font-medium',
-                  p.aiOpen ? 'bg-primary-soft text-primary-hover' : 'text-muted hover:bg-wash-2',
-                )}
-              >
-                <Sparkles size={13} />
-                AI Assist
-              </button>
+              />
             )}
             <span className="flex-1" />
             {tooLong && (

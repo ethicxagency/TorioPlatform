@@ -12,8 +12,13 @@ import {
   UserPlus,
   X,
   CheckCircle2,
+  AtSign,
+  Mail,
+  Phone,
 } from 'lucide-react';
 import { useRef } from 'react';
+import { ChannelIcon } from '@/components/channel-icon';
+import { useShell } from '@/components/shell/shell-context';
 import { cn } from '@/lib/utils';
 import { CHANNELS } from '../constants';
 import { initialsOf, minutesSince, fmtWait, snoozeLabel } from '../format';
@@ -50,19 +55,33 @@ interface Props {
 const btn =
   'flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-[9px] border border-line bg-white px-2.5 text-[13px] font-medium text-ink hover:bg-wash disabled:cursor-not-allowed disabled:opacity-50';
 const STATUS_BADGE = { OPEN: 'Open', SNOOZED: 'Snoozed', RESOLVED: 'Resolved' } as const;
+const STATUS_TONE = {
+  OPEN: 'bg-success-soft text-success',
+  SNOOZED: 'bg-warning-soft text-warning',
+  RESOLVED: 'bg-wash-2 text-muted',
+} as const;
+const Sep = () => <span aria-hidden className="h-3 w-px shrink-0 bg-line-input" />;
 
 export function ChatHeader(p: Props) {
   const { c } = p;
+  const { toast } = useShell();
   const moreRef = useRef<HTMLDivElement>(null);
   useDismiss(moreRef, p.menu === 'more', () => p.onMenu(null));
   const wait = c.waitingSince && c.status === 'OPEN' ? minutesSince(c.waitingSince) : null;
-  const contact = [c.customer.phone, c.customer.handle, c.customer.email].filter(Boolean)[0];
+  // Phone first; Instagram/Messenger customers often only have a handle or email, so those stand in.
+  const contact = c.customer.phone
+    ? { value: c.customer.phone, icon: Phone, what: 'Phone number' }
+    : c.customer.handle
+      ? { value: c.customer.handle, icon: AtSign, what: 'Handle' }
+      : c.customer.email
+        ? { value: c.customer.email, icon: Mail, what: 'Email' }
+        : null;
   const resolved = c.status === 'RESOLVED';
 
   return (
     // relative z-20: the blurred header is its own stacking context and the message log after it is positioned,
     // so without a z-index the log paints over the header's menus (Assign, Snooze, More).
-    <header className="relative z-20 flex min-h-[60px] shrink-0 items-center gap-3 border-b border-line bg-white/90 px-4 py-2 backdrop-blur-[16px]">
+    <header className="glass-header relative z-20 flex min-h-[76px] shrink-0 items-center gap-3.5 border-b border-line px-4 py-3">
       {p.showBack && (
         <button
           type="button"
@@ -70,20 +89,20 @@ export function ChatHeader(p: Props) {
           onClick={p.onBack}
           className="-ml-2 flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg hover:bg-wash"
         >
-          <ChevronLeft size={20} />
+          <ChevronLeft size={18} />
         </button>
       )}
       <div className="relative shrink-0">
-        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-line-subtle text-[12.5px] font-semibold text-muted">
+        <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-wash-2 text-[15px] font-semibold text-muted ring-1 ring-inset ring-line-subtle max-sm:h-11 max-sm:w-11 max-sm:text-[13px]">
           {initialsOf(c.customer.name)}
         </span>
-        <span className="absolute -bottom-0.5 -left-0.5">
-          <ChannelBadge provider={c.channel.provider} />
+        <span className="absolute -bottom-1 -left-1">
+          <ChannelBadge provider={c.channel.provider} size={18} />
         </span>
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-[120px] flex-1">
         <div className="flex items-center gap-2">
-          <h2 className="m-0 min-w-0 truncate text-[15px] font-semibold">
+          <h2 className="m-0 min-w-0 truncate text-[20px] font-semibold leading-tight text-ink max-sm:text-[17px]">
             {/* Opens Quick Customer Details beside the chat: the conversation, scroll and draft stay put. */}
             <button
               type="button"
@@ -101,12 +120,19 @@ export function ChatHeader(p: Props) {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1.5 truncate text-xs text-muted">
-          <span style={{ color: CHANNELS[c.channel.provider].color }} className="font-medium">
+        {/* Channel, status, waiting time and contact. Items wrap as whole units, never mid-phrase. */}
+        <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-muted">
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+            <ChannelIcon channel={c.channel.provider} size={15} decorative />
             {CHANNELS[c.channel.provider].label}
           </span>
-          <span aria-hidden>·</span>
-          <span>
+          <Sep />
+          <span
+            className={cn(
+              'whitespace-nowrap rounded-full px-2 py-px text-[11.5px] font-medium',
+              STATUS_TONE[c.status],
+            )}
+          >
             {STATUS_BADGE[c.status]}
             {c.status === 'SNOOZED' && c.snoozedUntil
               ? ` until ${snoozeLabel(c.snoozedUntil)}`
@@ -114,21 +140,37 @@ export function ChatHeader(p: Props) {
           </span>
           {wait != null && (
             <>
-              <span aria-hidden>·</span>
-              <span className={wait >= 120 ? 'text-danger' : wait >= 30 ? 'text-warning' : ''}>
+              <Sep />
+              <span
+                className={cn(
+                  'whitespace-nowrap font-medium',
+                  wait >= 120 ? 'text-danger' : wait >= 30 ? 'text-warning' : 'text-muted',
+                )}
+              >
                 Waiting {fmtWait(wait)}
               </span>
             </>
           )}
-          {contact && (
-            <>
-              <span aria-hidden className="max-sm:hidden">
-                ·
-              </span>
-              <span className="truncate max-sm:hidden">{contact}</span>
-            </>
-          )}
         </div>
+        {contact && (
+          <div className="mt-1 max-sm:hidden">
+            <button
+              type="button"
+              title={`Copy ${contact.what.toLowerCase()}`}
+              aria-label={`Copy ${contact.what.toLowerCase()}: ${contact.value}`}
+              onClick={() =>
+                void navigator.clipboard?.writeText(contact.value).then(
+                  () => toast(`${contact.what} copied`),
+                  () => toast("Couldn't copy"),
+                )
+              }
+              className="inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded border-none bg-transparent p-0 text-[13px] tabular-nums text-muted transition-colors duration-150 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+            >
+              <contact.icon size={14} aria-hidden className="shrink-0" />
+              <span className="truncate">{contact.value}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
@@ -172,7 +214,7 @@ export function ChatHeader(p: Props) {
             <div
               role="menu"
               aria-label="Conversation actions"
-              className="absolute right-0 top-11 z-30 w-[min(210px,calc(100vw-24px))] animate-panel-in rounded-xl border border-line bg-white p-1.5 shadow-popover"
+              className="absolute right-0 top-11 z-30 w-[min(210px,calc(100vw-24px))] animate-panel-in rounded-xl border border-line glass-menu p-1.5 shadow-popover"
             >
               <button
                 role="menuitem"
@@ -240,7 +282,7 @@ export function ChatHeader(p: Props) {
           onClick={p.onOpenProfile}
           className={cn(btn, 'w-9 px-0', p.profileOpen && 'bg-primary-soft text-primary-hover')}
         >
-          <PanelRight size={17} />
+          <PanelRight size={18} />
         </button>
         <button
           type="button"

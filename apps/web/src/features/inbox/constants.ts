@@ -1,17 +1,10 @@
-import type { ListView, Provider } from './types';
+import type { Provider } from './types';
 
 export const CHANNELS: Record<Provider, { label: string; color: string }> = {
   WHATSAPP: { label: 'WhatsApp', color: '#25D366' },
   INSTAGRAM: { label: 'Instagram', color: '#E4405F' },
   MESSENGER: { label: 'Messenger', color: '#1877F2' },
 };
-
-export const VIEWS: { key: ListView; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'mine', label: 'Mine' },
-  { key: 'unassigned', label: 'Unassigned' },
-  { key: 'unread', label: 'Unread' },
-];
 
 export const SHORTCUTS: [string, string][] = [
   ['J / K', 'Next / previous conversation'],
@@ -27,12 +20,10 @@ export const SHORTCUTS: [string, string][] = [
   ['Esc', 'Close the open menu, dialog or drawer'],
 ];
 
-export const LIST_WIDTH = { min: 280, max: 480, default: 340 } as const;
+// Default is wide enough for the five labelled toolbar controls to share one row.
+export const LIST_WIDTH = { min: 280, max: 640, default: 560 } as const;
 export const PROFILE_WIDTH = { min: 280, max: 420, default: 320 } as const;
 export const CHAT_MIN_WIDTH = 420;
-/** Inbox navigation column; shown only when the content area is at least NAV_MIN_CONTENT wide. */
-export const NAV_WIDTH = 216;
-export const NAV_MIN_CONTENT = 1180;
 
 export interface SnoozeOption {
   key: string;

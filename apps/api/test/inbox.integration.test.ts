@@ -101,6 +101,16 @@ describe.skipIf(!url)('inbox API (real PostgreSQL)', () => {
     expect(res.body.data).toHaveLength(1);
     expect(res.body.data[0].customer.name).toBe('Tanvir Test');
     expect(res.body.counts).toEqual({ open: 1, snoozed: 0, resolved: 0 });
+    // Counts follow the channel filter.
+    const ig = await http()
+      .get(`${base()}/conversations?channel=INSTAGRAM`)
+      .set(await auth(ids.agent!))
+      .expect(200);
+    expect(ig.body.counts).toEqual({ open: 0, snoozed: 0, resolved: 0 });
+    // Channel badges ignore the channel filter itself, so every tab shows its own number.
+    const perChannel = { all: 1, WHATSAPP: 1, INSTAGRAM: 0, MESSENGER: 0 };
+    expect(res.body.channelCounts).toEqual(perChannel);
+    expect(ig.body.channelCounts).toEqual(perChannel);
   });
 
   it('filters by view, channel and search text', async () => {
@@ -230,6 +240,11 @@ describe.skipIf(!url)('inbox API (real PostgreSQL)', () => {
     let list = (await http().get(`${base()}/conversations?status=SNOOZED`).set(h)).body;
     expect(list.data).toHaveLength(1);
     expect(list.counts).toEqual({ open: 0, snoozed: 1, resolved: 0 });
+    // Badges count the requested status, so the snoozed conversation moved with it.
+    expect(list.channelCounts).toMatchObject({ all: 1, WHATSAPP: 1 });
+    expect(
+      (await http().get(`${base()}/conversations?status=OPEN`).set(h)).body.channelCounts.all,
+    ).toBe(0);
     await http()
       .patch(`${base()}/conversations/${ids.conv}`)
       .set(h)
@@ -271,6 +286,38 @@ describe.skipIf(!url)('inbox API (real PostgreSQL)', () => {
       .expect(400);
   });
 
+  it('bulk assign, unread and priority; other workspaces are skipped, not failed', async () => {
+    const h = await auth(ids.agent!);
+    const bulk = (body: object) => http().post(`${base()}/conversations/bulk`).set(h).send(body);
+    // convB belongs to another workspace: it is not touched and not counted.
+    expect(
+      (
+        await bulk({ ids: [ids.conv, ids.convB], action: 'ASSIGN', assigneeId: ids.owner }).expect(
+          200,
+        )
+      ).body.updated,
+    ).toBe(1);
+    await bulk({ ids: [ids.conv], action: 'ASSIGN', assigneeId: ids.outsider }).expect(400);
+    await bulk({ ids: [ids.conv], action: 'ASSIGN' }).expect(400);
+    await bulk({ ids: [ids.conv], action: 'SET_PRIORITY' }).expect(400);
+    await bulk({ ids: [ids.conv], action: 'SET_PRIORITY', priority: 'HIGH' }).expect(200);
+    await bulk({ ids: [ids.conv], action: 'MARK_READ' }).expect(200);
+    expect((await bulk({ ids: [ids.conv], action: 'MARK_UNREAD' }).expect(200)).body.updated).toBe(
+      1,
+    );
+    let conv = await db.conversation.findUniqueOrThrow({ where: { id: ids.conv } });
+    expect(conv).toMatchObject({ assigneeId: ids.owner, priority: 'HIGH', unreadCount: 1 });
+    await bulk({ ids: [ids.conv], action: 'ASSIGN', assigneeId: null }).expect(200);
+    await bulk({ ids: [ids.conv], action: 'SET_PRIORITY', priority: 'NORMAL' }).expect(200);
+    conv = await db.conversation.findUniqueOrThrow({ where: { id: ids.conv } });
+    expect(conv).toMatchObject({ assigneeId: null, priority: 'NORMAL' });
+    expect(
+      (await db.conversation.findUniqueOrThrow({ where: { id: ids.convB } })).assigneeId,
+    ).toBeNull();
+    // Leave the conversation as the earlier bulk test did, for the tests that follow.
+    await bulk({ ids: [ids.conv], action: 'ASSIGN_ME' }).expect(200);
+  });
+
   it('updates customer lead status, tags (deduped) and notes', async () => {
     const h = await auth(ids.agent!);
     const res = await http()
@@ -283,6 +330,10 @@ describe.skipIf(!url)('inbox API (real PostgreSQL)', () => {
       tags: ['VIP', 'COD'],
       notes: 'prefers Sage',
     });
+    // The workspace tag list is distinct and sorted, and never includes other workspaces' tags.
+    await db.customer.update({ where: { id: ids.custB }, data: { tags: ['OTHER_WS'] } });
+    const tags = await http().get(`${base()}/customers/tags`).set(h).expect(200);
+    expect(tags.body.data).toEqual(['COD', 'VIP']);
     expect((await http().get(`${base()}/conversations?tag=VIP`).set(h)).body.data).toHaveLength(1);
     await http()
       .patch(`${base()}/customers/${ids.cust}`)

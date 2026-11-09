@@ -1,5 +1,6 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
 import { GuardProvider } from '@/features/settings/components/guard';
 import { OrderDrawer } from '@/features/dashboard/components/order-drawer';
 import { ShellProvider, useShell } from './shell-context';
@@ -21,6 +22,7 @@ function Toast() {
 
 /** Application chrome: glass top bar, collapsible sidebar, scrollable main region. */
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   return (
     <ShellProvider>
       <GuardProvider>
@@ -34,7 +36,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <TopBar />
           <div className="relative flex min-h-0 flex-1">
             <Sidebar />
-            <main id="main" className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+            {/* Keyed by route: each page fades in on navigation (shell stays put); query-string changes don't replay it. */}
+            <main
+              key={pathname}
+              id="main"
+              className="min-w-0 flex-1 animate-page-in overflow-y-auto overflow-x-hidden"
+            >
               {children}
             </main>
           </div>

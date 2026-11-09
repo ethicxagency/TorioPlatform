@@ -11,9 +11,10 @@ test.describe('automation (owner)', () => {
   });
 
   test('shows persisted metrics and workflow rows with real status', async ({ page }) => {
-    const k = page.getByRole('region', { name: 'Automation metrics' });
-    await expect(k.getByText('Total automations')).toBeVisible();
-    await expect(k.getByText('Failed runs')).toBeVisible();
+    // The five summary cards are gone; run status still shows on each workflow row.
+    await expect(page.getByRole('region', { name: 'Automation metrics' })).toHaveCount(0);
+    for (const text of ['Total automations', 'Currently enabled', 'Successful runs', 'Failed runs'])
+      await expect(page.getByText(text, { exact: true })).toHaveCount(0);
     await expect(page.getByText(/Last run \d/).first()).toBeVisible();
     await expect(page.getByText('1 failed').first()).toBeVisible();
     await expect(page.getByText('Draft', { exact: true })).toBeVisible();
@@ -44,6 +45,41 @@ test.describe('automation (owner)', () => {
     expect(autoState.created[0]).toMatchObject({ templateKey: 'flag-large-orders' });
     expect(autoState.published).toHaveLength(0);
     await expect(page).toHaveURL(/\/automation\/a1a1a1a1/);
+  });
+
+  test('featured templates and the library preview a template, then create only a draft', async ({
+    page,
+  }) => {
+    const featured = page.getByRole('region', { name: 'Featured templates' });
+    await expect(featured).toBeVisible();
+    await page.getByRole('button', { name: 'Templates', exact: true }).click();
+    const lib = page.getByRole('dialog', { name: 'Automation Library' });
+    await lib.getByLabel('Search templates').fill('zzzz');
+    await expect(lib.getByText('No templates match your search')).toBeVisible();
+    await lib.getByRole('button', { name: 'Show all templates' }).click();
+    await lib.getByRole('button', { name: 'Lead management', exact: true }).click();
+    await lib.getByRole('button', { name: /Assign new leads/ }).click();
+    const d = page.getByRole('dialog', { name: 'Assign new leads to an owner' });
+    await expect(d.getByText('What it does')).toBeVisible();
+    await d.getByRole('button', { name: 'Back to library' }).click();
+    await expect(lib).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(lib).toHaveCount(0);
+    expect(autoState.created).toHaveLength(0);
+    await featured.getByRole('button', { name: 'Hide featured templates' }).click();
+    await expect(featured).toHaveCount(0);
+  });
+
+  test('sort menu and tab arrow keys work', async ({ page }) => {
+    await page.getByRole('button', { name: /Sort automations/ }).click();
+    await page.getByRole('option', { name: 'Name Z–A' }).click();
+    await expect(page.getByRole('button', { name: /Sort automations/ })).toContainText('Name Z–A');
+    await page.getByRole('tab', { name: 'All automations' }).focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(page.getByRole('tab', { name: 'Active' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
   });
 
   test('create dialog needs a name and creates an empty draft', async ({ page }) => {

@@ -3,6 +3,7 @@
 import { USAGE_LABEL, type UsageMetric } from '@torio/contracts';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { MetricCard } from '@/components/ui/card';
 import { Modal } from '@/features/leads/components/modal';
 import { useTimeZone } from '@/features/settings/queries';
 import { useBillingMutations } from '../queries';
@@ -18,13 +19,7 @@ function Stat({
   value: React.ReactNode;
   sub?: React.ReactNode;
 }) {
-  return (
-    <div className="min-w-0 rounded-card border border-line bg-white p-3.5">
-      <div className="truncate text-[12.5px] font-medium text-muted">{label}</div>
-      <div className="mt-1 truncate text-[19px] font-semibold tracking-[-0.01em]">{value}</div>
-      <div className="mt-1 text-xs text-faint">{sub}</div>
-    </div>
-  );
+  return <MetricCard label={label} value={value} sub={sub} valueClassName="text-[22px]" />;
 }
 
 export function OverviewTab({

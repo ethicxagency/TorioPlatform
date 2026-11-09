@@ -393,11 +393,21 @@ model Channel {
   isSample          Boolean         @default(false)
   /// Provider-side account id (WhatsApp phone-number id). Unique per provider so one number can't be connected twice.
   externalAccountId String?
+  /// When the stored access token stops working (null = does not expire or unknown). Drives "reauthorize" prompts.
+  tokenExpiresAt    DateTime?
+  /// SUBSCRIBED | FAILED, written only after a real subscribe call to Meta. Null = never attempted (e.g. manual WhatsApp).
+  webhookStatus     String?
+  webhookError      String?
+  /// Last time Meta delivered any event for this channel.
+  lastEventAt       DateTime?
+  /// Encrypted two-step verification PIN set when the number was registered for the Cloud API (Embedded Signup).
+  phonePinCiphertext String?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
   workspace       Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   credential      ChannelCredential?
+  contacts        ChannelContact[]
   defaultAssignee User?              @relation("ChannelDefaultAssignee", fields: [defaultAssigneeId], references: [id], onDelete: SetNull)
   defaultTeam     Team?              @relation("ChannelDefaultTeam", fields: [defaultTeamId], references: [id], onDelete: SetNull)
   conversations   Conversation[]
@@ -1169,4 +1179,39 @@ model PlanDefinition {
   updatedAt          DateTime   @updatedAt
 
   @@map("plans")
+}
+
+/// A person on a Meta messaging channel (Messenger PSID / Instagram-scoped id), mapped to the Torio customer.
+model ChannelContact {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  workspaceId String   @db.Uuid
+  channelId   String   @db.Uuid
+  /// Page-scoped (Messenger) or Instagram-scoped user id.
+  externalId  String
+  customerId  String   @db.Uuid
+  createdAt   DateTime @default(now())
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, externalId])
+  @@index([workspaceId, customerId])
+  @@map("channel_contacts")
+}
+
+/// Short-lived server-side state between Meta's OAuth callback and the user choosing a Page / Instagram account.
+/// Tokens inside are encrypted; the browser only ever sees the session id and display names.
+model ChannelOAuthSession {
+  id          String          @id @default(uuid(7)) @db.Uuid
+  workspaceId String          @db.Uuid
+  userId      String          @db.Uuid
+  provider    ChannelProvider
+  /// JSON array: [{ id, name, instagramId?, instagramUsername?, tokenCiphertext }]
+  candidates  Json
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime        @default(now())
+
+  @@index([workspaceId, userId])
+  @@index([expiresAt])
+  @@map("channel_oauth_sessions")
 }

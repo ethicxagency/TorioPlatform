@@ -10,14 +10,16 @@ import {
   parseIso,
 } from '@torio/contracts';
 import {
-  MessagesSquare,
-  RefreshCw,
-  ShoppingBag,
-  SlidersHorizontal,
-  UserPlus,
-  Users,
-  Wallet,
-} from 'lucide-react';
+  Message01Icon,
+  Refresh01Icon,
+  ShoppingBag01Icon,
+  SlidersHorizontalIcon,
+  UserAdd01Icon,
+  UserGroupIcon,
+  Wallet01Icon,
+} from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import type { IconSvgElement } from '@hugeicons/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useWorkspace } from '@/lib/workspace';
@@ -146,7 +148,7 @@ export function DashboardPage({
 
   const cur = d?.revenue.primaryCurrency || DEFAULT_CURRENCY;
   const primary = d?.revenue.byCurrency.find((x) => x.currency === cur);
-  const icon = (I: typeof MessagesSquare) => <I size={14} strokeWidth={1.9} aria-hidden />;
+  const icon = (I: IconSvgElement) => <Icon icon={I} size={14} strokeWidth={1.9} />;
   const num = (n: number) => Math.round(n).toLocaleString('en-US');
   const metrics: Record<
     MetricId,
@@ -162,7 +164,7 @@ export function DashboardPage({
   > = {
     revenue: {
       label: 'Revenue',
-      icon: icon(Wallet),
+      icon: icon(Wallet01Icon),
       total: primary?.amountMinor ?? 0,
       series: d?.series.revenue ?? [],
       split: 'revenue',
@@ -171,7 +173,7 @@ export function DashboardPage({
     },
     orders: {
       label: 'Orders',
-      icon: icon(ShoppingBag),
+      icon: icon(ShoppingBag01Icon),
       total: d?.orders.total ?? 0,
       series: d?.series.orders ?? [],
       split: 'orders',
@@ -180,7 +182,7 @@ export function DashboardPage({
     },
     conversations: {
       label: 'Conversations',
-      icon: icon(MessagesSquare),
+      icon: icon(Message01Icon),
       // Conversations started in the period (the same definition the chart and channel split use).
       total: d?.messaging.new ?? 0,
       series: d?.series.newConversations ?? [],
@@ -190,7 +192,7 @@ export function DashboardPage({
     },
     leads: {
       label: 'Leads',
-      icon: icon(Users),
+      icon: icon(UserGroupIcon),
       total: d?.leads.total ?? 0,
       series: d?.series.leads ?? [],
       split: 'leads',
@@ -199,7 +201,7 @@ export function DashboardPage({
     },
     newCustomers: {
       label: 'New Customers',
-      icon: icon(UserPlus),
+      icon: icon(UserAdd01Icon),
       total: d?.customers.new ?? 0,
       series: d?.series.newCustomers ?? [],
       split: 'newCustomers',
@@ -229,8 +231,8 @@ export function DashboardPage({
   return (
     <div
       className={cn(
-        'mx-auto flex max-w-[1440px] flex-col gap-5',
-        mobile ? 'px-4 pb-6 pt-4' : 'px-6 pb-8 pt-6 lg:px-8',
+        'mx-auto flex max-w-[1440px] flex-col gap-4',
+        mobile ? 'px-4 pb-6 pt-4' : 'px-6 pb-8 pt-5',
       )}
     >
       {/* page header */}
@@ -261,10 +263,10 @@ export function DashboardPage({
             title="Refresh dashboard"
             className={cn(ICON_BTN, 'disabled:cursor-wait max-sm:order-1')}
           >
-            <RefreshCw
+            <Icon
+              icon={Refresh01Icon}
               size={18}
               strokeWidth={1.9}
-              aria-hidden
               className={analytics.isFetching ? 'animate-spin motion-reduce:animate-none' : ''}
             />
           </button>
@@ -284,7 +286,7 @@ export function DashboardPage({
                   'border-primary bg-primary-soft text-primary hover:bg-primary-soft',
               )}
             >
-              <SlidersHorizontal size={18} strokeWidth={1.9} aria-hidden />
+              <Icon icon={SlidersHorizontalIcon} size={18} strokeWidth={1.9} />
               {layout.customized && (
                 <span
                   aria-hidden
@@ -296,7 +298,7 @@ export function DashboardPage({
               <div
                 role="dialog"
                 aria-label="Customize dashboard"
-                className="absolute right-0 top-[52px] z-[45] w-[min(320px,calc(100vw-32px))] animate-panel-in rounded-[14px] border border-line bg-white/95 p-2 shadow-popover backdrop-blur-[20px] backdrop-saturate-150"
+                className="absolute right-0 top-[52px] z-[45] w-[min(320px,calc(100vw-32px))] animate-panel-in rounded-[14px] border border-line glass-menu p-2 shadow-popover backdrop-saturate-150"
               >
                 <div className="px-2 pb-2 pt-1.5">
                   <div className="text-sm font-semibold">Customize dashboard</div>

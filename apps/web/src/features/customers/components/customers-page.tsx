@@ -7,7 +7,7 @@ import { CsvImportDialog } from '@/components/shared/csv-import-dialog';
 import { useShell } from '@/components/shell/shell-context';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/features/inbox/components/confirm-dialog';
-import { useMembers } from '@/features/inbox/queries';
+import { useMembers, useWorkspaceTags } from '@/features/inbox/queries';
 import { useDismiss } from '@/features/inbox/use-dismiss';
 import { useNow } from '@/features/inbox/use-now';
 import { useDebounced } from '@/features/leads/use-debounced';
@@ -79,6 +79,7 @@ export function CustomersPage() {
     pageSize: CUSTOMER_PAGE_SIZE,
   });
   const summary = useCustomerSummary(ws);
+  const workspaceTags = useWorkspaceTags(ws);
   const members = useMembers(ws);
   const m = useCustomerMutations(ws);
   const owners = useMemo(
@@ -86,7 +87,8 @@ export function CustomersPage() {
     [members.data],
   );
   const customers = useMemo(() => list.data?.data ?? [], [list.data]);
-  const tags = useMemo(() => [...new Set(customers.flatMap((c) => c.tags))].sort(), [customers]);
+  // Every tag in the workspace, not just the ones on the loaded page.
+  const tags = useMemo(() => workspaceTags.data ?? [], [workspaceTags.data]);
   const err = (e: unknown) => toast(e instanceof Error ? e.message : 'Something went wrong');
 
   const patchFilters = useCallback((p: Partial<CustomerFilters>) => {
@@ -217,7 +219,7 @@ export function CustomersPage() {
             {moreOpen && (
               <div
                 role="menu"
-                className="absolute right-0 top-11 z-30 w-[200px] animate-panel-in rounded-xl border border-line bg-white p-1.5 shadow-popover"
+                className="absolute right-0 top-11 z-30 w-[200px] animate-panel-in rounded-xl border border-line glass-menu p-1.5 shadow-popover"
               >
                 <button
                   role="menuitem"
@@ -226,6 +228,7 @@ export function CustomersPage() {
                     setMoreOpen(false);
                     void list.refetch();
                     void summary.refetch();
+                    void workspaceTags.refetch();
                     toast('Refreshed');
                   }}
                   className="flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 text-left text-[13px] hover:bg-wash"

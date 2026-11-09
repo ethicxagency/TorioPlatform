@@ -404,38 +404,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/workspaces/{workspaceId}/channels/{channelId}/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["WhatsAppController_health"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/workspaces/{workspaceId}/messages/{messageId}/retry": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["WhatsAppController_retry"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/workspaces/{workspaceId}/channels": {
         parameters: {
             query?: never;
@@ -526,6 +494,118 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["ChannelsController_disconnect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/channels/meta/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["MetaController_config"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/channels/meta/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["MetaController_start"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/channels/meta/sessions/{sessionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["MetaController_session"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/channels/meta/sessions/{sessionId}/select": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["MetaController_select"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/channels/whatsapp/embedded-signup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["MetaController_embeddedSignup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/channels/{channelId}/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["MetaController_health"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/messages/{messageId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["MetaController_retry"];
         delete?: never;
         options?: never;
         head?: never;
@@ -670,6 +750,22 @@ export interface paths {
         get: operations["CustomersController_list"];
         put?: never;
         post: operations["CustomersController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/customers/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["CustomersController_tags"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2276,13 +2372,22 @@ export interface components {
                 snoozed: number;
                 resolved: number;
             };
+            channelCounts: {
+                all: number;
+                WHATSAPP: number;
+                INSTAGRAM: number;
+                MESSENGER: number;
+            };
         };
         BulkDto: {
             ids: string[];
             /** @enum {string} */
-            action: "ASSIGN_ME" | "MARK_READ" | "SNOOZE" | "RESOLVE";
+            action: "ASSIGN_ME" | "ASSIGN" | "MARK_READ" | "MARK_UNREAD" | "SET_PRIORITY" | "SNOOZE" | "RESOLVE";
             /** Format: date-time */
             snoozedUntil?: string;
+            assigneeId?: string | null;
+            /** @enum {string} */
+            priority?: "LOW" | "NORMAL" | "HIGH";
         };
         BulkResultDto: {
             updated: number;
@@ -2451,6 +2556,10 @@ export interface components {
             disconnectedAt: string | null;
             lastHealthCheckAt: string | null;
             lastError: string | null;
+            tokenExpiresAt: string | null;
+            webhookStatus: ("SUBSCRIBED" | "FAILED") | null;
+            webhookError: string | null;
+            lastEventAt: string | null;
             isSample: boolean;
             defaultAssignee: {
                 /** Format: uuid */
@@ -2469,13 +2578,6 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
         };
-        ChannelHealthDto: {
-            ok: boolean;
-            checkedAt: string;
-            qualityRating: string[];
-            displayPhoneNumber: string[];
-            error: string[];
-        };
         ChannelListDto: {
             data: {
                 /** Format: uuid */
@@ -2491,6 +2593,10 @@ export interface components {
                 disconnectedAt: string | null;
                 lastHealthCheckAt: string | null;
                 lastError: string | null;
+                tokenExpiresAt: string | null;
+                webhookStatus: ("SUBSCRIBED" | "FAILED") | null;
+                webhookError: string | null;
+                lastEventAt: string | null;
                 isSample: boolean;
                 defaultAssignee: {
                     /** Format: uuid */
@@ -2525,6 +2631,8 @@ export interface components {
                 label: string;
                 /** @enum {string} */
                 state: "available" | "unavailable";
+                /** @enum {string} */
+                method: "oauth" | "embedded_signup" | "manual_token";
                 reason: string;
                 requirements: string[];
                 connectedCount: number;
@@ -2548,6 +2656,50 @@ export interface components {
             displayName?: string;
             defaultAssigneeId?: string | null;
             defaultTeamId?: string | null;
+        };
+        MetaConfigDto: {
+            appId: string | null;
+            graphVersion: string;
+            whatsappConfigId: string | null;
+        };
+        MetaStartDto: {
+            /** @enum {string} */
+            provider: "MESSENGER" | "INSTAGRAM";
+        };
+        MetaStartResultDto: {
+            /** Format: uri */
+            url: string;
+        };
+        MetaSessionDto: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            provider: "MESSENGER" | "INSTAGRAM";
+            /** Format: date-time */
+            expiresAt: string;
+            candidates: {
+                id: string;
+                name: string;
+                detail: string | null;
+                taken: boolean;
+            }[];
+        };
+        MetaSelectDto: {
+            candidateId: string;
+            displayName?: string;
+        };
+        EmbeddedSignupDto: {
+            code: string;
+            phoneNumberId: string;
+            wabaId: string;
+            displayName: string;
+        };
+        ChannelHealthDto: {
+            ok: boolean;
+            checkedAt: string;
+            qualityRating: string | null;
+            displayPhoneNumber: string | null;
+            error: string | null;
         };
         LeadListDto: {
             data: {
@@ -2747,6 +2899,9 @@ export interface components {
                 total: number;
                 totalPages: number;
             };
+        };
+        CustomerTagListDto: {
+            data: string[];
         };
         CustomerSummaryDto: {
             total: number;
@@ -5573,53 +5728,6 @@ export interface operations {
             };
         };
     };
-    WhatsAppController_health: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspaceId: string;
-                channelId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChannelHealthDto"];
-                };
-            };
-        };
-    };
-    WhatsAppController_retry: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspaceId: string;
-                messageId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        result: "sent" | "skipped" | "failed";
-                    };
-                };
-            };
-        };
-    };
     ChannelsController_list: {
         parameters: {
             query?: {
@@ -5776,6 +5884,172 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChannelDto"];
+                };
+            };
+        };
+    };
+    MetaController_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaConfigDto"];
+                };
+            };
+        };
+    };
+    MetaController_start: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetaStartDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaStartResultDto"];
+                };
+            };
+        };
+    };
+    MetaController_session: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaSessionDto"];
+                };
+            };
+        };
+    };
+    MetaController_select: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetaSelectDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelDto"];
+                };
+            };
+        };
+    };
+    MetaController_embeddedSignup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmbeddedSignupDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelDto"];
+                };
+            };
+        };
+    };
+    MetaController_health: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                channelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelHealthDto"];
+                };
+            };
+        };
+    };
+    MetaController_retry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        result: "sent" | "skipped" | "failed";
+                    };
                 };
             };
         };
@@ -6114,6 +6388,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CustomerItemDto"];
+                };
+            };
+        };
+    };
+    CustomersController_tags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerTagListDto"];
                 };
             };
         };

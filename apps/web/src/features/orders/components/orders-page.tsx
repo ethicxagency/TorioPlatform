@@ -22,15 +22,39 @@ import {
   activeOrderFilterCount,
   EMPTY_ORDER_FILTERS,
   type OrderFilters,
-  type OrderItem,
   type OrderSort,
 } from '../types';
 import { OrderBulkBar } from './bulk-bar';
 import { CreateOrderDialog } from './create-order-dialog';
 import { OrderKpis } from './kpi-cards';
-import { OrderDrawer } from './order-drawer';
 import { OrdersTable } from './orders-table';
 import { OrdersToolbar } from './orders-toolbar';
+
+const LIST_KEY = 'torio.orders.list';
+type ListState = {
+  filters: OrderFilters;
+  search: string;
+  sort: OrderSort;
+  dir: 'asc' | 'desc';
+  page: number;
+};
+
+function loadListState(): ListState | null {
+  try {
+    const raw = sessionStorage.getItem(LIST_KEY);
+    return raw ? ({ ...JSON.parse(raw) } as ListState) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveListState(v: ListState) {
+  try {
+    sessionStorage.setItem(LIST_KEY, JSON.stringify(v));
+  } catch {
+    /* storage unavailable: list simply starts fresh */
+  }
+}
 
 export function OrdersPage() {
   const { toast } = useShell();
@@ -38,16 +62,16 @@ export function OrdersPage() {
   const now = useNow();
   const { workspaceId: ws, can, isLoading: wsLoading, error: wsError } = useWorkspace();
   const canWrite = can('orders:write');
-  const canPayments = can('orders:payments');
 
-  const [filters, setFilters] = useState<OrderFilters>(EMPTY_ORDER_FILTERS);
-  const [search, setSearch] = useState('');
+  // List context survives opening an order and coming back (same tab only).
+  const [saved] = useState(loadListState);
+  const [filters, setFilters] = useState<OrderFilters>(saved?.filters ?? EMPTY_ORDER_FILTERS);
+  const [search, setSearch] = useState(saved?.search ?? '');
   const q = useDebounced(search, 300);
-  const [sort, setSort] = useState<OrderSort>('createdAt');
-  const [dir, setDir] = useState<'asc' | 'desc'>('desc');
-  const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<OrderSort>(saved?.sort ?? 'createdAt');
+  const [dir, setDir] = useState<'asc' | 'desc'>(saved?.dir ?? 'desc');
+  const [page, setPage] = useState(saved?.page ?? 1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [open, setOpen] = useState<OrderItem | null>(null);
   const [creating, setCreating] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
@@ -78,7 +102,10 @@ export function OrdersPage() {
   };
   const headerSort = (f: OrderSort) =>
     f === sort ? onSort(f, dir === 'asc' ? 'desc' : 'asc') : onSort(f, 'desc');
-  const closeDrawer = useCallback(() => setOpen(null), []);
+  const openOrder = (o: { id: string }) => {
+    saveListState({ filters, search, sort, dir, page });
+    router.push(`/orders/${o.id}`);
+  };
   const openConversation = (id: string) => router.push(`/inbox?conversation=${id}`);
   const ids = [...selected];
 
@@ -161,7 +188,7 @@ export function OrdersPage() {
             {moreOpen && (
               <div
                 role="menu"
-                className="absolute right-0 top-11 z-30 w-[200px] animate-panel-in rounded-xl border border-line bg-white p-1.5 shadow-popover"
+                className="absolute right-0 top-11 z-30 w-[200px] animate-panel-in rounded-xl border border-line glass-menu p-1.5 shadow-popover"
               >
                 <button
                   role="menuitem"
@@ -233,14 +260,14 @@ export function OrdersPage() {
         fetching={list.isFetching && !list.isPending}
         filtered={filtered}
         selected={selected}
-        activeId={open?.id ?? null}
+        activeId={null}
         sort={sort}
         dir={dir}
         canWrite={canWrite}
         now={now}
         onSort={headerSort}
         onPage={setPage}
-        onOpen={setOpen}
+        onOpen={openOrder}
         onExport={(o) => void doExport([o.id])}
         onOpenConversation={openConversation}
         onToggle={(id) =>
@@ -261,16 +288,6 @@ export function OrdersPage() {
         onCreate={() => setCreating(true)}
       />
 
-      {open && (
-        <OrderDrawer
-          summary={open}
-          canWrite={canWrite}
-          canPayments={canPayments}
-          onClose={closeDrawer}
-          onExport={(o) => void doExport([o.id])}
-          onOpenConversation={openConversation}
-        />
-      )}
       {creating && (
         <CreateOrderDialog
           onClose={() => setCreating(false)}
@@ -278,7 +295,7 @@ export function OrdersPage() {
             const o = await m.create.mutateAsync(body);
             setCreating(false);
             toast(`Order #${o.number} created`);
-            setOpen(o);
+            router.push(`/orders/${o.id}`);
           }}
         />
       )}

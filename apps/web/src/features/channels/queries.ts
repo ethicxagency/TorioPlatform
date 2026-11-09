@@ -129,3 +129,96 @@ export function useConnectWhatsApp(ws: string | null) {
     onSuccess: () => qc.invalidateQueries({ queryKey: channelKeys.all(ws ?? '') }),
   });
 }
+
+export function useMetaConfig(ws: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ['channels', ws ?? '', 'meta-config'] as const,
+    enabled: !!ws && enabled,
+    queryFn: async () => {
+      const { data, error } = await api.GET(`${P}/meta/config`, {
+        params: { path: { workspaceId: ws! } },
+      });
+      if (!data) throw fail(error, 'Could not load Meta settings');
+      return data;
+    },
+  });
+}
+
+/** Asks the server for the signed Meta authorization URL. The browser then goes to Meta; no token ever passes through it. */
+export function useMetaStart(ws: string | null) {
+  return useMutation({
+    mutationFn: async (provider: 'MESSENGER' | 'INSTAGRAM') => {
+      const { data, error, response } = await api.POST(`${P}/meta/start`, {
+        params: { path: { workspaceId: ws! } },
+        body: { provider },
+      });
+      if (!data) throw fail(error, 'Could not start the Meta connection', response.status);
+      return data.url;
+    },
+  });
+}
+
+export function useMetaSession(ws: string | null, id: string | null) {
+  return useQuery({
+    queryKey: ['channels', ws ?? '', 'meta-session', id] as const,
+    enabled: !!ws && !!id,
+    retry: false,
+    queryFn: async () => {
+      const { data, error, response } = await api.GET(`${P}/meta/sessions/{sessionId}`, {
+        params: { path: { workspaceId: ws!, sessionId: id! } },
+      });
+      if (!data) throw fail(error, 'Could not load the authorized accounts', response.status);
+      return data;
+    },
+  });
+}
+
+export function useMetaSelect(ws: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (a: { sessionId: string; candidateId: string; displayName?: string }) => {
+      const { data, error, response } = await api.POST(`${P}/meta/sessions/{sessionId}/select`, {
+        params: { path: { workspaceId: ws!, sessionId: a.sessionId } },
+        body: { candidateId: a.candidateId, ...(a.displayName && { displayName: a.displayName }) },
+      });
+      if (!data) throw fail(error, 'Could not connect this account', response.status);
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: channelKeys.all(ws ?? '') }),
+  });
+}
+
+export function useEmbeddedSignup(ws: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: {
+      code: string;
+      phoneNumberId: string;
+      wabaId: string;
+      displayName: string;
+    }) => {
+      const { data, error, response } = await api.POST(`${P}/whatsapp/embedded-signup`, {
+        params: { path: { workspaceId: ws! } },
+        body,
+      });
+      if (!data) throw fail(error, 'Could not finish WhatsApp setup', response.status);
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: channelKeys.all(ws ?? '') }),
+  });
+}
+
+/** A real check against the provider; updates the channel's status and last-verified time. */
+export function useChannelHealth(ws: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error, response } = await api.POST(`${P}/{channelId}/health`, {
+        params: { path: { workspaceId: ws!, channelId: id } },
+      });
+      if (!data) throw fail(error, 'Could not check the connection', response.status);
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: channelKeys.all(ws ?? '') }),
+  });
+}

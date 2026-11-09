@@ -1,10 +1,23 @@
 'use client';
 
 import { ChannelIcon, channelKind } from '@/components/channel-icon';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
-import { useRef, useState } from 'react';
+import {
+  ArrowDownAZ,
+  ArrowDownZA,
+  CalendarArrowDown,
+  CalendarArrowUp,
+  Search,
+  SlidersHorizontal,
+  X,
+} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useShell } from '@/components/shell/shell-context';
 import { cn } from '@/lib/utils';
+import { FilterMenu, type FilterMenuOption } from '@/features/inbox/components/filter-menu';
+import { SearchSelect } from '@/features/inbox/components/search-select';
+import { initialsOf } from '@/features/inbox/format';
 import { useDismiss } from '@/features/inbox/use-dismiss';
+import { useKeepInView } from '@/features/inbox/use-keep-in-view';
 import { DATE_RANGES, SOURCES } from '@/features/leads/constants';
 import { SEGMENTS, STATUSES, UNAVAILABLE_SEGMENTS } from '../constants';
 import {
@@ -28,24 +41,62 @@ interface Props {
   onSort: (s: CustomerSort, d: 'asc' | 'desc') => void;
 }
 
-const selectCls = 'h-8 w-full rounded-lg border border-line bg-white px-2 text-[13px] text-ink';
+const selectCls =
+  'h-9 w-full rounded-[var(--radius-control)] border border-line bg-white px-2 text-[13px] text-ink';
 const toggle = <T,>(a: T[], v: T) => (a.includes(v) ? a.filter((x) => x !== v) : [...a, v]);
-const SORTS = [
+
+type SortKey = `${CustomerSort}-${'asc' | 'desc'}`;
+
+// The orders the customers API supports (CUSTOMER_SORT_FIELDS): created date and name.
+const SORTS: (FilterMenuOption<SortKey> & { sort: CustomerSort; dir: 'asc' | 'desc' })[] = [
   {
     key: 'createdAt-desc',
     label: 'Newest first',
-    sort: 'createdAt' as const,
-    dir: 'desc' as const,
+    short: 'Newest',
+    sort: 'createdAt',
+    dir: 'desc',
+    icon: <CalendarArrowDown size={15} aria-hidden />,
   },
-  { key: 'createdAt-asc', label: 'Oldest first', sort: 'createdAt' as const, dir: 'asc' as const },
-  { key: 'name-asc', label: 'Name A–Z', sort: 'name' as const, dir: 'asc' as const },
-  { key: 'name-desc', label: 'Name Z–A', sort: 'name' as const, dir: 'desc' as const },
+  {
+    key: 'createdAt-asc',
+    label: 'Oldest first',
+    short: 'Oldest',
+    sort: 'createdAt',
+    dir: 'asc',
+    icon: <CalendarArrowUp size={15} aria-hidden />,
+  },
+  {
+    key: 'name-asc',
+    label: 'Name A–Z',
+    short: 'A–Z',
+    sort: 'name',
+    dir: 'asc',
+    icon: <ArrowDownAZ size={15} aria-hidden />,
+  },
+  {
+    key: 'name-desc',
+    label: 'Name Z–A',
+    short: 'Z–A',
+    sort: 'name',
+    dir: 'desc',
+    icon: <ArrowDownZA size={15} aria-hidden />,
+  },
 ];
 
+const ICON_BTN =
+  'relative flex h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius-control)] border px-3 text-[13px] font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none';
+
 export function CustomersToolbar(p: Props) {
+  const { registerEscape } = useShell();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
   useDismiss(ref, open, () => setOpen(false));
+  useKeepInView(panel);
+  useEffect(
+    () => (open ? registerEscape(() => setOpen(false)) : undefined),
+    [open, registerEscape],
+  );
   const f = p.filters;
   const n = activeCustomerFilterCount(f);
   const chips = [
@@ -103,176 +154,186 @@ export function CustomersToolbar(p: Props) {
           </button>
         ))}
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="flex h-9 min-w-[200px] flex-1 items-center gap-2 rounded-[10px] border border-line bg-white px-2.5 sm:max-w-[360px]">
-          <Search size={15} className="shrink-0 text-faint" aria-hidden />
-          <input
-            type="search"
-            aria-label="Search customers"
-            placeholder="Search name, email, phone or company"
-            value={p.search}
-            onChange={(e) => p.onSearch(e.target.value)}
-            className="min-w-0 flex-1 border-none bg-transparent text-[13px]"
-          />
-          {p.search && (
+      <div className="@container">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex h-9 min-w-[200px] flex-[1_1_240px] items-center gap-2 rounded-[var(--radius-control)] border border-line bg-white px-2.5 transition-colors duration-150 focus-within:border-primary focus-within:ring-[3px] focus-within:ring-primary/15 motion-reduce:transition-none">
+            <Search size={15} className="shrink-0 text-faint" aria-hidden />
+            <input
+              type="search"
+              aria-label="Search customers"
+              placeholder="Search name, email, phone or company"
+              value={p.search}
+              onChange={(e) => p.onSearch(e.target.value)}
+              className="min-w-0 flex-1 border-none bg-transparent text-[13px]"
+            />
+            {p.search && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => p.onSearch('')}
+                className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-full text-faint hover:bg-wash-2 hover:text-ink"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </label>
+          <div ref={ref} className="relative shrink-0">
             <button
               type="button"
-              aria-label="Clear search"
-              onClick={() => p.onSearch('')}
-              className="cursor-pointer text-faint"
-            >
-              <X size={14} />
-            </button>
-          )}
-        </label>
-        <div ref={ref} className="relative">
-          <button
-            type="button"
-            aria-expanded={open}
-            aria-haspopup="dialog"
-            onClick={() => setOpen((v) => !v)}
-            className={cn(
-              'flex h-9 cursor-pointer items-center gap-1.5 rounded-[10px] border border-line px-3 text-[13px] font-medium',
-              open || n ? 'bg-primary-soft text-primary-hover' : 'bg-white hover:bg-wash',
-            )}
-          >
-            <SlidersHorizontal size={14} />
-            Filters
-            {n > 0 && (
-              <span className="flex h-4 min-w-4 items-center justify-center rounded-lg bg-primary px-1 text-[10px] font-semibold text-white">
-                {n}
-              </span>
-            )}
-          </button>
-          {open && (
-            <div
-              role="dialog"
-              aria-label="Customer filters"
-              onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}
-              className="absolute left-0 top-11 z-30 flex max-h-[70vh] w-[min(320px,calc(100vw-32px))] animate-panel-in flex-col gap-3 overflow-y-auto rounded-xl border border-line bg-white/95 p-3.5 shadow-popover backdrop-blur-[20px]"
-            >
-              <label className="flex flex-col gap-1 text-[11.5px] text-faint">
-                Status
-                <select
-                  value={f.status}
-                  onChange={(e) =>
-                    p.onFilters({ status: e.target.value as CustomerFilters['status'] })
-                  }
-                  className={selectCls}
-                >
-                  <option value="">Any status</option>
-                  {STATUSES.map((s) => (
-                    <option key={s.key} value={s.key}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <fieldset className="m-0 border-0 p-0">
-                <legend className="mb-1.5 text-[11.5px] text-faint">Source</legend>
-                <div className="flex flex-wrap gap-1.5">
-                  {SOURCES.map((s) => {
-                    const on = f.sources.includes(s.key);
-                    return (
-                      <button
-                        key={s.key}
-                        type="button"
-                        aria-pressed={on}
-                        onClick={() => p.onFilters({ sources: toggle(f.sources, s.key) })}
-                        className={cn(
-                          'flex h-7 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-xs',
-                          on
-                            ? 'border-[rgba(91,92,226,0.3)] bg-primary-soft font-semibold text-primary-hover'
-                            : 'border-line bg-white text-muted hover:bg-wash',
-                        )}
-                      >
-                        {channelKind(s.key) ? (
-                          <ChannelIcon channel={s.key} size={13} decorative />
-                        ) : (
-                          <span
-                            className="h-1.5 w-1.5 rounded-full"
-                            style={{ background: s.color }}
-                          />
-                        )}
-                        {s.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </fieldset>
-              <label className="flex flex-col gap-1 text-[11.5px] text-faint">
-                Owner
-                <select
-                  value={f.owner}
-                  onChange={(e) => p.onFilters({ owner: e.target.value })}
-                  className={selectCls}
-                >
-                  <option value="">Any owner</option>
-                  <option value="unassigned">Unassigned</option>
-                  {p.owners.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1 text-[11.5px] text-faint">
-                Tag
-                <select
-                  value={f.tag}
-                  onChange={(e) => p.onFilters({ tag: e.target.value })}
-                  className={selectCls}
-                >
-                  <option value="">Any tag</option>
-                  {p.tags.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1 text-[11.5px] text-faint">
-                Registered
-                <select
-                  value={f.range}
-                  onChange={(e) => p.onFilters({ range: e.target.value as DateRange })}
-                  className={selectCls}
-                >
-                  <option value="">Any time</option>
-                  {DATE_RANGES.map((r) => (
-                    <option key={r.key} value={r.key}>
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {n > 0 && (
-                <button
-                  type="button"
-                  onClick={p.onClear}
-                  className="cursor-pointer self-start text-xs font-medium text-primary"
-                >
-                  Clear all filters
-                </button>
+              aria-expanded={open}
+              aria-haspopup="dialog"
+              aria-label={n ? `Filters, ${n} applied` : 'Filters'}
+              onClick={() => setOpen((v) => !v)}
+              className={cn(
+                ICON_BTN,
+                open || n
+                  ? 'border-[rgba(91,92,226,0.28)] bg-primary-soft text-primary-hover'
+                  : 'border-line bg-white text-ink hover:border-line-input hover:bg-wash active:bg-wash-2',
               )}
-            </div>
-          )}
+            >
+              <SlidersHorizontal size={15} aria-hidden />
+              Filters
+              {n > 0 && (
+                <span
+                  aria-hidden
+                  className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-white"
+                >
+                  {n}
+                </span>
+              )}
+            </button>
+            {open && (
+              <div
+                ref={panel}
+                role="dialog"
+                aria-label="Customer filters"
+                className="absolute left-0 top-11 z-[45] flex w-[min(340px,calc(100vw-32px))] animate-panel-in flex-col gap-3.5 rounded-xl border border-line bg-white p-3.5 shadow-popover max-sm:max-h-[72vh] max-sm:overflow-y-auto"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-card-title">Filters</span>
+                  {n > 0 && (
+                    <span className="rounded-full bg-primary-soft px-1.5 py-px text-[11px] font-semibold text-primary-hover">
+                      {n}
+                    </span>
+                  )}
+                  <span className="flex-1" />
+                  <button
+                    type="button"
+                    disabled={!n}
+                    onClick={p.onClear}
+                    className="cursor-pointer rounded-md px-1.5 py-0.5 text-xs font-medium text-primary hover:bg-primary-soft disabled:cursor-default disabled:text-faint disabled:hover:bg-transparent"
+                  >
+                    Clear all
+                  </button>
+                </div>
+                <label className="flex flex-col gap-1.5 font-label text-muted">
+                  Status
+                  <select
+                    value={f.status}
+                    onChange={(e) =>
+                      p.onFilters({ status: e.target.value as CustomerFilters['status'] })
+                    }
+                    className={selectCls}
+                  >
+                    <option value="">Any status</option>
+                    {STATUSES.map((s) => (
+                      <option key={s.key} value={s.key}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <fieldset className="m-0 border-0 p-0">
+                  <legend className="mb-1.5 font-label text-muted">Source</legend>
+                  <div className="flex flex-wrap gap-1.5">
+                    {SOURCES.map((s) => {
+                      const on = f.sources.includes(s.key);
+                      return (
+                        <button
+                          key={s.key}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() => p.onFilters({ sources: toggle(f.sources, s.key) })}
+                          className={cn(
+                            'flex h-7 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-xs',
+                            on
+                              ? 'border-[rgba(91,92,226,0.3)] bg-primary-soft font-semibold text-primary-hover'
+                              : 'border-line bg-white text-muted hover:bg-wash',
+                          )}
+                        >
+                          {channelKind(s.key) ? (
+                            <ChannelIcon channel={s.key} size={13} decorative />
+                          ) : (
+                            <span
+                              className="h-1.5 w-1.5 rounded-full"
+                              style={{ background: s.color }}
+                            />
+                          )}
+                          {s.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+                <SearchSelect
+                  label="Owner"
+                  anyLabel="Any owner"
+                  searchPlaceholder="Search owners"
+                  emptyText="No team members."
+                  options={[
+                    { value: 'unassigned', label: 'Unassigned' },
+                    ...p.owners.map((o) => ({
+                      value: o.id,
+                      label: o.name,
+                      lead: (
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#E6E6FA] text-[9px] font-semibold text-primary-hover">
+                          {initialsOf(o.name)}
+                        </span>
+                      ),
+                    })),
+                  ]}
+                  value={f.owner}
+                  onChange={(owner) => p.onFilters({ owner })}
+                />
+                <SearchSelect
+                  label="Tag"
+                  anyLabel="Any tag"
+                  searchPlaceholder="Search tags"
+                  emptyText="No customer tags yet."
+                  options={p.tags.map((t) => ({ value: t, label: t }))}
+                  value={f.tag}
+                  onChange={(tag) => p.onFilters({ tag })}
+                />
+                <label className="flex flex-col gap-1.5 font-label text-muted">
+                  Registered
+                  <select
+                    value={f.range}
+                    onChange={(e) => p.onFilters({ range: e.target.value as DateRange })}
+                    className={selectCls}
+                  >
+                    <option value="">Any time</option>
+                    {DATE_RANGES.map((r) => (
+                      <option key={r.key} value={r.key}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
+          </div>
+          <FilterMenu
+            label="Sort"
+            options={SORTS}
+            value={`${p.sort}-${p.dir}` as SortKey}
+            defaultValue="createdAt-desc"
+            onChange={(key) => {
+              const o = SORTS.find((x) => x.key === key)!;
+              p.onSort(o.sort, o.dir);
+            }}
+            className="w-[148px] shrink-0 @min-[640px]:w-[172px]"
+          />
         </div>
-        <select
-          aria-label="Sort customers"
-          value={`${p.sort}-${p.dir}`}
-          onChange={(e) => {
-            const s = SORTS.find((x) => x.key === e.target.value)!;
-            p.onSort(s.sort, s.dir);
-          }}
-          className="h-9 rounded-[10px] border border-line bg-white px-2.5 text-[13px] max-md:hidden"
-        >
-          {SORTS.map((s) => (
-            <option key={s.key} value={s.key}>
-              {s.label}
-            </option>
-          ))}
-        </select>
       </div>
       {chips.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5" aria-label="Active filters">

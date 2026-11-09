@@ -2,6 +2,7 @@
 
 import { LayoutGrid, List, Plus, Search, X } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,6 +16,8 @@ import { EMPTY_CHANNEL_FILTERS, STATUS_INFO, type Channel, type ChannelFilters }
 import { ProviderMark, StatusPill } from './bits';
 import { ChannelDrawer } from './channel-drawer';
 import { ConnectDialog } from './connect-dialog';
+import { MetaErrorBanner, MetaSessionDialog } from './meta-connect';
+import { useShell } from '@/components/shell/shell-context';
 
 export function ChannelsPage() {
   const { workspaceId: ws, can, isLoading: wsLoading, error: wsError } = useWorkspace();
@@ -25,6 +28,14 @@ export function ChannelsPage() {
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [open, setOpen] = useState<string | null>(null);
   const [connect, setConnect] = useState(false);
+  const [reconnect, setReconnect] = useState<string | undefined>();
+  const { toast } = useShell();
+  const router = useRouter();
+  const params = useSearchParams();
+  // Meta sends the browser back here with a session id (success) or an error code; neither contains a token.
+  const metaSession = params.get('meta_session');
+  const metaError = params.get('meta_error');
+  const clearMeta = () => router.replace('/channels');
   const eff = useMemo(() => ({ ...filters, q }), [filters, q]);
   const list = useChannels(ws, eff);
   const summary = useChannelSummary(ws);
@@ -47,20 +58,6 @@ export function ChannelsPage() {
 
   const s = summary.data;
   const filtered = !!q || !!filters.provider || !!filters.status;
-  const kpis = [
-    { label: 'Connected', value: s?.connected, sub: 'Connection records (health not verified)' },
-    {
-      label: 'Needs attention',
-      value: s?.needsAttention,
-      sub: s && s.needsAttention > 0 ? 'Action required' : 'Nothing flagged',
-    },
-    { label: 'Disconnected', value: s?.disconnected, sub: 'History kept' },
-    {
-      label: 'Conversations (30 days)',
-      value: s?.conversationsLast30Days,
-      sub: 'Across all channels',
-    },
-  ];
 
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 pb-8 pt-5 sm:px-6">
@@ -84,40 +81,8 @@ export function ChannelsPage() {
         </Button>
       </header>
 
-      {summary.isError && !s ? (
-        <div
-          role="alert"
-          className="flex items-center gap-3 rounded-xl border border-[#F3C4C4] bg-danger-soft px-3.5 py-2.5 text-[13px] text-[#8F2424]"
-        >
-          Couldn&apos;t load channel metrics.
-          <button
-            type="button"
-            onClick={() => summary.refetch()}
-            className="cursor-pointer font-semibold underline"
-          >
-            Try again
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {kpis.map((k) => (
-            <div key={k.label} className="min-w-0 rounded-card border border-line bg-white p-3.5">
-              <div className="truncate text-[12.5px] font-medium text-muted">{k.label}</div>
-              {summary.isPending ? (
-                <>
-                  <Skeleton className="mt-2 h-7 w-12" />
-                  <Skeleton className="mt-2 h-3 w-24 bg-wash-2" />
-                </>
-              ) : (
-                <>
-                  <div className="mt-1 text-2xl font-metric">{k.value ?? '—'}</div>
-                  <div className="mt-1 truncate text-xs text-faint">{k.sub}</div>
-                </>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      {metaError && <MetaErrorBanner code={metaError} onDismiss={clearMeta} />}
+
       {s && s.sample > 0 && (
         <p role="note" className="m-0 text-xs text-muted">
           {s.sample} of {s.total} channel{s.total === 1 ? ' is a' : 's are'} development sample
@@ -304,6 +269,22 @@ export function ChannelsPage() {
           canManage={canManage}
           canAudit={can('audit:read')}
           onClose={() => setOpen(null)}
+          onReconnect={(provider) => {
+            setOpen(null);
+            setReconnect(provider);
+            setConnect(true);
+          }}
+        />
+      )}
+      {metaSession && ws && (
+        <MetaSessionDialog
+          workspaceId={ws}
+          sessionId={metaSession}
+          onClose={clearMeta}
+          onConnected={(name) => {
+            toast(`${name} connected`);
+            clearMeta();
+          }}
         />
       )}
       {connect && (
@@ -312,7 +293,11 @@ export function ChannelsPage() {
           loading={providers.isPending}
           error={providers.error?.message}
           onRetry={() => providers.refetch()}
-          onClose={() => setConnect(false)}
+          initialProvider={reconnect}
+          onClose={() => {
+            setConnect(false);
+            setReconnect(undefined);
+          }}
         />
       )}
     </div>

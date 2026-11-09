@@ -1,5 +1,6 @@
-import { WorkspacePage } from '@/features/settings/components/workspace-page';
+import { redirect } from 'next/navigation';
 
+/** The page moved into General; keep old bookmarks and links working. */
 export default function Page() {
-  return <WorkspacePage />;
+  redirect('/settings/general#workspace');
 }

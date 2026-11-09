@@ -1,20 +1,13 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShell } from '@/components/shell/shell-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/auth';
 import { useWorkspace } from '@/lib/workspace';
-import {
-  CHAT_MIN_WIDTH,
-  LIST_WIDTH,
-  NAV_MIN_CONTENT,
-  NAV_WIDTH,
-  PROFILE_WIDTH,
-  SNOOZE_OPTIONS,
-} from '../constants';
-import { orderSummaryText } from '../format';
+import { LIST_WIDTH } from '../constants';
+import { orderSummaryText, snoozeLabel } from '../format';
 import { useDrafts } from '../use-drafts';
 import { useInboxShortcuts } from '../use-inbox-shortcuts';
 import { useNow } from '../use-now';
@@ -26,6 +19,7 @@ import {
   useMembers,
   useMessages,
   useSavedReplies,
+  useWorkspaceTags,
 } from '../queries';
 import {
   DEFAULT_FILTERS,
@@ -37,10 +31,10 @@ import {
 import { ChatPanel } from './chat-panel';
 import type { HeaderMenu } from './chat-header';
 import { ConfirmDialog } from './confirm-dialog';
+import type { BulkRequest } from './bulk-actions-toolbar';
 import { ConversationList } from './conversation-list';
-import { CreateOrderDrawer } from './create-order-drawer';
+import { CreateOrderModal } from './create-order-modal';
 import { CustomerProfile } from './customer-profile';
-import { InboxNav } from './inbox-nav';
 import { formatMoney } from '@torio/contracts';
 import { useOrderMutations } from '@/features/orders/queries';
 import { InboxLayout } from '../inbox-layout';
@@ -60,13 +54,15 @@ export function InboxPage() {
   const { workspaceId: ws, can, isLoading: wsLoading, error: wsError } = useWorkspace();
   const now = useNow();
   const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const paramChannel = params.get('channel') ?? '';
 
   const [filters, setFilters] = useState<InboxFilters>(() => ({
     ...DEFAULT_FILTERS,
     channel: CHANNEL_PARAMS[paramChannel] ?? '',
   }));
-  // Sidebar sub-links (?channel=…) drive the channel chip. Derived during render, not in an effect.
+  // ?channel=… (sidebar sub-links and the channel tabs) drives the channel filter. Derived during render, not in an effect.
   const [seenParam, setSeenParam] = useState(paramChannel);
   if (seenParam !== paramChannel) {
     setSeenParam(paramChannel);
@@ -82,6 +78,7 @@ export function InboxPage() {
   }
   const [profileOpen, setProfileOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [managing, setManaging] = useState(false);
   const [menu, setMenu] = useState<HeaderMenu>(null);
   const [aiOpen, setAiOpen] = useState(false);
   const [shortcuts, setShortcuts] = useState(false);
@@ -112,12 +109,22 @@ export function InboxPage() {
     () => (members.data ?? []).map((x) => ({ id: x.userId, name: x.name })),
     [members.data],
   );
-  const tags = useMemo(
-    () => [...new Set(conversations.flatMap((c) => c.customer.tags))].sort(),
-    [conversations],
-  );
-
   const canManage = can('conversations:manage');
+  const canReadCustomers = can('customers:read');
+  const workspaceTags = useWorkspaceTags(canReadCustomers ? ws : null);
+  // Without customers:read the tag list falls back to the tags on the loaded conversations.
+  const tags = useMemo(
+    () =>
+      canReadCustomers
+        ? (workspaceTags.data ?? [])
+        : [...new Set(conversations.flatMap((c) => c.customer.tags))].sort(),
+    [canReadCustomers, workspaceTags.data, conversations],
+  );
+  // A selection only ever covers conversations still in the list (filters, realtime and resolves move them).
+  const selection = useMemo(() => {
+    const visible = new Set(conversations.map((c) => c.id));
+    return new Set([...selected].filter((id) => visible.has(id)));
+  }, [selected, conversations]);
   const canReply = can('conversations:reply');
   const canEditCustomer = can('customers:update');
   const err = (e: unknown) => toast(e instanceof Error ? e.message : 'Something went wrong');
@@ -126,8 +133,27 @@ export function InboxPage() {
     setFilters((f) => ({ ...f, ...patch }));
     if ('status' in patch || 'view' in patch || 'channel' in patch) setSelected(new Set());
   }, []);
+  // Channel tabs write ?channel= so the sidebar's channel links and a reload agree with the list.
+  const changeChannel = useCallback(
+    (channel: '' | Provider) => {
+      patchFilters({ channel });
+      const next = new URLSearchParams(params.toString());
+      if (channel) next.set('channel', channel);
+      else next.delete('channel');
+      const qs = next.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [params, pathname, patchFilters, router],
+  );
   const clearFilters = useCallback(
-    () => setFilters((f) => ({ ...DEFAULT_FILTERS, status: f.status, order: f.order })),
+    // The channel tab is navigation, not a filter: clearing keeps it, as it keeps status and sort.
+    () =>
+      setFilters((f) => ({
+        ...DEFAULT_FILTERS,
+        status: f.status,
+        order: f.order,
+        channel: f.channel,
+      })),
     [],
   );
 
@@ -259,33 +285,60 @@ export function InboxPage() {
     );
   };
 
-  const bulk = (action: 'ASSIGN_ME' | 'MARK_READ' | 'SNOOZE' | 'RESOLVE') => {
-    if (action === 'RESOLVE' && !confirmBulk) return setConfirmBulk(true);
-    const labels = {
-      ASSIGN_ME: 'Assigned to you',
-      MARK_READ: 'Marked as read',
-      SNOOZE: 'Snoozed until tomorrow',
-      RESOLVE: 'Resolved',
-    };
-    const until = SNOOZE_OPTIONS.find((o) => o.key === 'tomorrow')!.until(new Date());
+  const bulk = (req: BulkRequest) => {
+    if (req.action === 'RESOLVE' && !confirmBulk) return setConfirmBulk(true);
+    const ids = [...selection];
+    if (!ids.length) return;
+    const agentName = (id: string | null) =>
+      id === null
+        ? null
+        : id === user?.id
+          ? 'you'
+          : (agents.find((a) => a.id === id)?.name ?? 'agent');
+    const label =
+      req.action === 'ASSIGN'
+        ? req.assigneeId
+          ? `Assigned to ${agentName(req.assigneeId)}`
+          : 'Unassigned'
+        : req.action === 'MARK_READ'
+          ? 'Marked as read'
+          : req.action === 'MARK_UNREAD'
+            ? 'Marked as unread'
+            : req.action === 'SET_PRIORITY'
+              ? `Priority set to ${req.priority === 'HIGH' ? 'urgent' : req.priority.toLowerCase()}`
+              : req.action === 'SNOOZE'
+                ? `Snoozed until ${snoozeLabel(req.until.toISOString())}`
+                : 'Resolved';
     m.bulk.mutate(
       {
-        ids: [...selected],
-        action,
-        ...(action === 'SNOOZE' && { snoozedUntil: until.toISOString() }),
+        ids,
+        action: req.action,
+        ...(req.action === 'ASSIGN' && { assigneeId: req.assigneeId }),
+        ...(req.action === 'SET_PRIORITY' && { priority: req.priority }),
+        ...(req.action === 'SNOOZE' && { snoozedUntil: req.until.toISOString() }),
       },
       {
         onSuccess: (r) => {
-          toast(`${labels[action]} · ${r.updated} conversation${r.updated === 1 ? '' : 's'}`);
+          // The API skips ids that no longer exist in this workspace; say so instead of hiding it.
+          const skipped = ids.length - r.updated;
+          toast(
+            `${label} · ${r.updated} conversation${r.updated === 1 ? '' : 's'}` +
+              (skipped > 0 ? ` · ${skipped} no longer available` : ''),
+          );
           setSelected(new Set());
           setConfirmBulk(false);
         },
         onError: (e) => {
+          // Nothing was changed; keep the selection so the action can be retried.
           err(e);
           setConfirmBulk(false);
         },
       },
     );
+  };
+  const toggleManage = () => {
+    setManaging((v) => !v);
+    setSelected(new Set());
   };
 
   const profileDismiss = useCallback(() => setProfileOpen(false), []);
@@ -340,36 +393,29 @@ export function InboxPage() {
   const listState = list.isPending ? 'loading' : list.isError && !list.data ? 'error' : 'ready';
   const mode = activeId ? (modes[activeId] ?? 'reply') : 'reply';
 
-  // Wide screens get the Inbox navigation column; it takes over the list's status tabs and view chips.
-  // With the customer panel open it stays only if all four columns fit, so the panel never turns into a drawer
-  // just to make room for navigation.
-  const navVisible =
-    !mobile &&
-    contentWidth >= NAV_MIN_CONTENT &&
-    !(
-      active &&
-      profileOpen &&
-      contentWidth < NAV_WIDTH + LIST_WIDTH.min + CHAT_MIN_WIDTH + PROFILE_WIDTH.max
-    );
-
   const listNode = (
     <ConversationList
-      navVisible={navVisible}
       conversations={conversations}
       counts={list.data?.counts}
+      channelCounts={list.data?.channelCounts}
       filters={filters}
       agents={agents}
+      agentsLoading={members.isPending}
       tags={tags}
+      tagsLoading={canReadCustomers && workspaceTags.isPending}
+      meId={user?.id ?? ''}
       activeId={activeId}
-      selected={selected}
+      selected={selection}
       now={now}
       state={listState}
       fetching={list.isFetching && !list.isPending}
       errorMessage={list.error?.message}
       canManage={canManage}
+      managing={managing && canManage}
       bulkBusy={m.bulk.isPending}
       onRetry={() => list.refetch()}
       onFilters={patchFilters}
+      onChannel={changeChannel}
       onClearFilters={clearFilters}
       onOpen={openConversation}
       onToggle={(id) =>
@@ -380,8 +426,14 @@ export function InboxPage() {
           return n;
         })
       }
-      onSelectAll={() => setSelected(new Set(conversations.map((c) => c.id)))}
-      onClearSelection={() => setSelected(new Set())}
+      onManage={toggleManage}
+      onToggleAll={() =>
+        setSelected(
+          selection.size === conversations.length
+            ? new Set()
+            : new Set(conversations.map((c) => c.id)),
+        )
+      }
       onBulk={bulk}
     />
   );
@@ -412,9 +464,8 @@ export function InboxPage() {
       aiOpen={aiOpen}
       profileOpen={profileOpen}
       showBack={mobile}
-      showLabels={
-        contentWidth - (navVisible ? NAV_WIDTH : 0) - 340 - (profileOpen ? 320 : 0) >= 560
-      }
+      // The list's default width decides how much room the chat really has.
+      showLabels={contentWidth - LIST_WIDTH.default - (profileOpen ? 320 : 0) >= 560}
       menu={menu}
       onMenu={setMenu}
       onBack={closeChat}
@@ -504,18 +555,13 @@ export function InboxPage() {
   return (
     <>
       <InboxLayout
-        nav={
-          navVisible ? (
-            <InboxNav filters={filters} counts={list.data?.counts} onChange={patchFilters} />
-          ) : undefined
-        }
         list={listNode}
         chat={chatNode}
         profile={profileNode}
         onProfileDismiss={profileDismiss}
       />
       {orderFor && (
-        <CreateOrderDrawer
+        <CreateOrderModal
           c={orderFor}
           offerSummary={canReply}
           onClose={() => setOrderFor(null)}
@@ -535,11 +581,11 @@ export function InboxPage() {
       {shortcuts && <KeyboardShortcutsDialog onClose={() => setShortcuts(false)} />}
       {confirmBulk && (
         <ConfirmDialog
-          title={`Resolve ${selected.size} conversation${selected.size === 1 ? '' : 's'}?`}
+          title={`Resolve ${selection.size} conversation${selection.size === 1 ? '' : 's'}?`}
           body="They'll move to Resolved. You can reopen any of them later."
           confirmLabel="Resolve"
           busy={m.bulk.isPending}
-          onConfirm={() => bulk('RESOLVE')}
+          onConfirm={() => bulk({ action: 'RESOLVE' })}
           onCancel={() => setConfirmBulk(false)}
         />
       )}

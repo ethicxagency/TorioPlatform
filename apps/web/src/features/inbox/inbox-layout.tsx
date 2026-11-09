@@ -3,13 +3,11 @@
 import { useEffect } from 'react';
 import { useShell } from '@/components/shell/shell-context';
 import { cn } from '@/lib/utils';
-import { CHAT_MIN_WIDTH, LIST_WIDTH, NAV_WIDTH, PROFILE_WIDTH } from './constants';
+import { CHAT_MIN_WIDTH, LIST_WIDTH, PROFILE_WIDTH } from './constants';
 import { usePanelWidth } from './use-panel-width';
 import { ResizeHandle } from './components/resize-handle';
 
 interface Props {
-  /** Inbox navigation column; the page passes it only when it fits (see NAV_MIN_CONTENT). */
-  nav?: React.ReactNode;
   list: React.ReactNode;
   chat: React.ReactNode | null;
   profile: React.ReactNode | null;
@@ -18,13 +16,12 @@ interface Props {
 }
 
 /**
- * Responsive panel layout: Nav → List → Chat → Profile.
- *  - nav: wide screens only; it replaces the list's own status tabs and view chips.
+ * Responsive panel layout: List → Chat → Profile.
  *  - ≥ list+chat(420)+profile: three inline panels, list and profile resizable.
  *  - narrower: profile becomes a drawer; tablet shrinks the list; mobile shows one pane at a time.
  *  - chat closed: the list takes the full width (the stored list width is untouched).
  */
-export function InboxLayout({ nav, list, chat, profile, onProfileDismiss }: Props) {
+export function InboxLayout({ list, chat, profile, onProfileDismiss }: Props) {
   const { vw, mobile, contentWidth } = useShell();
   const listPanel = usePanelWidth({
     storageKey: 'torio-inbox-conversation-width',
@@ -41,18 +38,17 @@ export function InboxLayout({ nav, list, chat, profile, onProfileDismiss }: Prop
 
   const chatOpen = chat !== null;
   const profileOpen = profile !== null;
-  const navWidth = nav && !mobile ? NAV_WIDTH : 0;
   const resizable = vw >= 1024;
   const inlineProfile =
     chatOpen &&
     profileOpen &&
     !mobile &&
-    contentWidth >= navWidth + LIST_WIDTH.min + CHAT_MIN_WIDTH + profilePanel.width;
+    contentWidth >= LIST_WIDTH.min + CHAT_MIN_WIDTH + profilePanel.width;
   const drawerProfile = chatOpen && profileOpen && !inlineProfile;
 
   // Clamp the list so the chat keeps its minimum width (does not overwrite the saved preference).
   const tabletCap = vw < 1024 ? 300 : LIST_WIDTH.max;
-  const room = contentWidth - navWidth - CHAT_MIN_WIDTH - (inlineProfile ? profilePanel.width : 0);
+  const room = contentWidth - CHAT_MIN_WIDTH - (inlineProfile ? profilePanel.width : 0);
   const listWidth = Math.max(LIST_WIDTH.min, Math.min(listPanel.width, tabletCap, room));
 
   // Drawer-mode Escape / outside handling lives in the page; keep body from scrolling behind the drawer.
@@ -70,11 +66,6 @@ export function InboxLayout({ nav, list, chat, profile, onProfileDismiss }: Prop
 
   return (
     <div className="flex h-full min-h-0 min-w-0 bg-canvas">
-      {navWidth > 0 && (
-        <div className="min-h-0 shrink-0 border-r border-line" style={{ width: navWidth }}>
-          {nav}
-        </div>
-      )}
       {showList && (
         <div
           className={cn(
@@ -123,7 +114,7 @@ export function InboxLayout({ nav, list, chat, profile, onProfileDismiss }: Prop
       {drawerProfile && (
         <>
           <div
-            className="fixed inset-x-0 bottom-0 top-14 z-[70] bg-[rgba(13,37,61,0.25)]"
+            className="fixed inset-x-0 bottom-0 top-14 z-[70] glass-scrim"
             onClick={onProfileDismiss}
           />
           <aside

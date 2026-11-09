@@ -11,7 +11,8 @@ import {
   type DateRange,
   type PresetKey,
 } from '@torio/contracts';
-import { CalendarDays, Check, ChevronDown } from 'lucide-react';
+import { ArrowDown01Icon, Calendar01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { DayPicker, type DateRange as PickerRange } from 'react-day-picker';
 import 'react-day-picker/style.css';
@@ -127,10 +128,11 @@ export function DateRangeSelector({ preset, range, today, onPreset, onCustom, cl
           open && 'border-primary bg-primary-soft',
         )}
       >
-        <CalendarDays size={14} className="shrink-0 text-muted" aria-hidden />
+        <Icon icon={Calendar01Icon} size={14} className="shrink-0 text-muted" />
         <span className="font-semibold text-ink">{summary}</span>
         <span className="text-muted max-sm:hidden">{formatRange(range)}</span>
-        <ChevronDown
+        <Icon
+          icon={ArrowDown01Icon}
           size={13}
           className={cn(
             'text-faint transition-transform motion-reduce:transition-none',
@@ -148,7 +150,7 @@ export function DateRangeSelector({ preset, range, today, onPreset, onCustom, cl
           aria-label="Choose date range"
           onKeyDown={onKey}
           className={cn(
-            'absolute right-0 top-[52px] z-[45] max-h-[calc(100vh-110px)] overflow-y-auto animate-panel-in rounded-[14px] border border-line bg-white p-2 shadow-popover',
+            'absolute right-0 top-[52px] z-[45] max-h-[calc(100vh-110px)] overflow-y-auto animate-panel-in rounded-[14px] border border-line glass-menu p-2 shadow-popover',
             customOpen && wide
               ? 'w-[min(720px,calc(100vw-32px))]'
               : 'w-[min(300px,calc(100vw-32px))]',
@@ -185,7 +187,7 @@ export function DateRangeSelector({ preset, range, today, onPreset, onCustom, cl
                     )}
                   >
                     {p.label}
-                    {on && <Check size={13} aria-hidden />}
+                    {on && <Icon icon={Tick02Icon} size={13} />}
                   </button>
                 );
               })}

@@ -3,20 +3,24 @@
 import { Inbox, Loader2, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { minutesSince } from '../format';
-import type { Conversation, InboxFilters } from '../types';
+import { CHANNELS } from '../constants';
+import type { Conversation, InboxFilters, Provider } from '../types';
 import { advancedFilterCount } from '../types';
-import { BulkActionsToolbar } from './bulk-actions-toolbar';
+import { BulkActionsToolbar, type BulkRequest } from './bulk-actions-toolbar';
+import { ChannelTabs } from './channel-tabs';
 import { ConversationFilters } from './conversation-filters';
 import { ConversationRow } from './conversation-row';
 
 interface Props {
-  navVisible: boolean;
   conversations: Conversation[];
   counts: { open: number; snoozed: number; resolved: number } | undefined;
+  channelCounts: Record<'all' | Provider, number> | undefined;
   filters: InboxFilters;
   agents: { id: string; name: string }[];
+  agentsLoading: boolean;
   tags: string[];
+  tagsLoading: boolean;
+  meId: string;
   activeId: string | null;
   selected: Set<string>;
   now: number;
@@ -24,73 +28,71 @@ interface Props {
   fetching: boolean;
   errorMessage?: string;
   canManage: boolean;
+  /** Manage mode: rows show checkboxes and clicks select instead of opening. */
+  managing: boolean;
   bulkBusy: boolean;
   onRetry: () => void;
   onFilters: (patch: Partial<InboxFilters>) => void;
+  onChannel: (channel: '' | Provider) => void;
   onClearFilters: () => void;
   onOpen: (id: string) => void;
   onToggle: (id: string) => void;
-  onSelectAll: () => void;
-  onClearSelection: () => void;
-  onBulk: (action: 'ASSIGN_ME' | 'MARK_READ' | 'SNOOZE' | 'RESOLVE') => void;
+  onManage: () => void;
+  onToggleAll: () => void;
+  onBulk: (req: BulkRequest) => void;
 }
 
 export function ConversationList(p: Props) {
-  const waiting = p.conversations.filter((c) => c.waitingSince && c.status === 'OPEN');
-  const over = waiting.filter((c) => minutesSince(c.waitingSince!, p.now) >= 120).length;
-  const filtered =
-    !!p.filters.q ||
-    p.filters.view !== 'all' ||
-    !!p.filters.channel ||
-    advancedFilterCount(p.filters) > 0;
+  const filtered = !!p.filters.q || p.filters.view !== 'all' || advancedFilterCount(p.filters) > 0;
+  const channel = p.filters.channel ? `${CHANNELS[p.filters.channel].label} ` : '';
 
   return (
     <section
       aria-label="Conversations"
       className="flex h-full min-h-0 min-w-0 flex-col bg-white/70 backdrop-blur-[12px]"
     >
-      <header className="flex items-baseline gap-2 px-4 pb-2.5 pt-4">
+      <header className="flex min-h-[52px] items-center gap-2 px-4 pb-1 pt-4">
         <h1 className="m-0 font-page-title">Inbox</h1>
-        <span className="text-[12.5px] text-muted">
-          {p.counts ? `${p.counts.open} open` : ''}
-          {waiting.length > 0 && ` · ${waiting.length} waiting`}
-        </span>
-        {over > 0 && (
-          <span className="ml-auto rounded-md bg-danger-soft px-[7px] py-0.5 text-[11px] font-medium text-danger">
-            {over} over 2h
-          </span>
-        )}
         {p.fetching && (
           <Loader2 size={13} aria-label="Refreshing" className="ml-auto animate-spin text-faint" />
         )}
       </header>
+      <ChannelTabs
+        value={p.filters.channel}
+        counts={p.channelCounts}
+        status={p.filters.status}
+        onChange={p.onChannel}
+      />
       <ConversationFilters
         filters={p.filters}
         counts={p.counts}
         agents={p.agents}
+        agentsLoading={p.agentsLoading}
         tags={p.tags}
+        tagsLoading={p.tagsLoading}
         onChange={p.onFilters}
         onClear={p.onClearFilters}
-        navVisible={p.navVisible}
+        canManage={p.canManage}
+        managing={p.managing}
+        onManage={p.onManage}
       />
-      {p.selected.size > 0 && (
+      {p.managing && (
         <BulkActionsToolbar
+          total={p.conversations.length}
           count={p.selected.size}
-          canManage={p.canManage}
           busy={p.bulkBusy}
-          onSelectAll={p.onSelectAll}
-          onClear={p.onClearSelection}
-          onAssignMe={() => p.onBulk('ASSIGN_ME')}
-          onMarkRead={() => p.onBulk('MARK_READ')}
-          onSnooze={() => p.onBulk('SNOOZE')}
-          onResolve={() => p.onBulk('RESOLVE')}
+          agents={p.agents}
+          meId={p.meId}
+          onToggleAll={p.onToggleAll}
+          onDone={p.onManage}
+          onAction={p.onBulk}
         />
       )}
       <div
         role="listbox"
         aria-label="Conversation list"
         aria-busy={p.state === 'loading'}
-        className="min-h-0 flex-1 overflow-y-auto border-t border-line-subtle"
+        className="@container min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-line-subtle"
       >
         {p.state === 'loading' && (
           <div aria-label="Loading conversations">
@@ -108,7 +110,7 @@ export function ConversationList(p: Props) {
         )}
         {p.state === 'error' && (
           <div role="alert" className="px-6 py-12 text-center">
-            <TriangleAlert size={22} className="mx-auto mb-2 text-danger" />
+            <TriangleAlert size={24} className="mx-auto mb-2 text-danger" />
             <div className="text-sm font-semibold">Couldn&apos;t load conversations</div>
             <div className="mx-auto mb-3.5 mt-1 max-w-[260px] text-[13px] text-muted">
               {p.errorMessage ?? 'Something went wrong.'}
@@ -121,16 +123,18 @@ export function ConversationList(p: Props) {
         {p.state === 'ready' && p.conversations.length === 0 && (
           <div className="px-6 py-12 text-center">
             <span className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-[14px] bg-primary-soft">
-              <Inbox size={20} className="text-primary" />
+              <Inbox size={24} className="text-primary" />
             </span>
             <div className="text-[14.5px] font-semibold">
               {filtered
                 ? 'No conversations match'
                 : p.filters.status === 'OPEN'
-                  ? 'No open conversations'
+                  ? `No open ${channel}conversations`
                   : p.filters.status === 'SNOOZED'
-                    ? 'Nothing snoozed'
-                    : 'No resolved conversations'}
+                    ? channel
+                      ? `No snoozed ${channel}conversations`
+                      : 'Nothing snoozed'
+                    : `No resolved ${channel}conversations`}
             </div>
             <div className="mx-auto mb-3.5 mt-1 max-w-[260px] text-[13px] text-muted">
               {filtered
@@ -153,7 +157,7 @@ export function ConversationList(p: Props) {
               c={c}
               active={c.id === p.activeId}
               checked={p.selected.has(c.id)}
-              selectionMode={p.selected.size > 0}
+              selectionMode={p.managing}
               now={p.now}
               onOpen={p.onOpen}
               onToggle={p.onToggle}

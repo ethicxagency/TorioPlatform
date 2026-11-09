@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { mockApi } from './mocks';
+import { inboxState, mockApi, orderListItem, orderState, resetOrders } from './mocks';
 
 test.describe('inbox', () => {
   test.beforeEach(async ({ page }) => {
@@ -9,8 +9,11 @@ test.describe('inbox', () => {
 
   test('lists conversations with real counts and no fake data labels', async ({ page }) => {
     await expect(page.getByRole('option', { name: /Tanvir Hasan/ })).toBeVisible();
-    await expect(page.getByRole('tab', { name: /Open/ })).toContainText('2');
-    await expect(page.getByRole('tab', { name: /Snoozed/ })).toContainText('0');
+    await expect(page.getByRole('button', { name: 'Status: Open (2)' })).toBeVisible();
+    await page.getByRole('button', { name: /^Status:/ }).click();
+    await expect(
+      page.getByRole('listbox', { name: 'Status' }).getByRole('option', { name: /Snoozed/ }),
+    ).toContainText('0');
   });
 
   test('closed chat state has no placeholder; opening shows chat without the profile', async ({
@@ -31,7 +34,7 @@ test.describe('inbox', () => {
     await expect(page.getByRole('region', { name: /^Chat with/ })).toHaveCount(0);
     await expect(page.locator('aside[aria-label="Customer profile"]')).toHaveCount(0);
     // The conversation itself is untouched.
-    await expect(page.getByRole('tab', { name: /Open/ })).toContainText('2');
+    await expect(page.getByRole('button', { name: 'Status: Open (2)' })).toBeVisible();
   });
 
   test('drafts persist per conversation', async ({ page }) => {
@@ -82,14 +85,67 @@ test.describe('inbox', () => {
     await expect(page.getByRole('option', { name: /Tanvir Hasan/ })).toBeVisible();
   });
 
-  test('filters fit the list: channel chips are labelled icons; no attachment button', async ({
+  test('channel tabs sit below the Inbox heading, above the toolbar, and filter the list', async ({
     page,
   }) => {
-    const views = page.getByRole('group', { name: 'Views' });
-    for (const name of ['WhatsApp', 'Instagram', 'Messenger'])
-      await expect(views.getByRole('button', { name })).toBeVisible();
+    const tabs = page.getByRole('tablist', { name: 'Channels' });
+    for (const name of ['All messages', 'Messenger', 'Instagram', 'WhatsApp'])
+      await expect(tabs.getByRole('tab', { name })).toBeVisible();
+    // Count badges come from the list response and say what they count; zero shows no badge.
+    const all = tabs.getByRole('tab', { name: 'All messages, 2 open conversations' });
+    await expect(all).toBeVisible();
+    await expect(all).toContainText('2');
+    await expect(tabs.getByRole('tab', { name: 'WhatsApp, 1 open conversation' })).toBeVisible();
+    await expect(tabs.getByRole('tab', { name: 'Messenger', exact: true })).toBeVisible();
+    await expect(page.getByText(/\d+ open · \d+ waiting/)).toHaveCount(0);
+    const tabsBox = await tabs.boundingBox();
+    const headingBox = await page.getByRole('heading', { name: 'Inbox', level: 1 }).boundingBox();
+    const searchBox = await page
+      .getByRole('searchbox', { name: 'Search conversations' })
+      .boundingBox();
+    expect(headingBox!.y + headingBox!.height).toBeLessThanOrEqual(tabsBox!.y);
+    expect(tabsBox!.y + tabsBox!.height).toBeLessThanOrEqual(searchBox!.y);
+
+    // Switching channel keeps unrelated filters (search) and writes ?channel=.
+    await page.getByRole('searchbox', { name: 'Search conversations' }).fill('tan');
+    const req = page.waitForRequest(
+      (r) => /channel=WHATSAPP/.test(r.url()) && /q=tan/.test(r.url()),
+    );
+    await tabs.getByRole('tab', { name: 'WhatsApp' }).click();
+    await req;
+    await expect(page).toHaveURL(/channel=WHATSAPP/);
+    await expect(tabs.getByRole('tab', { name: 'WhatsApp' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(page.getByRole('searchbox', { name: 'Search conversations' })).toHaveValue('tan');
+
+    // Arrow keys move between channels; All messages drops the param.
+    await page.keyboard.press('ArrowLeft');
+    await expect(tabs.getByRole('tab', { name: 'Instagram' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await tabs.getByRole('tab', { name: 'All messages' }).click();
+    await expect(page).not.toHaveURL(/channel=/);
+  });
+
+  test('no attachment button in the composer', async ({ page }) => {
     await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
     await expect(page.getByRole('button', { name: /Attach file/ })).toHaveCount(0);
+  });
+
+  test('composer actions are icon-only until hovered, then show their label', async ({ page }) => {
+    await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
+    for (const name of ['Create order', 'Saved replies', 'Insert emoji', 'AI Assist']) {
+      const btn = page.getByRole('button', { name, exact: true });
+      const label = btn.locator('span[aria-hidden]');
+      const rest = (await btn.boundingBox())!.width;
+      await btn.hover();
+      await expect(label).toBeVisible();
+      await expect.poll(async () => (await btn.boundingBox())!.width).toBeGreaterThan(rest + 20);
+      await page.mouse.move(0, 0);
+    }
   });
 
   test('a failed reply shows its reason and can be resent', async ({ page }) => {
@@ -121,25 +177,227 @@ test.describe('inbox', () => {
     await expect(chat).toBeVisible();
   });
 
-  test('wide screens show the Inbox navigation column instead of repeating tabs and chips', async ({
+  test('Conversations and Status dropdowns sit between search and sort, and combine', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1600, height: 900 });
     await page.goto('/inbox');
-    const nav = page.getByRole('navigation', { name: 'Inbox navigation' });
-    await expect(nav).toBeVisible();
+    // No separate navigation column, status tabs or view chips any more.
+    await expect(page.getByRole('navigation', { name: 'Inbox navigation' })).toHaveCount(0);
     await expect(page.getByRole('tablist', { name: 'Conversation status' })).toHaveCount(0);
-    // A view and a channel combine.
-    const listRequest = page.waitForRequest(
-      (r) => /view=unread/.test(r.url()) && /channel=WHATSAPP/.test(r.url()),
+
+    const search = page.getByRole('searchbox', { name: 'Search conversations' });
+    const views = page.getByRole('button', { name: /^Conversations:/ });
+    const status = page.getByRole('button', { name: /^Status:/ });
+    const sort = page.getByRole('button', { name: /^Sort:/ });
+    const xs = await Promise.all(
+      [
+        search,
+        views,
+        status,
+        sort,
+        page.getByRole('button', { name: 'Manage conversations' }),
+        page.getByRole('button', { name: 'Filters', exact: true }),
+      ].map(async (l) => (await l.boundingBox())!.x),
     );
-    await nav.getByRole('button', { name: 'Unread' }).click();
-    await nav.getByRole('button', { name: 'WhatsApp' }).click();
-    await listRequest;
-    await expect(nav.getByRole('button', { name: 'WhatsApp' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
+    expect([...xs].sort((a, b) => a - b)).toEqual(xs);
+
+    // Search and sort survive; view, status and channel combine in one request.
+    await search.fill('tan');
+    await sort.click();
+    await page
+      .getByRole('listbox', { name: 'Sort' })
+      .getByRole('option', { name: /Newest/ })
+      .click();
+    const req = page.waitForRequest((r) =>
+      ['view=unread', 'status=SNOOZED', 'channel=WHATSAPP', 'q=tan', 'order=newest'].every((p) =>
+        r.url().includes(p),
+      ),
     );
+    await views.click();
+    await page
+      .getByRole('listbox', { name: 'Conversations' })
+      .getByRole('option', { name: /Unread/ })
+      .click();
+    await status.click();
+    // Keyboard works too: opening focuses Open; one step down is Snoozed.
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await page
+      .getByRole('tablist', { name: 'Channels' })
+      .getByRole('tab', { name: 'WhatsApp' })
+      .click();
+    await req;
+    await expect(page.getByRole('button', { name: 'Conversations: Unread' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Status: Snoozed/ })).toBeVisible();
+    await expect(search).toHaveValue('tan');
+    await expect(page.getByRole('button', { name: 'Sort: Newest' })).toBeVisible();
+    // Escape closes without changing the choice.
+    await status.click();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('listbox', { name: 'Status' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Status: Snoozed/ })).toBeVisible();
+  });
+
+  test('rows show no checkbox until Manage; Manage selects, acts in bulk and exits cleanly', async ({
+    page,
+  }) => {
+    const row = page.getByRole('option', { name: /Tanvir Hasan/ });
+    await row.hover();
+    await expect(page.getByRole('checkbox', { name: /Select conversation/ })).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Manage conversations' }).click();
+    const bar = page.getByRole('toolbar', { name: 'Bulk actions' });
+    await expect(bar).toBeVisible();
+    await expect(bar.getByRole('button', { name: 'Mark read' })).toBeDisabled();
+    // In Manage mode a row click selects instead of opening the chat.
+    await row.click();
+    await expect(page.getByRole('region', { name: /^Chat with/ })).toHaveCount(0);
+    await expect(
+      page.getByRole('checkbox', { name: 'Select conversation with Tanvir Hasan' }),
+    ).toHaveAttribute('aria-checked', 'true');
+    const all = bar.getByRole('checkbox', { name: 'Select all' });
+    await expect(all).toHaveAttribute('aria-checked', 'mixed');
+    await expect(bar).toContainText('1 selected');
+    await all.click();
+    await expect(bar).toContainText('2 selected');
+
+    await bar.getByRole('button', { name: 'Assign' }).click();
+    await page
+      .getByRole('menu', { name: 'Assign selected conversations' })
+      .getByRole('menuitemradio', { name: /Nadia Islam/ })
+      .click();
+    await expect(page.getByText('Assigned to Nadia Islam · 2 conversations')).toBeVisible();
+    await expect
+      .poll(() => inboxState.bulks.at(-1))
+      .toMatchObject({
+        action: 'ASSIGN',
+        assigneeId: 'ffffffff-0000-4000-8000-000000000002',
+      });
+    expect((inboxState.bulks.at(-1) as { ids: string[] }).ids).toHaveLength(2);
+
+    // Selection cleared after an action; pick one again and set its priority.
+    await expect(all).toHaveAttribute('aria-checked', 'false');
+    await row.click();
+    await bar.getByRole('button', { name: 'Priority' }).click();
+    await page
+      .getByRole('menu', { name: 'Set priority' })
+      .getByRole('menuitem', { name: 'Urgent' })
+      .click();
+    await expect
+      .poll(() => inboxState.bulks.at(-1))
+      .toMatchObject({ action: 'SET_PRIORITY', priority: 'HIGH' });
+
+    await row.click();
+    await bar.getByRole('button', { name: 'Mark unread' }).click();
+    await expect.poll(() => inboxState.bulks.at(-1)).toMatchObject({ action: 'MARK_UNREAD' });
+
+    // Done leaves Manage mode; rows open conversations again.
+    await bar.getByRole('button', { name: 'Done' }).click();
+    await expect(bar).toHaveCount(0);
+    await expect(page.getByRole('checkbox', { name: /Select conversation/ })).toHaveCount(0);
+    await row.click();
+    await expect(page.getByRole('region', { name: 'Chat with Tanvir Hasan' })).toBeVisible();
+  });
+
+  test('filters panel: searchable agent and tag, priority, clear all; other filters survive', async ({
+    page,
+  }) => {
+    await page.getByRole('searchbox', { name: 'Search conversations' }).fill('a');
+    await page
+      .getByRole('tablist', { name: 'Channels' })
+      .getByRole('tab', { name: 'WhatsApp' })
+      .click();
+    await page.getByRole('button', { name: 'Filters', exact: true }).click();
+    const panel = page.getByRole('dialog', { name: 'Advanced filters' });
+
+    await panel.getByRole('button', { name: 'Assigned agent: Any agent' }).click();
+    await page.getByRole('combobox', { name: 'Search assigned agent' }).fill('nad');
+    await expect(panel.getByRole('option', { name: 'Farid Ahmed' })).toHaveCount(0);
+    const byAgent = page.waitForRequest(
+      (r) =>
+        r.url().includes('assigneeId=ffffffff-0000-4000-8000-000000000002') &&
+        r.url().includes('channel=WHATSAPP') &&
+        r.url().includes('q=a'),
+    );
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await byAgent;
+
+    await panel.getByRole('button', { name: 'Tag: Any tag' }).click();
+    await expect(panel.getByRole('option', { name: 'Hot Lead' })).toBeVisible();
+    // Escape closes only the tag list, not the panel.
+    await page.keyboard.press('Escape');
+    await expect(panel).toBeVisible();
+    await panel.getByRole('button', { name: 'Tag: Any tag' }).click();
+    const byTag = page.waitForRequest(
+      (r) => r.url().includes('tag=vip') && r.url().includes('assigneeId='),
+    );
+    await panel.getByRole('option', { name: 'vip' }).click();
+    await byTag;
+
+    const byPriority = page.waitForRequest(
+      (r) => r.url().includes('priority=HIGH') && r.url().includes('tag=vip'),
+    );
+    await panel.getByRole('radio', { name: 'Urgent' }).click();
+    await byPriority;
+    await expect(page.getByRole('button', { name: 'Filters, 3 applied' })).toBeVisible();
+
+    await panel.getByRole('button', { name: 'Clear all' }).click();
+    await expect(page.getByRole('button', { name: 'Filters', exact: true })).toBeVisible();
+    await expect(page.getByRole('searchbox', { name: 'Search conversations' })).toHaveValue('a');
+    await expect(page).toHaveURL(/channel=WHATSAPP/);
+  });
+
+  test('the five labelled toolbar controls share one row on desktop', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/inbox');
+    const controls = [
+      page.getByRole('button', { name: /^Conversations:/ }),
+      page.getByRole('button', { name: /^Status:/ }),
+      page.getByRole('button', { name: /^Sort:/ }),
+      page.getByRole('button', { name: 'Manage conversations' }),
+      page.getByRole('button', { name: 'Filters', exact: true }),
+    ];
+    const ys = await Promise.all(controls.map(async (c) => Math.round((await c.boundingBox())!.y)));
+    expect(new Set(ys).size).toBe(1);
+    // Manage and Filters keep their text labels.
+    await expect(controls[3]).toContainText('Manage');
+    await expect(controls[4]).toContainText('Filters');
+    await expect(controls[2]).toContainText('Longest wait');
+  });
+
+  test('toolbar wraps on a phone without horizontal overflow', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto('/inbox');
+    await expect(page.getByRole('button', { name: /^Status:/ })).toBeVisible();
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    );
+    expect(overflow).toBe(false);
+  });
+
+  test('details panel: pinned identity, linked contact rows, collapsible sections, searchable assignee', async ({
+    page,
+  }) => {
+    await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
+    await page.getByRole('button', { name: 'Open customer profile' }).click();
+    const panel = page.locator('aside[aria-label="Customer profile"]');
+    await expect(panel.getByRole('heading', { name: 'Tanvir Hasan', level: 2 })).toBeVisible();
+    await expect(panel.getByRole('link', { name: 'View full profile' })).toBeVisible();
+    // Phone and email are real links with copy actions.
+    await expect(panel.getByRole('link', { name: /@/ })).toHaveAttribute('href', /^mailto:/);
+    await expect(panel.getByRole('button', { name: 'Copy email' })).toBeVisible();
+    // Sections collapse and expand from their whole header row.
+    const contact = panel.getByRole('button', { name: 'Contact' });
+    await expect(contact).toHaveAttribute('aria-expanded', 'true');
+    await contact.click();
+    await expect(contact).toHaveAttribute('aria-expanded', 'false');
+    await contact.click();
+    // Conversation status and the channel read at a glance; the assignee picker is searchable.
+    await expect(panel.getByText('Open', { exact: true })).toBeVisible();
+    await panel.getByRole('button', { name: /^Assigned agent:/ }).click();
+    await expect(panel.getByRole('combobox', { name: 'Search assigned agent' })).toBeVisible();
   });
 
   test('assign menu paints above messages and stays in the viewport', async ({ page }) => {
@@ -179,7 +437,7 @@ test.describe('inbox', () => {
     await expect(page.getByRole('dialog', { name: 'Saved replies' })).toHaveCount(0);
   });
 
-  test('create order drawer: catalog product with variant, conversation linked, summary drafted', async ({
+  test('create order modal: catalog product with variant, conversation linked, summary drafted', async ({
     page,
   }) => {
     await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
@@ -222,7 +480,48 @@ test.describe('inbox', () => {
     await expect(box).toHaveValue(/^Sure!\n\nOrder #\d+\n/);
   });
 
-  test('create order drawer: manual item, Escape closes without saving', async ({ page }) => {
+  test('create order modal: centered, outside click asks before discarding typed work', async ({
+    page,
+  }) => {
+    await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
+    const trigger = page.getByRole('button', { name: 'Create order' });
+    await trigger.click();
+    const modal = page.getByRole('dialog', { name: 'Create order' });
+    await expect(modal).toBeVisible();
+    // Centered, 520-600px wide, with the conversation still behind it.
+    const box = (await modal.boundingBox())!;
+    const vp = page.viewportSize()!;
+    expect(box.width).toBeGreaterThanOrEqual(520);
+    expect(box.width).toBeLessThanOrEqual(600);
+    expect(Math.abs(box.x + box.width / 2 - vp.width / 2)).toBeLessThan(2);
+    await expect(page.getByRole('region', { name: 'Chat with Tanvir Hasan' })).toBeVisible();
+    await expect(modal.getByText('Tanvir Hasan')).toBeVisible();
+    // Untouched: an outside click closes it, and focus returns to the trigger.
+    await page.mouse.click(5, 5);
+    await expect(modal).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    // With work in progress the outside click asks first.
+    await trigger.click();
+    await modal.getByLabel(/Description/).fill('Gift wrap please');
+    await page.mouse.click(5, 5);
+    await expect(page.getByRole('alertdialog')).toContainText('Discard this order?');
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel' }).click();
+    await expect(modal).toBeVisible();
+  });
+
+  test('conversation header: channel, status, waiting time and a copyable phone', async ({
+    page,
+  }) => {
+    await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
+    const header = page.getByRole('region', { name: 'Chat with Tanvir Hasan' }).locator('header');
+    await expect(header.getByRole('heading', { name: 'Tanvir Hasan' })).toBeVisible();
+    await expect(header.getByText('WhatsApp', { exact: true })).toBeVisible();
+    await expect(header.getByText('Open', { exact: true })).toBeVisible();
+    await expect(header.getByText(/^Waiting /)).toBeVisible();
+    await expect(header.getByRole('button', { name: /^Copy phone number:/ })).toBeVisible();
+  });
+
+  test('create order modal: manual item, Escape closes without saving', async ({ page }) => {
     await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
     await page.getByRole('button', { name: 'Create order' }).click();
     const drawer = page.getByRole('dialog', { name: 'Create order' });
@@ -290,16 +589,88 @@ test.describe('inbox', () => {
     await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
     await page.getByRole('button', { name: 'Open customer profile' }).click();
     const panel = page.locator('aside[aria-label="Customer profile"]');
-    const stage = panel.getByRole('combobox', { name: 'Lead stage' });
-    await expect(stage).toHaveValue('CONTACTED');
+    const stage = panel.getByRole('button', { name: /^Lead stage:/ });
+    await expect(stage).toContainText('Contacted');
     const patched = page.waitForRequest(
       (r) => r.method() === 'PATCH' && new URL(r.url()).pathname.endsWith(`/leads/${leadId}`),
     );
-    await stage.selectOption('WON');
+    await stage.click();
+    await expect(panel.getByRole('option')).toHaveCount(6);
+    await expect(panel.getByRole('option', { name: 'Contacted' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await panel.getByRole('option', { name: 'Won' }).click();
     expect((await patched).postDataJSON()).toEqual({ stage: 'WON' });
     await expect(panel.getByRole('link', { name: 'View in Leads' })).toHaveAttribute(
       'href',
       `/leads?lead=${leadId}`,
     );
+    // Orders belong to the customer: with several of them there is no single order to change from here.
+    await expect(panel.getByText(/orders\b.*set each from its order|No orders yet/)).toBeVisible();
+    await expect(panel.getByRole('button', { name: /^Order status:/ })).toHaveCount(0);
+  });
+
+  test('customer panel: order status follows the order lifecycle for a single order', async ({
+    page,
+  }) => {
+    resetOrders();
+    const leadId = '99999999-9999-4999-8999-0000000000aa';
+    const pending = orderState.list.find((o) => o.number === 1002)!;
+    await page.route(/\/orders\?.*customerId=/, (route) =>
+      route.fulfill({
+        json: {
+          data: [orderListItem(pending)],
+          meta: { page: 1, pageSize: 5, total: 1, totalPages: 1 },
+        },
+      }),
+    );
+    await page.route(/\/leads\?.*customerId=/, (route) =>
+      route.fulfill({
+        json: {
+          data: [
+            {
+              id: leadId,
+              name: 'Tanvir Hasan',
+              email: null,
+              phone: null,
+              company: null,
+              jobTitle: null,
+              source: 'WHATSAPP',
+              stage: 'NEW',
+              owner: null,
+              tags: [],
+              dealValue: null,
+              score: 10,
+              notes: '',
+              customerId: 'dddddddd-dddd-4ddd-8ddd-000000000001',
+              conversationId: null,
+              lastActivityAt: '2026-11-01T00:00:00.000Z',
+              createdAt: '2026-11-01T00:00:00.000Z',
+            },
+          ],
+          meta: { page: 1, pageSize: 5, total: 1, totalPages: 1 },
+        },
+      }),
+    );
+    await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
+    await page.getByRole('button', { name: 'Open customer profile' }).click();
+    const panel = page.locator('aside[aria-label="Customer profile"]');
+    const status = panel.getByRole('button', { name: /^Order status:/ });
+    await expect(status).toContainText('Pending');
+    await status.click();
+    // Only the real lifecycle step is pickable; cancelling and skipping ahead are disabled with a reason.
+    await expect(panel.getByRole('option', { name: 'Processing' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    await expect(panel.getByRole('option', { name: 'Cancelled' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    await panel.getByRole('option', { name: 'Confirmed' }).click();
+    await expect.poll(() => orderState.statuses.length).toBe(1);
+    expect(orderState.statuses[0]).toEqual({ status: 'CONFIRMED' });
+    await expect(panel.getByRole('link', { name: /#1002/ })).toHaveAttribute('href', /\/orders\//);
   });
 });

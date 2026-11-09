@@ -35,8 +35,10 @@ use a custom domain):
 - `WEB_URL`, `CORS_ALLOWED_ORIGINS` (the public URL) and `COOKIE_SECURE=true`.
 
 Optional: `REDIS_URL` (with `REDIS_REQUIRED=true` to make it mandatory), `STRIPE_SECRET_KEY`,
-`STRIPE_WEBHOOK_SECRET`, `BILLING_PRICE_IDS`, `META_APP_SECRET`, `META_WEBHOOK_VERIFY_TOKEN`,
-`CHANNEL_ENCRYPTION_KEY`, `LOG_LEVEL`.
+`STRIPE_WEBHOOK_SECRET`, `BILLING_PRICE_IDS`, `META_APP_ID`, `META_APP_SECRET`, `META_OAUTH_REDIRECT_URI`
+(`https://<your-domain>/api/v1/channels/meta/callback`), `META_WEBHOOK_VERIFY_TOKEN`, `META_WA_CONFIG_ID`,
+`META_GRAPH_VERSION`, `CHANNEL_ENCRYPTION_KEY`, `LOG_LEVEL`. Messenger and Instagram stay "Unavailable" until the
+Meta variables are set; see `docs/META_SETUP.md`.
 
 Leave `NEXT_PUBLIC_API_URL` unset: the build script sets it empty so the browser calls the API on the
 same domain.

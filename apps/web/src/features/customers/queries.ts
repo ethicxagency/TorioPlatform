@@ -155,7 +155,11 @@ type BulkBody = ApiSchemas['CustomerBulkDto'];
 
 export function useCustomerMutations(ws: string | null) {
   const qc = useQueryClient();
-  const invalidate = () => qc.invalidateQueries({ queryKey: customerKeys.all(ws ?? '') });
+  const invalidate = () => {
+    // Tag edits change the workspace tag list used by the Inbox and Customers filters too.
+    void qc.invalidateQueries({ queryKey: ['inbox', ws ?? '', 'conversations', 'tags'] });
+    return qc.invalidateQueries({ queryKey: customerKeys.all(ws ?? '') });
+  };
   const path = (customerId: string) => ({ workspaceId: ws!, customerId });
   return {
     create: useMutation({

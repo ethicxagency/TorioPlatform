@@ -12,10 +12,7 @@ import { PrismaService } from '../../database/prisma.service';
 
 type Provider = 'WHATSAPP' | 'INSTAGRAM' | 'MESSENGER';
 
-/**
- * Honest provider catalog. No messaging provider integration (OAuth, webhooks, sending) exists in this build, so
- * nothing is "available"; flip `state` per provider only when its real connection flow ships.
- */
+/** Provider catalog: what each connection needs. Availability is decided per server from its Meta configuration. */
 const CATALOG: Record<Provider, { label: string; requirements: string[] }> = {
   WHATSAPP: {
     label: 'WhatsApp Business',
@@ -38,9 +35,14 @@ const CATALOG: Record<Provider, { label: string; requirements: string[] }> = {
     requirements: ['A Facebook Page you administer', 'Messaging enabled on the Page'],
   },
 };
-const REASON =
-  'Torio’s connection for this provider isn’t built yet, so it can’t be connected from here.';
 const DAY = 86_400_000;
+
+/** Runs before a channel's stored credential is deleted; returns a short note for the audit trail, or null. */
+export type DisconnectHook = (channel: {
+  id: string;
+  provider: Provider;
+  ciphertext: string | null;
+}) => Promise<string | null>;
 
 /** Every query is scoped by workspaceId. Credentials are never selected or returned. */
 @Injectable()
@@ -49,6 +51,12 @@ export class ChannelsService {
     private readonly prisma: PrismaService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
+
+  private readonly disconnectHooks: DisconnectHook[] = [];
+  /** Provider modules register here so disconnecting also revokes what Torio set up on the provider's side. */
+  onDisconnect(hook: DisconnectHook) {
+    this.disconnectHooks.push(hook);
+  }
 
   private get whatsappReady() {
     return !!(
@@ -123,6 +131,10 @@ export class ChannelsService {
       disconnectedAt: c.disconnectedAt?.toISOString() ?? null,
       lastHealthCheckAt: c.lastHealthCheckAt?.toISOString() ?? null,
       lastError: c.lastError,
+      tokenExpiresAt: c.tokenExpiresAt?.toISOString() ?? null,
+      webhookStatus: (c.webhookStatus as 'SUBSCRIBED' | 'FAILED' | null) ?? null,
+      webhookError: c.webhookError,
+      lastEventAt: c.lastEventAt?.toISOString() ?? null,
       isSample: c.isSample,
       defaultAssignee: c.defaultAssignee,
       defaultTeam: c.defaultTeam,
@@ -193,32 +205,52 @@ export class ChannelsService {
     };
   }
 
+  private get metaReady() {
+    const c = this.config;
+    return !!(
+      c.META_APP_ID &&
+      c.META_APP_SECRET &&
+      c.META_OAUTH_REDIRECT_URI &&
+      c.META_WEBHOOK_VERIFY_TOKEN &&
+      c.CHANNEL_ENCRYPTION_KEY
+    );
+  }
+
   async providers(ws: string) {
     const counts = await this.prisma.client.channel.groupBy({
       by: ['provider'],
       where: { workspaceId: ws, status: { not: 'DISCONNECTED' } },
       _count: { _all: true },
     });
+    const NOT_CONFIGURED =
+      'Meta isn’t configured on this server (app id, app secret, redirect URI, webhook verify token and encryption key are required).';
     return {
-      data: (Object.keys(CATALOG) as Provider[]).map((p) => ({
-        provider: p,
-        label: CATALOG[p].label,
-        ...(p === 'WHATSAPP' && this.whatsappReady
-          ? {
-              state: 'available' as const,
-              reason:
-                'Connect a WhatsApp Cloud API number with its phone number ID and access token. Meta Embedded Signup isn’t built yet.',
-            }
-          : {
-              state: 'unavailable' as const,
-              reason:
-                p === 'WHATSAPP'
-                  ? 'WhatsApp isn’t configured on this server (Meta app secret, webhook verify token and encryption key are missing).'
-                  : REASON,
-            }),
-        requirements: CATALOG[p].requirements,
-        connectedCount: counts.find((c) => c.provider === p)?._count._all ?? 0,
-      })),
+      data: (Object.keys(CATALOG) as Provider[]).map((p) => {
+        const wa = p === 'WHATSAPP';
+        const ready = wa ? this.whatsappReady : this.metaReady;
+        const embedded = wa && this.metaReady && !!this.config.META_WA_CONFIG_ID;
+        return {
+          provider: p,
+          label: CATALOG[p].label,
+          state: ready ? ('available' as const) : ('unavailable' as const),
+          method: wa
+            ? embedded
+              ? ('embedded_signup' as const)
+              : ('manual_token' as const)
+            : ('oauth' as const),
+          reason: ready
+            ? wa
+              ? embedded
+                ? 'Connect through Meta’s Embedded Signup, or paste a Cloud API token.'
+                : 'Connect a WhatsApp Cloud API number with its phone number ID and access token.'
+              : 'Authorize with Facebook, then choose the account to connect.'
+            : wa
+              ? 'WhatsApp isn’t configured on this server (Meta app secret, webhook verify token and encryption key are missing).'
+              : NOT_CONFIGURED,
+          requirements: CATALOG[p].requirements,
+          connectedCount: counts.find((c) => c.provider === p)?._count._all ?? 0,
+        };
+      }),
     };
   }
 
@@ -273,16 +305,35 @@ export class ChannelsService {
     return this.get(ws, id);
   }
 
-  /** Marks the channel disconnected locally. Conversations and messages are kept. (No provider token exists to revoke yet.) */
+  /** Marks the channel disconnected and deletes its stored access token. Conversations and messages are kept. */
   async disconnect(ws: string, actorId: string, id: string) {
-    const cur = await this.prisma.client.channel.findFirst({ where: { id, workspaceId: ws } });
+    const cur = await this.prisma.client.channel.findFirst({
+      where: { id, workspaceId: ws },
+      include: { credential: true },
+    });
     if (!cur) throw new NotFoundException('Channel not found');
     if (cur.status === 'DISCONNECTED')
       throw new ConflictException('This channel is already disconnected');
+    // Best effort: tell the provider to stop sending events, then delete the token. A failure here must not
+    // leave the channel connected, so it is recorded instead of thrown.
+    const notes: string[] = [];
+    for (const hook of this.disconnectHooks) {
+      try {
+        const n = await hook({
+          id,
+          provider: cur.provider,
+          ciphertext: cur.credential?.ciphertext ?? null,
+        });
+        if (n) notes.push(n);
+      } catch {
+        notes.push('Couldn’t reach the provider to remove its webhook subscription');
+      }
+    }
     await this.prisma.client.$transaction([
+      this.prisma.client.channelCredential.deleteMany({ where: { channelId: id } }),
       this.prisma.client.channel.update({
         where: { id },
-        data: { status: 'DISCONNECTED', disconnectedAt: new Date() },
+        data: { status: 'DISCONNECTED', disconnectedAt: new Date(), webhookStatus: null },
       }),
       this.prisma.client.auditLog.create({
         data: {
@@ -291,7 +342,11 @@ export class ChannelsService {
           action: 'channel.disconnect',
           entityType: 'channel',
           entityId: id,
-          metadata: { description: 'Channel disconnected. Conversation history was kept.' },
+          metadata: {
+            description: ['Channel disconnected. Conversation history was kept.', ...notes].join(
+              ' ',
+            ),
+          },
         },
       }),
     ]);

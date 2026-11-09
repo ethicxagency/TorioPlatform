@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Activity,
   Check,
   CheckCheck,
   Clock,
@@ -67,13 +68,14 @@ interface Props {
 function Bubble({ m, groupStart, groupEnd, customerName, onReply, onCopy, onRetry }: Props) {
   if (m.kind === 'EVENT') {
     return (
-      <div className="my-2 flex items-center justify-center gap-2 px-4 text-xs text-faint">
-        <span className="h-px flex-1 bg-line-subtle" />
-        <span className="max-w-[80%] truncate" title={m.body}>
-          {m.body}
+      <div className="my-2.5 flex justify-center px-4">
+        <span className="inline-flex max-w-[90%] items-center gap-1.5 rounded-full bg-wash-2/70 px-3 py-1 text-xs text-muted">
+          <Activity size={12} aria-hidden className="shrink-0 text-faint" />
+          <span className="min-w-0 truncate" title={m.body}>
+            {m.body}
+          </span>
+          <span className="shrink-0 text-faint">· {fmtTime(m.createdAt)}</span>
         </span>
-        <span className="shrink-0">· {fmtTime(m.createdAt)}</span>
-        <span className="h-px flex-1 bg-line-subtle" />
       </div>
     );
   }
@@ -95,88 +97,95 @@ function Bubble({ m, groupStart, groupEnd, customerName, onReply, onCopy, onRetr
   }
 
   const out = m.kind === 'OUTBOUND';
+  // Agent replies name their sender once per group, so a shared inbox shows who answered.
+  const sender = out && groupStart && m.author ? m.author.name : null;
   return (
-    <div
-      className={cn(
-        'group flex items-end gap-1 px-4',
-        out ? 'flex-row-reverse' : 'flex-row',
-        groupStart ? 'mt-3.5' : 'mt-[3px]',
+    <>
+      {sender && (
+        <div className="mt-3.5 px-4 text-right text-[11.5px] font-medium text-faint">{sender}</div>
       )}
-    >
       <div
         className={cn(
-          'min-w-0 max-w-[78%] border px-3 py-2 text-[14px] leading-[1.45]',
-          out ? 'border-primary bg-primary text-white' : 'border-[#E9EAEE] bg-white text-ink',
-          out
-            ? groupEnd
-              ? 'rounded-[14px_14px_4px_14px]'
-              : 'rounded-[14px]'
-            : groupEnd
-              ? 'rounded-[14px_14px_14px_4px]'
-              : 'rounded-[14px]',
+          'group flex items-end gap-1 px-4',
+          out ? 'flex-row-reverse' : 'flex-row',
+          sender ? 'mt-1' : groupStart ? 'mt-3.5' : 'mt-[3px]',
         )}
       >
-        {m.replyTo && (
-          <div
-            className={cn(
-              'mb-1.5 truncate rounded-md border-l-2 px-2 py-1 text-xs',
-              out
-                ? 'border-white/60 bg-white/15 text-white/90'
-                : 'border-primary bg-primary-tint text-muted',
-            )}
-          >
-            {m.replyTo.body}
-          </div>
-        )}
-        {/* Plain text only: message bodies are never rendered as HTML. */}
-        <p className="m-0 whitespace-pre-wrap [overflow-wrap:anywhere]">{m.body}</p>
-        {out && m.deliveryStatus === 'FAILED' && m.failureReason && (
-          <p role="alert" className="m-0 mt-1 text-xs text-[#FFD0D0] [overflow-wrap:anywhere]">
-            Not delivered: {m.failureReason}
-          </p>
-        )}
-        {out && m.deliveryStatus === 'FAILED' && onRetry && (
+        <div
+          className={cn(
+            'min-w-0 max-w-[min(78%,560px)] border px-3 py-2 text-[14px] leading-[1.45]',
+            out ? 'border-primary bg-primary text-white' : 'border-[#E9EAEE] bg-white text-ink',
+            out
+              ? groupEnd
+                ? 'rounded-[14px_14px_4px_14px]'
+                : 'rounded-[14px]'
+              : groupEnd
+                ? 'rounded-[14px_14px_14px_4px]'
+                : 'rounded-[14px]',
+          )}
+        >
+          {m.replyTo && (
+            <div
+              className={cn(
+                'mb-1.5 truncate rounded-md border-l-2 px-2 py-1 text-xs',
+                out
+                  ? 'border-white/60 bg-white/15 text-white/90'
+                  : 'border-primary bg-primary-tint text-muted',
+              )}
+            >
+              {m.replyTo.body}
+            </div>
+          )}
+          {/* Plain text only: message bodies are never rendered as HTML. */}
+          <p className="m-0 whitespace-pre-wrap [overflow-wrap:anywhere]">{m.body}</p>
+          {out && m.deliveryStatus === 'FAILED' && m.failureReason && (
+            <p role="alert" className="m-0 mt-1 text-xs text-[#FFD0D0] [overflow-wrap:anywhere]">
+              Not delivered: {m.failureReason}
+            </p>
+          )}
+          {out && m.deliveryStatus === 'FAILED' && onRetry && (
+            <button
+              type="button"
+              onClick={() => onRetry(m)}
+              className="mt-1.5 cursor-pointer rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-semibold text-white hover:bg-white/30"
+            >
+              Retry sending
+            </button>
+          )}
+          {groupEnd && (
+            <div
+              className={cn(
+                'mt-1 flex items-center justify-end gap-1 text-[11px]',
+                out ? 'text-white/70' : 'text-faint',
+              )}
+            >
+              {fmtTime(m.createdAt)}
+              {out && <DeliveryMark status={m.deliveryStatus} />}
+            </div>
+          )}
+        </div>
+        <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 max-md:opacity-100">
           <button
             type="button"
-            onClick={() => onRetry(m)}
-            className="mt-1.5 cursor-pointer rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-semibold text-white hover:bg-white/30"
+            title="Reply"
+            aria-label={`Reply to message from ${out ? 'you' : customerName}`}
+            onClick={() => onReply(m)}
+            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-faint hover:bg-wash-2 hover:text-ink"
           >
-            Retry sending
+            <CornerUpLeft size={14} />
           </button>
-        )}
-        {groupEnd && (
-          <div
-            className={cn(
-              'mt-1 flex items-center justify-end gap-1 text-[11px]',
-              out ? 'text-white/70' : 'text-faint',
-            )}
+          <button
+            type="button"
+            title="Copy"
+            aria-label="Copy message text"
+            onClick={() => onCopy(m)}
+            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-faint hover:bg-wash-2 hover:text-ink"
           >
-            {fmtTime(m.createdAt)}
-            {out && <DeliveryMark status={m.deliveryStatus} />}
-          </div>
-        )}
+            <Copy size={14} />
+          </button>
+        </div>
       </div>
-      <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 max-md:opacity-100">
-        <button
-          type="button"
-          title="Reply"
-          aria-label={`Reply to message from ${out ? 'you' : customerName}`}
-          onClick={() => onReply(m)}
-          className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-faint hover:bg-wash-2 hover:text-ink"
-        >
-          <CornerUpLeft size={14} />
-        </button>
-        <button
-          type="button"
-          title="Copy"
-          aria-label="Copy message text"
-          onClick={() => onCopy(m)}
-          className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-faint hover:bg-wash-2 hover:text-ink"
-        >
-          <Copy size={14} />
-        </button>
-      </div>
-    </div>
+    </>
   );
 }
 

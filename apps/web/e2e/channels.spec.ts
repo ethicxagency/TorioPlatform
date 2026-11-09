@@ -13,11 +13,18 @@ test.describe('channels (owner)', () => {
     page,
   }) => {
     await expect(page.getByRole('button', { name: 'Sales WhatsApp' })).toBeVisible();
-    await expect(page.getByText('Needs attention').first()).toBeVisible();
     await expect(
       page.getByRole('alert').filter({ hasText: 'Authorization expired' }),
     ).toBeVisible();
-    await expect(page.getByText(/health not verified/)).toBeVisible();
+    // The four summary cards are gone.
+    for (const text of [
+      'Conversations (30 days)',
+      'Across all channels',
+      'Nothing flagged',
+      'History kept',
+    ])
+      await expect(page.getByText(text, { exact: true })).toHaveCount(0);
+    await expect(page.getByText(/health not verified/)).toHaveCount(0);
     await expect(page.getByText(/development sample/)).toBeVisible();
   });
 
@@ -38,14 +45,15 @@ test.describe('channels (owner)', () => {
     await expect(dlg.getByRole('button', { name: /^Connect WhatsApp Business$/ })).toBeDisabled();
   });
 
-  test('details: health is "not monitored", reconnect is unavailable, rename persists via the API', async ({
+  test('details: health shows only real evidence, rename persists via the API', async ({
     page,
   }) => {
     await page.getByRole('button', { name: 'Brand Instagram' }).click();
     const d = page.getByRole('dialog', { name: 'Channel: Brand Instagram' });
-    await expect(d.getByText('Not monitored yet').first()).toBeVisible();
+    await expect(d.getByText('Not recorded')).toBeVisible(); // webhook subscription was never confirmed
+    await expect(d.getByText('None yet')).toBeVisible(); // no event has arrived
     await expect(d.getByText(/never been verified/)).toBeVisible();
-    await expect(d.getByRole('button', { name: 'Reconnect' })).toBeDisabled();
+    await expect(d.getByRole('button', { name: 'Reconnect' })).toBeEnabled();
     await d.getByLabel('Display name').fill('Brand IG');
     await d.getByRole('button', { name: 'Save' }).click();
     await expect.poll(() => channelState.patches.length).toBe(1);
@@ -65,6 +73,65 @@ test.describe('channels (owner)', () => {
     await expect(c).toContainText('conversation history');
     await c.getByRole('button', { name: 'Disconnect' }).click();
     await expect(page.getByRole('status').filter({ hasText: 'History kept' })).toBeVisible();
+  });
+
+  test('Messenger connects through Meta OAuth: the server starts it, the browser only gets a URL', async ({
+    page,
+  }) => {
+    channelState.metaConfigured = true;
+    await page.route('https://www.facebook.com/**', (r) => r.fulfill({ body: 'meta' }));
+    await page.getByRole('button', { name: 'Connect Channel' }).first().click();
+    const dlg = page.getByRole('dialog', { name: 'Connect a channel' });
+    await dlg.getByRole('radio', { name: /Facebook Messenger/ }).click();
+    await expect(dlg.getByText(/never shared with Torio/)).toBeVisible();
+    await dlg.getByRole('button', { name: 'Continue with Meta' }).click();
+    await expect(page).toHaveURL(/facebook\.com\/v21\.0\/dialog\/oauth/);
+    expect(channelState.starts).toEqual([{ provider: 'MESSENGER' }]);
+  });
+
+  test('returning from Meta: choose a Page (connected ones are disabled) and it is connected', async ({
+    page,
+  }) => {
+    await page.goto('/channels?meta_session=aaaaaaaa-0000-4000-8000-000000000001');
+    const dlg = page.getByRole('dialog', { name: /Choose a Facebook Page/ });
+    await expect(dlg.getByRole('radio', { name: /Old Shop Page/ })).toBeDisabled();
+    await expect(dlg.getByText('Already connected to a workspace')).toBeVisible();
+    await dlg.getByRole('radio', { name: /Urban Nest Page/ }).click();
+    await dlg.getByRole('button', { name: 'Connect' }).click();
+    await expect.poll(() => channelState.selects.length).toBe(1);
+    expect(channelState.selects[0]).toEqual({ candidateId: '111111111' });
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Urban Nest Page connected' }),
+    ).toBeVisible();
+    await expect(page).toHaveURL(/\/channels$/);
+  });
+
+  test('a declined or failed authorization explains what to do and connects nothing', async ({
+    page,
+  }) => {
+    await page.goto('/channels?meta_error=missing_permissions');
+    await expect(
+      page.getByRole('alert').filter({ hasText: /permissions were declined/ }),
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Dismiss' }).click();
+    await expect(
+      page.getByRole('alert').filter({ hasText: /permissions were declined/ }),
+    ).toHaveCount(0);
+    expect(channelState.selects).toHaveLength(0);
+  });
+
+  test('Reconnect re-runs OAuth and Check connection asks the provider', async ({ page }) => {
+    await page.route('https://www.facebook.com/**', (r) => r.fulfill({ body: 'meta' }));
+    await page.getByRole('button', { name: 'Brand Instagram' }).click();
+    const d = page.getByRole('dialog', { name: 'Channel: Brand Instagram' });
+    await d.getByRole('button', { name: 'Check connection' }).click();
+    await expect.poll(() => channelState.checks.length).toBe(1);
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Connection is healthy' }),
+    ).toBeVisible();
+    await d.getByRole('button', { name: 'Reconnect' }).click();
+    await expect(page).toHaveURL(/facebook\.com/);
+    expect(channelState.starts).toEqual([{ provider: 'INSTAGRAM' }]);
   });
 
   test('no horizontal overflow on a phone', async ({ page }) => {

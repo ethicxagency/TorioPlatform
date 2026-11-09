@@ -1,5 +1,6 @@
 'use client';
 
+import { controlCls } from '@/components/ui/input';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { invitationInputSchema, type InvitationInput } from '@torio/contracts';
 import { assignableRoles } from '@torio/types';
@@ -128,10 +129,7 @@ export function InviteDialog({ actorRole, teams, onClose, onInvite }: Props) {
           </label>
           <label className={label}>
             Role *
-            <select
-              className="h-10 w-full rounded-[10px] border border-line bg-white px-2.5 text-sm font-normal"
-              {...register('role')}
-            >
+            <select className={controlCls} {...register('role')}>
               {roles.map((r) => (
                 <option key={r} value={r}>
                   {ROLE_INFO[r].label}
@@ -144,7 +142,7 @@ export function InviteDialog({ actorRole, teams, onClose, onInvite }: Props) {
             <label className={label}>
               Team (optional)
               <select
-                className="h-10 w-full rounded-[10px] border border-line bg-white px-2.5 text-sm font-normal"
+                className={controlCls}
                 {...register('teamId', { setValueAs: (v) => v || null })}
               >
                 <option value="">No team</option>

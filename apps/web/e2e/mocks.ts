@@ -61,6 +61,8 @@ export const LEADS = [
   lead('99999999-9999-4999-8999-000000000002', 'Imran Kabir', 'NEW', 20, null),
 ];
 export const leadRequests: string[] = [];
+/** Global search requests the UI sent, and a switch to make the endpoint fail. */
+export const searchState = { requests: [] as string[], fail: false };
 
 const cust = (id: string, name: string, status: string) => ({
   id,
@@ -234,7 +236,15 @@ const chan = (
   createdAt: iso(9000),
   ...over,
 });
-export const channelState = { list: [] as ReturnType<typeof chan>[], patches: [] as unknown[] };
+export const channelState = {
+  list: [] as ReturnType<typeof chan>[],
+  patches: [] as unknown[],
+  /** When true the providers endpoint reports Meta as configured on the server. */
+  metaConfigured: false,
+  starts: [] as unknown[],
+  selects: [] as unknown[],
+  checks: [] as string[],
+};
 export const resetChannels = () => {
   channelState.list = [
     chan('77777777-7777-4777-8777-000000000001', 'WHATSAPP', 'Sales WhatsApp', 'CONNECTED', {
@@ -255,6 +265,10 @@ export const resetChannels = () => {
     ),
   ];
   channelState.patches = [];
+  channelState.metaConfigured = false;
+  channelState.starts = [];
+  channelState.selects = [];
+  channelState.checks = [];
 };
 resetChannels();
 
@@ -335,6 +349,8 @@ export const orderState = {
   statuses: [] as unknown[],
   payments: [] as unknown[],
   bulks: [] as unknown[],
+  updates: [] as unknown[],
+  failUpdate: false,
 };
 export const resetOrders = () => {
   orderState.list = [
@@ -348,9 +364,11 @@ export const resetOrders = () => {
   orderState.statuses = [];
   orderState.payments = [];
   orderState.bulks = [];
+  orderState.updates = [];
+  orderState.failUpdate = false;
 };
 resetOrders();
-const orderListItem = (o: OrderDetail) => {
+export const orderListItem = (o: OrderDetail) => {
   const { items, payments, notes, events, ...rest } = o;
   void items;
   void payments;
@@ -949,8 +967,14 @@ export const CONVS = [
 ];
 
 /** Deterministic API for UI tests: no database needed. Registers before page.goto. */
+/** Inbox bulk requests the UI sent, for assertions. */
+export const inboxState = { bulks: [] as Record<string, unknown>[] };
+
 export async function mockApi(page: Page, opts: { role?: 'OWNER' | 'ADMIN' | 'AGENT' } = {}) {
   const role = opts.role ?? 'AGENT';
+  inboxState.bulks = [];
+  searchState.requests = [];
+  searchState.fail = false;
   await page.route('http://localhost:4000/**', async (route) => {
     const req = route.request();
     const url = new URL(req.url());
@@ -1057,7 +1081,23 @@ export async function mockApi(page: Page, opts: { role?: 'OWNER' | 'ADMIN' | 'AG
         data: CONVS,
         meta: { page: 1, pageSize: 100, total: 2, totalPages: 1 },
         counts: { open: 2, snoozed: 0, resolved: 0 },
+        channelCounts: {
+          all: CONVS.length,
+          ...Object.fromEntries(
+            (['WHATSAPP', 'INSTAGRAM', 'MESSENGER'] as const).map((k) => [
+              k,
+              CONVS.filter((c) => c.channel.provider === k).length,
+            ]),
+          ),
+        },
       });
+    if (p === `/workspaces/${WS}/conversations/bulk` && req.method() === 'POST') {
+      const b = req.postDataJSON() as { ids: string[] } & Record<string, unknown>;
+      inboxState.bulks.push(b);
+      // Only ids the "workspace" knows are counted, like the real endpoint.
+      return reply({ updated: b.ids.filter((id) => CONVS.some((c) => c.id === id)).length });
+    }
+    if (p === `/workspaces/${WS}/customers/tags`) return reply({ data: ['Hot Lead', 'vip'] });
     const one = CONVS.find((c) => p === `/workspaces/${WS}/conversations/${c.id}`);
     if (one) return reply(one);
     if (p.endsWith('/retry') && p.includes('/messages/')) return reply({ result: 'sent' });
@@ -1097,7 +1137,27 @@ export async function mockApi(page: Page, opts: { role?: 'OWNER' | 'ADMIN' | 'AG
         pendingInvitations: 1,
         unassignedOpenConversations: 3,
       });
-    if (p === `/workspaces/${WS}/teams`) return reply({ data: [] });
+    if (p === `/workspaces/${WS}/teams`)
+      return reply({
+        data: [
+          {
+            id: 'abababab-0000-4000-8000-000000000001',
+            name: 'Support',
+            description: 'Answers customer questions',
+            lead: { id: 'ffffffff-0000-4000-8000-000000000002', name: 'Nadia Islam' },
+            members: [{ userId: 'ffffffff-0000-4000-8000-000000000002', name: 'Nadia Islam' }],
+            openConversations: 3,
+          },
+          {
+            id: 'abababab-0000-4000-8000-000000000002',
+            name: 'Sales',
+            description: '',
+            lead: null,
+            members: [],
+            openConversations: 0,
+          },
+        ],
+      });
     if (p === `/workspaces/${WS}/invitations` && req.method() === 'POST') {
       const b = req.postDataJSON() as { email: string; role: string };
       return reply(
@@ -1147,6 +1207,28 @@ export async function mockApi(page: Page, opts: { role?: 'OWNER' | 'ADMIN' | 'AG
           body: 'Thanks, {name}!',
         },
       ]);
+    if (p === `/workspaces/${WS}/search`) {
+      const q = (url.searchParams.get('q') ?? '').toLowerCase();
+      searchState.requests.push(q);
+      if (searchState.fail)
+        return reply({ error: { code: 'INTERNAL', message: 'boom', statusCode: 500 } }, 500);
+      const hit = CONVS.filter((c) => c.customer.name.toLowerCase().includes(q));
+      return reply({
+        conversations: hit.map((c) => ({
+          id: c.id,
+          customerName: c.customer.name,
+          provider: c.channel.provider,
+          preview: c.lastMessagePreview,
+          status: c.status,
+        })),
+        customers: hit.map((c) => ({
+          id: c.customer.id,
+          name: c.customer.name,
+          phone: c.customer.phone,
+          email: c.customer.email,
+        })),
+      });
+    }
     if (p === `/workspaces/${WS}/leads/summary`)
       return reply({
         total: 2,
@@ -1170,7 +1252,11 @@ export async function mockApi(page: Page, opts: { role?: 'OWNER' | 'ADMIN' | 'AG
     if (p === `/workspaces/${WS}/leads`) {
       leadRequests.push(url.search);
       const forCustomer = url.searchParams.get('customerId');
-      const rows = forCustomer ? LEADS.filter((l) => l.customerId === forCustomer) : LEADS;
+      const lq = (url.searchParams.get('q') ?? '').toLowerCase();
+      const rows = (forCustomer ? LEADS.filter((l) => l.customerId === forCustomer) : LEADS).filter(
+        (l) =>
+          !lq || [l.name, l.email, l.company].some((v) => (v ?? '').toLowerCase().includes(lq)),
+      );
       return reply({
         data: rows,
         meta: { page: 1, pageSize: 25, total: rows.length, totalPages: 1 },
@@ -1290,12 +1376,49 @@ export async function mockApi(page: Page, opts: { role?: 'OWNER' | 'ADMIN' | 'AG
                 : pr === 'INSTAGRAM'
                   ? 'Instagram Messaging'
                   : 'Facebook Messenger',
-            state: 'unavailable',
-            reason: 'Torio’s connection for this provider isn’t built yet.',
+            state: channelState.metaConfigured ? 'available' : 'unavailable',
+            method: pr === 'WHATSAPP' ? 'manual_token' : 'oauth',
+            reason: channelState.metaConfigured
+              ? 'Authorize with Facebook, then choose the account to connect.'
+              : 'Meta isn’t configured on this server.',
             requirements: ['An account', 'A linked Page'],
             connectedCount: 0,
           })),
         });
+      if (rest === '/meta/config')
+        return reply({ appId: '1234567890', graphVersion: 'v21.0', whatsappConfigId: null });
+      if (rest === '/meta/start') {
+        channelState.starts.push(req.postDataJSON());
+        return reply({
+          url: 'https://www.facebook.com/v21.0/dialog/oauth?client_id=1234567890&state=abc',
+        });
+      }
+      if (rest.startsWith('/meta/sessions/')) {
+        const sid = rest.split('/')[3];
+        if (rest.endsWith('/select')) {
+          channelState.selects.push(req.postDataJSON());
+          return reply(
+            chan(
+              '77777777-7777-4777-8777-0000000000aa',
+              'MESSENGER',
+              'Urban Nest Page',
+              'CONNECTED',
+              {
+                accountName: 'Urban Nest Page',
+              },
+            ),
+          );
+        }
+        return reply({
+          id: sid,
+          provider: 'MESSENGER',
+          expiresAt: iso(-10),
+          candidates: [
+            { id: '111111111', name: 'Urban Nest Page', detail: null, taken: false },
+            { id: '222222222', name: 'Old Shop Page', detail: null, taken: true },
+          ],
+        });
+      }
       if (rest === '') return reply({ data: channelState.list });
       const [, id, action] = rest.split('/');
       const ch = channelState.list.find((c) => c.id === id);
@@ -1315,6 +1438,16 @@ export async function mockApi(page: Page, opts: { role?: 'OWNER' | 'ADMIN' | 'AG
             },
           ],
         });
+      if (action === 'health') {
+        channelState.checks.push(ch.id);
+        return reply({
+          ok: true,
+          checkedAt: iso(0),
+          qualityRating: null,
+          displayPhoneNumber: null,
+          error: null,
+        });
+      }
       if (action === 'disconnect') {
         ch.status = 'DISCONNECTED';
         return reply(ch);
@@ -1408,6 +1541,54 @@ export async function mockApi(page: Page, opts: { role?: 'OWNER' | 'ADMIN' | 'AG
           { error: { code: 'NOT_FOUND', message: 'Order not found', statusCode: 404 } },
           404,
         );
+      if (!action && req.method() === 'PATCH') {
+        if (orderState.failUpdate)
+          return reply(
+            {
+              error: {
+                code: 'CONFLICT',
+                message: 'The order changed while you were editing.',
+                statusCode: 409,
+              },
+            },
+            409,
+          );
+        const b = req.postDataJSON() as {
+          items?: { name: string; sku?: string; quantity: number; unitPriceMinor: number }[];
+          discountMinor?: number;
+          shippingMinor?: number;
+          taxMinor?: number;
+          shippingAddress?: string | null;
+          shippingMethod?: string | null;
+        };
+        orderState.updates.push(b);
+        const items =
+          b.items?.map((i, n) => ({
+            id: `eeeeeeee-eeee-4eee-8eee-${String(n).padStart(12, '0')}`,
+            name: i.name,
+            sku: i.sku ?? null,
+            quantity: i.quantity,
+            unitPriceMinor: i.unitPriceMinor,
+            lineTotalMinor: i.quantity * i.unitPriceMinor,
+          })) ?? o.items;
+        const discountMinor = b.discountMinor ?? o.discountMinor;
+        const shippingMinor = b.shippingMinor ?? o.shippingMinor;
+        const taxMinor = b.taxMinor ?? o.taxMinor;
+        const subtotalMinor = items.reduce((a, i) => a + i.lineTotalMinor, 0);
+        const totalMinor = subtotalMinor - discountMinor + shippingMinor + taxMinor;
+        Object.assign(o, {
+          items,
+          discountMinor,
+          shippingMinor,
+          taxMinor,
+          subtotalMinor,
+          totalMinor,
+          outstandingMinor: totalMinor - o.paidMinor,
+          ...(b.shippingAddress !== undefined && { shippingAddress: b.shippingAddress }),
+          ...(b.shippingMethod !== undefined && { shippingMethod: b.shippingMethod }),
+        });
+        return reply(o);
+      }
       if (action === 'status') {
         const b = req.postDataJSON() as { status: string };
         orderState.statuses.push(b);

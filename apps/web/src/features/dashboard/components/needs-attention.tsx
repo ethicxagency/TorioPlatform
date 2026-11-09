@@ -1,6 +1,13 @@
 'use client';
 
-import { CheckCircle2, Clock, MessageSquare, ShoppingBag, Star } from 'lucide-react';
+import {
+  CircleCheckIcon,
+  Clock01Icon,
+  Message01Icon,
+  ShoppingBag01Icon,
+  StarIcon,
+} from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
 import Link from 'next/link';
 import { channelLabel } from '@/components/channel-icon';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -57,7 +64,7 @@ export function NeedsAttention({
     items.push({
       key: 'long',
       tone: 'red',
-      icon: <Clock size={16} aria-hidden />,
+      icon: <Icon icon={Clock01Icon} size={16} />,
       count: a.waitingLong.count,
       title: `conversation${a.waitingLong.count === 1 ? '' : 's'} waiting over ${a.waitingLong.thresholdMinutes / 60} hours`,
       detail: o
@@ -71,7 +78,7 @@ export function NeedsAttention({
     items.push({
       key: 'waiting',
       tone: 'amber',
-      icon: <MessageSquare size={16} aria-hidden />,
+      icon: <Icon icon={Message01Icon} size={16} />,
       count: a.waiting.count,
       title: `conversation${a.waiting.count === 1 ? '' : 's'} waiting for a reply`,
       detail:
@@ -86,7 +93,7 @@ export function NeedsAttention({
     items.push({
       key: 'leads',
       tone: 'indigo',
-      icon: <Star size={16} aria-hidden />,
+      icon: <Icon icon={StarIcon} size={16} />,
       count: a.staleLeads.count,
       title: `high-priority lead${a.staleLeads.count === 1 ? '' : 's'} need${a.staleLeads.count === 1 ? 's' : ''} follow-up`,
       detail: `Strong score, no activity in the last ${a.staleLeads.idleHours}h`,
@@ -98,7 +105,7 @@ export function NeedsAttention({
     items.push({
       key: 'orders',
       tone: 'gray',
-      icon: <ShoppingBag size={16} aria-hidden />,
+      icon: <Icon icon={ShoppingBag01Icon} size={16} />,
       count: a.pendingOrders.count,
       title: `order${a.pendingOrders.count === 1 ? '' : 's'} awaiting confirmation`,
       detail: 'Still pending; confirm or cancel them',
@@ -130,7 +137,7 @@ export function NeedsAttention({
         </div>
       ) : items.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl bg-[#FBFBFC] px-4 py-10 text-center">
-          <CheckCircle2 size={22} className="text-success" aria-hidden />
+          <Icon icon={CircleCheckIcon} size={24} className="text-success" />
           <div className="text-sm font-semibold">All caught up</div>
           <p className="m-0 max-w-[240px] text-[12.5px] text-muted">
             Nothing is waiting on your team right now.

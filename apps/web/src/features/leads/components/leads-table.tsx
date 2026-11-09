@@ -18,6 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { fmtAgo, initialsOf } from '@/features/inbox/format';
 import { useDismiss } from '@/features/inbox/use-dismiss';
 import { cn } from '@/lib/utils';
+import { DEFAULT_CURRENCY, formatCurrencyMajor } from '@torio/contracts';
 import type { Lead, LeadSortField } from '../types';
 import { ScoreIndicator, SourceBadge, StageBadge } from './badges';
 
@@ -48,6 +49,30 @@ interface Props {
   onRetry: () => void;
   onClearFilters: () => void;
   onAdd: () => void;
+}
+
+const money = (n: number) => formatCurrencyMajor(n, DEFAULT_CURRENCY);
+
+/** Up to two tags, then a +N count; renders nothing when the lead has none. */
+function TagPills({ tags }: { tags: string[] }) {
+  if (!tags.length) return null;
+  return (
+    <span className="flex min-w-0 flex-wrap items-center gap-1">
+      {tags.slice(0, 2).map((t) => (
+        <span
+          key={t}
+          className="inline-flex h-[18px] max-w-[110px] items-center truncate rounded-full bg-wash-2 px-2 text-[11px] leading-none text-muted"
+        >
+          {t}
+        </span>
+      ))}
+      {tags.length > 2 && (
+        <span title={tags.slice(2).join(', ')} className="text-[11px] text-faint">
+          +{tags.length - 2}
+        </span>
+      )}
+    </span>
+  );
 }
 
 const th = 'px-3 py-2.5 text-left text-[12px] font-semibold text-muted whitespace-nowrap';
@@ -106,7 +131,7 @@ function RowMenu({ l, p }: { l: Lead; p: Props }) {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-9 z-20 w-[190px] animate-panel-in rounded-xl border border-line bg-white p-1.5 shadow-popover"
+          className="absolute right-0 top-9 z-20 w-[190px] animate-panel-in rounded-xl border border-line glass-menu p-1.5 shadow-popover"
         >
           <button
             role="menuitem"
@@ -275,6 +300,7 @@ export function LeadsTable(p: Props) {
                 Status
               </th>
               {sortHead('Score', 'score', 'max-lg:hidden')}
+              {sortHead('Value', 'dealValue', 'max-xl:hidden')}
               <th scope="col" className={cn(th, 'max-xl:hidden')}>
                 Source
               </th>
@@ -300,11 +326,8 @@ export function LeadsTable(p: Props) {
                 }}
                 className={cn(
                   'cursor-pointer border-b border-line-subtle last:border-0 focus-visible:outline-offset-[-2px]',
-                  p.selected.has(l.id)
-                    ? 'bg-primary-soft'
-                    : p.activeId === l.id
-                      ? 'bg-[#F1F1FF]'
-                      : 'hover:bg-[#F7F7F9]',
+                  'transition-colors duration-150 motion-reduce:transition-none',
+                  p.selected.has(l.id) || p.activeId === l.id ? 'bg-primary-soft' : 'hover:bg-wash',
                 )}
               >
                 <td className="w-10 px-3 py-2.5">
@@ -322,6 +345,9 @@ export function LeadsTable(p: Props) {
                     <span className="min-w-0">
                       <span className="block truncate font-semibold">{l.name}</span>
                       <span className="block truncate text-xs text-faint">{l.company ?? '—'}</span>
+                      <span className="mt-1 block max-xl:hidden">
+                        <TagPills tags={l.tags} />
+                      </span>
                     </span>
                   </div>
                 </td>
@@ -334,6 +360,9 @@ export function LeadsTable(p: Props) {
                 </td>
                 <td className="px-3 py-2.5 max-lg:hidden">
                   <ScoreIndicator score={l.score} />
+                </td>
+                <td className="whitespace-nowrap px-3 py-2.5 tabular-nums max-xl:hidden">
+                  {l.dealValue != null ? money(l.dealValue) : <span className="text-faint">—</span>}
                 </td>
                 <td className="px-3 py-2.5 max-xl:hidden">
                   <SourceBadge source={l.source} />
@@ -398,6 +427,12 @@ export function LeadsTable(p: Props) {
               </span>
               <span className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
                 <ScoreIndicator score={l.score} showLabel={false} />
+                {l.dealValue != null && (
+                  <span className="text-xs font-medium tabular-nums text-ink-secondary">
+                    {money(l.dealValue)}
+                  </span>
+                )}
+                <TagPills tags={l.tags} />
                 <SourceBadge source={l.source} />
                 <span className="text-xs text-faint">
                   {l.owner?.name ?? 'Unassigned'} · {fmtAgo(l.lastActivityAt, p.now)}

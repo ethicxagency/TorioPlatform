@@ -38,9 +38,10 @@ export const EMPTY_ORDER_FILTERS: OrderFilters = {
   max: '',
 };
 
-/** Filters that live in the popover (not the always-visible search and period). */
+/** Filters that live in the popover (everything except the always-visible search). */
 export const activeOrderFilterCount = (f: OrderFilters) =>
   [
+    !!f.range,
     f.status.length > 0,
     f.paymentStatus.length > 0,
     f.fulfillmentStatus.length > 0,

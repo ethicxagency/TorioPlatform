@@ -5,6 +5,10 @@ const main = (p: Page) => p.getByRole('navigation', { name: 'Main' });
 const width = async (p: Page) => (await main(p).boundingBox())!.width;
 const cards = (p: Page) => p.getByRole('list', { name: 'Settings sections' }).getByRole('link');
 
+/** The page fades in on load; measure layout only once that has finished. */
+const settled = (page: import('@playwright/test').Page) =>
+  page.getByRole('main').evaluate((m) => Promise.all(m.getAnimations().map((a) => a.finished)));
+
 test.describe('settings overview (card navigation, no sub-sidebar)', () => {
   test.beforeEach(async ({ page }) => {
     resetSettings();
@@ -24,15 +28,13 @@ test.describe('settings overview (card navigation, no sub-sidebar)', () => {
       'aria-current',
       'page',
     );
-    await expect(cards(page)).toHaveCount(10);
+    await expect(cards(page)).toHaveCount(8);
     const titles = [
-      'My profile',
-      'Preferences',
+      'General',
       'Security',
       'Notifications',
-      'Workspace',
-      'Members & access',
-      'Channels & integrations',
+      'Teams',
+      'Channels',
       'Billing & subscriptions',
       'Data & privacy',
       'Audit log',
@@ -51,9 +53,8 @@ test.describe('settings overview (card navigation, no sub-sidebar)', () => {
   }) => {
     await page.goto('/settings');
     const routes: [string, RegExp][] = [
-      ['My profile', /\/settings\/profile$/],
+      ['General', /\/settings\/general$/],
       ['Security', /\/settings\/security$/],
-      ['Workspace', /\/settings\/workspace$/],
       ['Billing & subscriptions', /\/billing$/],
       ['Audit log', /\/settings\/audit$/],
     ];
@@ -83,7 +84,7 @@ test.describe('settings overview (card navigation, no sub-sidebar)', () => {
     await page.goto('/settings');
     await expect(page.getByLabel('Search settings')).toHaveCount(0);
     await expect(page.getByRole('searchbox')).toHaveCount(0);
-    await expect(cards(page)).toHaveCount(10);
+    await expect(cards(page)).toHaveCount(8);
   });
 
   test('responsive: two columns on tablet, one on phone, no sideways scrolling', async ({
@@ -91,11 +92,13 @@ test.describe('settings overview (card navigation, no sub-sidebar)', () => {
   }) => {
     await page.setViewportSize({ width: 900, height: 900 });
     await page.goto('/settings');
+    await settled(page);
     const y = async (i: number) => (await cards(page).nth(i).boundingBox())!.y;
     expect(await y(0)).toBe(await y(1));
     expect(await y(2)).toBeGreaterThan(await y(1));
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/settings');
+    await settled(page);
     expect(await y(1)).toBeGreaterThan(await y(0));
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
@@ -103,8 +106,36 @@ test.describe('settings overview (card navigation, no sub-sidebar)', () => {
   });
 
   test('direct URLs work and agents do not see owner-only cards', async ({ page }) => {
-    await page.goto('/settings/preferences');
-    await expect(page.getByRole('heading', { name: 'Preferences', level: 1 })).toBeVisible();
+    await page.goto('/settings/general');
+    await expect(page.getByRole('heading', { name: 'General', level: 1 })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Settings' })).toHaveCount(0);
+  });
+
+  test('Teams and Channels moved from the main sidebar into Settings and open the same pages', async ({
+    page,
+  }) => {
+    await page.goto('/settings');
+    const main = page.getByRole('navigation', { name: 'Main' });
+    await expect(main.getByRole('link', { name: 'Team', exact: true })).toHaveCount(0);
+    await expect(main.getByRole('link', { name: 'Channels', exact: true })).toHaveCount(0);
+    const list = page.getByRole('list', { name: 'Settings sections' });
+    await list.getByRole('link', { name: /^Teams/ }).click();
+    await expect(page).toHaveURL(/\/team$/);
+    await expect(page.getByRole('heading', { name: 'Teams', level: 1 })).toBeVisible();
+    await expect(main.getByRole('link', { name: 'Settings' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    await page.goBack();
+    await expect(page).toHaveURL(/\/settings$/);
+    await list.getByRole('link', { name: /^Channels/ }).click();
+    await expect(page).toHaveURL(/\/channels$/);
+    await expect(page.getByRole('heading', { name: 'Channels', level: 1 })).toBeVisible();
+    await expect(main.getByRole('link', { name: 'Settings' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Channels', level: 1 })).toBeVisible();
   });
 });

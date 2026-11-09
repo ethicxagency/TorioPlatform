@@ -10,11 +10,15 @@ import {
   Search,
   Trash2,
   Workflow,
+  X,
+  Zap,
+  ArrowUpDown,
 } from 'lucide-react';
 import { triggerOf, TRIGGERS } from '@torio/contracts';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { FilterMenu } from '@/features/inbox/components/filter-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fmtAgo } from '@/features/inbox/format';
 import { useDismiss } from '@/features/inbox/use-dismiss';
@@ -43,7 +47,15 @@ interface Props {
   onHistory: (a: AutomationItem) => void;
   onRetry: () => void;
   onCreate: () => void;
+  onExplore: () => void;
 }
+
+const SORTS = [
+  { key: 'updatedAt-desc', label: 'Recently updated' },
+  { key: 'name-asc', label: 'Name A–Z' },
+  { key: 'name-desc', label: 'Name Z–A' },
+  { key: 'lastRun-desc', label: 'Last run' },
+];
 
 function RowMenu({ a, p }: { a: AutomationItem; p: Props }) {
   const [open, setOpen] = useState(false);
@@ -70,7 +82,7 @@ function RowMenu({ a, p }: { a: AutomationItem; p: Props }) {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-9 z-20 w-[210px] animate-panel-in rounded-xl border border-line bg-white p-1.5 shadow-popover"
+          className="absolute right-0 top-9 z-20 w-[210px] animate-panel-in rounded-xl border border-line glass-menu p-1.5 shadow-popover"
         >
           <Link role="menuitem" href={`/automation/${a.id}`} className={item}>
             <Workflow size={14} className="text-muted" />
@@ -147,46 +159,47 @@ export function Directory(p: Props) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <label className="flex h-9 min-w-[200px] flex-1 items-center gap-2 rounded-[10px] border border-line bg-white px-2.5 sm:max-w-[320px]">
+        <label className="flex h-10 min-w-[200px] flex-1 items-center gap-2 rounded-[10px] border border-line bg-white px-3 focus-within:border-primary sm:max-w-[360px]">
           <Search size={15} className="text-faint" aria-hidden />
           <input
             type="search"
             aria-label="Search automations"
-            placeholder="Search by name"
+            placeholder="Search automations by name..."
             value={p.filters.q}
             onChange={(e) => p.onFilters({ q: e.target.value })}
-            className="min-w-0 flex-1 border-none bg-transparent text-[13px]"
+            className="min-w-0 flex-1 border-none bg-transparent text-[13.5px] outline-none"
           />
+          {p.filters.q && (
+            <button
+              type="button"
+              aria-label="Clear search"
+              onClick={() => p.onFilters({ q: '' })}
+              className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-faint hover:bg-wash"
+            >
+              <X size={13} />
+            </button>
+          )}
         </label>
-        <select
-          aria-label="Trigger"
-          value={p.filters.trigger}
-          onChange={(e) => p.onFilters({ trigger: e.target.value })}
-          className="h-9 rounded-[10px] border border-line bg-white px-2.5 text-[13px]"
-        >
-          <option value="">Any trigger</option>
-          {TRIGGERS.map((t) => (
-            <option key={t.type} value={t.type}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label="Sort automations"
+        <FilterMenu
+          label="Trigger"
+          value={p.filters.trigger || 'any'}
+          defaultValue="any"
+          onChange={(k) => p.onFilters({ trigger: k === 'any' ? '' : k })}
+          options={[
+            { key: 'any', label: 'Any trigger', icon: <Zap size={14} /> },
+            ...TRIGGERS.map((t) => ({ key: t.type, label: t.label, icon: <Zap size={14} /> })),
+          ]}
+        />
+        <FilterMenu
+          label="Sort automations"
           value={`${p.filters.sort}-${p.filters.dir}`}
-          onChange={(e) => {
-            const [sort, dir] = e.target.value.split('-') as [
-              DirectoryFilters['sort'],
-              'asc' | 'desc',
-            ];
+          defaultValue="updatedAt-desc"
+          onChange={(k) => {
+            const [sort, dir] = k.split('-') as [DirectoryFilters['sort'], 'asc' | 'desc'];
             p.onFilters({ sort, dir });
           }}
-          className="h-9 rounded-[10px] border border-line bg-white px-2.5 text-[13px]"
-        >
-          <option value="updatedAt-desc">Recently updated</option>
-          <option value="name-asc">Name A–Z</option>
-          <option value="lastRun-desc">Last run</option>
-        </select>
+          options={SORTS.map((o) => ({ ...o, icon: <ArrowUpDown size={14} /> }))}
+        />
       </div>
 
       {p.state === 'error' && (
@@ -221,18 +234,27 @@ export function Directory(p: Props) {
       )}
       {p.state === 'ready' && p.items.length === 0 && (
         <div className="rounded-card border border-line bg-white px-6 py-12 text-center">
+          <span
+            aria-hidden
+            className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary-soft text-primary"
+          >
+            <Workflow size={18} />
+          </span>
           <div className="text-[14.5px] font-semibold">
             {p.filtered ? 'No automations match your filters' : 'No automations yet'}
           </div>
-          <div className="mx-auto mb-3.5 mt-1 max-w-[360px] text-[13px] text-muted">
+          <div className="mx-auto mb-4 mt-1 max-w-[380px] text-[13px] text-muted">
             {p.filtered
               ? 'Try a different search or clear the filters.'
               : 'Start from a template or build your own workflow. Nothing runs until you activate it.'}
           </div>
-          {!p.filtered && p.canWrite && (
-            <Button size="sm" onClick={p.onCreate}>
-              Create automation
-            </Button>
+          {!p.filtered && (
+            <div className="flex flex-wrap justify-center gap-2">
+              {p.canWrite && <Button onClick={p.onCreate}>Create automation</Button>}
+              <Button variant="outline" onClick={p.onExplore}>
+                Explore templates
+              </Button>
+            </div>
           )}
         </div>
       )}

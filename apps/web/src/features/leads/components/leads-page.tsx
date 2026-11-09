@@ -256,7 +256,7 @@ export function LeadsPage() {
             {moreOpen && (
               <div
                 role="menu"
-                className="absolute right-0 top-11 z-30 w-[200px] animate-panel-in rounded-xl border border-line bg-white p-1.5 shadow-popover"
+                className="absolute right-0 top-11 z-30 w-[200px] animate-panel-in rounded-xl border border-line glass-menu p-1.5 shadow-popover"
               >
                 <button
                   role="menuitem"

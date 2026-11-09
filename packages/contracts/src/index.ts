@@ -189,10 +189,22 @@ export const conversationCountsSchema = z.object({
   resolved: z.number().int(),
 });
 
+/**
+ * Conversations per channel in the requested status (e.g. Open), across the whole workspace. View, search and
+ * advanced filters do not narrow it, so the badges stay stable while you search. `all` is the sum of the providers.
+ */
+export const conversationChannelCountsSchema = z.object({
+  all: z.number().int(),
+  WHATSAPP: z.number().int(),
+  INSTAGRAM: z.number().int(),
+  MESSENGER: z.number().int(),
+});
+
 export const conversationListSchema = z.object({
   data: z.array(conversationSchema),
   meta: pageMetaSchema,
   counts: conversationCountsSchema,
+  channelCounts: conversationChannelCountsSchema,
 });
 
 export const messageSchema = z.object({
@@ -247,11 +259,32 @@ export const updateConversationSchema = z
   });
 export type UpdateConversationInput = z.infer<typeof updateConversationSchema>;
 
-export const bulkConversationSchema = z.object({
-  ids: z.array(z.uuid()).min(1).max(100),
-  action: z.enum(['ASSIGN_ME', 'MARK_READ', 'SNOOZE', 'RESOLVE']),
-  snoozedUntil: z.iso.datetime().optional(),
-});
+export const bulkConversationSchema = z
+  .object({
+    ids: z.array(z.uuid()).min(1).max(100),
+    action: z.enum([
+      'ASSIGN_ME',
+      'ASSIGN',
+      'MARK_READ',
+      'MARK_UNREAD',
+      'SET_PRIORITY',
+      'SNOOZE',
+      'RESOLVE',
+    ]),
+    snoozedUntil: z.iso.datetime().optional(),
+    /** ASSIGN: a workspace member's user id, or null to unassign. */
+    assigneeId: z.uuid().nullable().optional(),
+    /** SET_PRIORITY: the new priority. */
+    priority: prioritySchema.optional(),
+  })
+  .refine((v) => v.action !== 'ASSIGN' || v.assigneeId !== undefined, {
+    message: 'assigneeId is required (null to unassign)',
+    path: ['assigneeId'],
+  })
+  .refine((v) => v.action !== 'SET_PRIORITY' || !!v.priority, {
+    message: 'priority is required',
+    path: ['priority'],
+  });
 export type BulkConversationInput = z.infer<typeof bulkConversationSchema>;
 export const bulkResultSchema = z.object({ updated: z.number().int() });
 
@@ -536,6 +569,9 @@ export const customerDirectorySchema = z.object({
   meta: pageMetaSchema,
 });
 
+/** Distinct customer tags in the workspace, sorted; feeds tag filters. */
+export const customerTagListSchema = z.object({ data: z.array(z.string()) });
+
 export const customerSummarySchema = z.object({
   total: z.number().int(),
   active: z.number().int(),
@@ -806,6 +842,13 @@ export const channelSchema = z.object({
   /** Set only when a real provider health check ran. Null means the connection has never been verified. */
   lastHealthCheckAt: z.iso.datetime().nullable(),
   lastError: nullableString,
+  /** When the stored token stops working; null = no expiry known. Used to prompt reauthorization. */
+  tokenExpiresAt: z.iso.datetime().nullable(),
+  /** SUBSCRIBED or FAILED, written only after a real subscribe call to Meta; null = never attempted. */
+  webhookStatus: z.enum(['SUBSCRIBED', 'FAILED']).nullable(),
+  webhookError: nullableString,
+  /** Last time Meta delivered any event for this channel. */
+  lastEventAt: z.iso.datetime().nullable(),
   /** Development seed record with no live provider connection. */
   isSample: z.boolean(),
   defaultAssignee: z.object({ id: z.uuid(), name: z.string() }).nullable(),
@@ -839,6 +882,8 @@ export const providerInfoSchema = z.object({
   label: z.string(),
   /** available = can start a real connection now; unavailable = the integration does not exist in this build. */
   state: z.enum(['available', 'unavailable']),
+  /** How the connection is made: Facebook OAuth with Page selection, Embedded Signup, or a pasted Cloud API token. */
+  method: z.enum(['oauth', 'embedded_signup', 'manual_token']),
   reason: z.string(),
   requirements: z.array(z.string()),
   connectedCount: z.number().int(),
@@ -853,12 +898,51 @@ export const connectWhatsAppSchema = z.object({
   accessToken: z.string().trim().min(20).max(1000),
 });
 export type ConnectWhatsAppInput = z.infer<typeof connectWhatsAppSchema>;
+/** Messenger and Instagram connect through Meta OAuth: start returns the Meta dialog URL (state is signed server-side). */
+export const metaStartSchema = z.object({ provider: z.enum(['MESSENGER', 'INSTAGRAM']) });
+export type MetaStartInput = z.infer<typeof metaStartSchema>;
+export const metaStartResultSchema = z.object({ url: z.url() });
+/** What the user can pick after authorizing: names only, never tokens. */
+export const metaSessionSchema = z.object({
+  id: z.uuid(),
+  provider: z.enum(['MESSENGER', 'INSTAGRAM']),
+  expiresAt: z.iso.datetime(),
+  candidates: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      /** e.g. the linked Instagram @username. */
+      detail: nullableString,
+      /** Already connected to a workspace, so it can't be chosen again. */
+      taken: z.boolean(),
+    }),
+  ),
+});
+export const metaSelectSchema = z.object({
+  candidateId: z.string().trim().min(1).max(64),
+  displayName: z.string().trim().min(1).max(60).optional(),
+});
+export type MetaSelectInput = z.infer<typeof metaSelectSchema>;
+/** WhatsApp Embedded Signup result: the code and ids the Facebook SDK returns in the browser; the token is exchanged on the server. */
+export const whatsAppEmbeddedSignupSchema = z.object({
+  code: z.string().trim().min(10).max(2000),
+  phoneNumberId: z.string().trim().regex(/^\d{5,30}$/),
+  wabaId: z.string().trim().regex(/^\d{5,30}$/),
+  displayName: z.string().trim().min(1).max(60),
+});
+export type WhatsAppEmbeddedSignupInput = z.infer<typeof whatsAppEmbeddedSignupSchema>;
+export const metaConfigSchema = z.object({
+  /** Public identifiers the browser needs for Embedded Signup; never secrets. */
+  appId: nullableString,
+  graphVersion: z.string(),
+  whatsappConfigId: nullableString,
+});
 export const channelHealthSchema = z.object({
   ok: z.boolean(),
   checkedAt: z.string(),
-  qualityRating: z.string().nullable(),
-  displayPhoneNumber: z.string().nullable(),
-  error: z.string().nullable(),
+  qualityRating: nullableString,
+  displayPhoneNumber: nullableString,
+  error: nullableString,
 });
 
 export const providerListSchema = z.object({ data: z.array(providerInfoSchema) });

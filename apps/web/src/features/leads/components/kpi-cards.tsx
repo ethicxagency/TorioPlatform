@@ -1,6 +1,6 @@
 'use client';
 
-import { Skeleton } from '@/components/ui/skeleton';
+import { MetricCard } from '@/components/ui/card';
 import type { LeadSummary } from '../types';
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
 
 const pct = (n: number | null) => (n == null ? '—' : `${(n * 100).toFixed(1)}%`);
 
-/** KPIs come straight from the API. The only comparison shown is real: leads created in the last 30 days vs the 30 before. */
+/** KPIs come straight from the API; the cards show only the metric and its title. */
 export function KpiCards({ summary: s, loading, error, onRetry }: Props) {
   if (error)
     return (
@@ -27,49 +27,24 @@ export function KpiCards({ summary: s, loading, error, onRetry }: Props) {
       </div>
     );
 
-  const delta = s ? s.createdLast30Days - s.createdPrevious30Days : 0;
   const cards = [
-    {
-      label: 'Total leads',
-      value: s?.total,
-      sub: s
-        ? `${s.createdLast30Days} added in 30 days${s.createdPrevious30Days > 0 ? ` (${delta >= 0 ? '+' : ''}${delta} vs prior 30)` : ''}`
-        : '',
-    },
-    { label: 'New', value: s?.new, sub: 'Not yet contacted' },
-    { label: 'Qualified', value: s?.qualified, sub: 'Ready for a proposal' },
-    {
-      label: 'Conversion rate',
-      value: s ? pct(s.conversionRate) : undefined,
-      sub: s?.conversionRate == null ? 'No closed leads yet' : `${s.won} won · ${s.lost} lost`,
-    },
-    {
-      label: 'Unassigned',
-      value: s?.unassigned,
-      sub: s && s.unassigned > 0 ? 'Need an owner' : 'All leads have owners',
-    },
+    { label: 'Total leads', value: s?.total },
+    { label: 'New', value: s?.new },
+    { label: 'Qualified', value: s?.qualified },
+    { label: 'Conversion rate', value: s ? pct(s.conversionRate) : undefined },
+    { label: 'Unassigned', value: s?.unassigned },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-5">
       {cards.map((c) => (
-        <div
+        <MetricCard
           key={c.label}
-          className="min-w-0 rounded-card border border-line bg-white p-3.5 max-sm:last:col-span-2"
-        >
-          <div className="truncate text-[12.5px] font-medium text-muted">{c.label}</div>
-          {loading ? (
-            <>
-              <Skeleton className="mt-2 h-7 w-16" />
-              <Skeleton className="mt-2 h-3 w-24 bg-wash-2" />
-            </>
-          ) : (
-            <>
-              <div className="mt-1 text-2xl font-metric">{c.value ?? '—'}</div>
-              <div className="mt-1 truncate text-xs text-faint">{c.sub}</div>
-            </>
-          )}
-        </div>
+          label={c.label}
+          value={c.value}
+          loading={loading}
+          className="max-sm:last:col-span-2"
+        />
       ))}
     </div>
   );

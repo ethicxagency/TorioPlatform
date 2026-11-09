@@ -1,24 +1,13 @@
 'use client';
 
-import { editBlockReason, outstandingMinor } from '@torio/contracts';
+import { outstandingMinor } from '@torio/contracts';
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/features/leads/components/modal';
 import { METHOD_LABEL } from '../constants';
 import { formatMoney, parseMinor, toMajor } from '../money';
-import type { FulfillmentBody, PaymentBody, UpdateOrderBody } from '../queries';
+import type { FulfillmentBody, PaymentBody } from '../queries';
 import type { OrderDetail, PaymentMethod } from '../types';
-import {
-  LinesEditor,
-  linesFromOrder,
-  parsePricing,
-  PricingFields,
-  pricingFromOrder,
-  TotalsSummary,
-  validateLines,
-  type Line,
-  type Pricing,
-} from './order-fields';
 
 const field = 'h-9 w-full rounded-lg border border-line bg-white px-2.5 text-[13px] text-ink';
 
@@ -258,105 +247,6 @@ export function FulfillmentDialog({
             value={url}
             maxLength={500}
             onChange={(e) => setUrl(e.target.value)}
-            className={field}
-          />
-        </label>
-        <ErrorBox text={s.error} />
-      </div>
-    </Modal>
-  );
-}
-
-export function EditOrderDialog({
-  order,
-  onClose,
-  onSubmit,
-}: {
-  order: OrderDetail;
-  onClose: () => void;
-  onSubmit: (body: UpdateOrderBody) => Promise<unknown>;
-}) {
-  const [lines, setLines] = useState<Line[]>(() => linesFromOrder(order.items));
-  const [pricing, setPricing] = useState<Pricing>(() => pricingFromOrder(order));
-  const [address, setAddress] = useState(order.shippingAddress ?? '');
-  const [method, setMethod] = useState(order.shippingMethod ?? '');
-  const [touched, setTouched] = useState(false);
-  const s = useSubmit(onClose);
-  const v = validateLines(lines);
-  const pr = parsePricing(pricing);
-  const locked = editBlockReason(order);
-  const ok = locked || (v.items.length === lines.length && Object.keys(pr.errors).length === 0);
-  return (
-    <Modal
-      title={`Edit order #${order.number}`}
-      description="Prices are stored on the order and don’t follow later changes."
-      onClose={s.busy ? () => undefined : onClose}
-      className="sm:max-w-[640px]"
-      footer={
-        <>
-          <Button variant="outline" disabled={s.busy} onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            disabled={s.busy}
-            onClick={() => {
-              setTouched(true);
-              if (!ok) return;
-              void s.run(() =>
-                onSubmit({
-                  ...(!locked && {
-                    items: v.items,
-                    discountMinor: pr.discount,
-                    shippingMinor: pr.shipping,
-                    taxMinor: pr.tax,
-                  }),
-                  shippingAddress: address.trim() || null,
-                  shippingMethod: method.trim() || null,
-                }),
-              );
-            }}
-          >
-            {s.busy ? 'Saving…' : 'Save changes'}
-          </Button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-4">
-        {locked ? (
-          <div className="rounded-xl bg-wash p-3 text-[12.5px] text-muted">{locked}.</div>
-        ) : (
-          <>
-            <LinesEditor
-              lines={lines}
-              currency={order.currency}
-              errors={touched ? v.errors : {}}
-              onChange={setLines}
-            />
-            <PricingFields
-              value={pricing}
-              currency={order.currency}
-              errors={touched ? pr.errors : {}}
-              onChange={setPricing}
-            />
-            <TotalsSummary items={v.items} pricing={pr} currency={order.currency} />
-          </>
-        )}
-        <label className="flex flex-col gap-1 text-[11.5px] text-faint">
-          Shipping address
-          <textarea
-            value={address}
-            maxLength={500}
-            rows={2}
-            onChange={(e) => setAddress(e.target.value)}
-            className="rounded-lg border border-line bg-white p-2.5 text-[13px] text-ink"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-[11.5px] text-faint">
-          Shipping method
-          <input
-            value={method}
-            maxLength={120}
-            onChange={(e) => setMethod(e.target.value)}
             className={field}
           />
         </label>

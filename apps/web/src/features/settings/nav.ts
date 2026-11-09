@@ -1,13 +1,11 @@
 import type { Permission } from '@torio/types';
 import {
   Bell,
-  Building2,
   CreditCard,
   FileClock,
   Plug,
   ShieldCheck,
   SlidersHorizontal,
-  UserRound,
   Shield,
   UsersRound,
   type LucideIcon,
@@ -29,22 +27,33 @@ export interface SettingsItem {
 
 export const SETTINGS: SettingsItem[] = [
   {
-    key: 'profile',
-    href: '/settings/profile',
-    title: 'My profile',
-    description: 'Your name, phone number and job title.',
-    icon: UserRound,
-    group: 'Personal',
-    keywords: ['name', 'phone', 'job title', 'email', 'avatar', 'account'],
-  },
-  {
-    key: 'preferences',
-    href: '/settings/preferences',
-    title: 'Preferences',
-    description: 'Time zone and the page Torio opens after you sign in.',
+    key: 'general',
+    href: '/settings/general',
+    title: 'General',
+    description: 'Your profile, workspace details and preferences, in one place.',
     icon: SlidersHorizontal,
     group: 'Personal',
-    keywords: ['time zone', 'timezone', 'landing page', 'start page', 'default page', 'home'],
+    keywords: [
+      'profile',
+      'name',
+      'phone',
+      'job title',
+      'email',
+      'avatar',
+      'account',
+      'preferences',
+      'time zone',
+      'timezone',
+      'landing page',
+      'start page',
+      'workspace',
+      'workspace name',
+      'company',
+      'currency',
+      'contact email',
+      'description',
+      'slug',
+    ],
   },
   {
     key: 'security',
@@ -66,18 +75,9 @@ export const SETTINGS: SettingsItem[] = [
     keywords: ['alerts', 'email', 'push'],
   },
   {
-    key: 'workspace',
-    href: '/settings/workspace',
-    title: 'Workspace',
-    description: 'Workspace name, description, default currency and contact email.',
-    icon: Building2,
-    group: 'Workspace',
-    keywords: ['workspace name', 'company', 'currency', 'contact email', 'description', 'slug'],
-  },
-  {
-    key: 'members',
-    href: '/settings/members',
-    title: 'Members & access',
+    key: 'teams',
+    href: '/team',
+    title: 'Teams',
     description: 'Manage people, invitations, teams, roles and permissions.',
     icon: UsersRound,
     group: 'Workspace',
@@ -85,8 +85,8 @@ export const SETTINGS: SettingsItem[] = [
   },
   {
     key: 'channels',
-    href: '/settings/channels',
-    title: 'Channels & integrations',
+    href: '/channels',
+    title: 'Channels',
     description: 'Manage WhatsApp, Instagram and Messenger connections.',
     icon: Plug,
     group: 'Workspace',
@@ -136,11 +136,15 @@ export const SETTINGS: SettingsItem[] = [
 export const GROUPS = ['Personal', 'Workspace', 'Privacy', 'Administration'] as const;
 
 /**
- * Routes that belong to the Settings area. Billing lives at /billing but is listed in the Settings navigation, so it
- * keeps the two-level layout. Everything here is derived from the current URL, never from click state.
+ * Routes that belong to the Settings area. Billing (/billing), Teams (/team) and Channels (/channels) keep their own
+ * routes but are listed in the Settings navigation, so Settings stays highlighted while they are open. Everything here is derived from the current URL, never from click state.
  */
 export const isSettingsPath = (pathname: string) =>
   pathname === '/settings' ||
   pathname.startsWith('/settings/') ||
   pathname === '/billing' ||
-  pathname.startsWith('/billing/');
+  pathname.startsWith('/billing/') ||
+  pathname === '/team' ||
+  pathname.startsWith('/team/') ||
+  pathname === '/channels' ||
+  pathname.startsWith('/channels/');

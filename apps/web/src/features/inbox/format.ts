@@ -84,3 +84,9 @@ export function orderSummaryText(
     ...(o.shippingAddress ? [`Delivery to: ${o.shippingAddress}`] : []),
   ].join('\n');
 }
+
+/** Count badge text: hidden at zero, exact up to 99, then "99+". */
+export function badgeCount(n: number | undefined): string | null {
+  if (!n || n < 1) return null;
+  return n > 99 ? '99+' : String(n);
+}
