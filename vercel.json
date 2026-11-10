@@ -5,13 +5,13 @@
       "root": "apps/api",
       "framework": "nestjs",
       "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
-      "buildCommand": "cd ../.. && pnpm exec turbo run build --filter=@torio/api && node scripts/vendor-workspace-deps.mjs"
+      "buildCommand": "cd ../.. && pnpm exec turbo run build --force --filter=@torio/api && node scripts/vendor-workspace-deps.mjs"
     },
     "web": {
       "root": "apps/web",
       "framework": "nextjs",
       "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
-      "buildCommand": "cd ../.. && pnpm exec turbo run build --filter=@torio/web"
+      "buildCommand": "cd ../.. && pnpm exec turbo run build --force --filter=@torio/web"
     }
   },
   "rewrites": [
