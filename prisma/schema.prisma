@@ -392,6 +392,42 @@ model PendingSocialSignup {
   @@map("pending_social_signups")
 }
 
+enum DeletionStatus {
+  PENDING_VERIFICATION
+  VERIFIED
+  PROCESSING
+  COMPLETED
+  REJECTED
+}
+
+/// A customer's request to delete their account. The user row is anonymized (not removed) when it completes, so
+/// references from conversations, orders and audit history stay valid. `email` is replaced by a masked form on completion.
+/// At most one active (pending/verified/processing) request per user, enforced by a partial unique index in the migration.
+model AccountDeletionRequest {
+  id              String         @id @default(uuid(7)) @db.Uuid
+  /// Shown to the customer; unguessable, so it doubles as a read-only status link.
+  reference       String         @unique
+  userId          String?        @db.Uuid
+  email           String
+  reason          String?
+  status          DeletionStatus @default(PENDING_VERIFICATION)
+  /// SHA-256 of the emailed verification token (cleared once used).
+  tokenHash       String?        @unique
+  tokenExpiresAt  DateTime?
+  verifiedAt      DateTime?
+  processedAt     DateTime?
+  rejectionReason String?
+  processedById   String?        @db.Uuid
+  /// What processing did, as counts only: no personal data.
+  summary         Json?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+  @@map("account_deletion_requests")
+}
+
 model AuditLog {
   id          String   @id @default(uuid(7)) @db.Uuid
   workspaceId String?  @db.Uuid

@@ -2,6 +2,7 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  UserX,
   Building2,
   ChevronDown,
   CreditCard,
@@ -56,6 +57,7 @@ const NAV = [
       { href: '/admin/workspaces', label: 'Workspaces', icon: Building2 },
       { href: '/admin/subscriptions', label: 'Subscriptions & Billing', icon: CreditCard },
       { href: '/admin/plans', label: 'Plans & Pricing', icon: Tags },
+      { href: '/admin/deletions', label: 'Deletion requests', icon: UserX },
     ],
   },
   {

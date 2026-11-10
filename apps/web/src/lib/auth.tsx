@@ -4,6 +4,21 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ApiSchemas } from '@torio/api-client';
 import { api, refreshSession, setAccessToken, setSessionLostHandler } from './api';
 
+/**
+ * Routing hint for `/` (dashboard vs public page, see src/proxy.ts). It carries no identity: the API still checks the
+ * real session on every request.
+ */
+const HINT = 'torio_authed';
+const setHint = (on: boolean) => {
+  try {
+    document.cookie = on
+      ? `${HINT}=1; Path=/; Max-Age=2592000; SameSite=Lax${location.protocol === 'https:' ? '; Secure' : ''}`
+      : `${HINT}=; Path=/; Max-Age=0; SameSite=Lax`;
+  } catch {
+    /* cookies blocked: `/` then shows the public page until the landing page confirms the session */
+  }
+};
+
 type AuthResponse = ApiSchemas['AuthResponseDto'];
 type User = AuthResponse['user'];
 type Status = 'loading' | 'authed' | 'anon';
@@ -34,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAccessToken(r.accessToken);
     setUser(r.user);
     setStatus('authed');
+    setHint(true);
   }, []);
 
   useEffect(() => {
@@ -41,11 +57,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void refreshSession().then((r) => {
       if (!live) return;
       if (r) adopt(r);
-      else setStatus('anon');
+      else {
+        setHint(false);
+        setStatus('anon');
+      }
     });
     setSessionLostHandler(() => {
       setAccessToken(null);
       setUser(null);
+      setHint(false);
       setStatus('anon');
     });
     return () => {
@@ -60,6 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await api.POST('/api/v1/auth/logout', { body: {} }).catch(() => undefined);
     setAccessToken(null);
     setUser(null);
+    setHint(false);
     setStatus('anon');
   }, []);
 

@@ -1054,6 +1054,21 @@ export function resetMetaAuth() {
   metaAuthState.tests = 0;
 }
 
+/** Account deletion pages. */
+export const deletionState = {
+  requests: [] as unknown[],
+  signedIn: [] as unknown[],
+  verifies: [] as string[],
+  mailConfigured: true,
+  goodToken: 'good-deletion-token-000000000000',
+};
+export function resetDeletion() {
+  deletionState.requests = [];
+  deletionState.signedIn = [];
+  deletionState.verifies = [];
+  deletionState.mailConfigured = true;
+}
+
 export function resetAuth() {
   authState.config = { google: true, facebook: true, email: true, registrationOpen: true };
   authState.registers = [];
@@ -1071,6 +1086,11 @@ export async function mockApi(
 ) {
   const role = opts.role ?? 'AGENT';
   let signedOut = !!opts.signedOut;
+  // `/` serves the dashboard only to a browser holding the routing cookie the app sets after sign-in (see src/proxy.ts).
+  if (!signedOut)
+    await page
+      .context()
+      .addCookies([{ name: 'torio_authed', value: '1', url: 'http://localhost:3100' }]);
   inboxState.bulks = [];
   searchState.requests = [];
   searchState.fail = false;
@@ -1099,6 +1119,58 @@ export async function mockApi(
         headers: cors,
         body: JSON.stringify(body),
       });
+    if (p === '/account-deletion/requests' && req.method() === 'POST') {
+      deletionState.requests.push(req.postDataJSON());
+      return deletionState.mailConfigured
+        ? reply({ verificationSent: true, reference: null, status: null }, 202)
+        : reply(
+            {
+              error: {
+                message:
+                  'Email delivery isn’t set up for this Torio deployment, so a verification link can’t be sent.',
+              },
+            },
+            503,
+          );
+    }
+    if (p === '/account-deletion/requests/me') {
+      const b = req.postDataJSON() as { password?: string };
+      deletionState.signedIn.push(b);
+      if (b.password && b.password !== 'Correct-pass-1')
+        return reply({ error: { message: 'That password is not correct.' } }, 401);
+      return b.password
+        ? reply({
+            verificationSent: false,
+            reference: 'TDR-AAAAA-BBBBB-CCCCC-DDDDD',
+            status: 'VERIFIED',
+          })
+        : reply({ verificationSent: true, reference: null, status: null });
+    }
+    if (p === '/account-deletion/verify') {
+      const b = req.postDataJSON() as { token: string };
+      deletionState.verifies.push(b.token);
+      return b.token === deletionState.goodToken
+        ? reply({
+            reference: 'TDR-11111-22222-33333-44444',
+            status: 'VERIFIED',
+            createdAt: iso(5),
+            updatedAt: iso(0),
+            rejectionReason: null,
+          })
+        : reply({ error: { message: 'This confirmation link is invalid or has expired.' } }, 400);
+    }
+    if (p.startsWith('/account-deletion/requests/')) {
+      const ref = decodeURIComponent(p.split('/').pop()!);
+      return ref === 'TDR-11111-22222-33333-44444'
+        ? reply({
+            reference: ref,
+            status: 'PROCESSING',
+            createdAt: iso(60),
+            updatedAt: iso(1),
+            rejectionReason: null,
+          })
+        : reply({ error: { message: 'No request with that reference.' } }, 404);
+    }
     if (p === '/auth/config') return reply(authState.config);
     if (p === '/auth/login') {
       const b = req.postDataJSON() as { email: string; password: string };

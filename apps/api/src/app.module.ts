@@ -8,6 +8,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { APP_CONFIG, ConfigModule, type AppConfig } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
+import { AccountDeletionModule } from './modules/account-deletion/account-deletion.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AuthorizationModule } from './modules/authorization/authorization.module';
 import { InboxModule } from './modules/inbox/inbox.module';
@@ -72,6 +73,7 @@ const REQUEST_ID = /^[A-Za-z0-9._-]{8,64}$/;
     DatabaseModule,
     AuthorizationModule,
     AuthModule,
+    AccountDeletionModule,
     HealthModule,
     UsersModule,
     WorkspacesModule,

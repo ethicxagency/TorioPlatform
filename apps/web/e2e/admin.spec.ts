@@ -49,6 +49,7 @@ test.describe('super admin', () => {
       'Workspaces',
       'Subscriptions & Billing',
       'Plans & Pricing',
+      'Deletion requests',
       'Meta Developer',
       'Activity & Logs',
       'Settings',

@@ -49,6 +49,53 @@ export const authConfigSchema = z.object({
 });
 export type AuthConfig = z.infer<typeof authConfigSchema>;
 
+export const deletionStatusSchema = z.enum(['PENDING_VERIFICATION', 'VERIFIED', 'PROCESSING', 'COMPLETED', 'REJECTED']);
+export type DeletionStatus = z.infer<typeof deletionStatusSchema>;
+
+/** Public request from the Delete Account page. Ownership is proven by the emailed link (or the signed-in session + password). */
+export const deletionRequestSchema = z.object({
+  email: emailSchema,
+  reason: z.string().trim().max(500).optional(),
+  confirm: z.literal(true, { message: 'Confirm that you understand deletion is permanent' }),
+});
+export const deletionSignedInRequestSchema = z.object({
+  /** Re-entering the password is the confirmation step for a signed-in customer. Omit to confirm by email instead. */
+  password: z.string().min(1).max(128).optional(),
+  reason: z.string().trim().max(500).optional(),
+  confirm: z.literal(true, { message: 'Confirm that you understand deletion is permanent' }),
+});
+export const deletionStatusViewSchema = z.object({
+  reference: z.string(),
+  status: deletionStatusSchema,
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+  /** Only when rejected. */
+  rejectionReason: z.string().nullable(),
+});
+/** `reference`/`status` are present only once a request really exists; an emailed-link request answers with `verificationSent`. */
+export const deletionCreatedSchema = z.object({
+  verificationSent: z.boolean(),
+  reference: z.string().nullable(),
+  status: deletionStatusSchema.nullable(),
+});
+export const adminDeletionListSchema = z.object({
+  data: z.array(
+    z.object({
+      id: z.uuid(),
+      reference: z.string(),
+      email: z.string(),
+      reason: z.string().nullable(),
+      status: deletionStatusSchema,
+      createdAt: z.iso.datetime(),
+      verifiedAt: z.iso.datetime().nullable(),
+      processedAt: z.iso.datetime().nullable(),
+      rejectionReason: z.string().nullable(),
+      summary: z.record(z.string(), z.unknown()).nullable(),
+    }),
+  ),
+});
+export const adminDeletionRejectSchema = z.object({ reason: z.string().trim().min(3).max(500) });
+
 export const refreshSchema = z.object({
   /** Mobile clients send the refresh token in the body; browsers use the HttpOnly cookie. */
   refreshToken: z.string().min(20).max(512).optional(),

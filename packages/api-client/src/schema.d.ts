@@ -148,6 +148,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/account-deletion/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AccountDeletionController_byEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account-deletion/requests/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AccountDeletionController_signedIn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account-deletion/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AccountDeletionController_verify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account-deletion/requests/{reference}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AccountDeletionController_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/account-deletions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminAccountDeletionController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/account-deletions/{id}/process": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminAccountDeletionController_process"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/account-deletions/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminAccountDeletionController_reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health": {
         parameters: {
             query?: never;
@@ -2539,6 +2651,56 @@ export interface components {
         LogoutResponseDto: {
             /** @constant */
             ok: true;
+        };
+        RequestDto: {
+            /** Format: email */
+            email: string;
+            reason?: string;
+            /** @constant */
+            confirm: true;
+        };
+        CreatedDto: {
+            verificationSent: boolean;
+            reference: string[];
+            status: ("PENDING_VERIFICATION" | "VERIFIED" | "PROCESSING" | "COMPLETED" | "REJECTED") | null;
+        };
+        SignedInDto: {
+            password?: string;
+            reason?: string;
+            /** @constant */
+            confirm: true;
+        };
+        StatusDto: {
+            reference: string;
+            /** @enum {string} */
+            status: "PENDING_VERIFICATION" | "VERIFIED" | "PROCESSING" | "COMPLETED" | "REJECTED";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            rejectionReason: string[];
+        };
+        AdminListDto: {
+            data: {
+                /** Format: uuid */
+                id: string;
+                reference: string;
+                email: string;
+                reason: string | null;
+                /** @enum {string} */
+                status: "PENDING_VERIFICATION" | "VERIFIED" | "PROCESSING" | "COMPLETED" | "REJECTED";
+                /** Format: date-time */
+                createdAt: string;
+                verifiedAt: string | null;
+                processedAt: string | null;
+                rejectionReason: string | null;
+                summary: {
+                    [key: string]: unknown;
+                } | null;
+            }[];
+        };
+        RejectDto: {
+            reason: string;
         };
         HealthDto: {
             /** @enum {string} */
@@ -5906,6 +6068,163 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LogoutResponseDto"];
+                };
+            };
+        };
+    };
+    AccountDeletionController_byEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedDto"];
+                };
+            };
+        };
+    };
+    AccountDeletionController_signedIn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignedInDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedDto"];
+                };
+            };
+        };
+    };
+    AccountDeletionController_verify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TokenDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusDto"];
+                };
+            };
+        };
+    };
+    AccountDeletionController_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reference: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusDto"];
+                };
+            };
+        };
+    };
+    AdminAccountDeletionController_list: {
+        parameters: {
+            query: {
+                status: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminListDto"];
+                };
+            };
+        };
+    };
+    AdminAccountDeletionController_process: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminListDto"];
+                };
+            };
+        };
+    };
+    AdminAccountDeletionController_reject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminListDto"];
                 };
             };
         };

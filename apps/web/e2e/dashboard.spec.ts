@@ -229,7 +229,9 @@ test.describe('dashboard smoke', () => {
   });
 });
 
-test('signed-out visitors are redirected to the login page', async ({ page }) => {
+test('signed-out visitors are redirected to the login page from protected pages, and see the public page at /', async ({
+  page,
+}) => {
   await page.route('http://localhost:4000/**', (r) =>
     r.fulfill({
       status: 401,
@@ -241,8 +243,11 @@ test('signed-out visitors are redirected to the login page', async ({ page }) =>
       body: '{}',
     }),
   );
+  // `/` is the public home page for visitors; protected pages send them to sign in, remembering where they were going.
+  await page.goto('/orders');
+  await expect(page).toHaveURL(/\/login\?next=%2Forders$/);
   await page.goto('/');
-  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Every Conversation.');
 });
 
 test('sign-in page: split layout, password toggle, honest options, phone layout', async ({
