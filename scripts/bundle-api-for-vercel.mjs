@@ -19,5 +19,5 @@ await build({
   external: ['@node-rs/argon2', '@nestjs/microservices*', '@nestjs/websockets/socket-module', 'class-transformer*', 'class-validator*', 'bufferutil', 'utf-8-validate'],
   logLevel: 'warning',
 });
-writeFileSync(join(apiDir, 'src/main.ts'), "require('../vercel-bundle.cjs');\n");
+writeFileSync(join(apiDir, 'src/main.ts'), "import '@nestjs/core';\nrequire('../vercel-bundle.cjs');\n");
 console.log('API bundled for Vercel');
