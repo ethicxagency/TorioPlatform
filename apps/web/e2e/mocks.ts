@@ -2256,6 +2256,20 @@ export async function mockApi(
             customerAuthRedirectUriToRegister:
               st.values.customerAuthRedirectUri ??
               'https://app.example.test/api/v1/auth/oauth/facebook/callback',
+            customerAuthDiagnostic: {
+              generatedUri:
+                st.values.customerAuthRedirectUri ??
+                'https://app.example.test/api/v1/auth/oauth/facebook/callback',
+              source: 'derived',
+              expectedPath: '/api/v1/auth/oauth/facebook/callback',
+              matchesRoute: true,
+              registerInMeta:
+                st.values.customerAuthRedirectUri ??
+                'https://app.example.test/api/v1/auth/oauth/facebook/callback',
+              problems: [],
+              appIdConfigured: true,
+              facebookAppId: '1533990358131449',
+            },
             metaWebhookUrl: 'https://app.example.test/api/v1/webhooks/meta',
             whatsappWebhookUrl: 'https://app.example.test/api/v1/webhooks/whatsapp',
           },

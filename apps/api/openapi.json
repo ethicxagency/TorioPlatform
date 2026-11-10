@@ -23176,6 +23176,63 @@
                   "null"
                 ]
               },
+              "customerAuthDiagnostic": {
+                "type": "object",
+                "properties": {
+                  "generatedUri": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "saved",
+                      "environment",
+                      "derived",
+                      "none"
+                    ]
+                  },
+                  "expectedPath": {
+                    "type": "string"
+                  },
+                  "matchesRoute": {
+                    "type": "boolean"
+                  },
+                  "registerInMeta": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "problems": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "appIdConfigured": {
+                    "type": "boolean"
+                  },
+                  "facebookAppId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "generatedUri",
+                  "source",
+                  "expectedPath",
+                  "matchesRoute",
+                  "registerInMeta",
+                  "problems",
+                  "appIdConfigured",
+                  "facebookAppId"
+                ]
+              },
               "metaWebhookUrl": {
                 "type": [
                   "string",
@@ -23194,6 +23251,7 @@
               "redirectUriToRegister",
               "customerAuthCallbackPath",
               "customerAuthRedirectUriToRegister",
+              "customerAuthDiagnostic",
               "metaWebhookUrl",
               "whatsappWebhookUrl"
             ]

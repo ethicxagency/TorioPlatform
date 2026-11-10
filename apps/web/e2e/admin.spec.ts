@@ -324,6 +324,11 @@ test.describe('super admin', () => {
         customer.getByText(/does not add it to the Meta Developer Dashboard/),
       ).toBeVisible();
       await expect(customer.getByText(/FACEBOOK_APP_ID/)).toBeVisible();
+      // the Facebook sign-in check shows the real redirect URI and the exact Meta dashboard steps
+      await expect(customer.getByText('Server configuration OK')).toBeVisible();
+      await expect(customer.getByText('Redirect URI the server sends to Facebook')).toBeVisible();
+      await expect(customer.getByText(/Client OAuth Login/)).toBeVisible();
+      await expect(customer.getByText(/Valid OAuth Redirect URIs/).first()).toBeVisible();
       // the customer list is independent: adding there leaves the channel list alone
       await customer
         .getByLabel('Add to Allowed customer sign-in redirect URIs')

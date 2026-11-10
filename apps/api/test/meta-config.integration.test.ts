@@ -211,6 +211,13 @@ describe.skipIf(!url)('meta developer configuration (real PostgreSQL, fake Graph
       customerAuthRedirectUri: CUSTOMER_CB,
       oauthRedirectUri: CALLBACK, // the channel settings are untouched
     });
+    expect(ok.body.derived.customerAuthDiagnostic).toMatchObject({
+      generatedUri: CUSTOMER_CB,
+      source: 'saved',
+      expectedPath: '/api/v1/auth/oauth/facebook/callback',
+      matchesRoute: true,
+      registerInMeta: CUSTOMER_CB,
+    });
     expect(ok.body.derived).toMatchObject({
       callbackPath: '/api/v1/channels/meta/callback',
       redirectUriToRegister: CALLBACK,

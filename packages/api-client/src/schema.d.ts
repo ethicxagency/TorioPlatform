@@ -5273,6 +5273,17 @@ export interface components {
                 redirectUriToRegister: string | null;
                 customerAuthCallbackPath: string;
                 customerAuthRedirectUriToRegister: string | null;
+                customerAuthDiagnostic: {
+                    generatedUri: string | null;
+                    /** @enum {string} */
+                    source: "saved" | "environment" | "derived" | "none";
+                    expectedPath: string;
+                    matchesRoute: boolean;
+                    registerInMeta: string | null;
+                    problems: string[];
+                    appIdConfigured: boolean;
+                    facebookAppId: string | null;
+                };
                 metaWebhookUrl: string | null;
                 whatsappWebhookUrl: string | null;
             };

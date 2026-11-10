@@ -261,6 +261,7 @@ export class MetaConfigService {
   trustedHosts(rt: MetaRuntime = this.rt): string[] {
     return [
       host(rt.webUrl),
+      host(this.env.API_URL),
       rt.appDomain?.toLowerCase(),
       ...rt.allowedDomains.map((d) => d.toLowerCase()),
     ].filter((h): h is string => !!h);
@@ -270,18 +271,67 @@ export class MetaConfigService {
    * The redirect URI the customer Facebook sign-in uses (and must use again, exactly, when exchanging the code): the saved
    * primary, else the environment, else the default derived from WEB_URL. Anything that fails its own flow's checks is refused.
    */
-  customerFacebookRedirect(rt: MetaRuntime = this.rt): { uri: string | null; problems: string[] } {
-    const uri =
-      rt.customerAuthRedirectUri ??
-      `${rt.webUrl.replace(/\/$/, '')}${FACEBOOK_LOGIN_CALLBACK_PATH}`;
+  customerFacebookRedirect(rt: MetaRuntime = this.rt): {
+    uri: string | null;
+    problems: string[];
+    source: 'saved' | 'environment' | 'derived' | 'none';
+  } {
     const prod = this.env.NODE_ENV === 'production';
+    const apiBase = this.env.API_URL
+      ? this.env.API_URL.replace(/\/$/, '')
+      : prod
+        ? null
+        : `http://localhost:${this.env.API_PORT}`;
+    const configured = rt.customerAuthRedirectUri;
+    const uri = configured ?? (apiBase ? `${apiBase}${FACEBOOK_LOGIN_CALLBACK_PATH}` : null);
+    const source: 'saved' | 'environment' | 'derived' | 'none' = configured
+      ? rt.sources.customerAuthRedirectUri === 'database'
+        ? 'saved'
+        : 'environment'
+      : uri
+        ? 'derived'
+        : 'none';
+    // Callbacks live on the API, so the default comes from API_URL; the web app's address is never used. Production
+    // has no fallback: a guessed URI is exactly what Meta rejects as "URL blocked".
+    if (!uri)
+      return {
+        uri: null,
+        source,
+        problems: [
+          'Set API_URL (the public address of the API) on the server, or save a Customer Facebook redirect URI. Production never guesses it.',
+        ],
+      };
     const problems = checkRedirectUri(uri, FACEBOOK_LOGIN_CALLBACK_PATH, {
       trustedHosts: this.trustedHosts(rt),
       production: prod,
     });
     const list = rt.customerAuthAllowedRedirectUris;
     if (list.length && !list.includes(uri)) problems.push('Not in the allowed redirect URIs.');
-    return problems.length ? { uri: null, problems } : { uri, problems };
+    return problems.length ? { uri: null, problems, source } : { uri, problems, source };
+  }
+
+  /**
+   * What an admin needs to know about customer "Continue with Facebook": the redirect URI the server will actually send
+   * to Meta, the route the API serves, whether the two agree, and the exact URL to register in the Meta dashboard.
+   */
+  customerAuthDiagnostic(rt: MetaRuntime = this.rt) {
+    const r = this.customerFacebookRedirect(rt);
+    let path: string | null = null;
+    try {
+      if (r.uri) path = new URL(r.uri).pathname.replace(/\/$/, '');
+    } catch {
+      /* reported through problems */
+    }
+    return {
+      generatedUri: r.uri,
+      source: r.source,
+      expectedPath: FACEBOOK_LOGIN_CALLBACK_PATH,
+      matchesRoute: path === FACEBOOK_LOGIN_CALLBACK_PATH,
+      registerInMeta: r.uri,
+      problems: r.problems,
+      appIdConfigured: !!this.env.FACEBOOK_APP_ID && !!this.env.FACEBOOK_APP_SECRET,
+      facebookAppId: this.env.FACEBOOK_APP_ID ?? null,
+    };
   }
 
   // ----- validation -----
@@ -477,9 +527,8 @@ export class MetaConfigService {
         callbackPath: META_CALLBACK_PATH,
         redirectUriToRegister: redirect,
         customerAuthCallbackPath: FACEBOOK_LOGIN_CALLBACK_PATH,
-        customerAuthRedirectUriToRegister:
-          rt.customerAuthRedirectUri ??
-          `${rt.webUrl.replace(/\/$/, '')}${FACEBOOK_LOGIN_CALLBACK_PATH}`,
+        customerAuthRedirectUriToRegister: this.customerFacebookRedirect(rt).uri,
+        customerAuthDiagnostic: this.customerAuthDiagnostic(rt),
         metaWebhookUrl: urls.meta,
         whatsappWebhookUrl: urls.whatsapp,
       },

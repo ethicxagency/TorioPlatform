@@ -386,6 +386,97 @@ function SecretField({
   );
 }
 
+/**
+ * Facebook Login check: what the server will really send to Meta, next to what Meta must have registered. A mismatch
+ * between the two is what Meta reports as "URL blocked: the redirect URI is not white-listed".
+ */
+function FacebookLoginCheck({ d }: { d: Config['derived']['customerAuthDiagnostic'] }) {
+  const ok = !!d.generatedUri && d.matchesRoute && d.problems.length === 0;
+  const source = {
+    saved: 'saved here',
+    environment: 'server environment',
+    derived: 'API address (default)',
+    none: 'not available',
+  }[d.source];
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border border-line p-3 text-[12.5px]">
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            'rounded-md px-2 py-0.5 text-xs font-semibold',
+            ok ? 'bg-success-soft text-success' : 'bg-danger-soft text-danger',
+          )}
+        >
+          {ok ? 'Server configuration OK' : 'Server configuration needs fixing'}
+        </span>
+        <span className="text-xs text-muted">Facebook sign-in check</span>
+      </div>
+      <CopyRow
+        label="Redirect URI the server sends to Facebook"
+        value={d.generatedUri}
+        note={`Source: ${source}.`}
+      />
+      <div className="grid gap-1 sm:grid-cols-[180px_1fr]">
+        <span className="text-muted">Route the API serves</span>
+        <code>{d.expectedPath}</code>
+        <span className="text-muted">Matches that route</span>
+        <span className={d.matchesRoute ? 'text-success' : 'text-danger'}>
+          {d.matchesRoute ? 'Yes' : 'No'}
+        </span>
+        <span className="text-muted">Facebook App ID in use</span>
+        <span>
+          {d.appIdConfigured ? (
+            <code>{d.facebookAppId}</code>
+          ) : (
+            'Not set on the server (FACEBOOK_APP_ID / FACEBOOK_APP_SECRET)'
+          )}
+        </span>
+      </div>
+      {d.problems.length > 0 && (
+        <ul role="alert" className="m-0 flex list-disc flex-col gap-1 pl-5 text-xs text-danger">
+          {d.problems.map((m, i) => (
+            <li key={i}>{m}</li>
+          ))}
+        </ul>
+      )}
+      <div>
+        <b>Check these in the Meta Developer Dashboard</b> (Torio can’t read them from Meta, so
+        confirm them there):
+        <ol className="m-0 mt-1.5 flex list-decimal flex-col gap-1 pl-5 text-muted">
+          <li>
+            Open the app with App ID <code>{d.facebookAppId ?? '…'}</code>, add the{' '}
+            <b>Facebook Login</b> product, and under Facebook Login → Settings turn on{' '}
+            <b>Client OAuth Login</b> and <b>Web OAuth Login</b>.
+          </li>
+          <li>
+            Add exactly{' '}
+            <code className="break-all">
+              {d.registerInMeta ?? '(fix the problems above first)'}
+            </code>{' '}
+            to <b>Valid OAuth Redirect URIs</b> and save. No trailing slash, same https and host.
+          </li>
+          <li>
+            In App settings → Basic, add the domain <code>{safeHost(d.registerInMeta)}</code> to{' '}
+            <b>App Domains</b>, and keep <b>Enforce HTTPS</b> on.
+          </li>
+          <li>
+            Use an app in <b>Live</b> mode, or add the person signing in as a tester or developer;
+            in Development mode other people are blocked.
+          </li>
+        </ol>
+      </div>
+    </div>
+  );
+}
+
+const safeHost = (u: string | null) => {
+  try {
+    return u ? new URL(u).hostname : '…';
+  } catch {
+    return '…';
+  }
+};
+
 /** One OAuth flow's redirect settings: its primary callback, allow-list, validation status and where to register it. */
 function RedirectGroup(props: {
   intro: string;
@@ -404,6 +495,7 @@ function RedirectGroup(props: {
   placeholder: string;
   where: string;
   customerNote?: string;
+  diagnostic?: Config['derived']['customerAuthDiagnostic'];
 }) {
   const bad = props.problems.length > 0;
   return (
@@ -436,6 +528,7 @@ function RedirectGroup(props: {
           ))}
         </ul>
       )}
+      {props.diagnostic && <FacebookLoginCheck d={props.diagnostic} />}
       <CopyRow label="Primary callback URL" value={props.toRegister} />
       <Field
         label="Primary redirect URI"
@@ -973,6 +1066,7 @@ export function MetaDeveloperPage() {
                   `https://your-host${c.derived.customerAuthCallbackPath}`
                 }
                 where="In the Meta app whose App ID is set as FACEBOOK_APP_ID on the server: Facebook Login → Settings → Valid OAuth Redirect URIs. If you use one Meta app for both flows, add both URLs to that one list."
+                diagnostic={c.derived.customerAuthDiagnostic}
                 customerNote="Leave the primary blank to use the default (your web address plus the route above)."
               />
             </Panel>

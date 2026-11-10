@@ -481,9 +481,12 @@ describe.skipIf(!url)('customer social sign-in (real PostgreSQL, mocked provider
       ).toBe('provider_not_configured');
     });
 
-    it('with nothing saved it falls back to the default derived from WEB_URL', async () => {
+    it('with nothing saved it uses the API origin default, never the web app address', async () => {
       await setConfig({ customerAuthRedirectUri: null, customerAuthAllowedRedirectUris: [] });
-      expect((await redirectUriSentToFacebook()).uri).toBe(MINE);
+      const api = process.env.API_URL ?? `http://localhost:${process.env.API_PORT ?? 4000}`;
+      expect((await redirectUriSentToFacebook()).uri).toBe(
+        `${api.replace(/\/$/, '')}/api/v1/auth/oauth/facebook/callback`,
+      );
     });
 
     it('a sign-in started with one URI cannot finish after that URI is no longer allowed (exact match)', async () => {
