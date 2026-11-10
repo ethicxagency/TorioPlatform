@@ -417,6 +417,30 @@ export class MetaAuthConfigService {
         'Secure token storage (CHANNEL_ENCRYPTION_KEY) is not configured on the server, so secrets can’t be stored.',
       );
     const had = this.rt.sources.appSecret === 'database';
+    // The new secret must be accepted by Meta for this app before it replaces anything stored.
+    const rt = await this.load(true);
+    if (!rt.appId) throw new BadRequestException('Save the App ID first.');
+    try {
+      await this.graph.get().appInfo(rt.appId, value);
+    } catch (e) {
+      await this.audit.log({
+        admin,
+        action: 'meta.auth.secret.replace',
+        targetType: 'meta_configuration',
+        targetId: ID,
+        ip,
+        metadata: {
+          category: 'secrets',
+          status: 'failed',
+          reason: e instanceof GraphError ? 'rejected by Meta' : 'Meta unreachable',
+        },
+      });
+      throw new BadRequestException(
+        e instanceof GraphError
+          ? `Meta did not accept this App Secret for app ${rt.appId}. The saved secret was not changed.`
+          : 'Could not reach Meta to check the new App Secret, so the saved secret was not changed. Try again shortly.',
+      );
+    }
     const cipher = this.crypto.encrypt(value);
     await this.prisma.client.$transaction(async (tx) => {
       await tx.metaConfiguration.upsert({

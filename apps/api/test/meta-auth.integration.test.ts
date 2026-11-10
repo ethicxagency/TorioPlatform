@@ -181,6 +181,34 @@ describe.skipIf(!url)('two Meta apps (real PostgreSQL, fake Graph API)', () => {
     expect(logs).toContain('meta.auth.secret.replace');
   });
 
+  it('a new secret that Meta rejects never overwrites the stored one, for either app', async () => {
+    const before = await db.metaConfiguration.findUniqueOrThrow({ where: { id: 'auth' } });
+    graph = 'badSecret';
+    const bad = await send('put', '/secrets/app-secret', {
+      value: 'regenerated-but-wrong-secret',
+    }).expect(400);
+    expect(JSON.stringify(bad.body)).toMatch(/did not accept this App Secret/);
+    expect(JSON.stringify(bad.body)).not.toContain('regenerated-but-wrong-secret');
+    expect(
+      (await db.metaConfiguration.findUniqueOrThrow({ where: { id: 'auth' } })).appSecretCiphertext,
+    ).toBe(before.appSecretCiphertext);
+    // the Business Messaging app is protected the same way, and is unaffected by the Auth app's attempt
+    await bsend('put', '/secrets/app-secret', { value: 'another-wrong-business-secret' }).expect(
+      400,
+    );
+    const logs = JSON.stringify(
+      await db.adminAuditLog.findMany({ where: { action: { startsWith: 'meta.' } } }),
+    );
+    expect(logs).not.toContain('regenerated-but-wrong-secret');
+    expect(logs).not.toContain('another-wrong-business-secret');
+    graph = 'ok';
+    // once Meta accepts a secret it is saved, and the old ciphertext is replaced
+    await send('put', '/secrets/app-secret', { value: AUTH_SECRET }).expect(200);
+    expect(
+      (await db.metaConfiguration.findUniqueOrThrow({ where: { id: 'auth' } })).appSecretCiphertext,
+    ).not.toBe(before.appSecretCiphertext);
+  });
+
   it('a real credentials test reports success and failure with safe messages', async () => {
     const ok = (await send('post', '/test').expect(200)).body;
     expect(ok).toMatchObject({ ok: true, message: 'Meta accepted the App ID and App Secret.' });

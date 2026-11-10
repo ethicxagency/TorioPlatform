@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { META_CALLBACK_PATH, META_WEBHOOK_PATH } from '@torio/contracts';
 import { Prisma } from '@torio/database';
 import { PrismaService } from '../../database/prisma.service';
@@ -86,6 +86,24 @@ export class MetaDiagnosticsService {
         metaCode: r.metaCode,
       },
     });
+  }
+
+  /**
+   * Before a new Business Messaging App Secret replaces the stored one, Meta must accept it for this app. Throws (and the
+   * stored secret stays untouched) otherwise. The secret is never part of any message.
+   */
+  async assertSecretAccepted(secret: string) {
+    const rt = await this.cfg.load(true);
+    if (!rt.appId) throw new BadRequestException('Save the App ID first.');
+    try {
+      await this.graph.get().appInfo(rt.appId, secret);
+    } catch (e) {
+      throw new BadRequestException(
+        e instanceof GraphError
+          ? `Meta did not accept this App Secret for app ${rt.appId}. The saved secret was not changed.`
+          : 'Could not reach Meta to check the new App Secret, so the saved secret was not changed. Try again shortly.',
+      );
+    }
   }
 
   /** Asks Meta whether this App ID and App Secret are a valid pair. */

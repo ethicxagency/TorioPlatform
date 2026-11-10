@@ -85,7 +85,8 @@ export class AdminMetaController {
   @Put('secrets/app-secret')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOkResponse({ type: MetaAdminConfigDto })
-  setAppSecret(@CurrentAdmin() a: AdminContext, @Body() b: MetaSecretDto, @Ip() ip: string) {
+  async setAppSecret(@CurrentAdmin() a: AdminContext, @Body() b: MetaSecretDto, @Ip() ip: string) {
+    await this.diag.assertSecretAccepted(b.value);
     return this.cfg.setSecret(a, 'appSecret', b.value, b.confirm, ip);
   }
 
