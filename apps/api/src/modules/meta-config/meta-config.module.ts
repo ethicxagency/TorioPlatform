@@ -4,6 +4,7 @@ import { MetaGraphProvider } from '../meta/meta.graph-provider';
 import { ChannelCryptoService } from '../whatsapp/channel-crypto.service';
 import { WhatsAppGraphProvider } from '../whatsapp/whatsapp.graph-provider';
 import { MetaDiagnosticsService } from './meta-config.diagnostics';
+import { MetaAuthConfigService } from './meta-auth-config.service';
 import { MetaConfigService } from './meta-config.service';
 
 /** The Meta settings store and the Graph clients that follow it. Global so every Meta/WhatsApp service reads one source. */
@@ -13,12 +14,14 @@ import { MetaConfigService } from './meta-config.service';
     ChannelCryptoService,
     AdminAudit,
     MetaConfigService,
+    MetaAuthConfigService,
     MetaGraphProvider,
     WhatsAppGraphProvider,
     MetaDiagnosticsService,
   ],
   exports: [
     MetaConfigService,
+    MetaAuthConfigService,
     MetaGraphProvider,
     WhatsAppGraphProvider,
     MetaDiagnosticsService,

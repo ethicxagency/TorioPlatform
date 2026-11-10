@@ -1264,6 +1264,8 @@ model ChannelOAuthSession {
 /// Secrets are stored only as AES-GCM ciphertext (same master key as channel tokens).
 model MetaConfiguration {
   id                  String   @id @default("default")
+  /// BUSINESS_MESSAGING (id "default": Torio Platform app: Messenger, Instagram, WhatsApp) or AUTH (id "auth": Torio Auth app: customer Facebook Login). Two different Meta apps, never mixed.
+  purpose             String   @default("BUSINESS_MESSAGING")
   appName             String?
   appId               String?
   appSecretCiphertext String?

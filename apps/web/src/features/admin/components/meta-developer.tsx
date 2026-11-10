@@ -31,7 +31,8 @@ type Diagnostics = ApiSchemas['MetaDiagnosticsDto'];
 type Security = ApiSchemas['MetaSecurityStatusDto'];
 type Activity = ApiSchemas['MetaActivityListDto'];
 
-const BASE = '/integrations/meta';
+export const BASE = '/integrations/meta';
+export const AUTH_BASE = '/integrations/meta-auth';
 const TABS = [
   ['overview', 'Overview'],
   ['app', 'App Configuration'],
@@ -44,7 +45,7 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number][0];
 
-const STATUS: Record<Config['status'], { label: string; cls: string }> = {
+export const STATUS: Record<Config['status'], { label: string; cls: string }> = {
   CONFIGURED: { label: 'Configured', cls: 'bg-success-soft text-success' },
   INCOMPLETE: { label: 'Incomplete', cls: 'bg-warning-soft text-warning' },
   INVALID: { label: 'Invalid', cls: 'bg-danger-soft text-danger' },
@@ -57,13 +58,13 @@ const SOURCE: Record<string, string> = {
   unset: 'Not set',
 };
 
-const useCfg = () =>
+export const useCfg = () =>
   useQuery({
     queryKey: ['admin', 'meta', 'config'],
     queryFn: () => adminRequest<Config>(`${BASE}/config`),
   });
 
-function Field({
+export function Field({
   label,
   hint,
   error,
@@ -94,7 +95,15 @@ function Field({
   );
 }
 
-function CopyRow({ label, value, note }: { label: string; value: string | null; note?: string }) {
+export function CopyRow({
+  label,
+  value,
+  note,
+}: {
+  label: string;
+  value: string | null;
+  note?: string;
+}) {
   const { toast } = useAdminShell();
   return (
     <div className="flex flex-col gap-1 text-[12.5px]">
@@ -204,15 +213,18 @@ function TestButtons({
 }
 
 /** A secret is write-only: it's shown as masked, and replacing it types into a field that can be shown or hidden. */
-function SecretField({
+export function SecretField({
   label,
   state,
   path,
   clearable,
   generator,
   warning,
+  base = BASE,
 }: {
   label: string;
+  /** API base for this app's secret routes (the Business Messaging app by default). */
+  base?: string;
   state: { configured: boolean; source: string };
   path: 'app-secret' | 'webhook-verify-token';
   clearable?: boolean;
@@ -240,7 +252,7 @@ function SecretField({
   };
   const replace = useMutation({
     mutationFn: () =>
-      adminRequest(`${BASE}/secrets/${path}`, { method: 'PUT', body: { value, confirm: true } }),
+      adminRequest(`${base}/secrets/${path}`, { method: 'PUT', body: { value, confirm: true } }),
     onSuccess: () => {
       toast(`${label} replaced`);
       done();
@@ -249,7 +261,7 @@ function SecretField({
   });
   const clear = useMutation({
     mutationFn: () =>
-      adminRequest(`${BASE}/secrets/${path}`, { method: 'DELETE', body: { confirm: true } }),
+      adminRequest(`${base}/secrets/${path}`, { method: 'DELETE', body: { confirm: true } }),
     onSuccess: () => {
       toast(`${label} cleared`);
       done();
@@ -258,7 +270,7 @@ function SecretField({
   });
   const gen = useMutation({
     mutationFn: () =>
-      adminRequest<{ token: string }>(`${BASE}/secrets/webhook-verify-token/generate`, {
+      adminRequest<{ token: string }>(`${base}/secrets/webhook-verify-token/generate`, {
         method: 'POST',
         body: { confirm: true },
       }),
@@ -386,121 +398,8 @@ function SecretField({
   );
 }
 
-/**
- * Facebook Login check: what the server will really send to Meta, next to what Meta must have registered. A mismatch
- * between the two is what Meta reports as "URL blocked: the redirect URI is not white-listed".
- */
-function FacebookLoginCheck({ d }: { d: Config['derived']['customerAuthDiagnostic'] }) {
-  const ok = !!d.generatedUri && d.matchesRoute && d.problems.length === 0;
-  const source = {
-    saved: 'saved here',
-    environment: 'server environment',
-    derived: 'API address (default)',
-    none: 'not available',
-  }[d.source];
-  return (
-    <div className="flex flex-col gap-3 rounded-lg border border-line p-3 text-[12.5px]">
-      <div className="flex items-center gap-2">
-        <span
-          className={cn(
-            'rounded-md px-2 py-0.5 text-xs font-semibold',
-            ok ? 'bg-success-soft text-success' : 'bg-danger-soft text-danger',
-          )}
-        >
-          {ok ? 'Server configuration OK' : 'Server configuration needs fixing'}
-        </span>
-        <span className="text-xs text-muted">Facebook sign-in check</span>
-      </div>
-      <CopyRow
-        label="Redirect URI the server sends to Facebook"
-        value={d.generatedUri}
-        note={`Source: ${source}.`}
-      />
-      <div className="grid gap-1 sm:grid-cols-[180px_1fr]">
-        <span className="text-muted">Route the API serves</span>
-        <code>{d.expectedPath}</code>
-        <span className="text-muted">Matches that route</span>
-        <span className={d.matchesRoute ? 'text-success' : 'text-danger'}>
-          {d.matchesRoute ? 'Yes' : 'No'}
-        </span>
-        <span className="text-muted">Permissions requested</span>
-        <span>
-          {d.loginConfigurationId ? (
-            <>
-              From Login Configuration <code>{d.loginConfigurationId}</code> (no scope is sent)
-            </>
-          ) : (
-            d.scopes.map((s) => (
-              <code key={s} className="mr-1.5">
-                {s}
-              </code>
-            ))
-          )}
-        </span>
-        <span className="text-muted">Facebook App ID in use</span>
-        <span>
-          {d.appIdConfigured ? (
-            <code>{d.facebookAppId}</code>
-          ) : (
-            'Not set on the server (FACEBOOK_APP_ID / FACEBOOK_APP_SECRET)'
-          )}
-        </span>
-      </div>
-      {d.problems.length > 0 && (
-        <ul role="alert" className="m-0 flex list-disc flex-col gap-1 pl-5 text-xs text-danger">
-          {d.problems.map((m, i) => (
-            <li key={i}>{m}</li>
-          ))}
-        </ul>
-      )}
-      <div>
-        <b>Check these in the Meta Developer Dashboard</b> (Torio can’t read them from Meta, so
-        confirm them there):
-        <ol className="m-0 mt-1.5 flex list-decimal flex-col gap-1 pl-5 text-muted">
-          <li>
-            Open the app with App ID <code>{d.facebookAppId ?? '…'}</code>, add the{' '}
-            <b>Facebook Login</b> product, and under Facebook Login → Settings turn on{' '}
-            <b>Client OAuth Login</b> and <b>Web OAuth Login</b>.
-          </li>
-          <li>
-            Under <b>Use cases</b>, open{' '}
-            <b>Authenticate and request data from users with Facebook Login</b> → Customize, and add
-            the <b>email</b> permission (with <b>public_profile</b>). If Facebook shows{' '}
-            <i>“Invalid Scopes: email”</i>, this is the step that is missing. An app set up as{' '}
-            <b>Facebook Login for Business</b> can’t send scopes: create a Login Configuration with
-            these permissions and set its ID as <code>FACEBOOK_LOGIN_CONFIG_ID</code> on the server.
-          </li>
-          <li>
-            Add exactly{' '}
-            <code className="break-all">
-              {d.registerInMeta ?? '(fix the problems above first)'}
-            </code>{' '}
-            to <b>Valid OAuth Redirect URIs</b> and save. No trailing slash, same https and host.
-          </li>
-          <li>
-            In App settings → Basic, add the domain <code>{safeHost(d.registerInMeta)}</code> to{' '}
-            <b>App Domains</b>, and keep <b>Enforce HTTPS</b> on.
-          </li>
-          <li>
-            Use an app in <b>Live</b> mode, or add the person signing in as a tester or developer;
-            in Development mode other people are blocked.
-          </li>
-        </ol>
-      </div>
-    </div>
-  );
-}
-
-const safeHost = (u: string | null) => {
-  try {
-    return u ? new URL(u).hostname : '…';
-  } catch {
-    return '…';
-  }
-};
-
 /** One OAuth flow's redirect settings: its primary callback, allow-list, validation status and where to register it. */
-function RedirectGroup(props: {
+export function RedirectGroup(props: {
   intro: string;
   listLabel: string;
   fields: string[];
@@ -517,7 +416,6 @@ function RedirectGroup(props: {
   placeholder: string;
   where: string;
   customerNote?: string;
-  diagnostic?: Config['derived']['customerAuthDiagnostic'];
 }) {
   const bad = props.problems.length > 0;
   return (
@@ -550,7 +448,6 @@ function RedirectGroup(props: {
           ))}
         </ul>
       )}
-      {props.diagnostic && <FacebookLoginCheck d={props.diagnostic} />}
       <CopyRow label="Primary callback URL" value={props.toRegister} />
       <Field
         label="Primary redirect URI"
@@ -586,7 +483,7 @@ function RedirectGroup(props: {
   );
 }
 
-function ListEditor({
+export function ListEditor({
   label,
   items,
   onChange,
@@ -1061,35 +958,6 @@ export function MetaDeveloperPage() {
                   c.derived.redirectUriToRegister ?? `https://your-host${c.derived.callbackPath}`
                 }
                 where="In the Meta app used to connect channels: Facebook Login → Settings → Valid OAuth Redirect URIs."
-              />
-            </Panel>
-            <Panel title="Customer Facebook Authentication">
-              <RedirectGroup
-                listLabel="Allowed customer sign-in redirect URIs"
-                intro="Used by “Continue with Facebook” on the customer sign-in and sign-up pages. A separate flow from channel connection, with its own callback route."
-                fields={['customerAuthRedirectUri', 'customerAuthAllowedRedirectUris']}
-                problems={groupProblems([
-                  'customerAuthRedirectUri',
-                  'customerAuthAllowedRedirectUris',
-                ])}
-                primary={draft.customerAuthRedirectUri}
-                routePath={c.derived.customerAuthCallbackPath}
-                toRegister={
-                  draft.customerAuthRedirectUri || c.derived.customerAuthRedirectUriToRegister
-                }
-                allowed={draft.customerAuthAllowedRedirectUris}
-                onAllowed={(v) => set('customerAuthAllowedRedirectUris', v)}
-                onPrimary={(v) => set('customerAuthRedirectUri', v)}
-                primarySource={c.sources.customerAuthRedirectUri}
-                primaryValue={text('customerAuthRedirectUri')}
-                primaryError={err('customerAuthRedirectUri')}
-                placeholder={
-                  c.derived.customerAuthRedirectUriToRegister ??
-                  `https://your-host${c.derived.customerAuthCallbackPath}`
-                }
-                where="In the Meta app whose App ID is set as FACEBOOK_APP_ID on the server: Facebook Login → Settings → Valid OAuth Redirect URIs. If you use one Meta app for both flows, add both URLs to that one list."
-                diagnostic={c.derived.customerAuthDiagnostic}
-                customerNote="Leave the primary blank to use the default (your web address plus the route above)."
               />
             </Panel>
             <Panel title="Security & destinations">

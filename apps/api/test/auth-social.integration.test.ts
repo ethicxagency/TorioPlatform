@@ -6,7 +6,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { hashToken } from '../src/modules/auth/auth.service';
 import { MailService } from '../src/modules/auth/mail.service';
-import { MetaConfigService } from '../src/modules/meta-config/meta-config.service';
+import { MetaAuthConfigService } from '../src/modules/meta-config/meta-auth-config.service';
 import { lockMetaConfig } from './meta-lock';
 import { PasswordService } from '../src/modules/auth/password.service';
 import { safeReturnTo } from '../src/modules/auth/oauth-cookie';
@@ -131,10 +131,7 @@ describe.skipIf(!url)('customer social sign-in (real PostgreSQL, mocked provider
     app.get(MailService).fetch = fakeFetch;
   });
   afterAll(async () => {
-    await db.metaConfiguration.updateMany({
-      where: { id: 'default' },
-      data: { customerAuthRedirectUri: null, customerAuthAllowedRedirectUris: [] },
-    });
+    await db.metaConfiguration.deleteMany({ where: { id: 'auth' } });
     await release?.();
     await db.user.deleteMany({ where: { email: { endsWith: `-${sfx}@t.co` } } });
     await db.pendingSocialSignup.deleteMany({ where: { email: { endsWith: `-${sfx}@t.co` } } });
@@ -429,11 +426,11 @@ describe.skipIf(!url)('customer social sign-in (real PostgreSQL, mocked provider
     const MINE = `${origin}/api/v1/auth/oauth/facebook/callback`;
     const setConfig = async (data: Record<string, unknown>) => {
       await db.metaConfiguration.upsert({
-        where: { id: 'default' },
-        create: { id: 'default', ...data },
+        where: { id: 'auth' },
+        create: { id: 'auth', purpose: 'AUTH', ...data },
         update: data,
       });
-      await app.get(MetaConfigService).load(true);
+      await app.get(MetaAuthConfigService).load(true);
     };
     const redirectUriSentToFacebook = async () => {
       const r = await http().get('/api/v1/auth/oauth/facebook/start');

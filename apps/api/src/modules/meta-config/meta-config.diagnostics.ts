@@ -407,30 +407,33 @@ export class MetaDiagnosticsService {
 
   private async blobs() {
     const db = this.prisma.client;
-    const [creds, pins, cfg, sessions] = await Promise.all([
+    const [creds, pins, cfg, authCfg, sessions] = await Promise.all([
       db.channelCredential.findMany({ select: { id: true, ciphertext: true } }),
       db.channel.findMany({
         where: { phonePinCiphertext: { not: null } },
         select: { id: true, phonePinCiphertext: true },
       }),
       db.metaConfiguration.findUnique({ where: { id: 'default' } }),
+      // The Torio Auth app's secret is sealed with the same master key, so rotation covers it too.
+      db.metaConfiguration.findUnique({ where: { id: 'auth' } }),
       db.channelOAuthSession.findMany({
         where: { consumedAt: null },
         select: { id: true, candidates: true },
       }),
     ]);
-    return { creds, pins, cfg, sessions };
+    return { creds, pins, cfg, authCfg, sessions };
   }
 
   async securityStatus() {
     const rt = this.cfg.current;
-    const { creds, pins, cfg, sessions } = await this.blobs();
+    const { creds, pins, cfg, authCfg, sessions } = await this.blobs();
     const tally = { current: 0, previous: 0, unreadable: 0 };
     const add = (b?: string | null) => b && tally[this.crypto.keyOf(b)]++;
     creds.forEach((c) => add(c.ciphertext));
     pins.forEach((p) => add(p.phonePinCiphertext));
     add(cfg?.appSecretCiphertext);
     add(cfg?.verifyTokenCiphertext);
+    add(authCfg?.appSecretCiphertext);
     for (const s of sessions)
       for (const c of (s.candidates as { list?: { tokenCiphertext: string }[] })?.list ?? [])
         add(c.tokenCiphertext);
@@ -472,7 +475,7 @@ export class MetaDiagnosticsService {
       out.reencrypted++;
       return this.crypto.encrypt(this.crypto.decrypt(blob));
     };
-    const { creds, pins, cfg, sessions } = await this.blobs();
+    const { creds, pins, cfg, authCfg, sessions } = await this.blobs();
     for (const c of creds) {
       const n = redo(c.ciphertext);
       if (n) await db.channelCredential.update({ where: { id: c.id }, data: { ciphertext: n } });
@@ -489,6 +492,14 @@ export class MetaDiagnosticsService {
       if (v) data.verifyTokenCiphertext = v;
       if (Object.keys(data).length)
         await db.metaConfiguration.update({ where: { id: 'default' }, data });
+    }
+    if (authCfg?.appSecretCiphertext) {
+      const a = redo(authCfg.appSecretCiphertext);
+      if (a)
+        await db.metaConfiguration.update({
+          where: { id: 'auth' },
+          data: { appSecretCiphertext: a },
+        });
     }
     for (const s of sessions) {
       const d = s.candidates as { list?: { tokenCiphertext: string }[]; missing?: unknown };

@@ -76,8 +76,6 @@ export const metaConfigPatchSchema = z
     websiteUrl: nul(url),
     oauthRedirectUri: nul(url),
     allowedRedirectUris: z.array(url).max(10).optional(),
-    customerAuthRedirectUri: nul(url),
-    customerAuthAllowedRedirectUris: z.array(url).max(10).optional(),
     oauthStateTtlMinutes: nul(z.number().int().min(1).max(60)),
     allowedDomains: z.array(hostname).max(20).optional(),
     successUrl: nul(url),
@@ -119,8 +117,6 @@ export const metaAdminConfigSchema = z.object({
     websiteUrl: z.string().nullable(),
     oauthRedirectUri: z.string().nullable(),
     allowedRedirectUris: z.array(z.string()),
-    customerAuthRedirectUri: z.string().nullable(),
-    customerAuthAllowedRedirectUris: z.array(z.string()),
     oauthStateTtlMinutes: z.number().int(),
     allowedDomains: z.array(z.string()),
     successUrl: z.string().nullable(),
@@ -139,20 +135,6 @@ export const metaAdminConfigSchema = z.object({
   derived: z.object({
     callbackPath: z.string(),
     redirectUriToRegister: z.string().nullable(),
-    customerAuthCallbackPath: z.string(),
-    customerAuthRedirectUriToRegister: z.string().nullable(),
-    customerAuthDiagnostic: z.object({
-      generatedUri: z.string().nullable(),
-      source: z.enum(['saved', 'environment', 'derived', 'none']),
-      expectedPath: z.string(),
-      matchesRoute: z.boolean(),
-      registerInMeta: z.string().nullable(),
-      problems: z.array(z.string()),
-      appIdConfigured: z.boolean(),
-      facebookAppId: z.string().nullable(),
-      scopes: z.array(z.string()),
-      loginConfigurationId: z.string().nullable(),
-    }),
     metaWebhookUrl: z.string().nullable(),
     whatsappWebhookUrl: z.string().nullable(),
   }),
@@ -265,4 +247,55 @@ export const metaActivityListSchema = z.object({
     }),
   ),
   meta: z.object({ page: z.number().int(), pageSize: z.number().int(), total: z.number().int() }),
+});
+
+/** The two Meta apps Torio uses, kept completely apart. */
+export const META_APP_IDS = { BUSINESS_MESSAGING: '3850545818418490', AUTH: '2321020315413901' } as const;
+
+/** Customer Authentication app ("Torio Auth"): Facebook Login for customers only. Non-secret settings; `null` clears a value. */
+export const metaAuthPatchSchema = z
+  .object({
+    appName: nul(z.string().trim().min(1).max(80)),
+    appId: nul(z.string().trim().regex(/^\d{6,20}$/, 'The App ID is the numeric id from Meta (App settings → Basic)')),
+    apiVersion: nul(z.string().trim().regex(/^v\d+\.\d+$/, 'Use a version like v27.0')),
+    appMode: nul(z.enum(['DEVELOPMENT', 'LIVE'])),
+    appDomain: nul(hostname),
+    websiteUrl: nul(url),
+    customerAuthRedirectUri: nul(url),
+    customerAuthAllowedRedirectUris: z.array(url).max(10).optional(),
+  })
+  .strict();
+export type MetaAuthPatch = z.infer<typeof metaAuthPatchSchema>;
+export const metaAuthSaveSchema = z.object({ patch: metaAuthPatchSchema });
+
+export const metaAuthConfigSchema = z.object({
+  values: z.object({
+    appName: z.string().nullable(),
+    appId: z.string().nullable(),
+    apiVersion: z.string(),
+    appMode: z.enum(['DEVELOPMENT', 'LIVE']).nullable(),
+    appDomain: z.string().nullable(),
+    websiteUrl: z.string().nullable(),
+    customerAuthRedirectUri: z.string().nullable(),
+    customerAuthAllowedRedirectUris: z.array(z.string()),
+  }),
+  sources: z.record(z.string(), source),
+  secrets: z.object({ appSecret: secretState }),
+  /** Where the App ID / Secret pair really comes from right now ("saved here" only when both are saved). */
+  credentialsFrom: z.enum(['database', 'environment', 'none']),
+  derived: z.object({
+    callbackPath: z.string(),
+    generatedRedirectUri: z.string().nullable(),
+    matchesRoute: z.boolean(),
+    registerInMeta: z.string().nullable(),
+    scopes: z.array(z.string()),
+    suggestedAppId: z.string(),
+  }),
+  status: z.enum(['CONFIGURED', 'INCOMPLETE', 'INVALID']),
+  problems: z.array(problem),
+  lastLoginAt: z.iso.datetime().nullable(),
+  lastTestAt: z.iso.datetime().nullable(),
+  lastTestOk: z.boolean().nullable(),
+  updatedAt: z.iso.datetime().nullable(),
+  updatedBy: z.string().nullable(),
 });

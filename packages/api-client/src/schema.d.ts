@@ -2420,6 +2420,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/integrations/meta-auth/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminMetaAuthController_config"];
+        put: operations["AdminMetaAuthController_save"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/meta-auth/secrets/app-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["AdminMetaAuthController_setSecret"];
+        post?: never;
+        delete: operations["AdminMetaAuthController_clearSecret"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/meta-auth/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminMetaAuthController_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/dashboard/analytics": {
         parameters: {
             query?: never;
@@ -5239,8 +5287,6 @@ export interface components {
                 websiteUrl: string | null;
                 oauthRedirectUri: string | null;
                 allowedRedirectUris: string[];
-                customerAuthRedirectUri: string | null;
-                customerAuthAllowedRedirectUris: string[];
                 oauthStateTtlMinutes: number;
                 allowedDomains: string[];
                 successUrl: string | null;
@@ -5271,21 +5317,6 @@ export interface components {
             derived: {
                 callbackPath: string;
                 redirectUriToRegister: string | null;
-                customerAuthCallbackPath: string;
-                customerAuthRedirectUriToRegister: string | null;
-                customerAuthDiagnostic: {
-                    generatedUri: string | null;
-                    /** @enum {string} */
-                    source: "saved" | "environment" | "derived" | "none";
-                    expectedPath: string;
-                    matchesRoute: boolean;
-                    registerInMeta: string | null;
-                    problems: string[];
-                    appIdConfigured: boolean;
-                    facebookAppId: string | null;
-                    scopes: string[];
-                    loginConfigurationId: string | null;
-                };
                 metaWebhookUrl: string | null;
                 whatsappWebhookUrl: string | null;
             };
@@ -5316,8 +5347,6 @@ export interface components {
                 websiteUrl?: string | null;
                 oauthRedirectUri?: string | null;
                 allowedRedirectUris?: string[];
-                customerAuthRedirectUri?: string | null;
-                customerAuthAllowedRedirectUris?: string[];
                 oauthStateTtlMinutes?: number | null;
                 allowedDomains?: string[];
                 successUrl?: string | null;
@@ -5359,8 +5388,6 @@ export interface components {
                 websiteUrl?: string | null;
                 oauthRedirectUri?: string | null;
                 allowedRedirectUris?: string[];
-                customerAuthRedirectUri?: string | null;
-                customerAuthAllowedRedirectUris?: string[];
                 oauthStateTtlMinutes?: number | null;
                 allowedDomains?: string[];
                 successUrl?: string | null;
@@ -5475,6 +5502,84 @@ export interface components {
                 pageSize: number;
                 total: number;
             };
+        };
+        MetaAuthConfigDto: {
+            values: {
+                appName: string | null;
+                appId: string | null;
+                apiVersion: string;
+                appMode: ("DEVELOPMENT" | "LIVE") | null;
+                appDomain: string | null;
+                websiteUrl: string | null;
+                customerAuthRedirectUri: string | null;
+                customerAuthAllowedRedirectUris: string[];
+            };
+            sources: {
+                [key: string]: "database" | "environment" | "default" | "unset";
+            };
+            secrets: {
+                appSecret: {
+                    configured: boolean;
+                    /** @enum {string} */
+                    source: "database" | "environment" | "default" | "unset";
+                };
+            };
+            /** @enum {string} */
+            credentialsFrom: "database" | "environment" | "none";
+            derived: {
+                callbackPath: string;
+                generatedRedirectUri: string | null;
+                matchesRoute: boolean;
+                registerInMeta: string | null;
+                scopes: string[];
+                suggestedAppId: string;
+            };
+            /** @enum {string} */
+            status: "CONFIGURED" | "INCOMPLETE" | "INVALID";
+            problems: {
+                field: string;
+                message: string;
+                /** @enum {string} */
+                severity: "error" | "warning";
+            }[];
+            lastLoginAt: string | null;
+            lastTestAt: string | null;
+            lastTestOk: boolean[];
+            updatedAt: string | null;
+            updatedBy: string[];
+        };
+        MetaAuthSaveDto: {
+            patch: {
+                appName?: string | null;
+                appId?: string | null;
+                apiVersion?: string | null;
+                appMode?: ("DEVELOPMENT" | "LIVE") | null;
+                appDomain?: string | null;
+                websiteUrl?: string | null;
+                customerAuthRedirectUri?: string | null;
+                customerAuthAllowedRedirectUris?: string[];
+            };
+        };
+        MetaAuthSecretDto: {
+            value: string;
+            confirm?: boolean;
+        };
+        MetaAuthSecretClearDto: {
+            /** @constant */
+            confirm: true;
+        };
+        MetaAuthTestResultDto: {
+            ok: boolean;
+            /** Format: date-time */
+            checkedAt: string;
+            httpStatus: number | null;
+            metaCode: number | null;
+            message: string;
+            resolution: string[];
+            details: {
+                label: string;
+                value: string;
+            }[];
         };
         DashboardAnalyticsDto: {
             range: {
@@ -9864,6 +9969,113 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MetaActivityListDto"];
+                };
+            };
+        };
+    };
+    AdminMetaAuthController_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaAuthConfigDto"];
+                };
+            };
+        };
+    };
+    AdminMetaAuthController_save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetaAuthSaveDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaAuthConfigDto"];
+                };
+            };
+        };
+    };
+    AdminMetaAuthController_setSecret: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetaAuthSecretDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaAuthConfigDto"];
+                };
+            };
+        };
+    };
+    AdminMetaAuthController_clearSecret: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetaAuthSecretClearDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaAuthConfigDto"];
+                };
+            };
+        };
+    };
+    AdminMetaAuthController_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaAuthTestResultDto"];
                 };
             };
         };

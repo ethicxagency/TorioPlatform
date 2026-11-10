@@ -62,7 +62,8 @@ export class SocialAuthService {
   ) {}
 
   /** Which providers the sign-in page may show. */
-  options() {
+  async options() {
+    await this.providers.ready();
     return {
       google: this.providers.configured('google'),
       facebook: this.providers.configured('facebook'),

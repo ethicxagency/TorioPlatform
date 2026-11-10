@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { checkRedirectUri } from '@torio/contracts';
 import { createHash, randomBytes } from 'node:crypto';
 import { APP_CONFIG, type AppConfig } from '../../config/config.module';
-import { MetaConfigService } from '../meta-config/meta-config.service';
+import { MetaAuthConfigService } from '../meta-config/meta-auth-config.service';
 import { JwtInvalid, verifyRs256, type JwtClaims } from './jwt-rs256';
 
 export type Provider = 'google' | 'facebook';
@@ -72,7 +72,7 @@ export class SocialProviders implements OnModuleInit {
 
   constructor(
     @Inject(APP_CONFIG) private readonly c: AppConfig,
-    private readonly meta: MetaConfigService,
+    private readonly authApp: MetaAuthConfigService,
   ) {}
 
   /**
@@ -139,16 +139,21 @@ export class SocialProviders implements OnModuleInit {
       if (!r.uri) throw new SocialAuthError('redirect_uri_not_configured', r.problems.join(' '));
       return r.uri;
     }
-    await this.meta.load();
-    const r = this.meta.customerFacebookRedirect();
+    await this.authApp.load();
+    const r = this.authApp.redirect();
     if (!r.uri) throw new SocialAuthError('provider_not_configured', r.problems.join(' '));
     return r.uri;
+  }
+
+  /** Loads the saved Torio Auth app settings (cached for a few seconds) before anything reads them. */
+  async ready() {
+    await this.authApp.load();
   }
 
   configured(p: Provider): boolean {
     return p === 'google'
       ? !!(this.c.GOOGLE_CLIENT_ID && this.c.GOOGLE_CLIENT_SECRET)
-      : !!(this.c.FACEBOOK_APP_ID && this.c.FACEBOOK_APP_SECRET);
+      : this.authApp.ready;
   }
 
   authorizeUrl(
@@ -171,7 +176,7 @@ export class SocialProviders implements OnModuleInit {
       return `https://accounts.google.com/o/oauth2/v2/auth?${q}`;
     }
     const q = new URLSearchParams({
-      client_id: this.c.FACEBOOK_APP_ID!,
+      client_id: this.authApp.current.appId!,
       redirect_uri: s.redirectUri,
       response_type: 'code',
       state: s.state,
@@ -179,7 +184,7 @@ export class SocialProviders implements OnModuleInit {
     // An app set up as "Facebook Login for Business" gets its permissions from a Login Configuration and rejects `scope`.
     if (this.c.FACEBOOK_LOGIN_CONFIG_ID) q.set('config_id', this.c.FACEBOOK_LOGIN_CONFIG_ID);
     else q.set('scope', FACEBOOK_LOGIN_SCOPES.join(','));
-    return `https://www.facebook.com/${this.c.META_GRAPH_VERSION}/dialog/oauth?${q}`;
+    return `https://www.facebook.com/${this.authApp.current.apiVersion}/dialog/oauth?${q}`;
   }
 
   async exchange(
@@ -241,12 +246,13 @@ export class SocialProviders implements OnModuleInit {
   }
 
   private async facebook(code: string, redirectUri: string): Promise<ProviderProfile> {
-    const v = this.c.META_GRAPH_VERSION;
+    // Always the Torio Auth app's own credentials: never the Business Messaging app's.
+    const { appId, appSecret, apiVersion: v } = this.authApp.current;
     const g = `https://graph.facebook.com/${v}`;
     const t = await this.fetch(
       `${g}/oauth/access_token?${new URLSearchParams({
-        client_id: this.c.FACEBOOK_APP_ID!,
-        client_secret: this.c.FACEBOOK_APP_SECRET!,
+        client_id: appId!,
+        client_secret: appSecret!,
         redirect_uri: redirectUri,
         code,
       })}`,
@@ -258,13 +264,13 @@ export class SocialProviders implements OnModuleInit {
     const d = await this.fetch(
       `${g}/debug_token?${new URLSearchParams({
         input_token: tok.access_token,
-        access_token: `${this.c.FACEBOOK_APP_ID}|${this.c.FACEBOOK_APP_SECRET}`,
+        access_token: `${appId}|${appSecret}`,
       })}`,
     );
     const dbg = (await d.json().catch(() => ({}))) as {
       data?: { app_id?: string; is_valid?: boolean; user_id?: string };
     };
-    if (!d.ok || !dbg.data?.is_valid || dbg.data.app_id !== this.c.FACEBOOK_APP_ID)
+    if (!d.ok || !dbg.data?.is_valid || dbg.data.app_id !== appId)
       throw new SocialAuthError('invalid_token', 'token not issued to this app');
     const me = await this.fetch(
       `${g}/me?${new URLSearchParams({ fields: 'id,name,email', access_token: tok.access_token })}`,

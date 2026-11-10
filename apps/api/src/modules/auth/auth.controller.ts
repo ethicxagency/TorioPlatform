@@ -72,7 +72,7 @@ export class AuthController {
   @ApiOkResponse({ type: AuthConfigDto })
   async options() {
     return {
-      ...this.social.options(),
+      ...(await this.social.options()),
       email: this.mail.configured,
       registrationOpen: await this.platform.registrationOpen(),
     };

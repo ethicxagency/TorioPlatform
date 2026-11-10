@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AppConfig } from '../../config/config.module';
-import type { MetaConfigService } from '../meta-config/meta-config.service';
+import type { MetaAuthConfigService } from '../meta-config/meta-auth-config.service';
 import { SCOPES } from '../meta/meta.connection.service';
 import { FACEBOOK_LOGIN_SCOPES, SocialAuthError, SocialProviders } from './social.providers';
 
@@ -15,7 +15,7 @@ const base = {
 } as unknown as AppConfig;
 
 const make = (over: Partial<AppConfig> = {}) =>
-  new SocialProviders({ ...base, ...over } as AppConfig, {} as MetaConfigService);
+  new SocialProviders({ ...base, ...over } as AppConfig, {} as MetaAuthConfigService);
 const authUrl = (p: SocialProviders, redirectUri: string) =>
   new URL(p.authorizeUrl('google', { state: 's', nonce: 'n', challenge: 'c', redirectUri }));
 
@@ -78,11 +78,14 @@ describe('Google redirect URI', () => {
 
 describe('Facebook authorization request', () => {
   const fb = (over: Partial<AppConfig> = {}) =>
-    make({
-      FACEBOOK_APP_ID: '1533990358131449',
-      FACEBOOK_APP_SECRET: 'secret-value',
-      ...over,
-    } as Partial<AppConfig>);
+    new SocialProviders(
+      { ...base, ...over } as AppConfig,
+      {
+        ready: true,
+        current: { appId: '2321020315413901', appSecret: 'secret-value', apiVersion: 'v27.0' },
+        load: async () => undefined,
+      } as unknown as MetaAuthConfigService,
+    );
   const url = (p: SocialProviders) =>
     new URL(
       p.authorizeUrl('facebook', {

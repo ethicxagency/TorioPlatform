@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, Inject, Injectable, Logger } from '@nestjs/common';
 import {
   checkRedirectUri,
-  FACEBOOK_LOGIN_CALLBACK_PATH,
+  META_APP_IDS,
   META_CALLBACK_PATH,
   META_WEBHOOK_PATH,
   WHATSAPP_WEBHOOK_PATH,
@@ -28,9 +28,6 @@ export interface MetaRuntime {
   websiteUrl: string | null;
   oauthRedirectUri: string | null;
   allowedRedirectUris: string[];
-  /** Customer Portal Facebook sign-in: its own primary callback and allow-list, never the channel callback's. */
-  customerAuthRedirectUri: string | null;
-  customerAuthAllowedRedirectUris: string[];
   stateTtlMs: number;
   allowedDomains: string[];
   successUrl: string | null;
@@ -63,8 +60,6 @@ const LABEL: Record<string, string> = {
   websiteUrl: 'Website URL',
   oauthRedirectUri: 'OAuth redirect URI',
   allowedRedirectUris: 'Allowed redirect URIs',
-  customerAuthRedirectUri: 'Customer Facebook sign-in redirect URI',
-  customerAuthAllowedRedirectUris: 'Customer Facebook sign-in allowed redirect URIs',
   oauthStateTtlMinutes: 'OAuth state expiry',
   allowedDomains: 'Allowed domains',
   successUrl: 'Success URL',
@@ -189,7 +184,8 @@ export class MetaConfigService {
     const verifyToken = pick('webhookVerifyToken', verify, env.META_WEBHOOK_VERIFY_TOKEN ?? null);
     return {
       appName: pick('appName', row?.appName, null),
-      appId: pick('appId', row?.appId, env.META_APP_ID ?? null),
+      // Torio Platform is the suggested Business Messaging app when nothing else is configured.
+      appId: pick('appId', row?.appId, env.META_APP_ID ?? null, META_APP_IDS.BUSINESS_MESSAGING),
       appSecret,
       apiVersion: pick('apiVersion', row?.apiVersion, env.META_GRAPH_VERSION)!,
       businessId: pick('businessId', row?.businessId, null),
@@ -204,17 +200,6 @@ export class MetaConfigService {
       allowedRedirectUris: pick(
         'allowedRedirectUris',
         row?.allowedRedirectUris,
-        null,
-        [] as string[],
-      )!,
-      customerAuthRedirectUri: pick(
-        'customerAuthRedirectUri',
-        row?.customerAuthRedirectUri,
-        env.FACEBOOK_REDIRECT_URI ?? null,
-      ),
-      customerAuthAllowedRedirectUris: pick(
-        'customerAuthAllowedRedirectUris',
-        row?.customerAuthAllowedRedirectUris,
         null,
         [] as string[],
       )!,
@@ -267,76 +252,6 @@ export class MetaConfigService {
     ].filter((h): h is string => !!h);
   }
 
-  /**
-   * The redirect URI the customer Facebook sign-in uses (and must use again, exactly, when exchanging the code): the saved
-   * primary, else the environment, else the default derived from WEB_URL. Anything that fails its own flow's checks is refused.
-   */
-  customerFacebookRedirect(rt: MetaRuntime = this.rt): {
-    uri: string | null;
-    problems: string[];
-    source: 'saved' | 'environment' | 'derived' | 'none';
-  } {
-    const prod = this.env.NODE_ENV === 'production';
-    const apiBase = this.env.API_URL
-      ? this.env.API_URL.replace(/\/$/, '')
-      : prod
-        ? null
-        : `http://localhost:${this.env.API_PORT}`;
-    const configured = rt.customerAuthRedirectUri;
-    const uri = configured ?? (apiBase ? `${apiBase}${FACEBOOK_LOGIN_CALLBACK_PATH}` : null);
-    const source: 'saved' | 'environment' | 'derived' | 'none' = configured
-      ? rt.sources.customerAuthRedirectUri === 'database'
-        ? 'saved'
-        : 'environment'
-      : uri
-        ? 'derived'
-        : 'none';
-    // Callbacks live on the API, so the default comes from API_URL; the web app's address is never used. Production
-    // has no fallback: a guessed URI is exactly what Meta rejects as "URL blocked".
-    if (!uri)
-      return {
-        uri: null,
-        source,
-        problems: [
-          'Set API_URL (the public address of the API) on the server, or save a Customer Facebook redirect URI. Production never guesses it.',
-        ],
-      };
-    const problems = checkRedirectUri(uri, FACEBOOK_LOGIN_CALLBACK_PATH, {
-      trustedHosts: this.trustedHosts(rt),
-      production: prod,
-    });
-    const list = rt.customerAuthAllowedRedirectUris;
-    if (list.length && !list.includes(uri)) problems.push('Not in the allowed redirect URIs.');
-    return problems.length ? { uri: null, problems, source } : { uri, problems, source };
-  }
-
-  /**
-   * What an admin needs to know about customer "Continue with Facebook": the redirect URI the server will actually send
-   * to Meta, the route the API serves, whether the two agree, and the exact URL to register in the Meta dashboard.
-   */
-  customerAuthDiagnostic(rt: MetaRuntime = this.rt) {
-    const r = this.customerFacebookRedirect(rt);
-    let path: string | null = null;
-    try {
-      if (r.uri) path = new URL(r.uri).pathname.replace(/\/$/, '');
-    } catch {
-      /* reported through problems */
-    }
-    return {
-      generatedUri: r.uri,
-      source: r.source,
-      expectedPath: FACEBOOK_LOGIN_CALLBACK_PATH,
-      matchesRoute: path === FACEBOOK_LOGIN_CALLBACK_PATH,
-      registerInMeta: r.uri,
-      problems: r.problems,
-      appIdConfigured: !!this.env.FACEBOOK_APP_ID && !!this.env.FACEBOOK_APP_SECRET,
-      facebookAppId: this.env.FACEBOOK_APP_ID ?? null,
-      // What the authorization request asks Facebook for (a Login Configuration replaces `scope` for Business apps).
-      scopes: this.env.FACEBOOK_LOGIN_CONFIG_ID ? [] : ['public_profile', 'email'],
-      loginConfigurationId: this.env.FACEBOOK_LOGIN_CONFIG_ID ?? null,
-    };
-  }
-
   // ----- validation -----
 
   /** Problems with a complete settings set, as it would run. `errors` block saving; missing required ones only mark it incomplete. */
@@ -379,29 +294,6 @@ export class MetaConfigService {
         production: prod,
       }))
         add('allowedRedirectUris', `${u}: ${m}`, m.includes('isn’t trusted') ? 'warning' : 'error');
-    // Customer Facebook sign-in is optional: with nothing set it uses the default derived from WEB_URL.
-    const cu = rt.customerAuthRedirectUri;
-    if (cu) {
-      for (const m of checkRedirectUri(cu, FACEBOOK_LOGIN_CALLBACK_PATH, {
-        trustedHosts: trusted,
-        production: prod,
-      }))
-        add('customerAuthRedirectUri', m);
-      if (
-        rt.customerAuthAllowedRedirectUris.length &&
-        !rt.customerAuthAllowedRedirectUris.includes(cu)
-      )
-        add(
-          'customerAuthRedirectUri',
-          'The primary redirect URI must be one of the allowed redirect URIs.',
-        );
-    }
-    for (const u of rt.customerAuthAllowedRedirectUris)
-      for (const m of checkRedirectUri(u, FACEBOOK_LOGIN_CALLBACK_PATH, {
-        trustedHosts: trusted,
-        production: prod,
-      }))
-        add('customerAuthAllowedRedirectUris', `${u}: ${m}`);
     for (const [field, u] of [
       ['successUrl', rt.successUrl],
       ['failureUrl', rt.failureUrl],
@@ -503,8 +395,6 @@ export class MetaConfigService {
         websiteUrl: rt.websiteUrl,
         oauthRedirectUri: rt.oauthRedirectUri,
         allowedRedirectUris: rt.allowedRedirectUris,
-        customerAuthRedirectUri: rt.customerAuthRedirectUri,
-        customerAuthAllowedRedirectUris: rt.customerAuthAllowedRedirectUris,
         oauthStateTtlMinutes: Math.round(rt.stateTtlMs / 60_000),
         allowedDomains: rt.allowedDomains,
         successUrl: rt.successUrl,
@@ -529,9 +419,6 @@ export class MetaConfigService {
       derived: {
         callbackPath: META_CALLBACK_PATH,
         redirectUriToRegister: redirect,
-        customerAuthCallbackPath: FACEBOOK_LOGIN_CALLBACK_PATH,
-        customerAuthRedirectUriToRegister: this.customerFacebookRedirect(rt).uri,
-        customerAuthDiagnostic: this.customerAuthDiagnostic(rt),
         metaWebhookUrl: urls.meta,
         whatsappWebhookUrl: urls.whatsapp,
       },
@@ -585,8 +472,6 @@ export class MetaConfigService {
       websiteUrl: cur.websiteUrl,
       oauthRedirectUri: cur.oauthRedirectUri,
       allowedRedirectUris: cur.allowedRedirectUris,
-      customerAuthRedirectUri: cur.customerAuthRedirectUri,
-      customerAuthAllowedRedirectUris: cur.customerAuthAllowedRedirectUris,
       oauthStateTtlMinutes: Math.round(cur.stateTtlMs / 60_000),
       allowedDomains: cur.allowedDomains,
       successUrl: cur.successUrl,
@@ -610,8 +495,6 @@ export class MetaConfigService {
       websiteUrl: rt.websiteUrl,
       oauthRedirectUri: rt.oauthRedirectUri,
       allowedRedirectUris: rt.allowedRedirectUris,
-      customerAuthRedirectUri: rt.customerAuthRedirectUri,
-      customerAuthAllowedRedirectUris: rt.customerAuthAllowedRedirectUris,
       oauthStateTtlMinutes: Math.round(rt.stateTtlMs / 60_000),
       allowedDomains: rt.allowedDomains,
       successUrl: rt.successUrl,
@@ -639,7 +522,8 @@ export class MetaConfigService {
     const channels = await this.metaChannelCount();
     const live = channels > 0;
     // Setting the App ID for the first time can't disturb anything; switching away from one can.
-    if (changed.has('appId') && cur.appId)
+    // The suggested default doesn't count as a configured app, so replacing it can't disturb anything.
+    if (changed.has('appId') && cur.appId && cur.sources.appId !== 'default')
       impacts.push({
         severity: live ? 'danger' : 'warning',
         message: `Changing the App ID points Torio at a different Meta app. Webhooks and tokens belong to the app that issued them, so ${live ? `the ${channels} connected channel(s) will likely need to be reconnected` : 'channels must be connected again under the new app'}.`,
@@ -649,12 +533,6 @@ export class MetaConfigService {
         severity: 'warning',
         message:
           'The new redirect URI must also be listed under Valid OAuth Redirect URIs in Meta, or Facebook login will fail.',
-      });
-    if (changed.has('customerAuthRedirectUri') || changed.has('customerAuthAllowedRedirectUris'))
-      impacts.push({
-        severity: 'warning',
-        message:
-          'Customers’ “Continue with Facebook” will use the new redirect URI. It must also be listed under Valid OAuth Redirect URIs in the Meta app that FACEBOOK_APP_ID belongs to, or that sign-in will fail. Connected channels are not affected.',
       });
     if (changed.has('apiVersion'))
       impacts.push({

@@ -729,8 +729,6 @@ export const resetMetaAdmin = () => {
     websiteUrl: null,
     oauthRedirectUri: 'https://app.example.test/api/v1/channels/meta/callback',
     allowedRedirectUris: ['https://app.example.test/api/v1/channels/meta/callback'],
-    customerAuthRedirectUri: null as string | null,
-    customerAuthAllowedRedirectUris: [] as string[],
     oauthStateTtlMinutes: 10,
     allowedDomains: ['app.example.test'],
     successUrl: null,
@@ -1032,6 +1030,30 @@ export const authState = {
   goodTokens: new Set<string>(['good-token-0000000000000000000']),
   failLoginWith: null as number | null,
 };
+/** Super Admin's Customer Authentication (Torio Auth) Meta app. */
+export const metaAuthState = {
+  values: {
+    appName: 'Torio Auth' as string | null,
+    appId: '2321020315413901' as string | null,
+    apiVersion: 'v27.0',
+    appMode: 'LIVE' as 'DEVELOPMENT' | 'LIVE' | null,
+    appDomain: 'app.example.test' as string | null,
+    websiteUrl: null as string | null,
+    customerAuthRedirectUri: null as string | null,
+    customerAuthAllowedRedirectUris: [] as string[],
+  },
+  secret: false,
+  saves: [] as unknown[],
+  secrets: [] as string[],
+  tests: 0,
+};
+export function resetMetaAuth() {
+  metaAuthState.secret = false;
+  metaAuthState.saves = [];
+  metaAuthState.secrets = [];
+  metaAuthState.tests = 0;
+}
+
 export function resetAuth() {
   authState.config = { google: true, facebook: true, email: true, registrationOpen: true };
   authState.registers = [];
@@ -2236,6 +2258,67 @@ export async function mockApi(
           401,
         );
       if (rest === '/auth/me') return reply(ADMIN_USER);
+      if (rest.startsWith('/integrations/meta-auth')) {
+        const m = rest.slice('/integrations/meta-auth'.length);
+        const st = metaAuthState;
+        const cb = 'https://app.example.test/api/v1/auth/oauth/facebook/callback';
+        const view = () => ({
+          values: st.values,
+          sources: { appId: 'database' },
+          secrets: {
+            appSecret: { configured: st.secret, source: st.secret ? 'database' : 'unset' },
+          },
+          credentialsFrom: st.secret ? 'database' : 'none',
+          derived: {
+            callbackPath: '/api/v1/auth/oauth/facebook/callback',
+            generatedRedirectUri: st.values.customerAuthRedirectUri ?? cb,
+            matchesRoute: true,
+            registerInMeta: st.values.customerAuthRedirectUri ?? cb,
+            scopes: ['public_profile', 'email'],
+            suggestedAppId: '2321020315413901',
+          },
+          status: st.secret ? 'CONFIGURED' : 'INCOMPLETE',
+          problems: st.secret
+            ? []
+            : [
+                {
+                  field: 'appSecret',
+                  message: 'App Secret is required for customers to sign in with Facebook.',
+                  severity: 'error',
+                },
+              ],
+          lastLoginAt: null,
+          lastTestAt: st.tests ? iso(1) : null,
+          lastTestOk: st.tests ? true : null,
+          updatedAt: iso(30),
+          updatedBy: 'root@torio.test',
+        });
+        if (m === '/config' && method === 'GET') return reply(view());
+        if (m === '/config' && method === 'PUT') {
+          const patch = (req.postDataJSON() as { patch: Record<string, unknown> }).patch;
+          st.saves.push(patch);
+          Object.assign(st.values, patch);
+          return reply(view());
+        }
+        if (m === '/secrets/app-secret') {
+          if (method === 'PUT') st.secret = true;
+          else st.secret = false;
+          st.secrets.push(method);
+          return reply(view());
+        }
+        if (m === '/test') {
+          st.tests++;
+          return reply({
+            ok: true,
+            checkedAt: iso(0),
+            httpStatus: 200,
+            metaCode: null,
+            message: 'Meta accepted the App ID and App Secret.',
+            resolution: null,
+            details: [{ label: 'App name at Meta', value: 'Torio Auth' }],
+          });
+        }
+      }
       if (rest.startsWith('/integrations/meta')) {
         const m = rest.slice('/integrations/meta'.length);
         const st = metaAdminState;
@@ -2252,26 +2335,6 @@ export async function mockApi(
           derived: {
             callbackPath: '/api/v1/channels/meta/callback',
             redirectUriToRegister: st.values.oauthRedirectUri,
-            customerAuthCallbackPath: '/api/v1/auth/oauth/facebook/callback',
-            customerAuthRedirectUriToRegister:
-              st.values.customerAuthRedirectUri ??
-              'https://app.example.test/api/v1/auth/oauth/facebook/callback',
-            customerAuthDiagnostic: {
-              generatedUri:
-                st.values.customerAuthRedirectUri ??
-                'https://app.example.test/api/v1/auth/oauth/facebook/callback',
-              source: 'derived',
-              expectedPath: '/api/v1/auth/oauth/facebook/callback',
-              matchesRoute: true,
-              registerInMeta:
-                st.values.customerAuthRedirectUri ??
-                'https://app.example.test/api/v1/auth/oauth/facebook/callback',
-              problems: [],
-              appIdConfigured: true,
-              facebookAppId: '1533990358131449',
-              scopes: ['public_profile', 'email'],
-              loginConfigurationId: null,
-            },
             metaWebhookUrl: 'https://app.example.test/api/v1/webhooks/meta',
             whatsappWebhookUrl: 'https://app.example.test/api/v1/webhooks/whatsapp',
           },

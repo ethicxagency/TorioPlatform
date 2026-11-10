@@ -1,5 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
-import { adminState, metaAdminState, mockApi, resetAdmin } from './mocks';
+import {
+  adminState,
+  metaAdminState,
+  metaAuthState,
+  mockApi,
+  resetAdmin,
+  resetMetaAuth,
+} from './mocks';
 
 const signIn = async (page: Page) => {
   await page.goto('/admin/login');
@@ -12,6 +19,7 @@ const signIn = async (page: Page) => {
 test.describe('super admin', () => {
   test.beforeEach(async ({ page }) => {
     resetAdmin();
+    resetMetaAuth();
     await mockApi(page, { role: 'OWNER' });
   });
 
@@ -305,42 +313,49 @@ test.describe('super admin', () => {
       await expect(page.getByRole('region', { name: 'Unsaved changes' })).toHaveCount(0);
     });
 
-    test('OAuth: channel and customer Facebook sign-in have separate callback URLs, lists and instructions', async ({
+    test('two Meta apps: Business Messaging and Customer Authentication are separate, with their own status, secret, save and test', async ({
       page,
     }) => {
       await open(page);
-      await page.getByRole('tab', { name: 'OAuth & Redirect URLs' }).click();
-      const channels = page.getByRole('region', { name: 'Meta Business Channels' });
-      const customer = page.getByRole('region', { name: 'Customer Facebook Authentication' });
-      await expect(channels.getByText('/api/v1/channels/meta/callback').first()).toBeVisible();
-      await expect(
-        customer.getByText('/api/v1/auth/oauth/facebook/callback').first(),
-      ).toBeVisible();
-      // each group shows its own route and never the other's
-      await expect(channels.getByText('/api/v1/auth/oauth/facebook/callback')).toHaveCount(0);
-      await expect(customer.getByText('/api/v1/channels/meta/callback')).toHaveCount(0);
-      // honest about Meta: Torio doesn't register anything there
-      await expect(
-        customer.getByText(/does not add it to the Meta Developer Dashboard/),
-      ).toBeVisible();
-      await expect(customer.getByText(/FACEBOOK_APP_ID/)).toBeVisible();
-      // the Facebook sign-in check shows the real redirect URI and the exact Meta dashboard steps
-      await expect(customer.getByText('Server configuration OK')).toBeVisible();
-      await expect(customer.getByText('Redirect URI the server sends to Facebook')).toBeVisible();
-      await expect(customer.getByText('Permissions requested')).toBeVisible();
-      await expect(customer.locator('code', { hasText: 'public_profile' })).toBeVisible();
-      await expect(customer.getByText(/Invalid Scopes: email/)).toBeVisible();
-      await expect(customer.getByText(/Client OAuth Login/)).toBeVisible();
-      await expect(customer.getByText(/Valid OAuth Redirect URIs/).first()).toBeVisible();
-      // the customer list is independent: adding there leaves the channel list alone
-      await customer
-        .getByLabel('Add to Allowed customer sign-in redirect URIs')
-        .fill('https://app.example.test/api/v1/auth/oauth/facebook/callback');
-      await customer.getByRole('button', { name: 'Add' }).click();
-      await expect(customer.getByLabel('Allowed customer sign-in redirect URIs 1')).toHaveValue(
-        'https://app.example.test/api/v1/auth/oauth/facebook/callback',
+      const apps = page.getByRole('tablist', { name: 'Meta apps' });
+      await expect(apps.getByRole('tab', { name: /Business Messaging/ })).toHaveAttribute(
+        'aria-selected',
+        'true',
       );
-      await expect(channels.getByLabel('Allowed channel redirect URIs 2')).toHaveCount(0);
+      await expect(apps.getByRole('tab', { name: /Business Messaging/ })).toContainText(
+        'Configured',
+      );
+      await expect(apps.getByRole('tab', { name: /Customer Authentication/ })).toContainText(
+        'Incomplete',
+      );
+      await apps.getByRole('tab', { name: /Customer Authentication/ }).click();
+      await expect(
+        page.getByRole('heading', { name: 'Customer Authentication app', level: 1 }),
+      ).toBeVisible();
+      // its own App ID, callback route and the exact Meta dashboard steps
+      await expect(page.getByLabel('Meta App ID')).toHaveValue('2321020315413901');
+      await expect(page.getByText('/api/v1/auth/oauth/facebook/callback').first()).toBeVisible();
+      await expect(page.getByText(/Invalid Scopes: email/)).toBeVisible();
+      await expect(page.getByText(/does not register it with Meta/)).toBeVisible();
+      // the secret is write-only
+      await expect(page.locator('code', { hasText: 'Not set' })).toBeVisible();
+      await page.getByRole('button', { name: 'Set' }).click();
+      await page.getByLabel('New Torio Auth App Secret').fill('auth-secret-value-1');
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect.poll(() => metaAuthState.secrets).toEqual(['PUT']);
+      await expect(page.getByText('••••••••••••••••')).toBeVisible();
+      await expect(page.getByText('auth-secret-value-1')).toHaveCount(0);
+      // an independent edit + save, and a real test
+      await page.getByLabel('App Name').fill('Torio Auth Prod');
+      await page.getByRole('button', { name: 'Save Customer Authentication app' }).click();
+      await expect.poll(() => metaAuthState.saves).toEqual([{ appName: 'Torio Auth Prod' }]);
+      await page.getByRole('button', { name: 'Test credentials with Meta' }).click();
+      await expect(page.getByText('Meta accepted the App ID and App Secret.')).toBeVisible();
+      expect(metaAuthState.tests).toBe(1);
+      // the business app was not touched
+      expect(metaAdminState.saves).toHaveLength(0);
+      await apps.getByRole('tab', { name: /Business Messaging/ }).click();
+      await expect(page.getByRole('heading', { name: 'Meta Developer', level: 1 })).toBeVisible();
     });
 
     test('OAuth: exact redirect URI to register, multiple URIs, primary choice; webhooks: copyable URLs and verify token', async ({

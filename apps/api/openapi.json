@@ -8357,6 +8357,137 @@
         ]
       }
     },
+    "/api/v1/admin/integrations/meta-auth/config": {
+      "get": {
+        "operationId": "AdminMetaAuthController_config",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaAuthConfigDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin meta auth"
+        ]
+      },
+      "put": {
+        "operationId": "AdminMetaAuthController_save",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetaAuthSaveDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaAuthConfigDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin meta auth"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/meta-auth/secrets/app-secret": {
+      "put": {
+        "operationId": "AdminMetaAuthController_setSecret",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetaAuthSecretDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaAuthConfigDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin meta auth"
+        ]
+      },
+      "delete": {
+        "operationId": "AdminMetaAuthController_clearSecret",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetaAuthSecretClearDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaAuthConfigDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin meta auth"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/meta-auth/test": {
+      "post": {
+        "operationId": "AdminMetaAuthController_test",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaAuthTestResultDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin meta auth"
+        ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/dashboard/analytics": {
       "get": {
         "operationId": "DashboardController_analytics",
@@ -23000,18 +23131,6 @@
                   "type": "string"
                 }
               },
-              "customerAuthRedirectUri": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "customerAuthAllowedRedirectUris": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
               "oauthStateTtlMinutes": {
                 "type": "integer",
                 "minimum": -9007199254740991,
@@ -23073,8 +23192,6 @@
               "websiteUrl",
               "oauthRedirectUri",
               "allowedRedirectUris",
-              "customerAuthRedirectUri",
-              "customerAuthAllowedRedirectUris",
               "oauthStateTtlMinutes",
               "allowedDomains",
               "successUrl",
@@ -23166,86 +23283,6 @@
                   "null"
                 ]
               },
-              "customerAuthCallbackPath": {
-                "type": "string"
-              },
-              "customerAuthRedirectUriToRegister": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "customerAuthDiagnostic": {
-                "type": "object",
-                "properties": {
-                  "generatedUri": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
-                  "source": {
-                    "type": "string",
-                    "enum": [
-                      "saved",
-                      "environment",
-                      "derived",
-                      "none"
-                    ]
-                  },
-                  "expectedPath": {
-                    "type": "string"
-                  },
-                  "matchesRoute": {
-                    "type": "boolean"
-                  },
-                  "registerInMeta": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
-                  "problems": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "appIdConfigured": {
-                    "type": "boolean"
-                  },
-                  "facebookAppId": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
-                  "scopes": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "loginConfigurationId": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  }
-                },
-                "required": [
-                  "generatedUri",
-                  "source",
-                  "expectedPath",
-                  "matchesRoute",
-                  "registerInMeta",
-                  "problems",
-                  "appIdConfigured",
-                  "facebookAppId",
-                  "scopes",
-                  "loginConfigurationId"
-                ]
-              },
               "metaWebhookUrl": {
                 "type": [
                   "string",
@@ -23262,9 +23299,6 @@
             "required": [
               "callbackPath",
               "redirectUriToRegister",
-              "customerAuthCallbackPath",
-              "customerAuthRedirectUriToRegister",
-              "customerAuthDiagnostic",
               "metaWebhookUrl",
               "whatsappWebhookUrl"
             ]
@@ -23458,27 +23492,6 @@
                 ]
               },
               "allowedRedirectUris": {
-                "maxItems": 10,
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "maxLength": 500,
-                  "format": "uri"
-                }
-              },
-              "customerAuthRedirectUri": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "maxLength": 500,
-                    "format": "uri"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "customerAuthAllowedRedirectUris": {
                 "maxItems": 10,
                 "type": "array",
                 "items": {
@@ -23761,27 +23774,6 @@
                 ]
               },
               "allowedRedirectUris": {
-                "maxItems": 10,
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "maxLength": 500,
-                  "format": "uri"
-                }
-              },
-              "customerAuthRedirectUri": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "maxLength": 500,
-                    "format": "uri"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "customerAuthAllowedRedirectUris": {
                 "maxItems": 10,
                 "type": "array",
                 "items": {
@@ -24378,6 +24370,474 @@
         "required": [
           "data",
           "meta"
+        ]
+      },
+      "MetaAuthConfigDto": {
+        "type": "object",
+        "properties": {
+          "values": {
+            "type": "object",
+            "properties": {
+              "appName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "appId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "apiVersion": {
+                "type": "string"
+              },
+              "appMode": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "DEVELOPMENT",
+                      "LIVE"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "appDomain": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "websiteUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "customerAuthRedirectUri": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "customerAuthAllowedRedirectUris": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "appName",
+              "appId",
+              "apiVersion",
+              "appMode",
+              "appDomain",
+              "websiteUrl",
+              "customerAuthRedirectUri",
+              "customerAuthAllowedRedirectUris"
+            ]
+          },
+          "sources": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "database",
+                "environment",
+                "default",
+                "unset"
+              ]
+            }
+          },
+          "secrets": {
+            "type": "object",
+            "properties": {
+              "appSecret": {
+                "type": "object",
+                "properties": {
+                  "configured": {
+                    "type": "boolean"
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "database",
+                      "environment",
+                      "default",
+                      "unset"
+                    ]
+                  }
+                },
+                "required": [
+                  "configured",
+                  "source"
+                ]
+              }
+            },
+            "required": [
+              "appSecret"
+            ]
+          },
+          "credentialsFrom": {
+            "type": "string",
+            "enum": [
+              "database",
+              "environment",
+              "none"
+            ]
+          },
+          "derived": {
+            "type": "object",
+            "properties": {
+              "callbackPath": {
+                "type": "string"
+              },
+              "generatedRedirectUri": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "matchesRoute": {
+                "type": "boolean"
+              },
+              "registerInMeta": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "scopes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "suggestedAppId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "callbackPath",
+              "generatedRedirectUri",
+              "matchesRoute",
+              "registerInMeta",
+              "scopes",
+              "suggestedAppId"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CONFIGURED",
+              "INCOMPLETE",
+              "INVALID"
+            ]
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "severity": {
+                  "type": "string",
+                  "enum": [
+                    "error",
+                    "warning"
+                  ]
+                }
+              },
+              "required": [
+                "field",
+                "message",
+                "severity"
+              ]
+            }
+          },
+          "lastLoginAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastTestAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastTestOk": {
+            "type": "array",
+            "items": {
+              "type": "boolean"
+            }
+          },
+          "updatedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updatedBy": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "values",
+          "sources",
+          "secrets",
+          "credentialsFrom",
+          "derived",
+          "status",
+          "problems",
+          "lastLoginAt",
+          "lastTestAt",
+          "lastTestOk",
+          "updatedAt",
+          "updatedBy"
+        ]
+      },
+      "MetaAuthSaveDto": {
+        "type": "object",
+        "properties": {
+          "patch": {
+            "type": "object",
+            "properties": {
+              "appName": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "appId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\d{6,20}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "apiVersion": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^v\\d+\\.\\d+$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "appMode": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "DEVELOPMENT",
+                      "LIVE"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "appDomain": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,}$|^localhost$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "websiteUrl": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "customerAuthRedirectUri": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "customerAuthAllowedRedirectUris": {
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 500,
+                  "format": "uri"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "patch"
+        ]
+      },
+      "MetaAuthSecretDto": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 500
+          },
+          "confirm": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      },
+      "MetaAuthSecretClearDto": {
+        "type": "object",
+        "properties": {
+          "confirm": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "confirm"
+        ]
+      },
+      "MetaAuthTestResultDto": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "httpStatus": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "metaCode": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "resolution": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "label",
+                "value"
+              ]
+            }
+          }
+        },
+        "required": [
+          "ok",
+          "checkedAt",
+          "httpStatus",
+          "metaCode",
+          "message",
+          "resolution",
+          "details"
         ]
       },
       "DashboardAnalyticsDto": {
