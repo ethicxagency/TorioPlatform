@@ -1,4 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
+import { checkRedirectUri } from '@torio/contracts';
 import { createHash, randomBytes } from 'node:crypto';
 import { APP_CONFIG, type AppConfig } from '../../config/config.module';
 import { MetaConfigService } from '../meta-config/meta-config.service';
@@ -18,6 +19,7 @@ export type SocialErrorCode =
   | 'registration_closed'
   | 'account_disabled'
   | 'mail_not_configured'
+  | 'redirect_uri_not_configured'
   | 'email_required';
 
 export class SocialAuthError extends Error {
@@ -53,8 +55,12 @@ export const newPkce = () => {
  * Talks to Google and Facebook from the server only. Every network call goes through `fetch`, so tests can replace it
  * with recorded provider responses. Client secrets never leave this class.
  */
+/** The route the API serves for Google's redirect. */
+export const GOOGLE_CALLBACK_PATH = '/api/v1/auth/oauth/google/callback';
+
 @Injectable()
-export class SocialProviders {
+export class SocialProviders implements OnModuleInit {
+  private readonly log = new Logger(SocialProviders.name);
   fetch: typeof fetch = (...a) => fetch(...a);
   private jwks: { at: number; keys: { keys: never[] } } | null = null;
 
@@ -64,17 +70,69 @@ export class SocialProviders {
   ) {}
 
   /**
+   * Google's redirect URI, from configuration only (never from the web app's address): GOOGLE_REDIRECT_URI, else the
+   * public API origin API_URL + the callback route. Outside production a missing value falls back to the local API; in
+   * production there is no fallback, so a wrong guess can't reach Google as a `redirect_uri_mismatch`.
+   */
+  googleRedirect(): { uri: string | null; problems: string[] } {
+    const prod = this.c.NODE_ENV === 'production';
+    const uri =
+      this.c.GOOGLE_REDIRECT_URI ??
+      (this.c.API_URL
+        ? `${this.c.API_URL.replace(/\/$/, '')}${GOOGLE_CALLBACK_PATH}`
+        : prod
+          ? null
+          : `http://localhost:${this.c.API_PORT}${GOOGLE_CALLBACK_PATH}`);
+    if (!uri)
+      return {
+        uri: null,
+        problems: [
+          'Set GOOGLE_REDIRECT_URI (or API_URL, the public address of the API) on the server. Production never guesses it.',
+        ],
+      };
+    let host = '';
+    try {
+      host = new URL(uri).hostname;
+    } catch {
+      /* reported below */
+    }
+    const problems = checkRedirectUri(uri, GOOGLE_CALLBACK_PATH, {
+      trustedHosts: [host],
+      production: prod,
+    });
+    return problems.length ? { uri: null, problems } : { uri, problems };
+  }
+
+  /** What an administrator needs to register in Google Cloud Console, or why sign-in with Google can't start. */
+  diagnostics() {
+    const g = this.googleRedirect();
+    return {
+      google: { configured: this.configured('google'), redirectUri: g.uri, problems: g.problems },
+    };
+  }
+
+  onModuleInit() {
+    const d = this.diagnostics().google;
+    if (!d.configured) return;
+    if (d.redirectUri)
+      this.log.log(
+        `Google sign-in redirect URI (register exactly this in Google Cloud Console): ${d.redirectUri}`,
+      );
+    else this.log.error(`Google sign-in is misconfigured: ${d.problems.join(' ')}`);
+  }
+
+  /**
    * The redirect URI a sign-in will use, decided once at the start and carried (signed) to the callback so the code is
    * exchanged with exactly the same value. Google's comes from the environment; Facebook's from its own saved setting
    * (Super Admin → Meta Developer → Customer Facebook Authentication), which is validated against the Facebook sign-in
    * route only. A value that fails those checks is refused rather than used.
    */
   async redirectUri(p: Provider): Promise<string> {
-    if (p === 'google')
-      return (
-        this.c.GOOGLE_REDIRECT_URI ??
-        `${this.c.WEB_URL.replace(/\/$/, '')}/api/v1/auth/oauth/google/callback`
-      );
+    if (p === 'google') {
+      const r = this.googleRedirect();
+      if (!r.uri) throw new SocialAuthError('redirect_uri_not_configured', r.problems.join(' '));
+      return r.uri;
+    }
     await this.meta.load();
     const r = this.meta.customerFacebookRedirect();
     if (!r.uri) throw new SocialAuthError('provider_not_configured', r.problems.join(' '));

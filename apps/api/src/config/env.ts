@@ -11,6 +11,8 @@ export const envSchema = z
     LOG_LEVEL: z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
+    /** Public origin of this API (no path), e.g. https://torio.example.com. OAuth callback URLs are built from it, never from WEB_URL. */
+    API_URL: z.url().optional(),
     API_PORT: z.coerce.number().int().min(1).max(65535).default(4000),
     WEB_URL: z.url(),
     DATABASE_URL: z

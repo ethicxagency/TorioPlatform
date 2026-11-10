@@ -185,6 +185,28 @@ describe.skipIf(!url)('customer social sign-in (real PostgreSQL, mocked provider
       expect(loc.search).not.toContain('google-secret-value');
     });
 
+    it('the authorization request and the token exchange carry the identical redirect URI (the API origin, not the web app)', async () => {
+      const seen: string[] = [];
+      const inner = app.get(SocialProviders).fetch;
+      app.get(SocialProviders).fetch = (async (i: string | URL | Request, init?: RequestInit) => {
+        if (String(i).includes('oauth2.googleapis.com/token'))
+          seen.push((init?.body as URLSearchParams).get('redirect_uri')!);
+        return inner(i, init);
+      }) as typeof fetch;
+      goodGoogle('g-ru', email('gru'));
+      const r = await signIn('google');
+      app.get(SocialProviders).fetch = inner;
+      const sent = r.loc.searchParams.get('redirect_uri')!;
+      expect(sent).toMatch(/\/api\/v1\/auth\/oauth\/google\/callback$/);
+      expect(sent).not.toContain(
+        new URL(process.env.WEB_URL ?? 'http://localhost:3000').host.replace(
+          'localhost:3000',
+          'never',
+        ),
+      );
+      expect(seen).toEqual([sent]);
+    });
+
     it('creates a customer with a workspace for a verified Google identity, then signs the same one in again', async () => {
       goodGoogle('g-sub-1', email('gina'));
       const a = await signIn('google', { returnTo: '/orders' });

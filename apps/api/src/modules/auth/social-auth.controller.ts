@@ -1,4 +1,15 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query, Req, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Logger,
+  Param,
+  Post,
+  Query,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { pendingEmailSchema, tokenBodySchema } from '@torio/contracts';
@@ -30,6 +41,8 @@ const OAUTH_PATH = '/api/v1/auth/oauth';
 @ApiExcludeController()
 @Controller('auth/oauth')
 export class SocialAuthController {
+  private readonly log = new Logger(SocialAuthController.name);
+
   constructor(
     private readonly social: SocialAuthService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
@@ -98,6 +111,9 @@ export class SocialAuthController {
       res.cookie(STATE_COOKIE, b.cookie, this.cookieOpts(b.ttlMs));
       return res.redirect(302, b.url);
     } catch (e) {
+      // Configuration problems are safe to log (no secrets in them) and are what an administrator needs to see.
+      if (e instanceof SocialAuthError && e.message !== e.code)
+        this.log.warn(`${provider} sign-in can't start (${e.code}): ${e.message}`);
       return this.fail(res, e instanceof SocialAuthError ? e.code : 'provider_error');
     }
   }

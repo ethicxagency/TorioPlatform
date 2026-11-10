@@ -26,8 +26,7 @@ Register these with the providers. The path is fixed by the implementation; only
 
 The production domain is `https://torio.nextupglobal.net`. For the callbacks (and the email links) to use it, the Vercel project must serve that domain and `WEB_URL` and `CORS_ALLOWED_ORIGINS` must be set to `https://torio.nextupglobal.net`.
 
-In production the default is `<WEB_URL>/api/v1/auth/oauth/<provider>/callback` (web and API share a domain). Locally the API
-is on another port, so set `GOOGLE_REDIRECT_URI` / `FACEBOOK_REDIRECT_URI` to the API origin as above. The value in the env
+Google's redirect URI is `GOOGLE_REDIRECT_URI` if set, otherwise `<API_URL>/api/v1/auth/oauth/google/callback`: it is never derived from `WEB_URL`, and in production there is no fallback (a missing value makes Google sign-in refuse to start with a `redirect_uri_not_configured` message and an error in the server log; at startup the log prints the exact URI to register). Locally it falls back to `http://localhost:<API_PORT>/...`. The value in the env
 var, the value in the provider console and the URL actually used must match exactly.
 
 ### Where the Facebook redirect URI is configured

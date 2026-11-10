@@ -42,6 +42,10 @@ export const SOCIAL_ERRORS: Record<string, { title: string; text: string }> = {
     title: 'This sign-in method isn’t set up',
     text: 'The provider’s credentials haven’t been added to this Torio deployment yet. Use email and password, or ask the administrator to finish setup.',
   },
+  redirect_uri_not_configured: {
+    title: 'This sign-in method isn’t set up correctly',
+    text: 'The server’s callback address for this provider is missing or invalid, so it can’t start. Use email and password, or ask the administrator to finish setup.',
+  },
   provider_error: {
     title: 'The provider couldn’t sign you in',
     text: 'Google or Facebook returned an error. Please try again in a moment.',
