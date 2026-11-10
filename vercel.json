@@ -5,7 +5,7 @@
       "root": "apps/api",
       "framework": "nestjs",
       "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
-      "buildCommand": "cd ../.. && pnpm exec turbo run build --force --filter=@torio/api"
+      "buildCommand": "cd ../.. && pnpm exec turbo run build --force --filter=@torio/api && node scripts/vendor-workspace-deps.mjs"
     },
     "web": {
       "root": "apps/web",
