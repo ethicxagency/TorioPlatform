@@ -346,6 +346,7 @@ describe.skipIf(!url)('customer social sign-in (real PostgreSQL, mocked provider
     it('start sends state and no secret to Facebook', async () => {
       const { loc } = await signIn('facebook');
       expect(loc.hostname).toBe('www.facebook.com');
+      expect(loc.searchParams.get('scope')).toBe('public_profile,email');
       expect(loc.searchParams.get('state')).toBeTruthy();
       expect(loc.search).not.toContain('facebook-secret-value');
     });

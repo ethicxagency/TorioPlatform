@@ -331,6 +331,9 @@ export class MetaConfigService {
       problems: r.problems,
       appIdConfigured: !!this.env.FACEBOOK_APP_ID && !!this.env.FACEBOOK_APP_SECRET,
       facebookAppId: this.env.FACEBOOK_APP_ID ?? null,
+      // What the authorization request asks Facebook for (a Login Configuration replaces `scope` for Business apps).
+      scopes: this.env.FACEBOOK_LOGIN_CONFIG_ID ? [] : ['public_profile', 'email'],
+      loginConfigurationId: this.env.FACEBOOK_LOGIN_CONFIG_ID ?? null,
     };
   }
 

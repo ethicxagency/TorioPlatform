@@ -47,8 +47,13 @@ export const envSchema = z
       .regex(/^\d{6,}$/, 'must be the numeric Facebook app id')
       .optional(),
     FACEBOOK_APP_SECRET: z.string().min(8).optional(),
-    /** Defaults to WEB_URL + /api/v1/auth/oauth/facebook/callback. Must match the Meta app settings exactly. */
+    /** Defaults to API_URL + /api/v1/auth/oauth/facebook/callback. Must match the Meta app settings exactly. */
     FACEBOOK_REDIRECT_URI: z.url().optional(),
+    /** Only for a Meta app set up as "Facebook Login for Business": its Login Configuration ID. Permissions then come from that configuration and no `scope` is sent. */
+    FACEBOOK_LOGIN_CONFIG_ID: z
+      .string()
+      .regex(/^\d{6,}$/, 'must be the numeric configuration id')
+      .optional(),
     // Transactional email (Resend HTTP API). Without both, no verification or reset emails can be sent, and the UI says so.
     RESEND_API_KEY: z.string().min(8).optional(),
     MAIL_FROM: z.string().min(5).optional(),

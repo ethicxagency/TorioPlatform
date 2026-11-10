@@ -5283,6 +5283,8 @@ export interface components {
                     problems: string[];
                     appIdConfigured: boolean;
                     facebookAppId: string | null;
+                    scopes: string[];
+                    loginConfigurationId: string | null;
                 };
                 metaWebhookUrl: string | null;
                 whatsappWebhookUrl: string | null;

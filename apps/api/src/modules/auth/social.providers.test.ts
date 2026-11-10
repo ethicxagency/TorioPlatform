@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { AppConfig } from '../../config/config.module';
 import type { MetaConfigService } from '../meta-config/meta-config.service';
-import { SocialAuthError, SocialProviders } from './social.providers';
+import { SCOPES } from '../meta/meta.connection.service';
+import { FACEBOOK_LOGIN_SCOPES, SocialAuthError, SocialProviders } from './social.providers';
 
 const PROD_URI = 'https://torio.nextupglobal.net/api/v1/auth/oauth/google/callback';
 const base = {
@@ -72,5 +73,44 @@ describe('Google redirect URI', () => {
     expect(sent[0]!.get('redirect_uri')).toBe(PROD_URI);
     expect(sent[0]!.get('redirect_uri')).toBe(authUrl(p, uri).searchParams.get('redirect_uri'));
     expect(sent[0]!.get('code_verifier')).toBe('v');
+  });
+});
+
+describe('Facebook authorization request', () => {
+  const fb = (over: Partial<AppConfig> = {}) =>
+    make({
+      FACEBOOK_APP_ID: '1533990358131449',
+      FACEBOOK_APP_SECRET: 'secret-value',
+      ...over,
+    } as Partial<AppConfig>);
+  const url = (p: SocialProviders) =>
+    new URL(
+      p.authorizeUrl('facebook', {
+        state: 's',
+        nonce: 'n',
+        challenge: 'c',
+        redirectUri: 'https://torio.nextupglobal.net/api/v1/auth/oauth/facebook/callback',
+      }),
+    );
+
+  it('asks for exactly public_profile and email', () => {
+    const u = url(fb());
+    expect(u.searchParams.get('scope')).toBe('public_profile,email');
+    expect([...FACEBOOK_LOGIN_SCOPES]).toEqual(['public_profile', 'email']);
+    expect(u.searchParams.get('config_id')).toBeNull();
+  });
+
+  it('never reuses a business-channel permission, and channel flows never ask for email', () => {
+    const business = new Set(Object.values(SCOPES).flat());
+    for (const s of FACEBOOK_LOGIN_SCOPES) expect(business.has(s)).toBe(false);
+    for (const s of (url(fb()).searchParams.get('scope') ?? '').split(','))
+      expect(business.has(s)).toBe(false);
+    expect(business.has('email')).toBe(false);
+  });
+
+  it('a Facebook Login for Business app sends its configuration id and no scope', () => {
+    const u = url(fb({ FACEBOOK_LOGIN_CONFIG_ID: '123456789012' } as Partial<AppConfig>));
+    expect(u.searchParams.get('config_id')).toBe('123456789012');
+    expect(u.searchParams.get('scope')).toBeNull();
   });
 });

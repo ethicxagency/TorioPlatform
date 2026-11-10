@@ -23219,6 +23219,18 @@
                       "string",
                       "null"
                     ]
+                  },
+                  "scopes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "loginConfigurationId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
                   }
                 },
                 "required": [
@@ -23229,7 +23241,9 @@
                   "registerInMeta",
                   "problems",
                   "appIdConfigured",
-                  "facebookAppId"
+                  "facebookAppId",
+                  "scopes",
+                  "loginConfigurationId"
                 ]
               },
               "metaWebhookUrl": {

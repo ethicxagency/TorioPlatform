@@ -150,6 +150,8 @@ export const metaAdminConfigSchema = z.object({
       problems: z.array(z.string()),
       appIdConfigured: z.boolean(),
       facebookAppId: z.string().nullable(),
+      scopes: z.array(z.string()),
+      loginConfigurationId: z.string().nullable(),
     }),
     metaWebhookUrl: z.string().nullable(),
     whatsappWebhookUrl: z.string().nullable(),

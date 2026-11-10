@@ -2269,6 +2269,8 @@ export async function mockApi(
               problems: [],
               appIdConfigured: true,
               facebookAppId: '1533990358131449',
+              scopes: ['public_profile', 'email'],
+              loginConfigurationId: null,
             },
             metaWebhookUrl: 'https://app.example.test/api/v1/webhooks/meta',
             whatsappWebhookUrl: 'https://app.example.test/api/v1/webhooks/whatsapp',

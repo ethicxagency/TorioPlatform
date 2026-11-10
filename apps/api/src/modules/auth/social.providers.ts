@@ -55,6 +55,12 @@ export const newPkce = () => {
  * Talks to Google and Facebook from the server only. Every network call goes through `fetch`, so tests can replace it
  * with recorded provider responses. Client secrets never leave this class.
  */
+/**
+ * The only permissions customer "Continue with Facebook" asks for: the profile and the email, which is all sign-in needs.
+ * Business and messaging permissions belong to the separate channel-connection flow and are never requested here.
+ */
+export const FACEBOOK_LOGIN_SCOPES = ['public_profile', 'email'] as const;
+
 /** The route the API serves for Google's redirect. */
 export const GOOGLE_CALLBACK_PATH = '/api/v1/auth/oauth/google/callback';
 
@@ -168,9 +174,11 @@ export class SocialProviders implements OnModuleInit {
       client_id: this.c.FACEBOOK_APP_ID!,
       redirect_uri: s.redirectUri,
       response_type: 'code',
-      scope: 'public_profile,email',
       state: s.state,
     });
+    // An app set up as "Facebook Login for Business" gets its permissions from a Login Configuration and rejects `scope`.
+    if (this.c.FACEBOOK_LOGIN_CONFIG_ID) q.set('config_id', this.c.FACEBOOK_LOGIN_CONFIG_ID);
+    else q.set('scope', FACEBOOK_LOGIN_SCOPES.join(','));
     return `https://www.facebook.com/${this.c.META_GRAPH_VERSION}/dialog/oauth?${q}`;
   }
 

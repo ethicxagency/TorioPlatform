@@ -327,6 +327,9 @@ test.describe('super admin', () => {
       // the Facebook sign-in check shows the real redirect URI and the exact Meta dashboard steps
       await expect(customer.getByText('Server configuration OK')).toBeVisible();
       await expect(customer.getByText('Redirect URI the server sends to Facebook')).toBeVisible();
+      await expect(customer.getByText('Permissions requested')).toBeVisible();
+      await expect(customer.getByText('public_profile', { exact: true })).toBeVisible();
+      await expect(customer.getByText(/Invalid Scopes: email/)).toBeVisible();
       await expect(customer.getByText(/Client OAuth Login/)).toBeVisible();
       await expect(customer.getByText(/Valid OAuth Redirect URIs/).first()).toBeVisible();
       // the customer list is independent: adding there leaves the channel list alone

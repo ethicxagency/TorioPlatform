@@ -423,6 +423,20 @@ function FacebookLoginCheck({ d }: { d: Config['derived']['customerAuthDiagnosti
         <span className={d.matchesRoute ? 'text-success' : 'text-danger'}>
           {d.matchesRoute ? 'Yes' : 'No'}
         </span>
+        <span className="text-muted">Permissions requested</span>
+        <span>
+          {d.loginConfigurationId ? (
+            <>
+              From Login Configuration <code>{d.loginConfigurationId}</code> (no scope is sent)
+            </>
+          ) : (
+            d.scopes.map((s) => (
+              <code key={s} className="mr-1.5">
+                {s}
+              </code>
+            ))
+          )}
+        </span>
         <span className="text-muted">Facebook App ID in use</span>
         <span>
           {d.appIdConfigured ? (
@@ -447,6 +461,14 @@ function FacebookLoginCheck({ d }: { d: Config['derived']['customerAuthDiagnosti
             Open the app with App ID <code>{d.facebookAppId ?? '…'}</code>, add the{' '}
             <b>Facebook Login</b> product, and under Facebook Login → Settings turn on{' '}
             <b>Client OAuth Login</b> and <b>Web OAuth Login</b>.
+          </li>
+          <li>
+            Under <b>Use cases</b>, open{' '}
+            <b>Authenticate and request data from users with Facebook Login</b> → Customize, and add
+            the <b>email</b> permission (with <b>public_profile</b>). If Facebook shows{' '}
+            <i>“Invalid Scopes: email”</i>, this is the step that is missing. An app set up as{' '}
+            <b>Facebook Login for Business</b> can’t send scopes: create a Login Configuration with
+            these permissions and set its ID as <code>FACEBOOK_LOGIN_CONFIG_ID</code> on the server.
           </li>
           <li>
             Add exactly{' '}

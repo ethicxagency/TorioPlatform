@@ -53,7 +53,8 @@ export class AuthService {
     if (existing) throw new ConflictException('An account with this email already exists');
 
     const passwordHash = await this.passwords.hash(input.password);
-    const workspaceName = input.workspaceName ?? `${input.name.split(/\s+/)[0] || 'My'}'s workspace`;
+    const workspaceName =
+      input.workspaceName ?? `${input.name.split(/\s+/)[0] || 'My'}'s workspace`;
     const slug = `${slugify(workspaceName)}-${randomBytes(3).toString('hex')}`;
 
     const user = await this.prisma.client.$transaction(async (tx) => {
