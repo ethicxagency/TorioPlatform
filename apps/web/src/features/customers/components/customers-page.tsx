@@ -89,7 +89,7 @@ export function CustomersPage() {
   const customers = useMemo(() => list.data?.data ?? [], [list.data]);
   // Every tag in the workspace, not just the ones on the loaded page.
   const tags = useMemo(() => workspaceTags.data ?? [], [workspaceTags.data]);
-  const err = (e: unknown) => toast(e instanceof Error ? e.message : 'Something went wrong');
+  const err = (e: unknown) => toast.error(e instanceof Error ? e.message : 'Something went wrong');
 
   const patchFilters = useCallback((p: Partial<CustomerFilters>) => {
     setFilters((f) => ({ ...f, ...p }));

@@ -127,7 +127,7 @@ export function InboxPage() {
   }, [selected, conversations]);
   const canReply = can('conversations:reply');
   const canEditCustomer = can('customers:update');
-  const err = (e: unknown) => toast(e instanceof Error ? e.message : 'Something went wrong');
+  const err = (e: unknown) => toast.error(e instanceof Error ? e.message : 'Something went wrong');
 
   const patchFilters = useCallback((patch: Partial<InboxFilters>) => {
     setFilters((f) => ({ ...f, ...patch }));
@@ -278,7 +278,8 @@ export function InboxPage() {
         onSuccess: () => {
           setDraft(id, '');
           setReplyTos((r) => ({ ...r, [id]: null }));
-          if (mode === 'note') toast('Internal note added — only your team can see it');
+          if (mode === 'note') toast.success('Internal note added — only your team can see it');
+          else toast.success('Message sent');
         },
         onError: err,
       },

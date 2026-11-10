@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { formatCurrency } from './currency';
+import { currencyInfo, isIsoCurrency } from './locale';
 
 /**
  * Orders. Money is integer minor units (cents) with one currency per order. Totals are computed here, on the
@@ -56,7 +57,16 @@ export const orderStatusSchema = z.enum(ORDER_STATUSES);
 export const paymentStatusSchema = z.enum(PAYMENT_STATUSES);
 export const fulfillmentStatusSchema = z.enum(FULFILLMENT_STATUSES);
 export const paymentMethodSchema = z.enum(PAYMENT_METHODS);
-export const currencySchema = z.enum(ORDER_CURRENCIES);
+/** ISO 4217 code. Orders do their money maths in hundredths, so only two-decimal currencies can be priced. */
+export const currencyCodeSchema = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .refine(isIsoCurrency, 'Choose a valid ISO 4217 currency code');
+export const currencySchema = currencyCodeSchema.refine(
+  (c) => currencyInfo(c).minorDigits === 2,
+  'Orders can only be priced in currencies with two decimal places',
+);
 export const orderChannelSchema = z.enum(ORDER_CHANNELS);
 export type OrderStatus = z.infer<typeof orderStatusSchema>;
 export type PaymentStatus = z.infer<typeof paymentStatusSchema>;

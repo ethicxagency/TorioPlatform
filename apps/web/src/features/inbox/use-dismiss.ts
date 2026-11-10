@@ -7,13 +7,16 @@ export function useDismiss(
   ref: RefObject<HTMLElement | null>,
   active: boolean,
   onDismiss: () => void,
+  /** A portaled panel outside `ref` that still counts as inside. */
+  extra?: RefObject<HTMLElement | null>,
 ) {
   useEffect(() => {
     if (!active) return;
     const handler = (e: PointerEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onDismiss();
+      const t = e.target as Node;
+      if (ref.current && !ref.current.contains(t) && !extra?.current?.contains(t)) onDismiss();
     };
     document.addEventListener('pointerdown', handler);
     return () => document.removeEventListener('pointerdown', handler);
-  }, [ref, active, onDismiss]);
+  }, [ref, extra, active, onDismiss]);
 }

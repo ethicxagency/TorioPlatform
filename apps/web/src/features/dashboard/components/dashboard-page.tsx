@@ -146,7 +146,7 @@ export function DashboardPage({
   const showAttention = !layout.hidden.attention;
   const lowerWidgets = m.widgets.filter((w) => w.k !== 'overview' && w.k !== 'attention');
 
-  const cur = d?.revenue.primaryCurrency || DEFAULT_CURRENCY;
+  const cur = d?.revenue.primaryCurrency || workspace?.defaultCurrency || DEFAULT_CURRENCY;
   const primary = d?.revenue.byCurrency.find((x) => x.currency === cur);
   const icon = (I: IconSvgElement) => <Icon icon={I} size={14} strokeWidth={1.9} />;
   const num = (n: number) => Math.round(n).toLocaleString('en-US');

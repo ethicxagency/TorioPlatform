@@ -1,24 +1,27 @@
 'use client';
 
-import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { ConfirmDialog } from '@/features/inbox/components/confirm-dialog';
 import { useSettingsGuard } from './guard';
-import { CardHeader } from '@/components/ui/card';
 import { controlCls } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 /** A link that asks before leaving a Settings page with unsaved edits. */
-function GuardedLink({
+export function GuardedLink({
   href,
   className,
   children,
+  onNavigate,
+  current,
 }: {
   href: string;
   className?: string;
   children: React.ReactNode;
+  /** Called when the link is followed (not when the discard prompt intercepts it). */
+  onNavigate?: () => void;
+  current?: boolean;
 }) {
   const { dirty, setDirty } = useSettingsGuard();
   const router = useRouter();
@@ -28,8 +31,9 @@ function GuardedLink({
       <Link
         href={href}
         className={className}
+        aria-current={current ? 'page' : undefined}
         onClick={(e) => {
-          if (!dirty) return;
+          if (!dirty) return onNavigate?.();
           e.preventDefault();
           setAsk(true);
         }}
@@ -45,6 +49,7 @@ function GuardedLink({
           onConfirm={() => {
             setDirty(false);
             setAsk(false);
+            onNavigate?.();
             router.push(href);
           }}
         />
@@ -53,63 +58,47 @@ function GuardedLink({
   );
 }
 
-/** Detail-page header with a breadcrumb back to the Settings overview (the only Settings navigation). */
-export function PageHeader({ title, description }: { title: string; description: string }) {
+/** Page header for a Settings page. Navigation lives in the section rail beside the page, so this is just the title. */
+export function PageHeader({ title, description }: { title: string; description?: string }) {
   return (
-    <header className="mb-5">
-      <nav aria-label="Breadcrumb" className="mb-2 text-[13px]">
-        <ol className="m-0 flex list-none items-center gap-1.5 p-0 text-muted">
-          <li>
-            <GuardedLink
-              href="/settings"
-              className="inline-flex items-center gap-1 rounded text-muted no-underline hover:text-primary hover:no-underline"
-            >
-              <ChevronLeft size={14} aria-hidden />
-              Settings
-            </GuardedLink>
-          </li>
-          <li aria-hidden className="text-faint">
-            /
-          </li>
-          <li aria-current="page" className="font-medium text-ink">
-            {title}
-          </li>
-        </ol>
-      </nav>
+    <header className="mb-2">
       <h1 className="m-0 font-page-title">{title}</h1>
-      <p className="m-0 mt-1 text-sm text-muted">{description}</p>
+      {description && <p className="m-0 mt-1 text-sm text-muted">{description}</p>}
     </header>
   );
 }
 
+/**
+ * One group of settings: the title sits in a left rail on wide screens (above the fields on narrow ones) and the
+ * controls take the rest of the width. Groups are separated by a hairline, never boxed in cards.
+ */
 export function Section({
   title,
   description,
   children,
   danger,
-  icon,
   id,
 }: {
   title: string;
   description?: string;
   children: React.ReactNode;
   danger?: boolean;
-  /** Small icon tile before the title. */
-  icon?: React.ReactNode;
   /** Anchor, so old URLs and links can jump to this section. */
   id?: string;
+  /** Kept so existing callers compile; sections no longer draw an icon tile. */
+  icon?: React.ReactNode;
 }) {
   return (
     <section
       id={id}
       aria-label={title}
-      className={cn(
-        'mb-4 scroll-mt-20 rounded-card border bg-white p-4 sm:p-5',
-        danger ? 'border-[#F3C4C4]' : 'border-line',
-      )}
+      className="grid scroll-mt-20 gap-x-10 gap-y-4 border-t border-line-subtle py-7 first:border-t-0 lg:grid-cols-[220px_minmax(0,1fr)]"
     >
-      <CardHeader title={title} description={description} icon={icon} />
-      <div className="mt-4">{children}</div>
+      <div className="min-w-0">
+        <h2 className={cn('m-0 font-card-title', danger && 'text-danger')}>{title}</h2>
+        {description && <p className="m-0 mt-1 text-[13px] text-muted">{description}</p>}
+      </div>
+      <div className="flex min-w-0 max-w-[720px] flex-col gap-4">{children}</div>
     </section>
   );
 }

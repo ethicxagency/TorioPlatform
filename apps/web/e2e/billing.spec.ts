@@ -19,9 +19,9 @@ test.describe('billing (owner)', () => {
   }) => {
     await open(page);
     await expect(page.getByText('Free plan').first()).toBeVisible();
-    await expect(page.getByText('Not tracked')).toBeVisible();
+    await expect(page.getByText('Not tracked', { exact: true })).toBeVisible();
     await expect(page.getByText(/AI credits aren.t metered yet/)).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Upgrade plan' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Upgrade plan' }).first()).toBeEnabled();
     await expect(page.getByRole('button', { name: 'Cancel subscription' })).toHaveCount(0);
   });
 
@@ -34,7 +34,7 @@ test.describe('billing (owner)', () => {
     const upgrade = page.getByRole('button', { name: 'Upgrade' }).first();
     await expect(upgrade).toBeDisabled();
     await expect(upgrade).toHaveAttribute('title', /aren.t connected/);
-    await page.getByRole('tab', { name: 'Payment Methods' }).click();
+    await open(page, 'payment-methods');
     await expect(page.getByRole('button', { name: 'Add payment method' })).toBeDisabled();
   });
 
@@ -155,9 +155,13 @@ test.describe('billing (owner)', () => {
     await expect(page.getByRole('alert').filter({ hasText: 'A payment failed' })).toBeVisible();
     await expect(page.getByText('Past due').first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Change plan' })).toBeDisabled();
-    await page.getByRole('button', { name: 'Retry payment' }).click();
-    await expect(page.getByRole('tab', { name: 'Billing History', selected: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Retry payment' }).click();
+    await page.getByRole('button', { name: 'Retry payment' }).first().click();
+    await expect(
+      page
+        .getByRole('navigation', { name: 'Billing sections' })
+        .getByRole('button', { name: 'Billing History' }),
+    ).toHaveAttribute('aria-current', 'location');
+    await page.getByRole('button', { name: 'Retry payment' }).last().click();
     await expect(page.getByText('Payment retry submitted.').first()).toBeVisible();
   });
 
@@ -172,7 +176,7 @@ test.describe('billing (owner)', () => {
       'aria-valuenow',
       '100',
     );
-    await expect(page.getByRole('button', { name: 'Upgrade plan' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Upgrade plan' }).first()).toBeVisible();
     await expect(page.getByText(/AI conversations, AI credits consumed, Storage/)).toBeVisible();
   });
 
@@ -251,10 +255,7 @@ test.describe('billing (owner)', () => {
   test('settings links to billing and no horizontal overflow on a phone', async ({ page }) => {
     await page.goto('/settings');
     await expect(
-      page
-        .getByRole('main')
-        .getByRole('link', { name: /Billing & subscriptions/ })
-        .first(),
+      page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: /Billing/ }),
     ).toBeVisible();
     await page.setViewportSize({ width: 390, height: 844 });
     for (const tab of ['', 'plans', 'usage', 'payment-methods', 'history', 'info']) {
@@ -279,9 +280,15 @@ test.describe('billing (admin and agent)', () => {
     await open(page);
     await expect(page.getByRole('button', { name: 'Cancel subscription' })).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Change plan' })).toBeDisabled();
-    await page.getByRole('tab', { name: 'Billing Information' }).click();
+    await page
+      .getByRole('navigation', { name: 'Billing sections' })
+      .getByRole('button', { name: 'Billing Information' })
+      .click();
     await expect(page.getByRole('button', { name: 'Edit billing information' })).toBeDisabled();
-    await page.getByRole('tab', { name: 'Payment Methods' }).click();
+    await page
+      .getByRole('navigation', { name: 'Billing sections' })
+      .getByRole('button', { name: 'Payment Methods' })
+      .click();
     await expect(page.getByRole('button', { name: 'Add payment method' })).toBeDisabled();
   });
 
@@ -293,8 +300,9 @@ test.describe('billing (admin and agent)', () => {
       page.getByText('Billing is available to workspace owners and admins.'),
     ).toBeVisible();
     await page.goto('/settings');
+    await expect(page.getByRole('heading', { name: 'General', level: 1 })).toBeVisible();
     await expect(
-      page.getByRole('list', { name: 'Settings sections' }).getByRole('link', { name: /Billing/ }),
+      page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: /Billing/ }),
     ).toHaveCount(0);
   });
 });

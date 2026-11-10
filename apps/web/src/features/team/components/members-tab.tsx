@@ -8,6 +8,7 @@ import { fmtAgo, initialsOf } from '@/features/inbox/format';
 import { cn } from '@/lib/utils';
 import { ROLE_INFO, type Member, type MemberFilters, type TeamItem } from '../types';
 import { RoleBadge, StatusBadge } from './role-badge';
+import { fmtDate } from '@/lib/datetime';
 
 interface Props {
   members: Member[];
@@ -239,7 +240,7 @@ export function MembersTab(p: Props) {
                       {m.lastSignInAt ? `${fmtAgo(m.lastSignInAt, p.now)} ago` : '—'}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-muted max-xl:hidden">
-                      {new Date(m.createdAt).toLocaleDateString('en-US', {
+                      {fmtDate(m.createdAt, {
                         month: 'short',
                         day: 'numeric',
                         year: 'numeric',

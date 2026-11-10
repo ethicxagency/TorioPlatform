@@ -116,7 +116,7 @@ function Sessions() {
   const q = useSessions();
   const m = useSessionMutations();
   const [confirm, setConfirm] = useState<SessionInfo | 'all' | null>(null);
-  const err = (e: unknown) => toast(e instanceof Error ? e.message : 'Something went wrong');
+  const err = (e: unknown) => toast.error(e instanceof Error ? e.message : 'Something went wrong');
   const others = (q.data ?? []).filter((s) => !s.current).length;
   return (
     <>

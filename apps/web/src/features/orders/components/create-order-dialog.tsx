@@ -11,7 +11,7 @@ import { Modal } from '@/features/leads/components/modal';
 import { useDebounced } from '@/features/leads/use-debounced';
 import { useWorkspace } from '@/lib/workspace';
 import { cn } from '@/lib/utils';
-import { CHANNEL_LABEL, CURRENCIES, DEFAULT_CURRENCY } from '../constants';
+import { CHANNEL_LABEL, DEFAULT_CURRENCY, orderCurrencies } from '../constants';
 import type { CreateOrderBody } from '../queries';
 import {
   LinesEditor,
@@ -48,12 +48,8 @@ export function CreateOrderDialog({ customer: initial, onClose, onCreate }: Prop
     pageSize: 8,
   });
   const convs = useCustomerConversations(ws, customer?.id ?? null);
-  const [currency, setCurrency] = useState<string>(
-    // Only enabled currencies can start a new order; an older default outside that list falls back to BDT.
-    (CURRENCIES as readonly string[]).includes(workspace?.defaultCurrency ?? '')
-      ? workspace!.defaultCurrency!
-      : DEFAULT_CURRENCY,
-  );
+  const currencyChoices = orderCurrencies(workspace?.defaultCurrency);
+  const [currency, setCurrency] = useState<string>(currencyChoices[0] ?? DEFAULT_CURRENCY);
   const [lines, setLines] = useState<Line[]>(() => [newLine()]);
   const [pricing, setPricing] = useState<Pricing>({ discount: '', shipping: '', tax: '' });
   const [address, setAddress] = useState('');
@@ -228,7 +224,7 @@ export function CreateOrderDialog({ customer: initial, onClose, onCreate }: Prop
               onChange={(e) => setCurrency(e.target.value)}
               className={field}
             >
-              {CURRENCIES.map((c) => (
+              {currencyChoices.map((c) => (
                 <option key={c}>{c}</option>
               ))}
             </select>

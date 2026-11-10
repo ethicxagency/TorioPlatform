@@ -82,7 +82,7 @@ export function OrdersPage() {
   const summary = useOrderSummary(ws, filters.range);
   const m = useOrderMutations(ws);
   const orders = useMemo(() => list.data?.data ?? [], [list.data]);
-  const err = (e: unknown) => toast(e instanceof Error ? e.message : 'Something went wrong');
+  const err = (e: unknown) => toast.error(e instanceof Error ? e.message : 'Something went wrong');
 
   const patchFilters = useCallback((p: Partial<OrderFilters>) => {
     setFilters((f) => ({ ...f, ...p }));

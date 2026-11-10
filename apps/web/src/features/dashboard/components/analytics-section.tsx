@@ -4,6 +4,7 @@ import { formatRange, type DateRange } from '@torio/contracts';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import type { Analytics } from '../analytics-queries';
+import { fmtStamp } from '@/lib/datetime';
 
 export function AnalyticsSection({
   data,
@@ -56,7 +57,7 @@ export function AnalyticsSection({
               <li key={a.id} className="flex items-center justify-between gap-3 py-2 text-[13px]">
                 <span className="min-w-0 truncate">{a.title}</span>
                 <time dateTime={a.at} className="shrink-0 text-xs text-faint">
-                  {new Date(a.at).toLocaleString('en-US', {
+                  {fmtStamp(a.at, {
                     dateStyle: 'medium',
                     timeStyle: 'short',
                     timeZone: d.timeZone,

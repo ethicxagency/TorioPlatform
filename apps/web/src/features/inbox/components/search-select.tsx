@@ -14,6 +14,10 @@ export interface SearchSelectOption {
   /** Not pickable; `hint` explains why (shown as a tooltip). */
   disabled?: boolean;
   hint?: string;
+  /** Quiet text at the end of the row, e.g. a UTC offset or a currency symbol. */
+  detail?: string;
+  /** Extra text the search also matches (a code, an old name). */
+  keywords?: string;
 }
 
 interface Props {
@@ -34,6 +38,8 @@ interface Props {
   searchPlaceholder: string;
   /** false for short fixed lists: no visible search box, but keyboard navigation still works. Default true. */
   searchable?: boolean;
+  /** Render at most this many matches; long lists (all time zones, all currencies) stay fast. */
+  limit?: number;
 }
 
 /**
@@ -53,6 +59,7 @@ export function SearchSelect({
   emptyText,
   searchPlaceholder,
   searchable = true,
+  limit,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
@@ -61,17 +68,24 @@ export function SearchSelect({
   const btn = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const listId = useId();
+  const current = options.find((o) => o.value === value);
   useDismiss(wrap, open, () => setOpen(false));
   useKeepInView(panel);
 
-  const current = options.find((o) => o.value === value);
   const shown = useMemo(() => {
     const term = q.trim().toLowerCase();
-    const matches = term ? options.filter((o) => o.label.toLowerCase().includes(term)) : options;
+    const all = term
+      ? options.filter((o) => `${o.label} ${o.keywords ?? ''}`.toLowerCase().includes(term))
+      : options;
+    const matches = limit && all.length > limit ? all.slice(0, limit) : all;
+    // The picked option always stays reachable, even when it falls outside the first `limit` matches.
+    const withCurrent =
+      !term && limit && current && !matches.includes(current) ? [current, ...matches] : matches;
     return anyLabel === undefined
-      ? matches
-      : [{ value: '', label: anyLabel } as SearchSelectOption, ...matches];
-  }, [q, options, anyLabel]);
+      ? withCurrent
+      : [{ value: '', label: anyLabel } as SearchSelectOption, ...withCurrent];
+  }, [q, options, anyLabel, limit, current]);
+  const truncated = !!limit && options.length > limit;
 
   const openList = () => {
     setQ('');
@@ -203,12 +217,20 @@ export function SearchSelect({
                   <span className={cn('min-w-0 flex-1 truncate', !o.value && !on && 'text-muted')}>
                     {o.label}
                   </span>
+                  {o.detail && (
+                    <span className="shrink-0 text-xs tabular-nums text-faint">{o.detail}</span>
+                  )}
                   {on && (
                     <Check size={14} strokeWidth={2.25} aria-hidden className="text-primary" />
                   )}
                 </div>
               );
             })}
+            {truncated && !q.trim() && (
+              <div className="px-2 py-2 text-xs text-faint">
+                Type to search all {options.length}.
+              </div>
+            )}
             {loading && <div className="px-2 py-2 text-xs text-faint">Loading…</div>}
             {!loading && options.length === 0 && (
               <div className="px-2 py-2 text-xs text-faint">{emptyText}</div>

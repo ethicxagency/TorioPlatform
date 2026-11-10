@@ -5,6 +5,7 @@ import { formatMoney } from '@torio/contracts';
 import { Pill } from '@/features/brain/components/bits';
 import { cn } from '@/lib/utils';
 import type { InvoiceStatus, Overview } from '../types';
+import { fmtDate as fmtWsDate } from '@/lib/datetime';
 
 export const money = formatMoney;
 
@@ -94,7 +95,7 @@ export const LEVEL_TEXT: Record<string, string> = {
 
 export const fmtDate = (iso: string | null | undefined, tz?: string) =>
   iso
-    ? new Date(iso).toLocaleDateString('en-US', {
+    ? fmtWsDate(iso, {
         dateStyle: 'medium',
         ...(tz && { timeZone: tz }),
       })

@@ -99,7 +99,7 @@ test.describe('automation (owner)', () => {
   }) => {
     await page.getByRole('button', { name: 'Actions for Tag Instagram customers' }).click();
     await page.getByRole('menuitem', { name: 'Enable' }).click();
-    await expect(page.getByRole('status').filter({ hasText: 'tag is required' })).toBeVisible();
+    await expect(page.getByRole('alert').filter({ hasText: 'tag is required' })).toBeVisible();
     expect(autoState.published).toHaveLength(0);
     await page.getByRole('button', { name: 'Actions for Tag Instagram customers' }).click();
     await page.getByRole('menuitem', { name: 'Delete' }).click();

@@ -12,6 +12,7 @@ import { useWorkspace } from '@/lib/workspace';
 import { useMemberActivity, useMemberDetail, useTeamMutations } from '../queries';
 import { ROLE_INFO, type Member, type Role } from '../types';
 import { RoleBadge, StatusBadge } from './role-badge';
+import { fmtDate, fmtStamp } from '@/lib/datetime';
 
 interface Props {
   member: Member;
@@ -50,7 +51,7 @@ export function MemberDrawer({ member: initial, meId, actorRole, canAudit, onClo
   const roles = assignableRoles(actorRole).filter((r): r is 'ADMIN' | 'AGENT' => r !== 'OWNER');
   const err = (e: unknown) => {
     setPending(null);
-    toast(e instanceof Error ? e.message : 'Something went wrong');
+    toast.error(e instanceof Error ? e.message : 'Something went wrong');
   };
 
   const confirm = () => {
@@ -259,7 +260,7 @@ export function MemberDrawer({ member: initial, meId, actorRole, canAudit, onClo
               </p>
             )}
             <p className="m-0 mt-2 text-xs text-faint">
-              Joined {new Date(m.createdAt).toLocaleDateString('en-US', { dateStyle: 'medium' })}
+              Joined {fmtDate(m.createdAt, { dateStyle: 'medium' })}
             </p>
           </section>
 
@@ -286,7 +287,7 @@ export function MemberDrawer({ member: initial, meId, actorRole, canAudit, onClo
                     <p className="m-0 text-[13px]">{a.description}</p>
                     <div className="text-xs text-faint">
                       {a.actor ? `${a.actor.name} · ` : ''}
-                      {new Date(a.createdAt).toLocaleString('en-US', {
+                      {fmtStamp(a.createdAt, {
                         dateStyle: 'medium',
                         timeStyle: 'short',
                       })}

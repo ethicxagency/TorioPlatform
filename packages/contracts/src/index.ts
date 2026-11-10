@@ -815,6 +815,7 @@ export * from './brain';
 export * from './brain-preview';
 export * from './orders';
 export * from './currency';
+export * from './locale';
 export * from './settings';
 export * from './automations';
 export * from './billing';

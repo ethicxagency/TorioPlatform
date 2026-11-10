@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { AreaField, Drawer, Pill, SectionCard, SelectField, TextField, Toggle, uid } from './bits';
 import type { Remove, SectionProps } from './types';
 import { CURRENCY_DEFS, DEFAULT_CURRENCY } from '@torio/contracts';
+import { fmtDate } from '@/lib/datetime';
 
 const CURRENCY_SYMBOL = CURRENCY_DEFS[DEFAULT_CURRENCY].symbol;
 
@@ -206,7 +207,7 @@ export function ProductsSection({ d, mut, canWrite, remove }: SectionProps & { r
                   <div className="truncate text-sm font-medium">{p.name || 'Untitled product'}</div>
                   <div className="truncate text-xs text-faint">
                     {p.category || 'No category'}
-                    {p.updatedAt ? ` · edited ${new Date(p.updatedAt).toLocaleDateString()}` : ''}
+                    {p.updatedAt ? ` · edited ${fmtDate(p.updatedAt)}` : ''}
                   </div>
                 </div>
                 <div className="w-20 text-sm tabular-nums">

@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Modal } from '@/features/leads/components/modal';
 import { ApiRequestError } from '@/features/leads/queries';
 import { ROLE_INFO, type InvitationCreated, type Role, type TeamItem } from '../types';
+import { fmtDate } from '@/lib/datetime';
 
 interface Props {
   actorRole: Role;
@@ -92,7 +93,7 @@ export function InviteDialog({ actorRole, teams, onClose, onInvite }: Props) {
           <p className="m-0">
             Invitation for <b>{created.email}</b> ({ROLE_INFO[created.role].label}) is ready.{' '}
             <b>Torio doesn&apos;t send email yet</b>, so share this one-time link with them
-            yourself. It expires {new Date(created.expiresAt).toLocaleDateString()}.
+            yourself. It expires {fmtDate(created.expiresAt)}.
           </p>
           <div className="flex items-center gap-2 rounded-lg border border-line bg-[#FBFBFC] p-2">
             <input

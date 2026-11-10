@@ -2,140 +2,141 @@ import { expect, test, type Page } from '@playwright/test';
 import { mockApi, resetSettings } from './mocks';
 
 const main = (p: Page) => p.getByRole('navigation', { name: 'Main' });
-const width = async (p: Page) => (await main(p).boundingBox())!.width;
-const cards = (p: Page) => p.getByRole('list', { name: 'Settings sections' }).getByRole('link');
+const menu = (p: Page) => p.getByRole('navigation', { name: 'Settings' });
 
-/** The page fades in on load; measure layout only once that has finished. */
-const settled = (page: import('@playwright/test').Page) =>
-  page.getByRole('main').evaluate((m) => Promise.all(m.getAnimations().map((a) => a.finished)));
+const TITLES = [
+  'General',
+  'Security',
+  'Notifications',
+  'Teams',
+  'Channels',
+  'Billing & Subscriptions',
+  'Data & Privacy',
+  'Audit Log',
+];
 
-test.describe('settings overview (card navigation, no sub-sidebar)', () => {
+test.describe('settings mode (dedicated sidebar)', () => {
   test.beforeEach(async ({ page }) => {
     resetSettings();
     await mockApi(page, { role: 'OWNER' });
   });
 
-  test('clicking Settings keeps the main sidebar expanded and shows ten cards, three per row', async ({
-    page,
-  }) => {
+  test('clicking Settings swaps the main sidebar for the Settings menu', async ({ page }) => {
     await page.goto('/');
     await main(page).getByRole('link', { name: 'Settings' }).click();
-    await expect(page).toHaveURL(/\/settings$/);
-    await expect(page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible();
-    expect(await width(page)).toBeGreaterThan(200); // never collapses to an icon rail
-    await expect(page.getByRole('navigation', { name: 'Settings' })).toHaveCount(0); // no sub-sidebar
-    await expect(main(page).getByRole('link', { name: 'Settings' })).toHaveAttribute(
+    await expect(page).toHaveURL(/\/settings\/general$/);
+    await expect(page.getByRole('heading', { name: 'General', level: 1 })).toBeVisible();
+    await expect(main(page)).toHaveCount(0); // the dashboard navigation is replaced, not stacked
+    const links = menu(page).getByRole('link');
+    await expect(links).toHaveCount(8);
+    for (const [i, t] of TITLES.entries()) await expect(links.nth(i)).toContainText(t);
+    await expect(menu(page).getByRole('link', { name: /General/ })).toHaveAttribute(
       'aria-current',
       'page',
     );
-    await expect(cards(page)).toHaveCount(8);
-    const titles = [
-      'General',
-      'Security',
-      'Notifications',
-      'Teams',
-      'Channels',
-      'Billing & subscriptions',
-      'Data & privacy',
-      'Audit log',
-    ];
-    for (const [i, t] of titles.entries()) await expect(cards(page).nth(i)).toContainText(t);
-    const ys = await Promise.all(
-      [0, 1, 2, 3].map(async (i) => (await cards(page).nth(i).boundingBox())!.y),
-    );
-    expect(ys[0]).toBe(ys[1]);
-    expect(ys[1]).toBe(ys[2]);
-    expect(ys[3]).toBeGreaterThan(ys[0]!); // fourth card starts row two
+    await expect(page.getByRole('link', { name: 'Back' })).toBeVisible();
+    await expect(page.getByRole('searchbox', { name: 'Search settings' })).toBeVisible();
+    // The real workspace sits under the search box; no account block ends the sidebar.
+    const name = await page.getByLabel('Business Name').inputValue();
+    await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
+    await expect(menu(page).locator('..')).not.toContainText('owner@urbannest.test');
   });
 
-  test('every card opens its existing route, with a breadcrumb back; back/forward work', async ({
-    page,
-  }) => {
-    await page.goto('/settings');
+  test('every item opens its existing route and the menu stays', async ({ page }) => {
+    await page.goto('/settings/general');
     const routes: [string, RegExp][] = [
-      ['General', /\/settings\/general$/],
       ['Security', /\/settings\/security$/],
-      ['Billing & subscriptions', /\/billing$/],
-      ['Audit log', /\/settings\/audit$/],
+      ['Notifications', /\/settings\/notifications$/],
+      ['Teams', /\/team$/],
+      ['Channels', /\/channels$/],
+      ['Billing & Subscriptions', /\/billing$/],
+      ['Data & Privacy', /\/settings\/privacy$/],
+      ['Audit Log', /\/settings\/audit$/],
+      ['General', /\/settings\/general$/],
     ];
     for (const [name, url] of routes) {
-      await page.goto('/settings');
-      await cards(page).filter({ hasText: name }).click();
+      await menu(page)
+        .getByRole('link', { name: new RegExp(name) })
+        .click();
       await expect(page).toHaveURL(url);
-      expect(await width(page)).toBeGreaterThan(200);
-      await expect(main(page).getByRole('link', { name: 'Settings' })).toHaveAttribute(
+      await expect(menu(page).getByRole('link')).toHaveCount(8);
+      await expect(menu(page).getByRole('link', { name: new RegExp(name) })).toHaveAttribute(
         'aria-current',
         'page',
       );
     }
-    await page.goto('/settings/security');
-    const crumb = page.getByRole('navigation', { name: 'Breadcrumb' });
-    await expect(crumb).toContainText('Settings');
-    await expect(crumb).toContainText('Security');
-    await crumb.getByRole('link', { name: 'Settings' }).click();
-    await expect(page).toHaveURL(/\/settings$/);
     await page.goBack();
-    await expect(page).toHaveURL(/\/settings\/security$/);
-    await page.goForward();
-    await expect(page).toHaveURL(/\/settings$/);
+    await expect(page).toHaveURL(/\/settings\/audit$/);
   });
 
-  test('the overview has no search box', async ({ page }) => {
-    await page.goto('/settings');
-    await expect(page.getByLabel('Search settings')).toHaveCount(0);
-    await expect(page.getByRole('searchbox')).toHaveCount(0);
-    await expect(cards(page)).toHaveCount(8);
+  test('Back returns to the page Settings was opened from', async ({ page }) => {
+    await page.goto('/orders');
+    await expect(page.getByRole('heading', { name: 'Orders', level: 1 })).toBeVisible();
+    await main(page).getByRole('link', { name: 'Settings' }).click();
+    await menu(page)
+      .getByRole('link', { name: /Security/ })
+      .click();
+    await page.getByRole('link', { name: 'Back' }).click();
+    await expect(page).toHaveURL(/\/orders$/);
+    await expect(main(page)).toBeVisible();
   });
 
-  test('responsive: two columns on tablet, one on phone, no sideways scrolling', async ({
+  test('search filters by page name, shows an empty state, and Escape clears it', async ({
     page,
   }) => {
-    await page.setViewportSize({ width: 900, height: 900 });
+    await page.goto('/settings/general');
+    const box = page.getByRole('searchbox', { name: 'Search settings' });
+    await box.fill('invoice');
+    await expect(menu(page).getByRole('link')).toHaveCount(1);
+    await expect(menu(page).getByRole('link', { name: /Billing/ })).toBeVisible();
+    await box.fill('zzzz');
+    await expect(page.getByText(/No settings match/)).toBeVisible();
+    await box.press('Escape');
+    await expect(box).toHaveValue('');
+    await expect(menu(page).getByRole('link')).toHaveCount(8);
+  });
+
+  test('the bare /settings URL opens General', async ({ page }) => {
     await page.goto('/settings');
-    await settled(page);
-    const y = async (i: number) => (await cards(page).nth(i).boundingBox())!.y;
-    expect(await y(0)).toBe(await y(1));
-    expect(await y(2)).toBeGreaterThan(await y(1));
+    await expect(page).toHaveURL(/\/settings\/general$/);
+  });
+
+  test('a refreshed Settings URL still shows the Settings menu with the right item active', async ({
+    page,
+  }) => {
+    await page.goto('/settings/security');
+    await page.reload();
+    await expect(menu(page).getByRole('link', { name: /Security/ })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    await expect(main(page)).toHaveCount(0);
+  });
+
+  test('phone: the Settings menu opens from the header and closing it leaves the page usable', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/settings');
-    await settled(page);
-    expect(await y(1)).toBeGreaterThan(await y(0));
+    await page.goto('/settings/general');
+    await expect(menu(page)).toHaveCount(0);
+    await page.getByRole('button', { name: 'Open navigation' }).click();
+    await expect(menu(page)).toBeVisible();
+    await menu(page)
+      .getByRole('link', { name: /Security/ })
+      .click();
+    await expect(page).toHaveURL(/\/settings\/security$/);
+    await expect(menu(page)).toHaveCount(0); // drawer closes after choosing
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
     ).toBe(false);
   });
+});
 
-  test('direct URLs work and agents do not see owner-only cards', async ({ page }) => {
-    await page.goto('/settings/general');
-    await expect(page.getByRole('heading', { name: 'General', level: 1 })).toBeVisible();
-    await expect(page.getByRole('navigation', { name: 'Settings' })).toHaveCount(0);
-  });
-
-  test('Teams and Channels moved from the main sidebar into Settings and open the same pages', async ({
-    page,
-  }) => {
-    await page.goto('/settings');
-    const main = page.getByRole('navigation', { name: 'Main' });
-    await expect(main.getByRole('link', { name: 'Team', exact: true })).toHaveCount(0);
-    await expect(main.getByRole('link', { name: 'Channels', exact: true })).toHaveCount(0);
-    const list = page.getByRole('list', { name: 'Settings sections' });
-    await list.getByRole('link', { name: /^Teams/ }).click();
-    await expect(page).toHaveURL(/\/team$/);
-    await expect(page.getByRole('heading', { name: 'Teams', level: 1 })).toBeVisible();
-    await expect(main.getByRole('link', { name: 'Settings' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
-    await page.goBack();
-    await expect(page).toHaveURL(/\/settings$/);
-    await list.getByRole('link', { name: /^Channels/ }).click();
-    await expect(page).toHaveURL(/\/channels$/);
-    await expect(page.getByRole('heading', { name: 'Channels', level: 1 })).toBeVisible();
-    await expect(main.getByRole('link', { name: 'Settings' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
-    await page.reload();
-    await expect(page.getByRole('heading', { name: 'Channels', level: 1 })).toBeVisible();
-  });
+test('agents do not see owner-only Settings items', async ({ page }) => {
+  resetSettings();
+  await mockApi(page, { role: 'AGENT' });
+  await page.goto('/settings/general');
+  await expect(menu(page).getByRole('link', { name: /General/ })).toBeVisible();
+  await expect(menu(page).getByRole('link', { name: /Billing/ })).toHaveCount(0);
+  await expect(menu(page).getByRole('link', { name: /Audit/ })).toHaveCount(0);
 });

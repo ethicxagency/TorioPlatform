@@ -102,7 +102,7 @@ export function CardsTab({ ws, o, canManage }: { ws: string; o: Overview; canMan
   const q = useCards(ws);
   const m = useBillingMutations(ws);
   const [removing, setRemoving] = useState<SavedCard | null>(null);
-  const err = (e: unknown) => toast(e instanceof Error ? e.message : 'Something went wrong');
+  const err = (e: unknown) => toast.error(e instanceof Error ? e.message : 'Something went wrong');
   const off = !o.providerConfigured
     ? 'Payments aren’t connected yet'
     : !canManage
@@ -227,7 +227,7 @@ export function HistoryTab({ ws, canManage }: { ws: string; canManage: boolean }
   const [open, setOpen] = useState<string | null>(null);
   const q = useInvoices(ws, status, page);
   const m = useBillingMutations(ws);
-  const err = (e: unknown) => toast(e instanceof Error ? e.message : 'Something went wrong');
+  const err = (e: unknown) => toast.error(e instanceof Error ? e.message : 'Something went wrong');
   const download = (i: InvoiceItem) =>
     downloadInvoicePdf(ws, i.id, i.number ?? 'invoice').catch(err);
   const meta = q.data?.meta;

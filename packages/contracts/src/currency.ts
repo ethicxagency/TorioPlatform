@@ -1,3 +1,5 @@
+import { currencyInfo } from './locale';
+
 /**
  * The single currency configuration for Torio. Every amount shown anywhere goes through `formatCurrency`, and every
  * amount is stored as integer minor units next to an ISO 4217 code, so adding a currency means adding an entry here
@@ -80,7 +82,7 @@ export function formatCurrency(
   if (minor === null || minor === undefined || !Number.isFinite(minor)) return '—';
   const cur = (code || DEFAULT_CURRENCY).toUpperCase();
   const def = currencyDef(cur);
-  const scale = 10 ** (def?.minorDigits ?? 2);
+  const scale = 10 ** (def?.minorDigits ?? currencyInfo(cur).minorDigits);
   const major = Math.abs(minor) / scale;
   const sign = minor < 0 ? '-' : '';
   const mark = def ? (opts.display === 'code' ? `${def.code} ` : def.symbol) : '';

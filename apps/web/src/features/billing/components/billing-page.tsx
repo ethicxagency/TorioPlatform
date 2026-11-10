@@ -1,8 +1,9 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useShell } from '@/components/shell/shell-context';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWorkspace } from '@/lib/workspace';
@@ -13,15 +14,15 @@ import { OverviewTab } from './overview-tab';
 import { CardsTab, HistoryTab, InfoTab, UsageTab } from './other-tabs';
 import { PlansTab } from './plans-tab';
 
-const TABS = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'plans', label: 'Plans & Pricing' },
+/** In-page sections, in reading order. `plans` is its own view (choosing a plan), reached from Manage Subscription. */
+const SECTIONS = [
+  { key: 'overview', label: 'Current plan' },
   { key: 'usage', label: 'Usage & Limits' },
   { key: 'payment-methods', label: 'Payment Methods' },
   { key: 'history', label: 'Billing History' },
   { key: 'info', label: 'Billing Information' },
 ] as const;
-type Tab = (typeof TABS)[number]['key'];
+type SectionKey = (typeof SECTIONS)[number]['key'];
 
 export function BillingPage() {
   const router = useRouter();
@@ -30,10 +31,18 @@ export function BillingPage() {
   const { workspaceId: ws, can, isLoading, error: wsError } = useWorkspace();
   const q = useOverview(can('billing:read') ? ws : null);
   const [message, setMessage] = useState('');
-  const tab = (TABS.find((t) => t.key === params.get('tab'))?.key ?? 'overview') as Tab;
+  const param = params.get('tab');
+  const plansView = param === 'plans';
+  const target = SECTIONS.find((t) => t.key === param)?.key as SectionKey | undefined;
+  // Old ?tab=usage style links land on their section of the single page.
+  useEffect(() => {
+    if (!target || target === 'overview') return;
+    document.getElementById(`billing-${target}`)?.scrollIntoView({ block: 'start' });
+  }, [target, plansView, params]);
   const result = params.get('result');
   const canManage = can('billing:manage');
-  const go = (t: string) => router.replace(t === 'overview' ? '/billing' : `/billing?tab=${t}`);
+  const go = (t: string) =>
+    router.replace(t === 'overview' ? '/billing' : `/billing?tab=${t}`, { scroll: false });
   const say = (m: string) => {
     setMessage(m);
     toast(m);
@@ -55,27 +64,25 @@ export function BillingPage() {
   const o = q.data;
 
   return (
-    <div className="mx-auto flex max-w-[1180px] flex-col gap-4 px-4 pb-10 pt-5 sm:px-6">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <nav aria-label="Breadcrumb" className="mb-1 text-xs text-faint">
-            Workspace / <span className="text-muted">Billing & Subscriptions</span>
-          </nav>
-          <h1 className="m-0 flex flex-wrap items-center gap-2 font-page-title">
-            Billing &amp; Subscriptions {o && <SubscriptionBadge o={o} />}
-          </h1>
-          <p className="m-0 mt-1 text-sm text-muted">
-            Manage your subscription, payments, invoices, and usage.
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          disabled={!o}
-          onClick={() => go('plans')}
-          title={canManage ? undefined : 'You can view plans; only the owner can change them'}
-        >
-          Manage Subscription
-        </Button>
+    <div className="flex flex-col gap-5">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="m-0 flex flex-wrap items-center gap-2.5 font-page-title">
+          Billing &amp; Subscriptions {o && <SubscriptionBadge o={o} />}
+        </h1>
+        {plansView ? (
+          <Button variant="outline" onClick={() => go('overview')}>
+            <ArrowLeft size={16} aria-hidden /> Back to billing
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            disabled={!o}
+            onClick={() => go('plans')}
+            title={canManage ? undefined : 'You can view plans; only the owner can change them'}
+          >
+            Manage Subscription
+          </Button>
+        )}
       </header>
 
       {q.isPending && <Skeleton className="h-24 w-full" />}
@@ -104,34 +111,7 @@ export function BillingPage() {
       {result === 'cancelled' && <Notice>Checkout was cancelled. Nothing was changed.</Notice>}
       {message && <Notice>{message}</Notice>}
 
-      <div
-        role="tablist"
-        aria-label="Billing sections"
-        className="flex gap-1 overflow-x-auto border-b border-line"
-      >
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            role="tab"
-            type="button"
-            aria-selected={tab === t.key}
-            onClick={() => go(t.key)}
-            className={cn(
-              '-mb-px h-9 shrink-0 cursor-pointer border-b-2 px-3 text-[13px]',
-              tab === t.key
-                ? 'border-primary font-semibold text-primary-hover'
-                : 'border-transparent text-muted hover:text-ink',
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {o && tab === 'overview' && (
-        <OverviewTab ws={ws} o={o} canManage={canManage} go={go} onMessage={say} />
-      )}
-      {o && tab === 'plans' && (
+      {o && plansView && (
         <PlansTab
           ws={ws}
           o={o}
@@ -140,10 +120,63 @@ export function BillingPage() {
           onMessage={say}
         />
       )}
-      {o && tab === 'usage' && <UsageTab ws={ws} o={o} go={go} />}
-      {o && tab === 'payment-methods' && <CardsTab ws={ws} o={o} canManage={canManage} />}
-      {tab === 'history' && <HistoryTab ws={ws} canManage={canManage} />}
-      {tab === 'info' && <InfoTab ws={ws} canManage={canManage} />}
+
+      {!plansView && (
+        <>
+          <nav
+            aria-label="Billing sections"
+            className="-mx-1 flex gap-1 overflow-x-auto border-b border-line-subtle px-1 [scrollbar-width:none]"
+          >
+            {SECTIONS.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                aria-current={
+                  target === t.key || (!target && t.key === 'overview') ? 'location' : undefined
+                }
+                onClick={() => {
+                  go(t.key);
+                  document
+                    .getElementById(`billing-${t.key}`)
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+                className={cn(
+                  '-mb-px h-9 shrink-0 cursor-pointer border-b-2 px-3 text-[13px] font-medium transition-colors duration-150 motion-reduce:transition-none',
+                  target === t.key || (!target && t.key === 'overview')
+                    ? 'border-primary font-semibold text-primary-hover'
+                    : 'border-transparent text-muted hover:text-ink',
+                )}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="flex flex-col gap-8">
+            {o && (
+              <section id="billing-overview" className="scroll-mt-4">
+                <OverviewTab ws={ws} o={o} canManage={canManage} go={go} onMessage={say} />
+              </section>
+            )}
+            {o && (
+              <section id="billing-usage" className="scroll-mt-4">
+                <UsageTab ws={ws} o={o} go={go} />
+              </section>
+            )}
+            {o && (
+              <section id="billing-payment-methods" className="scroll-mt-4">
+                <CardsTab ws={ws} o={o} canManage={canManage} />
+              </section>
+            )}
+            <section id="billing-history" className="scroll-mt-4">
+              <HistoryTab ws={ws} canManage={canManage} />
+            </section>
+            <section id="billing-info" className="scroll-mt-4">
+              <InfoTab ws={ws} canManage={canManage} />
+            </section>
+          </div>
+        </>
+      )}
     </div>
   );
 }

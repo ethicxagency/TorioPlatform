@@ -2,9 +2,9 @@
 
 import { usePathname } from 'next/navigation';
 import { isSettingsPath } from '@/features/settings/nav';
+import { toast, type Toast } from '@/lib/toast';
 import {
   createContext,
-  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -39,12 +39,13 @@ interface ShellState {
   userCollapsed: boolean;
   mobileNav: boolean;
   orderId: string | null;
-  toastText: string | null;
   setSidebarHover: (v: boolean) => void;
   toggleSidebar: () => void;
   setMobileNav: (v: boolean) => void;
   openOrder: (id: string | null) => void;
-  toast: (text: string) => void;
+  /** Where "Back" in Settings returns to: the last page opened outside Settings (or the dashboard). */
+  lastAppPath: () => string;
+  toast: Toast;
   /** Used by the shell's Escape handler; pages register their own popovers to close. */
   registerEscape: (fn: () => void) => () => void;
 }
@@ -64,16 +65,22 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [sbHover, setSbHover] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
-  const [toastText, setToastText] = useState<string | null>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const escapes = useRef(new Set<() => void>());
-
-  const toast = useCallback((text: string) => {
-    clearTimeout(toastTimer.current);
-    setToastText(text);
-    toastTimer.current = setTimeout(() => setToastText(null), 2600);
-  }, []);
-  useEffect(() => () => clearTimeout(toastTimer.current), []);
+  const pathname = usePathname();
+  const lastApp = useRef('/');
+  // Remember the last page outside Settings (also across a refresh) so Back in Settings returns to it.
+  useEffect(() => {
+    try {
+      if (!isSettingsPath(pathname)) {
+        lastApp.current = pathname + window.location.search;
+        sessionStorage.setItem('torio.lastAppPath', lastApp.current);
+      } else if (lastApp.current === '/') {
+        lastApp.current = sessionStorage.getItem('torio.lastAppPath') ?? '/';
+      }
+    } catch {
+      /* storage can be blocked; Back then falls back to the dashboard */
+    }
+  }, [pathname]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -90,12 +97,28 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<ShellState>(() => {
     const mobile = vw < 768;
     const wide = vw >= 1280;
-    const sidebarMode = mobile ? 'none' : !wide || userCollapsed ? 'rail' : 'full';
+    // Settings is its own navigation mode: a full sidebar from tablet up, the drawer on phones.
+    const sidebarMode = mobile
+      ? 'none'
+      : settingsMode
+        ? 'full'
+        : !wide || userCollapsed
+          ? 'rail'
+          : 'full';
     const expanded =
       sidebarMode === 'full' ||
       (sidebarMode === 'rail' && sbHover) ||
       (sidebarMode === 'none' && mobileNav);
-    const sbPx = sidebarMode === 'full' ? 228 : sidebarMode === 'rail' ? 68 : 0;
+    const sbPx =
+      sidebarMode === 'full'
+        ? settingsMode
+          ? vw >= 1024
+            ? 268
+            : 232
+          : 228
+        : sidebarMode === 'rail'
+          ? 68
+          : 0;
     return {
       vw,
       mobile,
@@ -107,7 +130,6 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       userCollapsed,
       mobileNav,
       orderId,
-      toastText,
       setSidebarHover: (v) => sidebarMode === 'rail' && setSbHover(v),
       toggleSidebar: () => {
         setUserCollapsed((x) => !x);
@@ -115,6 +137,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       },
       setMobileNav,
       openOrder: setOrderId,
+      lastAppPath: () => lastApp.current,
       toast,
       registerEscape: (fn) => {
         escapes.current.add(fn);
@@ -123,7 +146,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
         };
       },
     };
-  }, [vw, userCollapsed, sbHover, mobileNav, orderId, toastText, toast, settingsMode]);
+  }, [vw, userCollapsed, sbHover, mobileNav, orderId, settingsMode]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

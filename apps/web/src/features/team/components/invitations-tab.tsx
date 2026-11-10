@@ -10,6 +10,7 @@ import { assignableRoles } from '@torio/types';
 import { useTeamMutations } from '../queries';
 import type { Invitation, InvitationCreated, Role } from '../types';
 import { RoleBadge } from './role-badge';
+import { fmtDate } from '@/lib/datetime';
 
 interface Props {
   ws: string | null;
@@ -34,7 +35,7 @@ export function InvitationsTab({
   const mut = useTeamMutations(ws);
   const [cancel, setCancel] = useState<Invitation | null>(null);
   const [fresh, setFresh] = useState<InvitationCreated | null>(null);
-  const err = (e: unknown) => toast(e instanceof Error ? e.message : 'Something went wrong');
+  const err = (e: unknown) => toast.error(e instanceof Error ? e.message : 'Something went wrong');
 
   if (loading) return <Skeleton className="h-32 rounded-card" />;
   if (error)
@@ -106,12 +107,10 @@ export function InvitationsTab({
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-medium">{i.email}</div>
                 <div className="text-xs text-faint">
-                  Invited {new Date(i.createdAt).toLocaleDateString()}
+                  Invited {fmtDate(i.createdAt)}
                   {i.invitedBy ? ` by ${i.invitedBy.name}` : ''}
                   {i.team ? ` · ${i.team.name}` : ''} ·{' '}
-                  {i.status === 'EXPIRED'
-                    ? 'expired'
-                    : `expires ${new Date(i.expiresAt).toLocaleDateString()}`}
+                  {i.status === 'EXPIRED' ? 'expired' : `expires ${fmtDate(i.expiresAt)}`}
                 </div>
               </div>
               <RoleBadge role={i.role} />

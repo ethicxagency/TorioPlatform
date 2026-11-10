@@ -29,7 +29,7 @@ export function PrivacyPage() {
               await downloadMyData();
               toast('Your data was downloaded');
             } catch (e) {
-              toast(e instanceof Error ? e.message : 'Could not export your data');
+              toast.error(e instanceof Error ? e.message : 'Could not export your data');
             } finally {
               setBusy(false);
             }

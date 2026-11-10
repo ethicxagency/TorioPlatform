@@ -6,17 +6,17 @@ test.describe('settings (owner)', () => {
     resetSettings();
     await mockApi(page, { role: 'OWNER' });
     await page.goto('/settings');
-    await expect(page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'General', level: 1 })).toBeVisible();
   });
 
-  test('overview lists real sections as cards and marks what is not built yet', async ({
+  test('the Settings rail lists the real sections and marks what is not built yet', async ({
     page,
   }) => {
-    const main = page.getByRole('main');
-    for (const t of ['General', 'Security', 'Teams', 'Channels', 'Audit log'])
-      await expect(main.getByRole('link', { name: new RegExp(t) }).first()).toBeVisible();
-    await expect(main.getByRole('link', { name: /Notifications/ })).toContainText('Soon');
-    await expect(main.getByRole('link', { name: /Billing & subscriptions/ }).first()).toBeVisible();
+    const rail = page.getByRole('navigation', { name: 'Settings' });
+    for (const t of ['General', 'Security', 'Teams', 'Channels', 'Audit Log'])
+      await expect(rail.getByRole('link', { name: new RegExp(t) })).toBeVisible();
+    await expect(rail.getByRole('link', { name: /Notifications/ })).toContainText('Soon');
+    await expect(rail.getByRole('link', { name: /Billing & Subscriptions/ })).toBeVisible();
   });
 
   test('general: profile saves through the API, shows saved only after, keeps email read-only', async ({
@@ -50,32 +50,29 @@ test.describe('settings (owner)', () => {
     await page.goto('/settings/general');
     await expect(page.getByRole('button', { name: 'Save changes' })).toHaveCount(1);
     await page.getByLabel('Job title (optional)').fill('Head of Support');
-    await page.getByLabel('Start page').selectOption('inbox');
-    await page.getByLabel('Workspace name').fill('UrbanNest HQ');
-    await page.getByRole('button', { name: /^Default currency:/ }).click();
-    await page.getByRole('option', { name: /^BDT/ }).click();
-    await page.getByRole('button', { name: /^Your time zone:/ }).click();
-    await page.getByRole('combobox', { name: 'Search your time zone' }).fill('dhaka');
-    await page.getByRole('option', { name: 'Asia/Dhaka', exact: true }).first().click();
+    await page.getByLabel('Business Name').fill('UrbanNest HQ');
+    await page.getByRole('button', { name: /^Currency:/ }).click();
+    await page.getByRole('combobox', { name: 'Search currency' }).fill('dollar');
+    await page.getByRole('option', { name: /^USD/ }).click();
+    await page.getByRole('button', { name: /^Time Zone:/ }).click();
+    await page.getByRole('combobox', { name: 'Search time zone' }).fill('dubai');
+    await page.getByRole('option', { name: 'Asia/Dubai' }).first().click();
     await page.getByRole('button', { name: 'Save changes' }).click();
     await expect(page.getByText('Saved', { exact: true })).toBeVisible();
     expect(settingsState.profilePatches).toHaveLength(1);
-    expect(settingsState.profilePatches[0]).toEqual({
-      jobTitle: 'Head of Support',
-      landingPage: 'inbox',
-      timeZone: 'Asia/Dhaka',
-    });
+    expect(settingsState.profilePatches[0]).toEqual({ jobTitle: 'Head of Support' });
     expect(settingsState.workspacePatches).toHaveLength(1);
     expect(settingsState.workspacePatches[0]).toEqual({
       name: 'UrbanNest HQ',
-      defaultCurrency: 'BDT',
+      defaultCurrency: 'USD',
+      reportingTimeZone: 'Asia/Dubai',
     });
   });
 
   test('general: validation stops everything before anything is sent', async ({ page }) => {
     await page.goto('/settings/general');
     await page.getByLabel('Job title (optional)').fill('Lead');
-    await page.getByLabel('Workspace name').fill('x');
+    await page.getByLabel('Business Name').fill('x');
     await page.getByRole('button', { name: 'Save changes' }).click();
     await expect(page.getByText('at least 2 characters')).toBeVisible();
     expect(settingsState.profilePatches).toHaveLength(0);
@@ -94,13 +91,13 @@ test.describe('settings (owner)', () => {
     }
   });
 
-  test('unsaved edits trigger a discard confirmation when leaving through the breadcrumb', async ({
+  test('unsaved edits trigger a discard confirmation when leaving through the section rail', async ({
     page,
   }) => {
     await page.goto('/settings/general');
     await page.getByLabel('Job title (optional)').fill('Head of Support');
-    const crumb = page.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', {
-      name: 'Settings',
+    const crumb = page.getByRole('navigation', { name: 'Settings' }).getByRole('link', {
+      name: /Security/,
     });
     await crumb.click();
     const d = page.getByRole('alertdialog');
@@ -109,7 +106,7 @@ test.describe('settings (owner)', () => {
     await expect(page).toHaveURL(/\/settings\/general$/);
     await crumb.click();
     await page.getByRole('alertdialog').getByRole('button', { name: 'Discard changes' }).click();
-    await expect(page).toHaveURL(/\/settings$/);
+    await expect(page).toHaveURL(/\/settings\/security$/);
   });
 
   test('security: password validation, wrong-current error from the server, device sign-out', async ({
@@ -187,18 +184,13 @@ test.describe('settings (owner)', () => {
     await expect(page).toHaveURL(/\/settings\/general#workspace$/);
   });
 
-  test('no horizontal overflow on a phone, and the breadcrumb leads back', async ({ page }) => {
+  test('no horizontal overflow on a phone', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/settings/general');
-    await expect(page.getByLabel('Workspace name')).toBeVisible();
+    await expect(page.getByLabel('Business Name')).toBeVisible();
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
     ).toBe(false);
-    await page
-      .getByRole('navigation', { name: 'Breadcrumb' })
-      .getByRole('link', { name: 'Settings' })
-      .click();
-    await expect(page).toHaveURL(/\/settings$/);
   });
 });
 
@@ -223,9 +215,9 @@ test.describe('settings (agent)', () => {
 
   test('workspace is read-only and the audit log is hidden', async ({ page }) => {
     await page.goto('/settings/general');
-    await expect(page.getByLabel('Workspace name')).toBeDisabled();
-    await expect(page.getByRole('button', { name: /^Default currency:/ })).toBeDisabled();
-    await expect(page.getByText(/Workspace administrator permissions/)).toBeVisible();
+    await expect(page.getByLabel('Business Name')).toBeDisabled();
+    await expect(page.getByRole('button', { name: /^Currency:/ })).toBeDisabled();
+    await expect(page.getByText(/Owner or Admin permissions/)).toBeVisible();
     // Personal fields stay editable, and an agent's save sends no workspace change.
     await page.getByLabel('Job title (optional)').fill('Agent');
     await page.getByRole('button', { name: 'Save changes' }).click();

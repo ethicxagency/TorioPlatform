@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { passwordSchema } from './index';
+import { isTimeZone } from './locale';
+import { currencyCodeSchema } from './orders';
 
 /** Settings: personal profile and preferences, security (password, sessions), workspace profile, audit log. */
 
@@ -23,14 +25,6 @@ export const LANDING_HREF: Record<(typeof LANDING_PAGES)[number], string> = {
   orders: '/orders',
 };
 
-const isTimeZone = (v: string) => {
-  try {
-    new Intl.DateTimeFormat('en', { timeZone: v });
-    return true;
-  } catch {
-    return false;
-  }
-};
 export const timeZoneSchema = z
   .string()
   .trim()
@@ -92,7 +86,7 @@ export const updateWorkspaceSchema = z
     name: z.string().trim().min(2, 'Workspace name needs at least 2 characters').max(80).optional(),
     description: optionalText(300),
     defaultCurrency: z
-      .union([z.literal(''), z.enum(['USD', 'EUR', 'GBP', 'BDT', 'INR', 'AED'])])
+      .union([z.literal(''), currencyCodeSchema])
       .nullable()
       .optional()
       .transform((v) => (v ? v : v === undefined ? undefined : null)),

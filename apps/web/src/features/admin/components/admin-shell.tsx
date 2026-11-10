@@ -28,6 +28,8 @@ import { HEADER_ICON_BTN } from '@/components/shell/header-popover';
 import { NAV_ICON, NAV_PANEL_CLASS, NavItem } from '@/components/shell/nav-item';
 import { TorioLogo } from '@/components/shell/torio-logo';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Toaster } from '@/components/ui/toaster';
+import { toast, type Toast } from '@/lib/toast';
 import { useDismiss } from '@/features/inbox/use-dismiss';
 import { adminRequest, setAdminUnauthorizedHandler } from '@/lib/admin-api';
 import { cn } from '@/lib/utils';
@@ -35,7 +37,7 @@ import { useAdminMe, type AdminProfile } from '../queries';
 
 interface Shell {
   admin: AdminProfile;
-  toast: (m: string) => void;
+  toast: Toast;
   registerEscape: (fn: () => void) => () => void;
 }
 const Ctx = createContext<Shell | null>(null);
@@ -76,7 +78,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const qc = useQueryClient();
   const me = useAdminMe();
   const [open, setOpen] = useState(false);
-  const [message, setMessage] = useState('');
   // Stack of Escape handlers (drawers/dialogs). A stable object held in state so it is never read during render.
   const [escapes] = useState<{ stack: (() => void)[] }>(() => ({ stack: [] }));
   const [seenPath, setSeenPath] = useState(pathname);
@@ -100,12 +101,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
   }, [escapes]);
-  useEffect(() => {
-    if (!message) return;
-    const t = setTimeout(() => setMessage(''), 4500);
-    return () => clearTimeout(t);
-  }, [message]);
-
   const registerEscape = useCallback(
     (fn: () => void) => {
       escapes.stack.push(fn);
@@ -116,7 +111,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     [escapes],
   );
   const value = useMemo(
-    () => (me.data ? { admin: me.data, toast: setMessage, registerEscape } : null),
+    () => (me.data ? { admin: me.data, toast, registerEscape } : null),
     [me.data, registerEscape],
   );
 
@@ -223,14 +218,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <div className="mx-auto max-w-[1180px] px-4 pb-10 pt-5 sm:px-6">{children}</div>
           </main>
         </div>
-        {message && (
-          <div
-            role="status"
-            className="fixed bottom-6 left-1/2 z-[95] flex max-w-[calc(100vw-32px)] -translate-x-1/2 animate-toast-in items-center gap-3 rounded-xl bg-ink px-3.5 py-2.5 text-[13px] text-white shadow-[0_8px_24px_rgba(0,55,112,0.2)]"
-          >
-            {message}
-          </div>
-        )}
+        <Toaster />
       </div>
     </Ctx.Provider>
   );

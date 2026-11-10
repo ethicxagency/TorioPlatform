@@ -19,6 +19,7 @@ import {
 } from '../queries';
 import { STATUS_INFO, type Channel } from '../types';
 import { Hint, ProviderMark, StatusPill } from './bits';
+import { fmtDate, fmtStamp } from '@/lib/datetime';
 
 interface Props {
   channel: Channel;
@@ -87,7 +88,7 @@ export function ChannelDrawer({ channel: c, canManage, canAudit, onClose, onReco
   }, []);
   useEffect(() => registerEscape(onClose), [registerEscape, onClose]);
 
-  const err = (e: unknown) => toast(e instanceof Error ? e.message : 'Something went wrong');
+  const err = (e: unknown) => toast.error(e instanceof Error ? e.message : 'Something went wrong');
   const patch = (body: Parameters<typeof mut.update.mutate>[0]['body'], ok: string) =>
     mut.update.mutate({ id: c.id, body }, { onSuccess: () => toast(ok), onError: err });
   const saveName = () => {
@@ -169,7 +170,9 @@ export function ChannelDrawer({ channel: c, canManage, canAudit, onClose, onReco
                 onClick={() =>
                   check.mutate(c.id, {
                     onSuccess: (r) =>
-                      toast(r.ok ? 'Connection is healthy' : (r.error ?? 'The check failed')),
+                      r.ok
+                        ? toast.success('Connection is healthy')
+                        : toast.error(r.error ?? 'The check failed'),
                     onError: err,
                   })
                 }
@@ -221,7 +224,7 @@ export function ChannelDrawer({ channel: c, canManage, canAudit, onClose, onReco
               <dt className="text-faint">Connected</dt>
               <dd className="m-0">
                 {c.connectedAt
-                  ? new Date(c.connectedAt).toLocaleString('en-US', {
+                  ? fmtStamp(c.connectedAt, {
                       dateStyle: 'medium',
                       timeStyle: 'short',
                     })
@@ -231,7 +234,7 @@ export function ChannelDrawer({ channel: c, canManage, canAudit, onClose, onReco
                 <>
                   <dt className="text-faint">Disconnected</dt>
                   <dd className="m-0">
-                    {new Date(c.disconnectedAt).toLocaleString('en-US', {
+                    {fmtStamp(c.disconnectedAt, {
                       dateStyle: 'medium',
                       timeStyle: 'short',
                     })}
@@ -286,7 +289,7 @@ export function ChannelDrawer({ channel: c, canManage, canAudit, onClose, onReco
                   c.status === 'EXPIRED'
                     ? 'Expired'
                     : c.tokenExpiresAt
-                      ? `Expires ${new Date(c.tokenExpiresAt).toLocaleDateString('en-US', { dateStyle: 'medium' })}`
+                      ? `Expires ${fmtDate(c.tokenExpiresAt, { dateStyle: 'medium' })}`
                       : c.lastHealthCheckAt
                         ? 'No expiry reported'
                         : 'Not verified'
@@ -416,7 +419,7 @@ export function ChannelDrawer({ channel: c, canManage, canAudit, onClose, onReco
                     </p>
                     <div className="text-xs text-faint">
                       {a.actor ? `${a.actor.name} · ` : ''}
-                      {new Date(a.createdAt).toLocaleString('en-US', {
+                      {fmtStamp(a.createdAt, {
                         dateStyle: 'medium',
                         timeStyle: 'short',
                       })}

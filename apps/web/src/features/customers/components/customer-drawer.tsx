@@ -33,7 +33,7 @@ import { useShell } from '@/components/shell/shell-context';
 import { ConfirmDialog } from '@/features/inbox/components/confirm-dialog';
 import { SearchSelect } from '@/features/inbox/components/search-select';
 import { useTimeZone } from '@/features/settings/queries';
-import { fmtDateTime } from '@/lib/datetime';
+import { fmtDateTime, fmtStamp } from '@/lib/datetime';
 import { CHANNELS } from '@/features/inbox/constants';
 import { fmtAgo, initialsOf } from '@/features/inbox/format';
 import { SourceBadge } from '@/features/leads/components/badges';
@@ -94,7 +94,7 @@ export function CustomerDrawer({
   const [tag, setTag] = useState('');
   const timeZone = useTimeZone();
 
-  const err = (e: unknown) => toast(e instanceof Error ? e.message : 'Something went wrong');
+  const err = (e: unknown) => toast.error(e instanceof Error ? e.message : 'Something went wrong');
   const patch = (body: Parameters<typeof m.update.mutate>[0]['body'], ok: string) =>
     m.update.mutate({ id: c.id, body }, { onSuccess: () => toast(ok), onError: err });
   const contactRow = (
@@ -425,7 +425,7 @@ export function CustomerDrawer({
                         <div className="mt-1 flex items-center gap-2 text-xs text-[#A68A52]">
                           <span className="flex-1">
                             {n.author?.name ?? 'Team'} ·{' '}
-                            {new Date(n.createdAt).toLocaleString('en-US', {
+                            {fmtStamp(n.createdAt, {
                               dateStyle: 'medium',
                               timeStyle: 'short',
                             })}
@@ -505,7 +505,7 @@ export function CustomerDrawer({
                         </p>
                       )}
                       <div className="text-xs text-faint">
-                        {new Date(a.at).toLocaleString('en-US', {
+                        {fmtStamp(a.at, {
                           dateStyle: 'medium',
                           timeStyle: 'short',
                         })}

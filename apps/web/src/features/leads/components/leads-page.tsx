@@ -87,7 +87,7 @@ export function LeadsPage() {
   );
   const leads = useMemo(() => list.data?.data ?? [], [list.data]);
   const tags = useMemo(() => [...new Set(leads.flatMap((l) => l.tags))].sort(), [leads]);
-  const err = (e: unknown) => toast(e instanceof Error ? e.message : 'Something went wrong');
+  const err = (e: unknown) => toast.error(e instanceof Error ? e.message : 'Something went wrong');
 
   const patchFilters = useCallback((p: Partial<LeadFilters>) => {
     setFilters((f) => ({ ...f, ...p }));
@@ -383,7 +383,9 @@ export function LeadsPage() {
                 onSuccess: () =>
                   toast(`Moved ${l.name} to ${stage.charAt(0) + stage.slice(1).toLowerCase()}`),
                 onError: (e) =>
-                  toast(`Couldn't move ${l.name}: ${e instanceof Error ? e.message : 'failed'}`),
+                  toast.error(
+                    `Couldn't move ${l.name}: ${e instanceof Error ? e.message : 'failed'}`,
+                  ),
               },
             )
           }

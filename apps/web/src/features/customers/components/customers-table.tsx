@@ -21,6 +21,7 @@ import { SourceBadge } from '@/features/leads/components/badges';
 import { cn } from '@/lib/utils';
 import type { CustomerItem, CustomerSort } from '../types';
 import { CustomerStatusBadge } from './status-badge';
+import { fmtDate } from '@/lib/datetime';
 
 interface Props {
   customers: CustomerItem[];
@@ -355,7 +356,7 @@ export function CustomersTable(p: Props) {
                   {fmtAgo(c.lastActivityAt, p.now)}
                 </td>
                 <td className="whitespace-nowrap px-3 py-2.5 text-muted max-2xl:hidden">
-                  {new Date(c.createdAt).toLocaleDateString('en-US', {
+                  {fmtDate(c.createdAt, {
                     month: 'short',
                     day: 'numeric',
                     year: 'numeric',

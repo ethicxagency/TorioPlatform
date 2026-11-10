@@ -1,28 +1,33 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { useLayoutEffect } from 'react';
+import { setWorkspaceTimeZone, useWorkspaceTimeZone } from '@/lib/datetime';
+import { useWorkspace } from '@/lib/workspace';
 import { GuardProvider } from '@/features/settings/components/guard';
 import { OrderDrawer } from '@/features/dashboard/components/order-drawer';
-import { ShellProvider, useShell } from './shell-context';
+import { Toaster } from '@/components/ui/toaster';
+import { ShellProvider } from './shell-context';
 import { Sidebar } from './sidebar';
 import { TopBar } from './top-bar';
 
-function Toast() {
-  const { toastText } = useShell();
-  if (!toastText) return null;
-  return (
-    <div
-      role="status"
-      className="fixed bottom-6 left-1/2 z-[95] flex max-w-[calc(100vw-32px)] -translate-x-1/2 animate-toast-in items-center gap-3 rounded-xl bg-ink px-3.5 py-2.5 text-[13px] text-white shadow-[0_8px_24px_rgba(0,55,112,0.2)]"
-    >
-      {toastText}
-    </div>
-  );
+/** Publishes the workspace's time zone to the shared date formatter (and clears it on sign-out). */
+function TimeZoneSync() {
+  const { workspace } = useWorkspace();
+  const zone = workspace?.reportingTimeZone ?? null;
+  useLayoutEffect(() => {
+    setWorkspaceTimeZone(zone);
+  }, [zone]);
+  return null;
 }
 
 /** Application chrome: glass top bar, collapsible sidebar, scrollable main region. */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  // A different workspace zone remounts the page so every date on it is formatted in the new zone. General settings
+  // shows no dates and is where the zone is changed, so it keeps its form state (and its "Saved" confirmation).
+  const keepState = pathname === '/settings/general';
+  const zone = useWorkspaceTimeZone();
   return (
     <ShellProvider>
       <GuardProvider>
@@ -38,7 +43,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Sidebar />
             {/* Keyed by route: each page fades in on navigation (shell stays put); query-string changes don't replay it. */}
             <main
-              key={pathname}
+              key={keepState ? pathname : `${pathname}|${zone ?? ''}`}
               id="main"
               className="min-w-0 flex-1 animate-page-in overflow-y-auto overflow-x-hidden"
             >
@@ -46,7 +51,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </main>
           </div>
           <OrderDrawer />
-          <Toast />
+          <Toaster />
+          <TimeZoneSync />
         </div>
       </GuardProvider>
     </ShellProvider>

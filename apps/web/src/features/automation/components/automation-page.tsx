@@ -87,7 +87,7 @@ export function AutomationPage() {
     tab === 'history',
   );
   const m = useAutomationMutations(ws);
-  const err = (e: unknown) => toast(e instanceof Error ? e.message : 'Something went wrong');
+  const err = (e: unknown) => toast.error(e instanceof Error ? e.message : 'Something went wrong');
 
   const patch = useCallback((p: Partial<DirectoryFilters>) => {
     setFilters((f) => ({ ...f, ...p }));
@@ -105,7 +105,7 @@ export function AutomationPage() {
         setBusyId(null);
       },
       onError: (e) => {
-        toast(`${e.message}. Open the editor to fix it.`);
+        toast.error(`${e.message}. Open the editor to fix it.`);
         setBusyId(null);
       },
     });

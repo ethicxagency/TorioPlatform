@@ -30,7 +30,7 @@ test.describe('internal routes and links', () => {
 
   test('every settings card and breadcrumb leads to an existing page', async ({ page }) => {
     await page.goto('/settings');
-    const cards = page.getByRole('list', { name: 'Settings sections' }).locator('a');
+    const cards = page.getByRole('navigation', { name: 'Settings' }).locator('a');
     await expect(cards).toHaveCount(8); // permission-filtered list settles after the workspace loads
     const hrefs = await cards.evaluateAll((els) => els.map((e) => e.getAttribute('href')!));
     expect(hrefs).toHaveLength(8);

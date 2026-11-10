@@ -2515,7 +2515,7 @@ export interface components {
         UpdateWorkspaceDto: {
             name?: string;
             description?: string | null;
-            defaultCurrency?: ("" | ("USD" | "EUR" | "GBP" | "BDT" | "INR" | "AED")) | null;
+            defaultCurrency?: ("" | string) | null;
             reportingTimeZone?: string;
             contactEmail?: ("" | string) | null;
         };
@@ -3949,8 +3949,7 @@ export interface components {
             customerId: string;
             /** Format: uuid */
             conversationId?: string;
-            /** @enum {string} */
-            currency: "USD" | "EUR" | "GBP" | "BDT" | "INR" | "AED";
+            currency: string;
             items: {
                 name: string;
                 sku?: string;

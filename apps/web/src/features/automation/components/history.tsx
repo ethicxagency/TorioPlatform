@@ -239,7 +239,7 @@ export function ExecutionDrawer({
                   onClick={() =>
                     m.retry.mutate(e.id, {
                       onSuccess: () => toast('Run queued to retry from the failed step'),
-                      onError: (err) => toast(err.message),
+                      onError: (err) => toast.error(err.message),
                     })
                   }
                 >

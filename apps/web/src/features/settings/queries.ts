@@ -4,6 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import type { ApiSchemas } from '@torio/api-client';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useWorkspaceTimeZone } from '@/lib/datetime';
 import { ApiRequestError } from '@/features/leads/queries';
 
 type ApiError =
@@ -41,8 +42,8 @@ export function useProfile() {
   });
 }
 
-/** The user's chosen time zone, or undefined to use the browser's. */
-export const useTimeZone = () => useProfile().data?.timeZone ?? undefined;
+/** The workspace's time zone: every member sees the same dates and times, whatever their browser says. */
+export const useTimeZone = () => useWorkspaceTimeZone() ?? undefined;
 
 export function useUpdateProfile() {
   const qc = useQueryClient();

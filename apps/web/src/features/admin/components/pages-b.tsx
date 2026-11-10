@@ -1054,7 +1054,7 @@ export function SettingsPage() {
                     {
                       onSuccess: () =>
                         toast(e.target.checked ? 'Registrations opened' : 'Registrations closed'),
-                      onError: (x) => toast(x.message),
+                      onError: (x) => toast.error(x.message),
                     },
                   )
                 }
@@ -1113,7 +1113,7 @@ export function SettingsPage() {
                 await rename.mutateAsync({ name });
                 toast('Profile saved');
               } catch (x) {
-                toast(x instanceof Error ? x.message : 'Failed');
+                toast.error(x instanceof Error ? x.message : 'Failed');
               }
             }}
           >
@@ -1148,7 +1148,7 @@ export function SettingsPage() {
                 setNext('');
                 toast('Password changed. Other sessions were signed out.');
               } catch (x) {
-                toast(x instanceof Error ? x.message : 'Failed');
+                toast.error(x instanceof Error ? x.message : 'Failed');
               }
             }}
           >

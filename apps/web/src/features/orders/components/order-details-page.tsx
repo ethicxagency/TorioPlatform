@@ -376,7 +376,7 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Could not save the changes';
       setSaveError(msg);
-      toast(msg);
+      toast.error(msg);
       return false;
     }
   };
@@ -386,13 +386,13 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
       await downloadOrdersCsv(ws, EMPTY_ORDER_FILTERS, [orderId]);
       toast('Export started');
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Something went wrong');
+      toast.error(e instanceof Error ? e.message : 'Something went wrong');
     }
   };
   /** Back to the list as the user left it: the list restores its own search, filters and page. */
   const back = () => guard.attempt(() => router.push('/orders'));
 
-  const err = (e: unknown) => toast(e instanceof Error ? e.message : 'Something went wrong');
+  const err = (e: unknown) => toast.error(e instanceof Error ? e.message : 'Something went wrong');
   const next = o ? NEXT_STATUS[o.status] : undefined;
   const nextBlock = o && next ? statusBlockReason(o, next.to) : null;
   const cancelBlock = o ? statusBlockReason(o, 'CANCELLED') : null;

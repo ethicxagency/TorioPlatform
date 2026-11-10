@@ -1,4 +1,9 @@
-import { DEFAULT_CURRENCY, ENABLED_CURRENCIES } from '@torio/contracts';
+import {
+  currencyInfo,
+  DEFAULT_CURRENCY,
+  ENABLED_CURRENCIES,
+  isIsoCurrency,
+} from '@torio/contracts';
 import type {
   FulfillmentStatus,
   OrderChannel,
@@ -44,6 +49,20 @@ export const CHANNEL_LABEL: Record<OrderChannel, string> = {
 /** Currencies a customer can pick for new orders. Old orders keep whatever currency they were created in. */
 export const CURRENCIES = ENABLED_CURRENCIES;
 export { DEFAULT_CURRENCY };
+
+/**
+ * Currencies offered on a new order: the workspace's default currency first (when orders can be priced in it),
+ * then the platform's enabled ones. A default that can't be used for orders never silently becomes another one.
+ */
+export function orderCurrencies(defaultCurrency: string | null | undefined): string[] {
+  const usable =
+    defaultCurrency &&
+    isIsoCurrency(defaultCurrency) &&
+    currencyInfo(defaultCurrency).minorDigits === 2
+      ? [defaultCurrency]
+      : [];
+  return [...new Set<string>([...usable, ...CURRENCIES])];
+}
 
 /** Status transitions offered as the primary "next step" in the UI, in order. Rules live in @torio/contracts. */
 export const NEXT_STATUS: Partial<

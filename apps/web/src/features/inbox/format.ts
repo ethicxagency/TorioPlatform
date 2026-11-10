@@ -1,3 +1,4 @@
+import { fmtClock, fmtDate, fmtStamp, zonedDayDiff } from '@/lib/datetime';
 export const initialsOf = (n: string | null | undefined) =>
   (n || '?')
     .split(' ')
@@ -30,16 +31,14 @@ export const fmtAgo = (iso: string, now = Date.now()) => {
           : `${Math.floor(m / 1440)}d`;
 };
 
-export const fmtTime = (iso: string) =>
-  new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+export const fmtTime = (iso: string) => fmtClock(iso);
 
+/** "Today" / "Yesterday" / weekday / date, with day boundaries taken in the workspace time zone. */
 export function dayLabel(iso: string, now = new Date()) {
-  const d = new Date(iso);
-  const start = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
-  const diff = Math.round((start(now) - start(d)) / 86_400_000);
+  const diff = zonedDayDiff(now, iso);
   if (diff === 0) return 'Today';
   if (diff === 1) return 'Yesterday';
-  return d.toLocaleDateString('en-US', {
+  return fmtDate(iso, {
     weekday: diff < 7 ? 'long' : undefined,
     month: 'short',
     day: 'numeric',
@@ -57,7 +56,7 @@ export function renderTemplate(body: string, customer: { name: string }) {
 }
 
 export const snoozeLabel = (iso: string) =>
-  new Date(iso).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+  fmtStamp(iso, { weekday: 'short', hour: 'numeric', minute: '2-digit' });
 
 /** Customer-facing order summary for the reply draft (the agent reviews it and presses Send). */
 export function orderSummaryText(

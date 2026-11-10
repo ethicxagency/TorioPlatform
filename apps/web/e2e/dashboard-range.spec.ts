@@ -293,7 +293,8 @@ test.describe('dashboard date range', () => {
 
   test('the reporting time zone can be set in workspace settings', async ({ page }) => {
     await page.goto('/settings/general');
-    await expect(page.getByRole('button', { name: `Reporting time zone: ${TZ}` })).toBeVisible();
-    await expect(page.getByText(/Decides where each day starts and ends/)).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: `Time Zone: ${TZ.replace(/_/g, ' ')}` }),
+    ).toBeVisible();
   });
 });

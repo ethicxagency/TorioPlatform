@@ -273,10 +273,27 @@ describe.skipIf(!url)('settings (real PostgreSQL)', () => {
     });
     const got = (await http().get(base).set(agent).expect(200)).body;
     expect(got.defaultCurrency).toBe('BDT');
+    // Any ISO 4217 currency and any IANA zone are accepted; unknown ones and agents are not.
+    await http().patch(base).set(admin).send({ defaultCurrency: 'ZZZ' }).expect(400);
+    await http().patch(base).set(admin).send({ reportingTimeZone: 'Mars/Base' }).expect(400);
+    await http().patch(base).set(agent).send({ defaultCurrency: 'USD' }).expect(403);
+    const regional = await http()
+      .patch(base)
+      .set(admin)
+      .send({ defaultCurrency: 'SAR', reportingTimeZone: 'Asia/Dubai' })
+      .expect(200);
+    expect(regional.body).toMatchObject({
+      defaultCurrency: 'SAR',
+      reportingTimeZone: 'Asia/Dubai',
+    });
+    expect((await http().get(base).set(agent).expect(200)).body).toMatchObject({
+      defaultCurrency: 'SAR',
+      reportingTimeZone: 'Asia/Dubai',
+    });
     expect((await db.workspace.findUnique({ where: { id: ids.wsB! } }))?.name).toBe('B');
     expect(
       await db.auditLog.count({ where: { workspaceId: ids.wsA!, action: 'workspace.update' } }),
-    ).toBe(1);
+    ).toBe(2);
   });
 
   it('audit log: Owner/Admin only, workspace-scoped, paged', async () => {

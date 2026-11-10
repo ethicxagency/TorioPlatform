@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 import { DEFAULT_CURRENCY, formatCurrencyMajor } from '@torio/contracts';
 import type { Lead, LeadSortField } from '../types';
 import { ScoreIndicator, SourceBadge, StageBadge } from './badges';
+import { fmtDate } from '@/lib/datetime';
 
 interface Props {
   leads: Lead[];
@@ -383,7 +384,7 @@ export function LeadsTable(p: Props) {
                   {fmtAgo(l.lastActivityAt, p.now)}
                 </td>
                 <td className="whitespace-nowrap px-3 py-2.5 text-muted max-2xl:hidden">
-                  {new Date(l.createdAt).toLocaleDateString('en-US', {
+                  {fmtDate(l.createdAt, {
                     month: 'short',
                     day: 'numeric',
                     year: 'numeric',

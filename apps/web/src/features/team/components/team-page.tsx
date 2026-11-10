@@ -92,7 +92,7 @@ export function TeamPage() {
   ];
 
   return (
-    <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 pb-8 pt-5 sm:px-6">
+    <div className="flex flex-col gap-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
           <nav aria-label="Breadcrumb" className="mb-1 text-xs text-faint">

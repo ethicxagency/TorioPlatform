@@ -17,11 +17,12 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useShell } from '@/components/shell/shell-context';
 import { cn } from '@/lib/utils';
 import { initialsOf } from '../format';
 import { useDismiss } from '../use-dismiss';
-import { useKeepInView } from '../use-keep-in-view';
+import { useAnchoredPopover } from '../use-anchored-popover';
 import { FilterMenu, type FilterMenuOption } from './filter-menu';
 import { SearchSelect } from './search-select';
 import {
@@ -118,8 +119,8 @@ export function ConversationFilters({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
-  useDismiss(ref, open, () => setOpen(false));
-  useKeepInView(panel);
+  useDismiss(ref, open, () => setOpen(false), panel);
+  useAnchoredPopover(ref, panel, open);
   useEffect(
     () => (open ? registerEscape(() => setOpen(false)) : undefined),
     [open, registerEscape],
@@ -242,87 +243,93 @@ export function ConversationFilters({
                   </span>
                 )}
               </button>
-              {open && (
-                <div
-                  ref={panel}
-                  role="dialog"
-                  aria-label="Advanced filters"
-                  className="absolute right-0 top-11 z-[45] flex w-[min(300px,calc(100vw-24px))] animate-panel-in flex-col gap-3.5 rounded-xl border border-line bg-white p-3.5 shadow-popover"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="font-card-title">Filters</span>
-                    {advanced > 0 && (
-                      <span className="rounded-full bg-primary-soft px-1.5 py-px text-[11px] font-semibold text-primary-hover">
-                        {advanced}
-                      </span>
-                    )}
-                    <span className="flex-1" />
-                    <button
-                      type="button"
-                      disabled={!advanced}
-                      onClick={() => onChange({ assigneeId: '', tag: '', priority: '' })}
-                      className="cursor-pointer rounded-md px-1.5 py-0.5 text-xs font-medium text-primary hover:bg-primary-soft disabled:cursor-default disabled:text-faint disabled:hover:bg-transparent"
-                    >
-                      Clear all
-                    </button>
-                  </div>
-                  <SearchSelect
-                    label="Assigned agent"
-                    anyLabel="Any agent"
-                    searchPlaceholder="Search agents"
-                    emptyText="No agents in this workspace."
-                    loading={agentsLoading}
-                    options={agents.map((a) => ({
-                      value: a.id,
-                      label: a.name,
-                      lead: initials(a.name),
-                    }))}
-                    value={filters.assigneeId}
-                    onChange={(assigneeId) => onChange({ assigneeId })}
-                  />
-                  <SearchSelect
-                    label="Tag"
-                    anyLabel="Any tag"
-                    searchPlaceholder="Search tags"
-                    emptyText="No customer tags yet."
-                    loading={tagsLoading}
-                    options={tags.map((t) => ({ value: t, label: t }))}
-                    value={filters.tag}
-                    onChange={(tag) => onChange({ tag })}
-                  />
-                  <div role="radiogroup" aria-label="Priority" className="flex flex-col gap-1.5">
-                    <span className="font-label text-muted">Priority</span>
-                    <div className="flex gap-0.5 rounded-[var(--radius-control)] bg-wash-2 p-[3px]">
-                      {PRIORITIES.map((p) => {
-                        const on = filters.priority === p.key;
-                        return (
-                          <button
-                            key={p.label}
-                            type="button"
-                            role="radio"
-                            aria-checked={on}
-                            onClick={() => onChange({ priority: p.key })}
-                            className={cn(
-                              'flex h-7 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-[6px] text-[12.5px] transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-primary motion-reduce:transition-none',
-                              on
-                                ? 'bg-white font-semibold text-ink shadow-[0_1px_2px_rgba(0,55,112,0.08),0_0_0_1px_rgba(0,55,112,0.05)]'
-                                : 'font-medium text-muted hover:text-ink',
-                            )}
-                          >
-                            {p.dot && (
-                              <span aria-hidden className={cn('h-1.5 w-1.5 rounded-full', p.dot)} />
-                            )}
-                            {p.label}
-                          </button>
-                        );
-                      })}
+              {open &&
+                createPortal(
+                  <div
+                    ref={panel}
+                    role="dialog"
+                    aria-label="Advanced filters"
+                    style={{ top: 0, left: 0 }}
+                    className="fixed z-[45] flex w-[min(300px,calc(100vw-24px))] animate-panel-in flex-col gap-3.5 overflow-y-auto overscroll-contain rounded-xl border border-line bg-white p-3.5 shadow-popover"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-card-title">Filters</span>
+                      {advanced > 0 && (
+                        <span className="rounded-full bg-primary-soft px-1.5 py-px text-[11px] font-semibold text-primary-hover">
+                          {advanced}
+                        </span>
+                      )}
+                      <span className="flex-1" />
+                      <button
+                        type="button"
+                        disabled={!advanced}
+                        onClick={() => onChange({ assigneeId: '', tag: '', priority: '' })}
+                        className="cursor-pointer rounded-md px-1.5 py-0.5 text-xs font-medium text-primary hover:bg-primary-soft disabled:cursor-default disabled:text-faint disabled:hover:bg-transparent"
+                      >
+                        Clear all
+                      </button>
                     </div>
-                  </div>
-                  <p className="m-0 text-xs text-faint">
-                    Filters apply as you choose and combine with search, status and channel.
-                  </p>
-                </div>
-              )}
+                    <SearchSelect
+                      label="Assigned agent"
+                      anyLabel="Any agent"
+                      searchPlaceholder="Search agents"
+                      emptyText="No agents in this workspace."
+                      loading={agentsLoading}
+                      options={agents.map((a) => ({
+                        value: a.id,
+                        label: a.name,
+                        lead: initials(a.name),
+                      }))}
+                      value={filters.assigneeId}
+                      onChange={(assigneeId) => onChange({ assigneeId })}
+                    />
+                    <SearchSelect
+                      label="Tag"
+                      anyLabel="Any tag"
+                      searchPlaceholder="Search tags"
+                      emptyText="No customer tags yet."
+                      loading={tagsLoading}
+                      options={tags.map((t) => ({ value: t, label: t }))}
+                      value={filters.tag}
+                      onChange={(tag) => onChange({ tag })}
+                    />
+                    <div role="radiogroup" aria-label="Priority" className="flex flex-col gap-1.5">
+                      <span className="font-label text-muted">Priority</span>
+                      <div className="flex gap-0.5 rounded-[var(--radius-control)] bg-wash-2 p-[3px]">
+                        {PRIORITIES.map((p) => {
+                          const on = filters.priority === p.key;
+                          return (
+                            <button
+                              key={p.label}
+                              type="button"
+                              role="radio"
+                              aria-checked={on}
+                              onClick={() => onChange({ priority: p.key })}
+                              className={cn(
+                                'flex h-7 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-[6px] text-[12.5px] transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-primary motion-reduce:transition-none',
+                                on
+                                  ? 'bg-white font-semibold text-ink shadow-[0_1px_2px_rgba(0,55,112,0.08),0_0_0_1px_rgba(0,55,112,0.05)]'
+                                  : 'font-medium text-muted hover:text-ink',
+                              )}
+                            >
+                              {p.dot && (
+                                <span
+                                  aria-hidden
+                                  className={cn('h-1.5 w-1.5 rounded-full', p.dot)}
+                                />
+                              )}
+                              {p.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <p className="m-0 text-xs text-faint">
+                      Filters apply as you choose and combine with search, status and channel.
+                    </p>
+                  </div>,
+                  document.body,
+                )}
             </div>
           </div>
         </div>

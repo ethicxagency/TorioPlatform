@@ -1,22 +1,11 @@
-'use client';
-
-import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
-
 /**
- * Layout for every Settings route. Navigation is the overview's card grid (plus the main sidebar's Settings item);
- * there is no second sidebar. The overview gets room for three columns; detail pages a readable form width.
+ * Layout for every Settings route. Navigation lives in the app sidebar (which switches to the Settings menu on these
+ * routes), so this is just a white surface with a content column that uses the width.
  */
 export function SettingsShell({ children }: { children: React.ReactNode }) {
-  const overview = usePathname() === '/settings';
   return (
-    <div
-      className={cn(
-        'mx-auto px-4 pb-12 pt-6 sm:px-6 sm:pt-8 lg:px-10',
-        overview ? 'max-w-[1200px]' : 'max-w-[840px]',
-      )}
-    >
-      {children}
+    <div className="min-h-full bg-white px-4 pb-12 pt-6 sm:px-8 lg:px-10 lg:pt-8">
+      <div className="mx-auto max-w-[1040px]">{children}</div>
     </div>
   );
 }

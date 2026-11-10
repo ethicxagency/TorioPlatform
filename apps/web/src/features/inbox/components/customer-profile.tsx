@@ -34,6 +34,7 @@ import { CHANNELS } from '../constants';
 import { fmtAgo, fmtWait, initialsOf, minutesSince } from '../format';
 import type { Conversation } from '../types';
 import { ChannelBadge } from './channel-badge';
+import { fmtDate } from '@/lib/datetime';
 
 interface Props {
   c: Conversation;
@@ -223,8 +224,7 @@ function ContactLine({
   );
 }
 const CONV_STATUS = { OPEN: 'Open', SNOOZED: 'Snoozed', RESOLVED: 'Resolved' } as const;
-const dateFmt = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+const dateFmt = (iso: string) => fmtDate(iso, { day: 'numeric', month: 'short', year: 'numeric' });
 
 export function CustomerProfile({
   c,
@@ -683,7 +683,7 @@ function OrderStatusField({ orders }: { orders: OrderRow[] }) {
           {
             onSuccess: () =>
               toast(`Order #${o.number} ${ORDER_STATUS_LABEL[v as OrderStatus].toLowerCase()}`),
-            onError: (e) => toast(e instanceof Error ? e.message : 'Something went wrong'),
+            onError: (e) => toast.error(e instanceof Error ? e.message : 'Something went wrong'),
           },
         )
       }
@@ -717,10 +717,10 @@ function LeadSection({
   onRetry: () => void;
 }) {
   const { toast } = useShell();
-  const { workspaceId: ws, workspace, can } = useWorkspace();
+  const { workspaceId: ws, can } = useWorkspace();
   const canWrite = can('leads:write');
   const m = useLeadMutations(ws);
-  const err = (e: unknown) => toast(e instanceof Error ? e.message : 'Something went wrong');
+  const err = (e: unknown) => toast.error(e instanceof Error ? e.message : 'Something went wrong');
 
   if (state === 'loading') return <Skeleton className="h-16 w-full" />;
   if (state === 'error')
@@ -809,7 +809,7 @@ function LeadSection({
           <Row label="Deal value">
             <span className="tabular-nums">
               {/* Stored in whole units of the workspace currency. */}
-              {formatMoney(lead.dealValue * 100, workspace?.defaultCurrency ?? DEFAULT_CURRENCY)}
+              {formatMoney(lead.dealValue * 100, DEFAULT_CURRENCY)}
             </span>
           </Row>
         )}

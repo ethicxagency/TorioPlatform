@@ -66,16 +66,15 @@ export function LeadDrawer({
   onOpenConversation,
 }: Props) {
   const { toast } = useShell();
-  const { workspaceId: ws, workspace } = useWorkspace();
+  const { workspaceId: ws } = useWorkspace();
   const timeZone = useTimeZone();
-  const money = (n: number) =>
-    formatCurrencyMajor(n, workspace?.defaultCurrency ?? DEFAULT_CURRENCY);
+  const money = (n: number) => formatCurrencyMajor(n, DEFAULT_CURRENCY);
   const one = useLead(ws, initial.id, initial);
   const lead = one.data ?? initial;
   const acts = useLeadActivities(ws, initial.id);
   const m = useLeadMutations(ws);
   const [note, setNote] = useState('');
-  const fail = (e: unknown) => toast(e instanceof Error ? e.message : 'Something went wrong');
+  const fail = (e: unknown) => toast.error(e instanceof Error ? e.message : 'Something went wrong');
   const patch = (body: Parameters<typeof m.update.mutate>[0]['body'], ok: string) =>
     m.update.mutate({ id: lead.id, body }, { onSuccess: () => toast(ok), onError: fail });
   const addNote = () => {

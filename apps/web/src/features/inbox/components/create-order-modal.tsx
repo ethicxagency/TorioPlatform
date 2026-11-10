@@ -6,7 +6,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from './confirm-dialog';
 import { useBrain } from '@/features/brain/queries';
-import { CURRENCIES, DEFAULT_CURRENCY } from '@/features/orders/constants';
+import { DEFAULT_CURRENCY, orderCurrencies } from '@/features/orders/constants';
 import { formatMoney, parseMinor } from '@/features/orders/money';
 import {
   newLine,
@@ -62,11 +62,8 @@ export function CreateOrderModal({ c, offerSummary, onClose, onCreate }: Props) 
   const { workspaceId: ws, workspace } = useWorkspace();
   const brain = useBrain(ws);
   const titleId = useId();
-  const [currency, setCurrency] = useState<string>(
-    (CURRENCIES as readonly string[]).includes(workspace?.defaultCurrency ?? '')
-      ? workspace!.defaultCurrency!
-      : DEFAULT_CURRENCY,
-  );
+  const currencyChoices = orderCurrencies(workspace?.defaultCurrency);
+  const [currency, setCurrency] = useState<string>(currencyChoices[0] ?? DEFAULT_CURRENCY);
   const [lines, setLines] = useState<Line[]>(() => [newLine()]);
   const [query, setQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -513,7 +510,7 @@ export function CreateOrderModal({ c, offerSummary, onClose, onCreate }: Props) 
                 onChange={(e) => setCurrency(e.target.value)}
                 className={cn(input, 'mt-1.5 font-normal')}
               >
-                {CURRENCIES.map((code) => (
+                {currencyChoices.map((code) => (
                   <option key={code} value={code}>
                     {code}
                   </option>

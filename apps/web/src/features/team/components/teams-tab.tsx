@@ -385,7 +385,7 @@ export function TeamsTab({ ws, teams, people, loading, error, onRetry, canManage
                 setDel(null);
               },
               onError: (e) => {
-                toast(e instanceof Error ? e.message : 'Failed');
+                toast.error(e instanceof Error ? e.message : 'Failed');
                 setDel(null);
               },
             })
