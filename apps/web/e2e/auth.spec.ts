@@ -14,7 +14,7 @@ test.beforeEach(async ({ page }) => {
 test.describe('sign in', () => {
   test('has the redesigned form, both social buttons and the right links', async ({ page }) => {
     await page.goto('/login');
-    await expect(page.getByRole('heading', { name: 'Welcome back', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Welcome Back', level: 1 })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Continue with Google' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Continue with Facebook' })).toBeVisible();
     await expect(page.getByText('or continue with email')).toBeVisible();
@@ -22,7 +22,7 @@ test.describe('sign in', () => {
       'href',
       '/forgot-password',
     );
-    await expect(page.getByRole('link', { name: 'Create an account' })).toHaveAttribute(
+    await expect(page.getByRole('link', { name: 'Create account' })).toHaveAttribute(
       'href',
       '/signup',
     );
@@ -125,11 +125,10 @@ test.describe('sign up', () => {
     email = 'new@test.dev',
     confirm = 'Strong-pass-1',
   ) => {
-    await page.getByLabel('Full name').fill('New Person');
-    await page.getByLabel('Business name').fill('New Co');
-    await page.getByLabel('Email address').fill(email);
+    await page.getByLabel('Full Name').fill('New Person');
+    await page.getByLabel('Work Email').fill(email);
     await page.getByLabel('Password', { exact: true }).fill('Strong-pass-1');
-    await page.getByLabel('Confirm password').fill(confirm);
+    await page.getByLabel('Confirm Password').fill(confirm);
   };
 
   test('shows the strength meter and validates before sending anything', async ({ page }) => {
@@ -139,6 +138,7 @@ test.describe('sign up', () => {
     ).toBeVisible();
     await page.getByLabel('Password', { exact: true }).fill('short');
     await expect(page.getByText('Too weak')).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Password requirements' })).toBeVisible();
     await page.getByLabel('Password', { exact: true }).fill('Strong-pass-1');
     await expect(page.getByText('Strong', { exact: true })).toBeVisible();
     await fill(page, 'new@test.dev', 'different');
@@ -154,7 +154,7 @@ test.describe('sign up', () => {
     await expect(page.getByText(/account with this email already exists/)).toBeVisible();
   });
 
-  test('success sends only the supported fields and goes to email verification', async ({
+  test('success sends only name, email and password and goes to email verification', async ({
     page,
   }) => {
     await page.goto('/signup');
@@ -163,7 +163,6 @@ test.describe('sign up', () => {
     await expect(page).toHaveURL(/\/verify-email$/);
     expect(authState.registers[0]).toEqual({
       name: 'New Person',
-      workspaceName: 'New Co',
       email: 'new@test.dev',
       password: 'Strong-pass-1',
     });

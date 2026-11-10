@@ -14,7 +14,8 @@ export const registerSchema = z.object({
   name: z.string().trim().min(1).max(100),
   email: emailSchema,
   password: passwordSchema,
-  workspaceName: z.string().trim().min(2).max(80),
+  /** Optional: when omitted the workspace is named after the person ("Ada's workspace") and can be renamed in Settings. */
+  workspaceName: z.string().trim().min(2).max(80).optional(),
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
 

@@ -568,6 +568,19 @@ describe.skipIf(!url)('customer social sign-in (real PostgreSQL, mocked provider
         .expect(400);
     });
 
+    it('registration without a business name names the workspace after the person', async () => {
+      const r = await http()
+        .post('/api/v1/auth/register')
+        .send({ name: 'Ada Lovelace', email: email('noname'), password: 'Strong-pass-1' })
+        .expect(201);
+      const ws = await db.workspaceMembership.findFirstOrThrow({
+        where: { userId: r.body.user.id },
+        include: { workspace: true },
+      });
+      expect(ws.workspace.name).toBe("Ada's workspace");
+      expect(ws.role).toBe('OWNER');
+    });
+
     it('an expired verification link is refused', async () => {
       const u = await mk('expired');
       await db.emailToken.create({

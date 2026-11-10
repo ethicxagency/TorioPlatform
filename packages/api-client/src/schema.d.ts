@@ -2462,7 +2462,7 @@ export interface components {
             /** Format: email */
             email: string;
             password: unknown & unknown & unknown;
-            workspaceName: string;
+            workspaceName?: string;
         };
         AuthResponseDto: {
             accessToken: string;

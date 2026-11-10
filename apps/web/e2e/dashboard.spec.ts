@@ -249,9 +249,9 @@ test('sign-in page: split layout, password toggle, honest options, phone layout'
   page,
 }) => {
   await page.goto('/login');
-  await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Welcome Back' })).toBeVisible();
   await expect(page.getByRole('complementary', { name: 'About Torio' })).toBeVisible();
-  await expect(page.getByText('Every conversation.')).toBeVisible();
+  await expect(page.getByText('Every Conversation.')).toBeVisible();
   const pw = page.getByLabel('Password', { exact: true });
   await pw.fill('secret-pass');
   await expect(pw).toHaveAttribute('type', 'password');

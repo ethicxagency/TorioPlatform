@@ -8583,8 +8583,7 @@
         "required": [
           "name",
           "email",
-          "password",
-          "workspaceName"
+          "password"
         ]
       },
       "AuthResponseDto": {

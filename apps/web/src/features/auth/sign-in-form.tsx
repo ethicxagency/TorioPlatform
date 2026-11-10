@@ -53,18 +53,18 @@ export function SignInForm() {
 
   return (
     <>
-      <AuthHeading title="Welcome back" text="Sign in to your Torio account." />
+      <AuthHeading title="Welcome Back" text="Sign in to your Torio account to continue." />
       {notice && (
         <div className="mb-5">
           <FormAlert tone="info">{notice}</FormAlert>
         </div>
       )}
       <SocialButtons next={next} />
-      <OrDivider>or continue with email</OrDivider>
-      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
+      <OrDivider>Or continue with email</OrDivider>
+      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
         {errors.root && <FormAlert>{errors.root.message}</FormAlert>}
         <TextField
-          label="Email address"
+          label="Email Address"
           type="email"
           autoComplete="email"
           placeholder="you@company.com"
@@ -84,11 +84,11 @@ export function SignInForm() {
           </div>
         </div>
         <SubmitButton busy={isSubmitting} busyText="Signing in…" className="mt-1">
-          Sign in
+          Sign In
         </SubmitButton>
       </form>
       <p className="m-0 mt-7 text-center text-[13.5px] text-muted">
-        New to Torio? <AuthLink href={withNext('/signup', next)}>Create an account</AuthLink>
+        Don’t have an account? <AuthLink href={withNext('/signup', next)}>Create account</AuthLink>
       </p>
     </>
   );

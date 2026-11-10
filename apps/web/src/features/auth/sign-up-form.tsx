@@ -9,11 +9,19 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/lib/toast';
 import { AuthHeading } from './auth-layout';
-import { AuthLink, FormAlert, PasswordField, SubmitButton, TextField } from './auth-ui';
+import {
+  AuthLink,
+  FormAlert,
+  PasswordField,
+  PasswordRules,
+  SubmitButton,
+  TextField,
+} from './auth-ui';
 import { OrDivider, SocialButtons, useAuthConfig } from './social-buttons';
 import { useNext, withNext } from './use-next';
 
 const schema = registerSchema
+  .omit({ workspaceName: true })
   .extend({ confirm: z.string().min(1, 'Confirm your password') })
   .refine((v) => v.password === v.confirm, { path: ['confirm'], message: 'Passwords don’t match' });
 type Values = z.infer<typeof schema>;
@@ -66,32 +74,28 @@ export function SignUpForm() {
   const closed = cfg.data && !cfg.data.registrationOpen;
   return (
     <>
-      <AuthHeading title="Create your account" text="Set up your business on Torio in a minute." />
+      <AuthHeading
+        title="Create your account"
+        text="Get started with Torio and bring all your customer conversations into one intelligent platform."
+      />
       {closed && (
         <div className="mb-5">
           <FormAlert>New sign-ups are closed right now.</FormAlert>
         </div>
       )}
       <SocialButtons next={next} />
-      <OrDivider>or sign up with email</OrDivider>
-      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
+      <OrDivider>Or sign up with email</OrDivider>
+      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
         {errors.root && <FormAlert>{errors.root.message}</FormAlert>}
         <TextField
-          label="Full name"
+          label="Full Name"
           autoComplete="name"
           placeholder="Your name"
           error={errors.name?.message}
           {...register('name')}
         />
         <TextField
-          label="Business name"
-          autoComplete="organization"
-          placeholder="Your business"
-          error={errors.workspaceName?.message}
-          {...register('workspaceName')}
-        />
-        <TextField
-          label="Email address"
+          label="Work Email"
           type="email"
           autoComplete="email"
           placeholder="you@company.com"
@@ -104,12 +108,12 @@ export function SignUpForm() {
           placeholder="At least 10 characters"
           meter
           value={password}
-          hint="10+ characters with upper and lower case letters and a number."
           error={errors.password?.message}
           {...register('password')}
         />
+        <PasswordRules value={password ?? ''} />
         <PasswordField
-          label="Confirm password"
+          label="Confirm Password"
           autoComplete="new-password"
           placeholder="Re-enter your password"
           error={errors.confirm?.message}
@@ -121,7 +125,7 @@ export function SignUpForm() {
           disabled={!!closed}
           className="mt-1"
         >
-          Create account
+          Create Account
         </SubmitButton>
       </form>
       <p className="m-0 mt-7 text-center text-[13.5px] text-muted">

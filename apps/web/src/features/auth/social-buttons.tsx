@@ -52,7 +52,7 @@ const FacebookF = () => (
 );
 
 const btn =
-  'flex h-11 w-full cursor-pointer items-center justify-center gap-2.5 rounded-[var(--radius-input)] border border-line-input bg-white text-[14.5px] font-semibold text-ink no-underline transition-colors duration-150 hover:border-[#C9CBD3] hover:bg-wash hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none';
+  'flex h-12 w-full cursor-pointer items-center justify-center gap-2.5 rounded-[var(--radius-input)] border border-line-input bg-white text-[14.5px] font-semibold text-ink no-underline transition-colors duration-150 hover:border-[#C9CBD3] hover:bg-wash hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none';
 
 /**
  * Continue with Google / Facebook. Each is a plain link to the API's start endpoint (a full-page redirect to the

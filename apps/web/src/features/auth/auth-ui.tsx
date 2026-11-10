@@ -6,7 +6,7 @@ import { useId, useState, forwardRef } from 'react';
 import { cn } from '@/lib/utils';
 
 export const inputCls =
-  'h-11 w-full rounded-[var(--radius-input)] border border-line-input bg-white px-3.5 text-[14.5px] text-ink outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-faint hover:border-[#C9CBD3] focus:border-primary focus:ring-[3px] focus:ring-primary/15 aria-[invalid=true]:border-danger aria-[invalid=true]:focus:ring-danger/15 disabled:bg-wash disabled:text-muted motion-reduce:transition-none';
+  'h-12 w-full rounded-[var(--radius-input)] border border-line-input bg-white px-3.5 text-[14.5px] text-ink outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-faint hover:border-[#C9CBD3] focus:border-primary focus:ring-[3px] focus:ring-primary/15 aria-[invalid=true]:border-danger aria-[invalid=true]:focus:ring-danger/15 disabled:bg-wash disabled:text-muted motion-reduce:transition-none';
 
 interface FieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
@@ -61,6 +61,33 @@ export function passwordStrength(pw: string): { score: 0 | 1 | 2 | 3 | 4; label:
   if (pw.length >= 14 || /[^A-Za-z0-9]/.test(pw)) s++;
   const score = s as 0 | 1 | 2 | 3 | 4;
   return { score, label: ['Too weak', 'Weak', 'Fair', 'Good', 'Strong'][score]! };
+}
+
+/** The rules the API enforces, shown live so a customer sees what's left instead of guessing. */
+export function PasswordRules({ value }: { value: string }) {
+  const rules = [
+    ['At least 10 characters', value.length >= 10],
+    ['An uppercase letter', /[A-Z]/.test(value)],
+    ['A lowercase letter', /[a-z]/.test(value)],
+    ['A number', /\d/.test(value)],
+  ] as const;
+  return (
+    <ul
+      aria-label="Password requirements"
+      className="m-0 grid list-none grid-cols-2 gap-x-3 gap-y-1 p-0 text-[12.5px]"
+    >
+      {rules.map(([label, ok]) => (
+        <li
+          key={label}
+          className={cn('flex items-center gap-1.5', ok ? 'text-success' : 'text-faint')}
+        >
+          <CheckCircle2 size={13} aria-hidden className={ok ? '' : 'opacity-40'} />
+          {label}
+          <span className="sr-only">{ok ? ' (met)' : ' (not met yet)'}</span>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 interface PasswordProps extends Omit<FieldProps, 'type'> {
@@ -143,7 +170,7 @@ export function SubmitButton({
       disabled={busy || rest.disabled}
       aria-busy={busy}
       className={cn(
-        'flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-input)] bg-primary text-[14.5px] font-semibold text-white transition-colors duration-150 hover:bg-primary-hover active:bg-primary-press focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-70 motion-reduce:transition-none',
+        'flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-primary text-[15px] font-semibold text-white shadow-[0_1px_3px_rgba(0,55,112,0.08)] transition-colors duration-150 hover:bg-primary-hover active:bg-primary-press focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-70 motion-reduce:transition-none',
         className,
       )}
       {...rest}
