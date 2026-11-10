@@ -21,6 +21,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "admin:create": "tsx prisma/create-admin.ts",
+    "accounts:create-test": "tsx prisma/create-test-accounts.ts",
     "db:studio": "prisma studio",
     "api:openapi": "pnpm --filter @torio/api openapi && pnpm --filter @torio/api-client generate"
   },
