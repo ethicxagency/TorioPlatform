@@ -35,11 +35,10 @@ test.describe('settings mode (dedicated sidebar)', () => {
       'page',
     );
     await expect(page.getByRole('link', { name: 'Back' })).toBeVisible();
-    await expect(page.getByRole('searchbox', { name: 'Search settings' })).toBeVisible();
-    // The real workspace sits under the search box; no account block ends the sidebar.
-    const name = await page.getByLabel('Business Name').inputValue();
-    await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
+    // Only Back, the title and the sections: no search box, workspace card or account block.
+    await expect(page.getByRole('searchbox', { name: 'Search settings' })).toHaveCount(0);
     await expect(menu(page).locator('..')).not.toContainText('owner@urbannest.test');
+    await expect(menu(page).locator('..').getByRole('textbox')).toHaveCount(0);
   });
 
   test('every item opens its existing route and the menu stays', async ({ page }) => {
@@ -79,21 +78,6 @@ test.describe('settings mode (dedicated sidebar)', () => {
     await page.getByRole('link', { name: 'Back' }).click();
     await expect(page).toHaveURL(/\/orders$/);
     await expect(main(page)).toBeVisible();
-  });
-
-  test('search filters by page name, shows an empty state, and Escape clears it', async ({
-    page,
-  }) => {
-    await page.goto('/settings/general');
-    const box = page.getByRole('searchbox', { name: 'Search settings' });
-    await box.fill('invoice');
-    await expect(menu(page).getByRole('link')).toHaveCount(1);
-    await expect(menu(page).getByRole('link', { name: /Billing/ })).toBeVisible();
-    await box.fill('zzzz');
-    await expect(page.getByText(/No settings match/)).toBeVisible();
-    await box.press('Escape');
-    await expect(box).toHaveValue('');
-    await expect(menu(page).getByRole('link')).toHaveCount(8);
   });
 
   test('the bare /settings URL opens General', async ({ page }) => {

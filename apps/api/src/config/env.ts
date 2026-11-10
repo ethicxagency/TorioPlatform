@@ -34,6 +34,22 @@ export const envSchema = z
     ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(900),
     REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(30),
     COOKIE_SECURE: bool,
+    // Customer sign-in with Google / Facebook (all optional: a provider with missing credentials is simply not offered, and
+    // the sign-in page says so). Facebook Login here is for customers signing in to Torio, separate from the META_* channel app.
+    GOOGLE_CLIENT_ID: z.string().min(10).optional(),
+    GOOGLE_CLIENT_SECRET: z.string().min(8).optional(),
+    /** Defaults to WEB_URL + /api/v1/auth/oauth/google/callback. Must match the Google console exactly. */
+    GOOGLE_REDIRECT_URI: z.url().optional(),
+    FACEBOOK_APP_ID: z
+      .string()
+      .regex(/^\d{6,}$/, 'must be the numeric Facebook app id')
+      .optional(),
+    FACEBOOK_APP_SECRET: z.string().min(8).optional(),
+    /** Defaults to WEB_URL + /api/v1/auth/oauth/facebook/callback. Must match the Meta app settings exactly. */
+    FACEBOOK_REDIRECT_URI: z.url().optional(),
+    // Transactional email (Resend HTTP API). Without both, no verification or reset emails can be sent, and the UI says so.
+    RESEND_API_KEY: z.string().min(8).optional(),
+    MAIL_FROM: z.string().min(5).optional(),
     // Billing (all optional: without STRIPE_SECRET_KEY nothing can be bought or changed, and the UI says so).
     STRIPE_SECRET_KEY: z.string().min(8).optional(),
     STRIPE_WEBHOOK_SECRET: z.string().min(8).optional(),

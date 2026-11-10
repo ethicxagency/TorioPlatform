@@ -3,6 +3,11 @@ import { JwtModule } from '@nestjs/jwt';
 import { APP_CONFIG, type AppConfig } from '../../config/config.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { MailService } from './mail.service';
+import { RecoveryService } from './recovery.service';
+import { SocialAuthController } from './social-auth.controller';
+import { SocialAuthService } from './social-auth.service';
+import { SocialProviders } from './social.providers';
 import { PasswordService } from './password.service';
 
 @Global()
@@ -16,8 +21,15 @@ import { PasswordService } from './password.service';
       }),
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, PasswordService],
-  exports: [JwtModule, AuthService, PasswordService],
+  controllers: [AuthController, SocialAuthController],
+  providers: [
+    AuthService,
+    PasswordService,
+    MailService,
+    RecoveryService,
+    SocialProviders,
+    SocialAuthService,
+  ],
+  exports: [JwtModule, AuthService, PasswordService, MailService],
 })
 export class AuthModule {}

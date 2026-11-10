@@ -241,8 +241,9 @@ test.describe('super admin', () => {
   test('the customer app is unaffected: its login page is separate from admin', async ({
     page,
   }) => {
+    await mockApi(page, { signedOut: true });
     await page.goto('/login');
-    await expect(page.getByRole('heading', { name: 'Welcome Back' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Admin' })).toHaveCount(0);
   });
 

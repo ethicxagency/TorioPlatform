@@ -25,6 +25,29 @@ export const loginSchema = z.object({
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
+export const forgotPasswordSchema = z.object({ email: emailSchema });
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(20).max(200),
+  password: passwordSchema,
+});
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
+export const tokenBodySchema = z.object({ token: z.string().min(20).max(200) });
+
+export const pendingEmailSchema = z.object({ email: emailSchema });
+
+/** What the sign-in and sign-up pages may offer. Public and the same for everyone; it never says anything about a person. */
+export const authConfigSchema = z.object({
+  google: z.boolean(),
+  facebook: z.boolean(),
+  /** Whether verification and password-reset emails can actually be sent. */
+  email: z.boolean(),
+  registrationOpen: z.boolean(),
+});
+export type AuthConfig = z.infer<typeof authConfigSchema>;
+
 export const refreshSchema = z.object({
   /** Mobile clients send the refresh token in the body; browsers use the HttpOnly cookie. */
   refreshToken: z.string().min(20).max(512).optional(),

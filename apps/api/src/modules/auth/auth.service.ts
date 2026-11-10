@@ -143,6 +143,60 @@ export class AuthService {
     });
   }
 
+  /** Starts a session for an already-authenticated user (password, or a verified social identity). */
+  issueFor(
+    user: Parameters<AuthService['issueSession']>[0],
+    meta: ClientMeta,
+  ): Promise<IssuedSession> {
+    return this.issueSession(user, randomUUID(), meta);
+  }
+
+  /**
+   * Creates a customer with their own workspace, exactly like password registration, for sign-in methods that have
+   * no password of their own: the stored hash is of random bytes nobody holds, so password login can never match.
+   */
+  async createCustomer(
+    input: {
+      email: string;
+      name: string;
+      workspaceName: string;
+      emailVerified: boolean;
+      provider?: string;
+    },
+    meta: ClientMeta,
+  ) {
+    const passwordHash = await this.passwords.hash(randomBytes(32).toString('base64url'));
+    const slug = `${slugify(input.workspaceName)}-${randomBytes(3).toString('hex')}`;
+    return this.prisma.client.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          email: input.email,
+          name: input.name,
+          passwordHash,
+          emailVerifiedAt: input.emailVerified ? new Date() : null,
+        },
+      });
+      const workspace = await tx.workspace.create({
+        data: { name: input.workspaceName, slug, createdById: created.id },
+      });
+      await tx.workspaceMembership.create({
+        data: { workspaceId: workspace.id, userId: created.id, role: 'OWNER' },
+      });
+      await tx.auditLog.create({
+        data: {
+          workspaceId: workspace.id,
+          actorId: created.id,
+          action: 'auth.register',
+          entityType: 'user',
+          entityId: created.id,
+          ipAddress: meta.ipAddress,
+          metadata: input.provider ? { provider: input.provider } : undefined,
+        },
+      });
+      return created;
+    });
+  }
+
   private async issueSession(
     user: {
       id: string;

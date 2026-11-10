@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/auth';
@@ -9,9 +9,14 @@ import { useAuth } from '@/lib/auth';
 export function RequireAuth({ children }: { children: React.ReactNode }) {
   const { status } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   useEffect(() => {
-    if (status === 'anon') router.replace('/login');
-  }, [status, router]);
+    // Remember where they were going, so signing in lands them there (validated again on the way back).
+    if (status === 'anon')
+      router.replace(
+        pathname && pathname !== '/' ? `/login?next=${encodeURIComponent(pathname)}` : '/login',
+      );
+  }, [status, router, pathname]);
 
   if (status !== 'authed') {
     return (

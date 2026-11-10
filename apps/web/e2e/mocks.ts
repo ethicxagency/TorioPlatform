@@ -1015,8 +1015,38 @@ export const CONVS = [
 /** Inbox bulk requests the UI sent, for assertions. */
 export const inboxState = { bulks: [] as Record<string, unknown>[] };
 
-export async function mockApi(page: Page, opts: { role?: 'OWNER' | 'ADMIN' | 'AGENT' } = {}) {
+/** Customer authentication mock: what the API would answer, and what the pages sent. */
+export const authState = {
+  config: { google: true, facebook: true, email: true, registrationOpen: true },
+  registers: [] as unknown[],
+  logins: [] as unknown[],
+  forgots: [] as unknown[],
+  resets: [] as unknown[],
+  verifies: [] as unknown[],
+  resends: 0,
+  /** Emails already registered (409 on sign-up). */
+  taken: new Set<string>(['taken@test.dev']),
+  /** Tokens the reset/verify endpoints accept. */
+  goodTokens: new Set<string>(['good-token-0000000000000000000']),
+  failLoginWith: null as number | null,
+};
+export function resetAuth() {
+  authState.config = { google: true, facebook: true, email: true, registrationOpen: true };
+  authState.registers = [];
+  authState.logins = [];
+  authState.forgots = [];
+  authState.resets = [];
+  authState.verifies = [];
+  authState.resends = 0;
+  authState.failLoginWith = null;
+}
+
+export async function mockApi(
+  page: Page,
+  opts: { role?: 'OWNER' | 'ADMIN' | 'AGENT'; signedOut?: boolean } = {},
+) {
   const role = opts.role ?? 'AGENT';
+  let signedOut = !!opts.signedOut;
   inboxState.bulks = [];
   searchState.requests = [];
   searchState.fail = false;
@@ -1045,8 +1075,54 @@ export async function mockApi(page: Page, opts: { role?: 'OWNER' | 'ADMIN' | 'AG
         headers: cors,
         body: JSON.stringify(body),
       });
-    if (p === '/auth/refresh')
+    if (p === '/auth/config') return reply(authState.config);
+    if (p === '/auth/login') {
+      const b = req.postDataJSON() as { email: string; password: string };
+      authState.logins.push(b);
+      if (authState.failLoginWith)
+        return reply({ error: { message: 'Too many requests' } }, authState.failLoginWith);
+      if (b.password !== 'Correct-pass-1')
+        return reply({ error: { message: 'Invalid email or password' } }, 401);
+      signedOut = false;
       return reply({ accessToken: 'test-token', expiresIn: 900, user: USER });
+    }
+    if (p === '/auth/register') {
+      const b = req.postDataJSON() as { email: string };
+      authState.registers.push(b);
+      if (authState.taken.has(b.email))
+        return reply({ error: { message: 'An account with this email already exists' } }, 409);
+      signedOut = false;
+      return reply(
+        { accessToken: 'test-token', expiresIn: 900, user: { ...USER, emailVerified: false } },
+        201,
+      );
+    }
+    if (p === '/auth/forgot-password') {
+      authState.forgots.push(req.postDataJSON());
+      return reply({ ok: true });
+    }
+    if (p === '/auth/reset-password') {
+      const b = req.postDataJSON() as { token: string };
+      authState.resets.push(b);
+      return authState.goodTokens.has(b.token)
+        ? reply({ reset: true })
+        : reply({ error: { message: 'This reset link is invalid or has expired.' } }, 400);
+    }
+    if (p === '/auth/verify-email') {
+      const b = req.postDataJSON() as { token: string };
+      authState.verifies.push(b);
+      return authState.goodTokens.has(b.token)
+        ? reply({ verified: true })
+        : reply({ error: { message: 'This verification link is invalid or has expired.' } }, 400);
+    }
+    if (p === '/auth/resend-verification') {
+      authState.resends++;
+      return reply({ sent: true, alreadyVerified: false });
+    }
+    if (p === '/auth/refresh')
+      return signedOut
+        ? reply({ error: { message: 'Missing refresh token' } }, 401)
+        : reply({ accessToken: 'test-token', expiresIn: 900, user: USER });
     if (p === '/auth/logout') return reply({ ok: true });
     if (p === '/users/me/password') {
       const b = req.postDataJSON() as { currentPassword: string };

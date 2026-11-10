@@ -249,9 +249,9 @@ test('sign-in page: split layout, password toggle, honest options, phone layout'
   page,
 }) => {
   await page.goto('/login');
-  await expect(page.getByRole('heading', { name: 'Welcome Back' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
   await expect(page.getByRole('complementary', { name: 'About Torio' })).toBeVisible();
-  await expect(page.getByText('Every Conversation.')).toBeVisible();
+  await expect(page.getByText('Every conversation.')).toBeVisible();
   const pw = page.getByLabel('Password', { exact: true });
   await pw.fill('secret-pass');
   await expect(pw).toHaveAttribute('type', 'password');
@@ -259,8 +259,9 @@ test('sign-in page: split layout, password toggle, honest options, phone layout'
   await expect(pw).toHaveAttribute('type', 'text');
   await page.getByRole('button', { name: 'Hide password' }).click();
   await expect(pw).toHaveAttribute('type', 'password');
-  // no links to flows the app doesn't have
-  await expect(page.getByText(/Forgot password|Sign up|Phone/i)).toHaveCount(0);
+  // only flows that exist are linked; there is no phone sign-in
+  await expect(page.getByText(/Phone/i)).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Forgot password?' })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('complementary', { name: 'About Torio' })).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(

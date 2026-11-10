@@ -7,8 +7,9 @@ import { createPrismaClient } from '@torio/database';
  * Creates (or resets the passwords of) a set of QA accounts for testing a deployment end to end: one platform
  * Super Admin and one customer workspace with an Owner, an Admin and an Agent, so every role and permission can be tried.
  *
- *   pnpm accounts:create-test -- --domain qa.example.com [--workspace "Torio QA"] [--confirm-production]
+ *   pnpm accounts:create-test -- --domain qa.example.com [--workspace "Torio QA"] [--confirm-production] [--no-admin]
  *
+ * - --no-admin skips the platform Super Admin, so only the customer workspace accounts are created.
  * - Each account gets its own random password, printed once and never stored anywhere else.
  * - Safe to re-run: existing accounts get a new password and their sessions are revoked. Nothing else is touched.
  * - Against a non-local database it refuses to run without --confirm-production, so it can't hit production by accident.
@@ -36,18 +37,21 @@ async function main() {
   const prisma = createPrismaClient(url);
   const out: { role: string; email: string; password: string }[] = [];
 
-  const adminEmail = `qa-superadmin@${domain}`;
-  const adminPw = password();
-  const adminHash = await hash(adminPw, { algorithm: 2 });
-  const existingAdmin = await prisma.platformAdmin.findUnique({ where: { email: adminEmail } });
-  await prisma.platformAdmin.upsert({
-    where: { email: adminEmail },
-    create: { email: adminEmail, name: 'QA Super Admin', passwordHash: adminHash, role: 'SUPER_ADMIN' },
-    update: { passwordHash: adminHash, isActive: true },
-  });
-  if (existingAdmin)
-    await prisma.adminSession.updateMany({ where: { adminId: existingAdmin.id, revokedAt: null }, data: { revokedAt: new Date() } });
-  out.push({ role: 'Super Admin (/admin)', email: adminEmail, password: adminPw });
+  if (!flag('no-admin')) {
+    const adminEmail = `qa-superadmin@${domain}`;
+    const adminPw = password();
+    const adminHash = await hash(adminPw, { algorithm: 2 });
+    const existingAdmin = await prisma.platformAdmin.findUnique({ where: { email: adminEmail } });
+    await prisma.platformAdmin.upsert({
+      where: { email: adminEmail },
+      create: { email: adminEmail, name: 'QA Super Admin', passwordHash: adminHash, role: 'SUPER_ADMIN' },
+      update: { passwordHash: adminHash, isActive: true },
+    });
+    if (existingAdmin)
+      await prisma.adminSession.updateMany({ where: { adminId: existingAdmin.id, revokedAt: null }, data: { revokedAt: new Date() } });
+    out.push({ role: 'Super Admin (/admin)', email: adminEmail, password: adminPw });
+
+  }
 
   const workspace = await prisma.workspace.upsert({ where: { slug }, update: {}, create: { name: workspaceName, slug } });
   for (const [role, label] of [['OWNER', 'Owner'], ['ADMIN', 'Admin'], ['AGENT', 'Agent']] as const) {

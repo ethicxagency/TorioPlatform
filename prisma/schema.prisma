@@ -188,6 +188,12 @@ enum LeadActivityType {
   NOTE
 }
 
+/// Sign-in providers a customer can link besides email + password.
+enum AuthProvider {
+  GOOGLE
+  FACEBOOK
+}
+
 enum EmailTokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
@@ -215,6 +221,7 @@ model User {
   memberships           WorkspaceMembership[]
   sessions              Session[]
   emailTokens           EmailToken[]
+  identities            UserIdentity[]
   auditLogs             AuditLog[]            @relation("AuditActor")
   createdWorkspaces     Workspace[]           @relation("WorkspaceCreator")
   assignedConversations Conversation[]        @relation("ConversationAssignee")
@@ -348,6 +355,41 @@ model EmailToken {
 
   @@index([userId, type])
   @@map("email_tokens")
+}
+
+/// A Google or Facebook account linked to one Torio user. The provider's stable id (Google `sub`, Facebook app-scoped
+/// id) is the identity; the email is only informational and is never used to find the account on later sign-ins.
+model UserIdentity {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  userId         String       @db.Uuid
+  provider       AuthProvider
+  providerUserId String
+  email          String?
+  createdAt      DateTime     @default(now())
+  lastLoginAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@map("user_identities")
+}
+
+/// A social sign-in waiting for the customer to prove they own an email address (Facebook gave none, or none we trust).
+/// Only the hash of the emailed token is stored; the row is single-use and short-lived.
+model PendingSocialSignup {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  tokenHash      String       @unique
+  provider       AuthProvider
+  providerUserId String
+  name           String
+  email          String
+  expiresAt      DateTime
+  usedAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([provider, providerUserId])
+  @@map("pending_social_signups")
 }
 
 model AuditLog {
