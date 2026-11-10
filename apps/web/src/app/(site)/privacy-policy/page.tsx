@@ -7,10 +7,10 @@ const description = `How Torio, operated by ${SITE.company}, collects, uses, sha
 export const metadata: Metadata = {
   title,
   description,
-  alternates: { canonical: absoluteUrl('/privacy') },
+  alternates: { canonical: absoluteUrl('/privacy-policy') },
   openGraph: {
     type: 'article',
-    url: absoluteUrl('/privacy'),
+    url: absoluteUrl('/privacy-policy'),
     siteName: SITE.name,
     title: `${title} · ${SITE.name}`,
     description,

@@ -12,6 +12,9 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Keep the dev-only indicator away from the sidebar footer controls (bottom-left).
   devIndicators: { position: 'bottom-right' },
+  async redirects() {
+    return [{ source: '/privacy', destination: '/privacy-policy', permanent: true }];
+  },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },

@@ -13,7 +13,7 @@ const LINKS = [
   { label: 'Pricing', href: '/#pricing' },
 ] as const;
 const RESOURCES = [
-  { label: 'Privacy Policy', href: '/privacy' },
+  { label: 'Privacy Policy', href: '/privacy-policy' },
   { label: 'Account Deletion', href: '/delete-account' },
 ] as const;
 

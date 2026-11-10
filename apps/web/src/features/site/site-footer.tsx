@@ -63,7 +63,7 @@ export function SiteFooter() {
             </h2>
             <ul className={col}>
               <li>
-                <Link className={a} href="/privacy">
+                <Link className={a} href="/privacy-policy">
                   Privacy Policy
                 </Link>
               </li>

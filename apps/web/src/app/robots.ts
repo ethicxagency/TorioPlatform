@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: ['/', '/privacy', '/delete-account'],
+        allow: ['/', '/privacy-policy', '/delete-account'],
         // The API, the admin console and the signed-in app are not for search engines.
         disallow: [
           '/api/',

@@ -262,7 +262,7 @@ export function DeleteAccount() {
       </ul>
       <p className="m-0 mt-4 text-[14.5px] text-muted">
         See our{' '}
-        <Link href="/privacy" className="text-primary">
+        <Link href="/privacy-policy" className="text-primary">
           Privacy Policy
         </Link>{' '}
         for how information is handled.

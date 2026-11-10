@@ -46,7 +46,7 @@ test.describe('public site', () => {
     await nav.getByRole('button', { name: 'Resources' }).click();
     await expect(page.getByRole('menuitem', { name: 'Privacy Policy' })).toHaveAttribute(
       'href',
-      '/privacy',
+      '/privacy-policy',
     );
     await expect(page.getByRole('menuitem', { name: 'Account Deletion' })).toHaveAttribute(
       'href',
@@ -69,7 +69,7 @@ test.describe('public site', () => {
     await page.goto('/');
     const f = page.getByRole('contentinfo');
     for (const [n, href] of [
-      ['Privacy Policy', '/privacy'],
+      ['Privacy Policy', '/privacy-policy'],
       ['Account Deletion', '/delete-account'],
       ['Sign in', '/login'],
       ['Create account', '/signup'],
@@ -81,7 +81,7 @@ test.describe('public site', () => {
 
   test('mobile: the menu opens, links work, and nothing scrolls sideways', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    for (const path of ['/', '/privacy', '/delete-account']) {
+    for (const path of ['/', '/privacy-policy', '/delete-account']) {
       await page.goto(path);
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
@@ -125,7 +125,7 @@ test.describe('public site', () => {
     const xml = await (await request.get('/sitemap.xml')).text();
     for (const u of [
       'https://torio.nextupglobal.net',
-      'https://torio.nextupglobal.net/privacy',
+      'https://torio.nextupglobal.net/privacy-policy',
       'https://torio.nextupglobal.net/delete-account',
     ])
       expect(xml).toContain(`<loc>${u}`);
@@ -138,13 +138,13 @@ test.describe('privacy policy', () => {
     page,
     request,
   }) => {
-    const html = await (await request.get('/privacy')).text();
+    const html = await (await request.get('/privacy-policy')).text();
     expect(html).toMatch(
-      /<link rel="canonical" href="https:\/\/torio\.nextupglobal\.net\/privacy"/,
+      /<link rel="canonical" href="https:\/\/torio\.nextupglobal\.net\/privacy-policy"/,
     );
     expect(html).toContain('<title>Privacy Policy');
     await mockApi(page, { signedOut: true });
-    await page.goto('/privacy');
+    await page.goto('/privacy-policy');
     await expect(page.getByRole('heading', { name: 'Privacy Policy', level: 1 })).toBeVisible();
     await expect(page.getByText(/Last updated:/)).toBeVisible();
     const toc = page.getByRole('navigation', { name: 'Table of contents' });

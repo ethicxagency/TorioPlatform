@@ -7,7 +7,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     { url: absoluteUrl('/'), changeFrequency: 'weekly', priority: 1 },
     {
-      url: absoluteUrl('/privacy'),
+      url: absoluteUrl('/privacy-policy'),
       lastModified: updated,
       changeFrequency: 'yearly',
       priority: 0.5,
