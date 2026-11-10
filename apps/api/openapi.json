@@ -23001,6 +23001,18 @@
                   "type": "string"
                 }
               },
+              "customerAuthRedirectUri": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "customerAuthAllowedRedirectUris": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
               "oauthStateTtlMinutes": {
                 "type": "integer",
                 "minimum": -9007199254740991,
@@ -23062,6 +23074,8 @@
               "websiteUrl",
               "oauthRedirectUri",
               "allowedRedirectUris",
+              "customerAuthRedirectUri",
+              "customerAuthAllowedRedirectUris",
               "oauthStateTtlMinutes",
               "allowedDomains",
               "successUrl",
@@ -23153,6 +23167,15 @@
                   "null"
                 ]
               },
+              "customerAuthCallbackPath": {
+                "type": "string"
+              },
+              "customerAuthRedirectUriToRegister": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
               "metaWebhookUrl": {
                 "type": [
                   "string",
@@ -23169,6 +23192,8 @@
             "required": [
               "callbackPath",
               "redirectUriToRegister",
+              "customerAuthCallbackPath",
+              "customerAuthRedirectUriToRegister",
               "metaWebhookUrl",
               "whatsappWebhookUrl"
             ]
@@ -23362,6 +23387,27 @@
                 ]
               },
               "allowedRedirectUris": {
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 500,
+                  "format": "uri"
+                }
+              },
+              "customerAuthRedirectUri": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "customerAuthAllowedRedirectUris": {
                 "maxItems": 10,
                 "type": "array",
                 "items": {
@@ -23644,6 +23690,27 @@
                 ]
               },
               "allowedRedirectUris": {
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 500,
+                  "format": "uri"
+                }
+              },
+              "customerAuthRedirectUri": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "customerAuthAllowedRedirectUris": {
                 "maxItems": 10,
                 "type": "array",
                 "items": {

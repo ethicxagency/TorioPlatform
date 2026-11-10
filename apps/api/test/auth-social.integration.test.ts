@@ -6,6 +6,8 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { hashToken } from '../src/modules/auth/auth.service';
 import { MailService } from '../src/modules/auth/mail.service';
+import { MetaConfigService } from '../src/modules/meta-config/meta-config.service';
+import { lockMetaConfig } from './meta-lock';
 import { PasswordService } from '../src/modules/auth/password.service';
 import { safeReturnTo } from '../src/modules/auth/oauth-cookie';
 import { SocialProviders } from '../src/modules/auth/social.providers';
@@ -26,6 +28,7 @@ const FB_APP = '123456789012345';
 describe.skipIf(!url)('customer social sign-in (real PostgreSQL, mocked providers)', () => {
   let app: INestApplication;
   let db: PrismaClient;
+  let release: () => Promise<void>;
   const sfx = Math.random().toString(36).slice(2, 8);
   const http = () => request(app.getHttpServer());
   const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -108,6 +111,8 @@ describe.skipIf(!url)('customer social sign-in (real PostgreSQL, mocked provider
 
   beforeAll(async () => {
     process.env.DATABASE_URL = url!;
+    // The customer Facebook redirect URI lives in the shared Meta configuration row, so this suite must not overlap others.
+    release = await lockMetaConfig(url!);
     process.env.GOOGLE_CLIENT_ID = GOOGLE_ID;
     process.env.GOOGLE_CLIENT_SECRET = 'google-secret-value';
     process.env.FACEBOOK_APP_ID = FB_APP;
@@ -126,6 +131,11 @@ describe.skipIf(!url)('customer social sign-in (real PostgreSQL, mocked provider
     app.get(MailService).fetch = fakeFetch;
   });
   afterAll(async () => {
+    await db.metaConfiguration.updateMany({
+      where: { id: 'default' },
+      data: { customerAuthRedirectUri: null, customerAuthAllowedRedirectUris: [] },
+    });
+    await release?.();
     await db.user.deleteMany({ where: { email: { endsWith: `-${sfx}@t.co` } } });
     await db.pendingSocialSignup.deleteMany({ where: { email: { endsWith: `-${sfx}@t.co` } } });
     await app.close();
@@ -388,6 +398,87 @@ describe.skipIf(!url)('customer social sign-in (real PostgreSQL, mocked provider
         .get('/api/v1/auth/oauth/google/callback')
         .query({ code: 'c', state });
       expect(new URL(bare.headers.location!).searchParams.get('reason')).toBe('invalid_state');
+    });
+  });
+
+  describe('Facebook redirect URI (its own setting, separate from the channel callback)', () => {
+    const origin = new URL(process.env.WEB_URL ?? 'http://localhost:3000').origin;
+    const MINE = `${origin}/api/v1/auth/oauth/facebook/callback`;
+    const setConfig = async (data: Record<string, unknown>) => {
+      await db.metaConfiguration.upsert({
+        where: { id: 'default' },
+        create: { id: 'default', ...data },
+        update: data,
+      });
+      await app.get(MetaConfigService).load(true);
+    };
+    const redirectUriSentToFacebook = async () => {
+      const r = await http().get('/api/v1/auth/oauth/facebook/start');
+      return {
+        r,
+        uri: r.headers.location?.startsWith('http')
+          ? new URL(r.headers.location).searchParams.get('redirect_uri')
+          : null,
+      };
+    };
+    it('uses the saved customer sign-in URI, and the code exchange repeats exactly that value', async () => {
+      await setConfig({ customerAuthRedirectUri: MINE, customerAuthAllowedRedirectUris: [MINE] });
+      expect((await redirectUriSentToFacebook()).uri).toBe(MINE);
+      fb = { id: 'fb-ru-1', email: email('ru1') };
+      const seen: string[] = [];
+      const inner = app.get(SocialProviders).fetch;
+      app.get(SocialProviders).fetch = (async (i: string | URL | Request, init?: RequestInit) => {
+        if (String(i).includes('/oauth/access_token'))
+          seen.push(new URL(String(i)).searchParams.get('redirect_uri')!);
+        return inner(i, init);
+      }) as typeof fetch;
+      const r = await signIn('facebook');
+      app.get(SocialProviders).fetch = inner;
+      expect(r.to.searchParams.get('step')).toBe('check-email');
+      expect(seen).toEqual([MINE]);
+    });
+
+    it('a URI that is only valid for the Meta channel flow is refused, not used', async () => {
+      await setConfig({
+        customerAuthRedirectUri: `${origin}/api/v1/channels/meta/callback`,
+        customerAuthAllowedRedirectUris: [],
+      });
+      const { r } = await redirectUriSentToFacebook();
+      expect(new URL(r.headers.location!).searchParams.get('reason')).toBe(
+        'provider_not_configured',
+      );
+    });
+
+    it('a URI on an untrusted host is refused', async () => {
+      await setConfig({
+        customerAuthRedirectUri: 'https://evil.example.org/api/v1/auth/oauth/facebook/callback',
+        customerAuthAllowedRedirectUris: [],
+      });
+      expect(
+        new URL((await redirectUriSentToFacebook()).r.headers.location!).searchParams.get('reason'),
+      ).toBe('provider_not_configured');
+    });
+
+    it('with nothing saved it falls back to the default derived from WEB_URL', async () => {
+      await setConfig({ customerAuthRedirectUri: null, customerAuthAllowedRedirectUris: [] });
+      expect((await redirectUriSentToFacebook()).uri).toBe(MINE);
+    });
+
+    it('a sign-in started with one URI cannot finish after that URI is no longer allowed (exact match)', async () => {
+      await setConfig({ customerAuthRedirectUri: MINE, customerAuthAllowedRedirectUris: [MINE] });
+      fb = { id: 'fb-ru-2', email: email('ru2') };
+      const start = await http().get('/api/v1/auth/oauth/facebook/start');
+      const state = new URL(start.headers.location!).searchParams.get('state')!;
+      await setConfig({
+        customerAuthRedirectUri: `${origin}/api/v1/auth/oauth/facebook/callback/`,
+        customerAuthAllowedRedirectUris: [`${origin}/api/v1/auth/oauth/facebook/callback/`],
+      });
+      const cb = await http()
+        .get('/api/v1/auth/oauth/facebook/callback')
+        .set('Cookie', cookieOf(start, 'torio_oauth')!)
+        .query({ code: 'c', state });
+      expect(new URL(cb.headers.location!).searchParams.get('reason')).toBe('invalid_state');
+      await setConfig({ customerAuthRedirectUri: null, customerAuthAllowedRedirectUris: [] });
     });
   });
 

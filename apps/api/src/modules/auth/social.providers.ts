@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
 import { APP_CONFIG, type AppConfig } from '../../config/config.module';
+import { MetaConfigService } from '../meta-config/meta-config.service';
 import { JwtInvalid, verifyRs256, type JwtClaims } from './jwt-rs256';
 
 export type Provider = 'google' | 'facebook';
@@ -57,11 +58,27 @@ export class SocialProviders {
   fetch: typeof fetch = (...a) => fetch(...a);
   private jwks: { at: number; keys: { keys: never[] } } | null = null;
 
-  constructor(@Inject(APP_CONFIG) private readonly c: AppConfig) {}
+  constructor(
+    @Inject(APP_CONFIG) private readonly c: AppConfig,
+    private readonly meta: MetaConfigService,
+  ) {}
 
-  private redirect(p: Provider) {
-    const set = p === 'google' ? this.c.GOOGLE_REDIRECT_URI : this.c.FACEBOOK_REDIRECT_URI;
-    return set ?? `${this.c.WEB_URL.replace(/\/$/, '')}/api/v1/auth/oauth/${p}/callback`;
+  /**
+   * The redirect URI a sign-in will use, decided once at the start and carried (signed) to the callback so the code is
+   * exchanged with exactly the same value. Google's comes from the environment; Facebook's from its own saved setting
+   * (Super Admin → Meta Developer → Customer Facebook Authentication), which is validated against the Facebook sign-in
+   * route only. A value that fails those checks is refused rather than used.
+   */
+  async redirectUri(p: Provider): Promise<string> {
+    if (p === 'google')
+      return (
+        this.c.GOOGLE_REDIRECT_URI ??
+        `${this.c.WEB_URL.replace(/\/$/, '')}/api/v1/auth/oauth/google/callback`
+      );
+    await this.meta.load();
+    const r = this.meta.customerFacebookRedirect();
+    if (!r.uri) throw new SocialAuthError('provider_not_configured', r.problems.join(' '));
+    return r.uri;
   }
 
   configured(p: Provider): boolean {
@@ -70,12 +87,15 @@ export class SocialProviders {
       : !!(this.c.FACEBOOK_APP_ID && this.c.FACEBOOK_APP_SECRET);
   }
 
-  authorizeUrl(p: Provider, s: { state: string; nonce: string; challenge: string }): string {
+  authorizeUrl(
+    p: Provider,
+    s: { state: string; nonce: string; challenge: string; redirectUri: string },
+  ): string {
     if (!this.configured(p)) throw new SocialAuthError('provider_not_configured');
     if (p === 'google') {
       const q = new URLSearchParams({
         client_id: this.c.GOOGLE_CLIENT_ID!,
-        redirect_uri: this.redirect('google'),
+        redirect_uri: s.redirectUri,
         response_type: 'code',
         scope: 'openid email profile',
         state: s.state,
@@ -88,7 +108,7 @@ export class SocialProviders {
     }
     const q = new URLSearchParams({
       client_id: this.c.FACEBOOK_APP_ID!,
-      redirect_uri: this.redirect('facebook'),
+      redirect_uri: s.redirectUri,
       response_type: 'code',
       scope: 'public_profile,email',
       state: s.state,
@@ -99,10 +119,10 @@ export class SocialProviders {
   async exchange(
     p: Provider,
     code: string,
-    s: { verifier: string; nonce: string },
+    s: { verifier: string; nonce: string; redirectUri: string },
   ): Promise<ProviderProfile> {
     if (!this.configured(p)) throw new SocialAuthError('provider_not_configured');
-    return p === 'google' ? this.google(code, s) : this.facebook(code);
+    return p === 'google' ? this.google(code, s) : this.facebook(code, s.redirectUri);
   }
 
   private async googleKeys() {
@@ -114,12 +134,12 @@ export class SocialProviders {
     return keys;
   }
 
-  private async google(code: string, s: { verifier: string; nonce: string }) {
+  private async google(code: string, s: { verifier: string; nonce: string; redirectUri: string }) {
     const body = new URLSearchParams({
       code,
       client_id: this.c.GOOGLE_CLIENT_ID!,
       client_secret: this.c.GOOGLE_CLIENT_SECRET!,
-      redirect_uri: this.redirect('google'),
+      redirect_uri: s.redirectUri,
       grant_type: 'authorization_code',
       code_verifier: s.verifier,
     });
@@ -154,14 +174,14 @@ export class SocialProviders {
     };
   }
 
-  private async facebook(code: string): Promise<ProviderProfile> {
+  private async facebook(code: string, redirectUri: string): Promise<ProviderProfile> {
     const v = this.c.META_GRAPH_VERSION;
     const g = `https://graph.facebook.com/${v}`;
     const t = await this.fetch(
       `${g}/oauth/access_token?${new URLSearchParams({
         client_id: this.c.FACEBOOK_APP_ID!,
         client_secret: this.c.FACEBOOK_APP_SECRET!,
-        redirect_uri: this.redirect('facebook'),
+        redirect_uri: redirectUri,
         code,
       })}`,
     );

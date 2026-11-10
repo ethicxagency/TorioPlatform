@@ -25,6 +25,8 @@ interface StateCookie {
   v: string;
   n: string;
   r: string;
+  /** The exact redirect URI sent to the provider; the code exchange must repeat it. */
+  u: string;
 }
 interface PendingCookie {
   provider: ProviderProfile['provider'];
@@ -67,14 +69,15 @@ export class SocialAuthService {
     };
   }
 
-  begin(provider: Provider, returnTo: string | undefined) {
+  async begin(provider: Provider, returnTo: string | undefined) {
     const { verifier, challenge } = newPkce();
     const state = randomToken(24);
     const nonce = randomToken(24);
-    const url = this.providers.authorizeUrl(provider, { state, nonce, challenge });
+    const redirectUri = await this.providers.redirectUri(provider);
+    const url = this.providers.authorizeUrl(provider, { state, nonce, challenge, redirectUri });
     const cookie = signCookie<StateCookie>(
       'state',
-      { p: provider, s: state, v: verifier, n: nonce, r: safeReturnTo(returnTo) },
+      { p: provider, s: state, v: verifier, n: nonce, r: safeReturnTo(returnTo), u: redirectUri },
       this.c.JWT_ACCESS_SECRET,
       STATE_TTL,
     );
@@ -94,9 +97,14 @@ export class SocialAuthService {
     if (q.error)
       throw new SocialAuthError(q.error === 'access_denied' ? 'cancelled' : 'provider_error');
     if (!q.code) throw new SocialAuthError('provider_error');
+    // Exact redirect-URI matching: the settings must still allow the URI this sign-in started with, so a URI removed
+    // (or a flow whose configuration changed) mid-way can't be completed.
+    if ((await this.providers.redirectUri(provider)) !== st.u)
+      throw new SocialAuthError('invalid_state');
     const profile = await this.providers.exchange(provider, q.code, {
       verifier: st.v,
       nonce: st.n,
+      redirectUri: st.u,
     });
     return this.resolve(profile, meta, safeReturnTo(st.r));
   }

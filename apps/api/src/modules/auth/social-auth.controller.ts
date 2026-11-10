@@ -87,14 +87,14 @@ export class SocialAuthController {
   @Public()
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Get(':provider/start')
-  start(
+  async start(
     @Param('provider') provider: string,
     @Query('returnTo') returnTo: string | undefined,
     @Res() res: Response,
   ) {
     if (!PROVIDERS.has(provider)) return this.fail(res, 'provider_error');
     try {
-      const b = this.social.begin(provider as Provider, returnTo);
+      const b = await this.social.begin(provider as Provider, returnTo);
       res.cookie(STATE_COOKIE, b.cookie, this.cookieOpts(b.ttlMs));
       return res.redirect(302, b.url);
     } catch (e) {

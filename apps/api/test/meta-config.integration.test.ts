@@ -16,6 +16,7 @@ const PREVIOUS = 'p'.repeat(40);
 const SECRET_V1 = 'meta-app-secret-ONE-plaintext';
 const SECRET_V2 = 'meta-app-secret-TWO-plaintext';
 const CALLBACK = 'https://app.example.test/api/v1/channels/meta/callback';
+const CUSTOMER_CB = 'https://app.example.test/api/v1/auth/oauth/facebook/callback';
 
 /** Seals text the way the app did under an older master key, to simulate a pre-rotation database. */
 const sealWith = (key: string, plain: string) => {
@@ -198,6 +199,64 @@ describe.skipIf(!url)('meta developer configuration (real PostgreSQL, fake Graph
     );
     expect(log.metadata.fields).toEqual(expect.arrayContaining(['appId', 'oauthRedirectUri']));
     expect(log.adminEmail).toContain('meta-admin');
+  });
+
+  it('keeps the channel callback and the customer Facebook sign-in callback separate', async () => {
+    // each flow accepts its own route and is shown its own URL to register
+    const ok = await save({
+      customerAuthRedirectUri: CUSTOMER_CB,
+      customerAuthAllowedRedirectUris: [CUSTOMER_CB],
+    }).expect(200);
+    expect(ok.body.values).toMatchObject({
+      customerAuthRedirectUri: CUSTOMER_CB,
+      oauthRedirectUri: CALLBACK, // the channel settings are untouched
+    });
+    expect(ok.body.derived).toMatchObject({
+      callbackPath: '/api/v1/channels/meta/callback',
+      redirectUriToRegister: CALLBACK,
+      customerAuthCallbackPath: '/api/v1/auth/oauth/facebook/callback',
+      customerAuthRedirectUriToRegister: CUSTOMER_CB,
+    });
+    // neither route is accepted for the other flow
+    const asCustomer = await save({ customerAuthRedirectUri: CALLBACK }).expect(400);
+    expect(JSON.stringify(asCustomer.body)).toContain('/api/v1/auth/oauth/facebook/callback');
+    const asChannel = await save({
+      oauthRedirectUri: CUSTOMER_CB,
+      allowedRedirectUris: [CUSTOMER_CB],
+    }).expect(400);
+    expect(JSON.stringify(asChannel.body)).toContain('/api/v1/channels/meta/callback');
+    await save({ customerAuthAllowedRedirectUris: [CUSTOMER_CB, CALLBACK] }).expect(400);
+    // arbitrary hosts, plain http, query strings and credentials are refused
+    const evil = await save({
+      customerAuthRedirectUri: 'https://evil.example.org/api/v1/auth/oauth/facebook/callback',
+      customerAuthAllowedRedirectUris: [],
+    }).expect(400);
+    expect(JSON.stringify(evil.body)).toMatch(/trusted/);
+    await save({
+      customerAuthRedirectUri: 'http://app.example.test/api/v1/auth/oauth/facebook/callback',
+    }).expect(400);
+    await save({ customerAuthRedirectUri: `${CUSTOMER_CB}?next=https://evil.example.org` }).expect(
+      400,
+    );
+    await save({
+      customerAuthRedirectUri:
+        'https://user:pw@app.example.test/api/v1/auth/oauth/facebook/callback',
+    }).expect(400);
+    // nothing was partially applied
+    const v = (await get('/config')).body.values;
+    expect(v.customerAuthRedirectUri).toBe(CUSTOMER_CB);
+    expect(v.customerAuthAllowedRedirectUris).toEqual([CUSTOMER_CB]);
+    // changing the customer URI says plainly that channels are unaffected
+    const pv = await send('post', '/config/preview', {
+      patch: {
+        customerAuthRedirectUri: 'https://app.example.test/api/v1/auth/oauth/facebook/callback',
+        customerAuthAllowedRedirectUris: [
+          CUSTOMER_CB,
+          'https://app.example.test/api/v1/auth/oauth/facebook/callback',
+        ],
+      },
+    });
+    expect(JSON.stringify(pv.body)).toMatch(/Connected channels are not affected|changes/);
   });
 
   it('only trusted hosts can be redirect destinations (no open redirects)', async () => {

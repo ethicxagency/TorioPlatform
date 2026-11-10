@@ -305,6 +305,36 @@ test.describe('super admin', () => {
       await expect(page.getByRole('region', { name: 'Unsaved changes' })).toHaveCount(0);
     });
 
+    test('OAuth: channel and customer Facebook sign-in have separate callback URLs, lists and instructions', async ({
+      page,
+    }) => {
+      await open(page);
+      await page.getByRole('tab', { name: 'OAuth & Redirect URLs' }).click();
+      const channels = page.getByRole('region', { name: 'Meta Business Channels' });
+      const customer = page.getByRole('region', { name: 'Customer Facebook Authentication' });
+      await expect(channels.getByText('/api/v1/channels/meta/callback').first()).toBeVisible();
+      await expect(
+        customer.getByText('/api/v1/auth/oauth/facebook/callback').first(),
+      ).toBeVisible();
+      // each group shows its own route and never the other's
+      await expect(channels.getByText('/api/v1/auth/oauth/facebook/callback')).toHaveCount(0);
+      await expect(customer.getByText('/api/v1/channels/meta/callback')).toHaveCount(0);
+      // honest about Meta: Torio doesn't register anything there
+      await expect(
+        customer.getByText(/does not add it to the Meta Developer Dashboard/),
+      ).toBeVisible();
+      await expect(customer.getByText(/FACEBOOK_APP_ID/)).toBeVisible();
+      // the customer list is independent: adding there leaves the channel list alone
+      await customer
+        .getByLabel('Add to Allowed customer sign-in redirect URIs')
+        .fill('https://app.example.test/api/v1/auth/oauth/facebook/callback');
+      await customer.getByRole('button', { name: 'Add' }).click();
+      await expect(customer.getByLabel('Allowed customer sign-in redirect URIs 1')).toHaveValue(
+        'https://app.example.test/api/v1/auth/oauth/facebook/callback',
+      );
+      await expect(channels.getByLabel('Allowed channel redirect URIs 2')).toHaveCount(0);
+    });
+
     test('OAuth: exact redirect URI to register, multiple URIs, primary choice; webhooks: copyable URLs and verify token', async ({
       page,
     }) => {
@@ -312,13 +342,13 @@ test.describe('super admin', () => {
       await page.getByRole('tab', { name: 'OAuth & Redirect URLs' }).click();
       await expect(page.getByText('/api/v1/channels/meta/callback').first()).toBeVisible();
       await page
-        .getByLabel('Add to Allowed OAuth redirect URIs')
+        .getByLabel('Add to Allowed channel redirect URIs')
         .fill('https://backup.example.test/api/v1/channels/meta/callback');
       await page
-        .getByRole('region', { name: 'Redirect URLs' })
+        .getByRole('region', { name: 'Meta Business Channels' })
         .getByRole('button', { name: 'Add' })
         .click();
-      await expect(page.getByLabel('Allowed OAuth redirect URIs 2')).toHaveValue(
+      await expect(page.getByLabel('Allowed channel redirect URIs 2')).toHaveValue(
         'https://backup.example.test/api/v1/channels/meta/callback',
       );
       await page

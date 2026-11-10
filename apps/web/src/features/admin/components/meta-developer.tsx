@@ -386,6 +386,91 @@ function SecretField({
   );
 }
 
+/** One OAuth flow's redirect settings: its primary callback, allow-list, validation status and where to register it. */
+function RedirectGroup(props: {
+  intro: string;
+  listLabel: string;
+  fields: string[];
+  problems: string[];
+  primary: string | null;
+  routePath: string;
+  toRegister: string | null;
+  allowed: string[];
+  onAllowed: (v: string[]) => void;
+  onPrimary: (v: string) => void;
+  primarySource: string | undefined;
+  primaryValue: string;
+  primaryError: string | undefined;
+  placeholder: string;
+  where: string;
+  customerNote?: string;
+}) {
+  const bad = props.problems.length > 0;
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="m-0 text-[12.5px] text-muted">{props.intro}</p>
+      <div className="flex items-center gap-2 text-xs">
+        <span
+          className={cn(
+            'rounded-md px-2 py-0.5 font-semibold',
+            bad
+              ? 'bg-danger-soft text-danger'
+              : props.primary
+                ? 'bg-success-soft text-success'
+                : 'bg-wash text-muted',
+          )}
+        >
+          {bad ? 'Needs fixing' : props.primary ? 'Valid' : 'Using the default'}
+        </span>
+        <span className="text-muted">
+          Route served by the API: <code>{props.routePath}</code>
+        </span>
+      </div>
+      {bad && (
+        <ul
+          role="alert"
+          className="m-0 flex list-disc flex-col gap-1 rounded-lg bg-danger-soft p-3 pl-7 text-xs text-[#8F2424]"
+        >
+          {props.problems.map((m, i) => (
+            <li key={i}>{m}</li>
+          ))}
+        </ul>
+      )}
+      <CopyRow label="Primary callback URL" value={props.toRegister} />
+      <Field
+        label="Primary redirect URI"
+        source={props.primarySource}
+        error={props.primaryError}
+        hint={
+          props.customerNote ??
+          'Sent to Meta when authorizing and repeated exactly when the code is exchanged.'
+        }
+      >
+        <input
+          value={props.primaryValue}
+          placeholder={props.placeholder}
+          onChange={(e) => props.onPrimary(e.target.value)}
+          className={controlCls}
+        />
+      </Field>
+      <ListEditor
+        label={props.listLabel}
+        items={props.allowed}
+        onChange={props.onAllowed}
+        placeholder={props.placeholder}
+        primary={props.primary}
+        onPrimary={props.onPrimary}
+        hint={`Exact HTTPS URLs only, each ending ${props.routePath}, on a trusted domain. Anything else is rejected.`}
+      />
+      <div className="rounded-lg bg-wash p-3 text-xs text-muted">
+        <b className="text-ink">Register this URL in Meta yourself.</b> {props.where} Saving it here
+        does not add it to the Meta Developer Dashboard, and Torio can’t read that list back, so
+        confirm it there.
+      </div>
+    </div>
+  );
+}
+
 function ListEditor({
   label,
   items,
@@ -610,6 +695,14 @@ export function MetaDeveloperPage() {
         server &&
         JSON.stringify(server) === JSON.stringify(draft),
     )?.message;
+  // Every message about one OAuth flow's redirect settings: saved-config problems plus any from the last preview.
+  const groupProblems = (fields: string[]) =>
+    [
+      ...c.problems
+        .filter((p) => p.severity === 'error' && fields.includes(p.field))
+        .map((p) => p.message),
+      ...fields.flatMap((f) => (errors[f] ? [errors[f]!] : [])),
+    ].filter((m, i, a) => a.indexOf(m) === i);
   const st = STATUS[c.status];
   const configTab = tab === 'app' || tab === 'oauth' || tab === 'webhooks' || tab === 'products';
 
@@ -834,39 +927,54 @@ export function MetaDeveloperPage() {
 
         {tab === 'oauth' && (
           <>
-            <Panel title="Redirect URLs">
-              <div className="flex flex-col gap-4">
-                <ListEditor
-                  label="Allowed OAuth redirect URIs"
-                  items={draft.allowedRedirectUris}
-                  onChange={(v) => set('allowedRedirectUris', v)}
-                  placeholder={
-                    c.derived.redirectUriToRegister ??
-                    'https://your-api-host/api/v1/channels/meta/callback'
-                  }
-                  primary={draft.oauthRedirectUri}
-                  onPrimary={(v) => set('oauthRedirectUri', v)}
-                  hint={`Every URI must end with ${c.derived.callbackPath}, the route the API serves for Meta’s callback.`}
-                />
-                <Field
-                  label="OAuth redirect URI (primary)"
-                  source={c.sources.oauthRedirectUri}
-                  error={err('oauthRedirectUri')}
-                  hint="Used for the Facebook login and the code exchange."
-                >
-                  <input
-                    value={text('oauthRedirectUri')}
-                    onChange={(e) => set('oauthRedirectUri', e.target.value)}
-                    className={controlCls}
-                  />
-                </Field>
-                <CopyRow
-                  label="Register this exact URI in Meta → Facebook Login → Valid OAuth Redirect URIs"
-                  value={draft.oauthRedirectUri || c.derived.redirectUriToRegister}
-                  note="Torio can’t read this list from Meta, so confirm it there."
-                />
-                <CopyRow label="Callback route served by the API" value={c.derived.callbackPath} />
-              </div>
+            <Panel title="Meta Business Channels">
+              <RedirectGroup
+                listLabel="Allowed channel redirect URIs"
+                intro="Used when a workspace connects Facebook Pages, Messenger, Instagram or other Meta business assets to its Inbox."
+                fields={['oauthRedirectUri', 'allowedRedirectUris']}
+                problems={groupProblems(['oauthRedirectUri', 'allowedRedirectUris'])}
+                primary={draft.oauthRedirectUri}
+                routePath={c.derived.callbackPath}
+                toRegister={draft.oauthRedirectUri || c.derived.redirectUriToRegister}
+                allowed={draft.allowedRedirectUris}
+                onAllowed={(v) => set('allowedRedirectUris', v)}
+                onPrimary={(v) => set('oauthRedirectUri', v)}
+                primarySource={c.sources.oauthRedirectUri}
+                primaryValue={text('oauthRedirectUri')}
+                primaryError={err('oauthRedirectUri')}
+                placeholder={
+                  c.derived.redirectUriToRegister ?? `https://your-host${c.derived.callbackPath}`
+                }
+                where="In the Meta app used to connect channels: Facebook Login → Settings → Valid OAuth Redirect URIs."
+              />
+            </Panel>
+            <Panel title="Customer Facebook Authentication">
+              <RedirectGroup
+                listLabel="Allowed customer sign-in redirect URIs"
+                intro="Used by “Continue with Facebook” on the customer sign-in and sign-up pages. A separate flow from channel connection, with its own callback route."
+                fields={['customerAuthRedirectUri', 'customerAuthAllowedRedirectUris']}
+                problems={groupProblems([
+                  'customerAuthRedirectUri',
+                  'customerAuthAllowedRedirectUris',
+                ])}
+                primary={draft.customerAuthRedirectUri}
+                routePath={c.derived.customerAuthCallbackPath}
+                toRegister={
+                  draft.customerAuthRedirectUri || c.derived.customerAuthRedirectUriToRegister
+                }
+                allowed={draft.customerAuthAllowedRedirectUris}
+                onAllowed={(v) => set('customerAuthAllowedRedirectUris', v)}
+                onPrimary={(v) => set('customerAuthRedirectUri', v)}
+                primarySource={c.sources.customerAuthRedirectUri}
+                primaryValue={text('customerAuthRedirectUri')}
+                primaryError={err('customerAuthRedirectUri')}
+                placeholder={
+                  c.derived.customerAuthRedirectUriToRegister ??
+                  `https://your-host${c.derived.customerAuthCallbackPath}`
+                }
+                where="In the Meta app whose App ID is set as FACEBOOK_APP_ID on the server: Facebook Login → Settings → Valid OAuth Redirect URIs. If you use one Meta app for both flows, add both URLs to that one list."
+                customerNote="Leave the primary blank to use the default (your web address plus the route above)."
+              />
             </Panel>
             <Panel title="Security & destinations">
               <div className="flex flex-col gap-4">

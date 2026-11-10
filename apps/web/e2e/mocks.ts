@@ -729,6 +729,8 @@ export const resetMetaAdmin = () => {
     websiteUrl: null,
     oauthRedirectUri: 'https://app.example.test/api/v1/channels/meta/callback',
     allowedRedirectUris: ['https://app.example.test/api/v1/channels/meta/callback'],
+    customerAuthRedirectUri: null as string | null,
+    customerAuthAllowedRedirectUris: [] as string[],
     oauthStateTtlMinutes: 10,
     allowedDomains: ['app.example.test'],
     successUrl: null,
@@ -2250,6 +2252,10 @@ export async function mockApi(
           derived: {
             callbackPath: '/api/v1/channels/meta/callback',
             redirectUriToRegister: st.values.oauthRedirectUri,
+            customerAuthCallbackPath: '/api/v1/auth/oauth/facebook/callback',
+            customerAuthRedirectUriToRegister:
+              st.values.customerAuthRedirectUri ??
+              'https://app.example.test/api/v1/auth/oauth/facebook/callback',
             metaWebhookUrl: 'https://app.example.test/api/v1/webhooks/meta',
             whatsappWebhookUrl: 'https://app.example.test/api/v1/webhooks/whatsapp',
           },

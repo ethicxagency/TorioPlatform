@@ -5239,6 +5239,8 @@ export interface components {
                 websiteUrl: string | null;
                 oauthRedirectUri: string | null;
                 allowedRedirectUris: string[];
+                customerAuthRedirectUri: string | null;
+                customerAuthAllowedRedirectUris: string[];
                 oauthStateTtlMinutes: number;
                 allowedDomains: string[];
                 successUrl: string | null;
@@ -5269,6 +5271,8 @@ export interface components {
             derived: {
                 callbackPath: string;
                 redirectUriToRegister: string | null;
+                customerAuthCallbackPath: string;
+                customerAuthRedirectUriToRegister: string | null;
                 metaWebhookUrl: string | null;
                 whatsappWebhookUrl: string | null;
             };
@@ -5299,6 +5303,8 @@ export interface components {
                 websiteUrl?: string | null;
                 oauthRedirectUri?: string | null;
                 allowedRedirectUris?: string[];
+                customerAuthRedirectUri?: string | null;
+                customerAuthAllowedRedirectUris?: string[];
                 oauthStateTtlMinutes?: number | null;
                 allowedDomains?: string[];
                 successUrl?: string | null;
@@ -5340,6 +5346,8 @@ export interface components {
                 websiteUrl?: string | null;
                 oauthRedirectUri?: string | null;
                 allowedRedirectUris?: string[];
+                customerAuthRedirectUri?: string | null;
+                customerAuthAllowedRedirectUris?: string[];
                 oauthStateTtlMinutes?: number | null;
                 allowedDomains?: string[];
                 successUrl?: string | null;

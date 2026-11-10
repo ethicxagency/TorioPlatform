@@ -1275,6 +1275,9 @@ model MetaConfiguration {
   websiteUrl          String?
   oauthRedirectUri    String?
   allowedRedirectUris String[] @default([])
+  /// Customer Portal "Continue with Facebook" callback, independent of the channel callback above.
+  customerAuthRedirectUri String?
+  customerAuthAllowedRedirectUris String[] @default([])
   oauthStateTtlMinutes Int?
   allowedDomains      String[] @default([])
   successUrl          String?

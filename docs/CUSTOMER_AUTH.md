@@ -30,6 +30,22 @@ In production the default is `<WEB_URL>/api/v1/auth/oauth/<provider>/callback` (
 is on another port, so set `GOOGLE_REDIRECT_URI` / `FACEBOOK_REDIRECT_URI` to the API origin as above. The value in the env
 var, the value in the provider console and the URL actually used must match exactly.
 
+### Where the Facebook redirect URI is configured
+
+Customer Facebook sign-in has its own setting, separate from the Meta channel callback: Super Admin → Integrations → Meta Developer →
+*OAuth & Redirect URLs* → **Customer Facebook Authentication** (primary URI plus an allow-list). Resolution order: the saved value,
+then `FACEBOOK_REDIRECT_URI`, then `<WEB_URL>/api/v1/auth/oauth/facebook/callback`. The two flows are validated independently:
+
+| Flow | Route (the only one accepted for it) |
+|---|---|
+| Meta Business Channels | `/api/v1/channels/meta/callback` |
+| Customer Facebook sign-in | `/api/v1/auth/oauth/facebook/callback` |
+
+Every URI must be HTTPS (http only for localhost outside production), exactly that path, no query/fragment/credentials, and on a trusted host
+(the web address's host, the Meta app domain, or a Trusted application domain). The URI a sign-in starts with is carried in the signed state
+and must still be allowed, and be repeated exactly, when the code is exchanged. Saving a URI in Torio does **not** register it with Meta:
+add it under Valid OAuth Redirect URIs in the Meta app yourself.
+
 ## Environment variables (server only)
 
 `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` · `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`,

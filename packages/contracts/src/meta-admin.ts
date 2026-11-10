@@ -1,7 +1,9 @@
 import { z } from 'zod';
 
-/** The route Meta's OAuth redirects back to. Fixed by the API; a configured redirect URI must end with exactly this path. */
+/** The route Meta's channel OAuth redirects back to. Fixed by the API; a channel redirect URI must end with exactly this path. */
 export const META_CALLBACK_PATH = '/api/v1/channels/meta/callback';
+/** The route customers' "Continue with Facebook" redirects back to. A different flow from the channel callback above. */
+export const FACEBOOK_LOGIN_CALLBACK_PATH = '/api/v1/auth/oauth/facebook/callback';
 export const META_WEBHOOK_PATH = '/api/v1/webhooks/meta';
 export const WHATSAPP_WEBHOOK_PATH = '/api/v1/webhooks/whatsapp';
 
@@ -9,22 +11,73 @@ const hostname = z
   .string()
   .trim()
   .toLowerCase()
-  .regex(/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$|^localhost$/, 'Enter a domain like app.example.com');
+  .regex(
+    /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$|^localhost$/,
+    'Enter a domain like app.example.com',
+  );
 const url = z.string().trim().max(500).url('Enter a full URL, e.g. https://app.example.com');
 const nul = <T extends z.ZodType>(s: T) => s.nullable().optional();
+
+/**
+ * Checks one OAuth redirect URI against the one route its flow serves, never another flow's. Returns the problems
+ * (empty = valid): must parse, be https (http only for localhost), be exactly `expectedPath` with no query or fragment,
+ * and sit on a trusted host, so a callback can never be pointed at an arbitrary site.
+ */
+export function checkRedirectUri(
+  uri: string,
+  expectedPath: string,
+  opts: { trustedHosts: string[]; production: boolean },
+): string[] {
+  let u: URL;
+  try {
+    u = new URL(uri);
+  } catch {
+    return ['Not a valid URL.'];
+  }
+  const out: string[] = [];
+  const local = u.hostname === 'localhost' || u.hostname === '127.0.0.1';
+  if (u.protocol !== 'https:' && !(local && !opts.production))
+    out.push('Use HTTPS (plain http is only allowed for localhost outside production).');
+  if (u.username || u.password) out.push('Credentials in a URL are not allowed.');
+  if (u.search || u.hash) out.push('A redirect URI must not contain a query string or fragment.');
+  if (u.pathname.replace(/\/$/, '') !== expectedPath)
+    out.push(`The path must be exactly ${expectedPath}.`);
+  if (!opts.trustedHosts.map((h) => h.toLowerCase()).includes(u.hostname.toLowerCase()) && !local)
+    out.push(
+      `The host ${u.hostname} isn’t trusted. Add its domain under Trusted application domains first.`,
+    );
+  return out;
+}
 
 /** Non-secret settings. `null` clears a value so the deployment environment applies again. */
 export const metaConfigPatchSchema = z
   .object({
     appName: nul(z.string().trim().min(1).max(80)),
-    appId: nul(z.string().trim().regex(/^\d{6,20}$/, 'The App ID is the numeric id from Meta (App settings → Basic)')),
-    apiVersion: nul(z.string().trim().regex(/^v\d+\.\d+$/, 'Use a version like v27.0')),
-    businessId: nul(z.string().trim().regex(/^\d{5,25}$/, 'Numeric Business Portfolio ID')),
+    appId: nul(
+      z
+        .string()
+        .trim()
+        .regex(/^\d{6,20}$/, 'The App ID is the numeric id from Meta (App settings → Basic)'),
+    ),
+    apiVersion: nul(
+      z
+        .string()
+        .trim()
+        .regex(/^v\d+\.\d+$/, 'Use a version like v27.0'),
+    ),
+    businessId: nul(
+      z
+        .string()
+        .trim()
+        .regex(/^\d{5,25}$/, 'Numeric Business Portfolio ID'),
+    ),
     appMode: nul(z.enum(['DEVELOPMENT', 'LIVE'])),
     appDomain: nul(hostname),
     websiteUrl: nul(url),
     oauthRedirectUri: nul(url),
     allowedRedirectUris: z.array(url).max(10).optional(),
+    customerAuthRedirectUri: nul(url),
+    customerAuthAllowedRedirectUris: z.array(url).max(10).optional(),
     oauthStateTtlMinutes: nul(z.number().int().min(1).max(60)),
     allowedDomains: z.array(hostname).max(20).optional(),
     successUrl: nul(url),
@@ -66,6 +119,8 @@ export const metaAdminConfigSchema = z.object({
     websiteUrl: z.string().nullable(),
     oauthRedirectUri: z.string().nullable(),
     allowedRedirectUris: z.array(z.string()),
+    customerAuthRedirectUri: z.string().nullable(),
+    customerAuthAllowedRedirectUris: z.array(z.string()),
     oauthStateTtlMinutes: z.number().int(),
     allowedDomains: z.array(z.string()),
     successUrl: z.string().nullable(),
@@ -84,13 +139,17 @@ export const metaAdminConfigSchema = z.object({
   derived: z.object({
     callbackPath: z.string(),
     redirectUriToRegister: z.string().nullable(),
+    customerAuthCallbackPath: z.string(),
+    customerAuthRedirectUriToRegister: z.string().nullable(),
     metaWebhookUrl: z.string().nullable(),
     whatsappWebhookUrl: z.string().nullable(),
   }),
   status: z.enum(['CONFIGURED', 'INCOMPLETE', 'INVALID', 'NEEDS_ATTENTION']),
   problems: z.array(problem),
   /** Settings that only take effect after a redeploy/restart (deployment-level). */
-  deploymentLevel: z.array(z.object({ name: z.string(), purpose: z.string(), configured: z.boolean() })),
+  deploymentLevel: z.array(
+    z.object({ name: z.string(), purpose: z.string(), configured: z.boolean() }),
+  ),
   updatedAt: z.iso.datetime().nullable(),
   updatedBy: z.string().nullable(),
 });
@@ -137,7 +196,9 @@ export const metaDiagnosticsSchema = z.object({
     processed24h: z.number().int(),
     failed24h: z.number().int(),
     pending: z.number().int(),
-    recentErrors: z.array(z.object({ at: z.iso.datetime(), provider: z.string(), error: z.string() })),
+    recentErrors: z.array(
+      z.object({ at: z.iso.datetime(), provider: z.string(), error: z.string() }),
+    ),
   }),
   products: z.array(
     z.object({
@@ -158,7 +219,11 @@ export const metaSecurityStatusSchema = z.object({
   algorithm: z.string(),
   masterKeyConfigured: z.boolean(),
   previousKeyConfigured: z.boolean(),
-  secretsSealedWith: z.object({ current: z.number().int(), previous: z.number().int(), unreadable: z.number().int() }),
+  secretsSealedWith: z.object({
+    current: z.number().int(),
+    previous: z.number().int(),
+    unreadable: z.number().int(),
+  }),
   rotationPending: z.boolean(),
   lastKeyRotationAt: z.iso.datetime().nullable(),
   notes: z.array(z.string()),
