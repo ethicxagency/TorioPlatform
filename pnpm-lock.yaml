@@ -63,15 +63,6 @@ importers:
       '@node-rs/argon2':
         specifier: ^2.0.2
         version: 2.2.2
-      '@torio/contracts':
-        specifier: workspace:*
-        version: link:../../packages/contracts
-      '@torio/database':
-        specifier: workspace:*
-        version: link:../../packages/database
-      '@torio/types':
-        specifier: workspace:*
-        version: link:../../packages/types
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7
@@ -124,6 +115,15 @@ importers:
       '@torio/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@torio/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@torio/database':
+        specifier: workspace:*
+        version: link:../../packages/database
+      '@torio/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       '@types/cookie-parser':
         specifier: ^1.4.9
         version: 1.4.10(@types/express@5.0.6)
