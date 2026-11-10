@@ -328,7 +328,7 @@ test.describe('super admin', () => {
       await expect(customer.getByText('Server configuration OK')).toBeVisible();
       await expect(customer.getByText('Redirect URI the server sends to Facebook')).toBeVisible();
       await expect(customer.getByText('Permissions requested')).toBeVisible();
-      await expect(customer.getByText('public_profile', { exact: true })).toBeVisible();
+      await expect(customer.locator('code', { hasText: 'public_profile' })).toBeVisible();
       await expect(customer.getByText(/Invalid Scopes: email/)).toBeVisible();
       await expect(customer.getByText(/Client OAuth Login/)).toBeVisible();
       await expect(customer.getByText(/Valid OAuth Redirect URIs/).first()).toBeVisible();
