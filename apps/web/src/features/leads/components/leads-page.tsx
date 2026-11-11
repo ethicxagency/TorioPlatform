@@ -1,5 +1,6 @@
 'use client';
 
+import { usePageSize } from '@/lib/table-prefs';
 import { Download, MoreHorizontal, Plus, RefreshCw, Upload } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useMemo, useRef, useState } from 'react';
@@ -70,7 +71,8 @@ export function LeadsPage() {
   useDismiss(moreRef, moreOpen, () => setMoreOpen(false));
 
   const effective = useMemo(() => ({ ...filters, q }), [filters, q]);
-  const pageSize = view === 'pipeline' ? 100 : PAGE_SIZE;
+  const [tableSize, setPageSize] = usePageSize('leads', PAGE_SIZE);
+  const pageSize = view === 'pipeline' ? 100 : tableSize;
   const list = useLeads(ws, {
     filters: effective,
     sort,
@@ -334,7 +336,7 @@ export function LeadsPage() {
           leads={leads}
           total={list.data?.meta.total ?? 0}
           page={page}
-          pageSize={PAGE_SIZE}
+          pageSize={tableSize}
           state={state}
           errorMessage={list.error?.message}
           fetching={list.isFetching && !list.isPending}
@@ -348,6 +350,10 @@ export function LeadsPage() {
           now={now}
           onSort={headerSort}
           onPage={setPage}
+          onPageSize={(n) => {
+            setPageSize(n);
+            setPage(1);
+          }}
           onOpen={setOpenLead}
           onEdit={(l) => setForm({ lead: l })}
           onDelete={(l) => setConfirm({ kind: 'one', lead: l })}
@@ -395,7 +401,7 @@ export function LeadsPage() {
           leads={[]}
           total={0}
           page={1}
-          pageSize={PAGE_SIZE}
+          pageSize={tableSize}
           state={state}
           errorMessage={list.error?.message}
           fetching={false}
@@ -409,6 +415,10 @@ export function LeadsPage() {
           now={now}
           onSort={headerSort}
           onPage={setPage}
+          onPageSize={(n) => {
+            setPageSize(n);
+            setPage(1);
+          }}
           onOpen={setOpenLead}
           onEdit={() => undefined}
           onDelete={() => undefined}

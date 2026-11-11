@@ -60,7 +60,8 @@ test.describe('orders (owner)', () => {
       .click();
     await expect(page.getByRole('button', { name: 'Sort: Highest value' })).toBeVisible();
     await page.getByRole('button', { name: 'Filters', exact: true }).click();
-    await page.getByLabel('Order date').selectOption('30d');
+    await page.getByRole('combobox', { name: 'Order date' }).click();
+    await page.getByRole('option', { name: /30 days/ }).click();
     await expect(page.getByRole('button', { name: 'Filters, 1 applied' })).toBeVisible();
     await expect(page.getByLabel('Search orders')).toHaveValue('1002');
   });
@@ -303,7 +304,8 @@ test.describe('orders (owner)', () => {
     await page.getByRole('checkbox', { name: 'Select order #1003' }).click();
     const bar = page.getByRole('toolbar', { name: 'Bulk actions' });
     await expect(bar).toContainText('2 selected');
-    await bar.getByLabel('Change status').selectOption('CONFIRMED');
+    await bar.getByRole('combobox', { name: 'Change status' }).click();
+    await page.getByRole('option', { name: /Mark confirmed/ }).click();
     await expect(
       page.getByRole('status').filter({ hasText: '1 updated · 1 skipped' }),
     ).toBeVisible();

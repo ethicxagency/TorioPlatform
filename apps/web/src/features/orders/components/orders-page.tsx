@@ -1,5 +1,6 @@
 'use client';
 
+import { usePageSize } from '@/lib/table-prefs';
 import { Download, MoreHorizontal, Plus, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useRef, useState } from 'react';
@@ -71,6 +72,7 @@ export function OrdersPage() {
   const [sort, setSort] = useState<OrderSort>(saved?.sort ?? 'createdAt');
   const [dir, setDir] = useState<'asc' | 'desc'>(saved?.dir ?? 'desc');
   const [page, setPage] = useState(saved?.page ?? 1);
+  const [pageSize, setPageSize] = usePageSize('orders', ORDER_PAGE_SIZE);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -78,7 +80,7 @@ export function OrdersPage() {
   useDismiss(moreRef, moreOpen, () => setMoreOpen(false));
 
   const effective = useMemo(() => ({ ...filters, q }), [filters, q]);
-  const list = useOrders(ws, { filters: effective, sort, dir, page, pageSize: ORDER_PAGE_SIZE });
+  const list = useOrders(ws, { filters: effective, sort, dir, page, pageSize });
   const summary = useOrderSummary(ws, filters.range);
   const m = useOrderMutations(ws);
   const orders = useMemo(() => list.data?.data ?? [], [list.data]);
@@ -254,7 +256,7 @@ export function OrdersPage() {
         orders={orders}
         total={list.data?.meta.total ?? 0}
         page={page}
-        pageSize={ORDER_PAGE_SIZE}
+        pageSize={pageSize}
         state={state}
         errorMessage={list.error?.message}
         fetching={list.isFetching && !list.isPending}
@@ -267,6 +269,10 @@ export function OrdersPage() {
         now={now}
         onSort={headerSort}
         onPage={setPage}
+        onPageSize={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
         onOpen={openOrder}
         onExport={(o) => void doExport([o.id])}
         onOpenConversation={openConversation}

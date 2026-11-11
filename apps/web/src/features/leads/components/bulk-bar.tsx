@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/ui/select';
 import { Download, Tag, Trash2, UserPlus, X } from 'lucide-react';
 import { useState } from 'react';
 import { STAGES } from '../constants';
@@ -18,9 +19,6 @@ interface Props {
   onExport: () => void;
   onDelete: () => void;
 }
-
-const sel =
-  'h-8 rounded-lg border border-white/20 bg-white/10 px-2 text-[12.5px] text-white disabled:opacity-50 [&>option]:text-ink';
 
 export function BulkBar({
   count,
@@ -50,38 +48,28 @@ export function BulkBar({
       <span className="font-semibold">{count} selected</span>
       <label className="flex items-center gap-1.5">
         <UserPlus size={13} aria-hidden />
-        <select
+        <Select
           aria-label="Assign owner"
+          value={''}
+          placeholder="Assign owner…"
+          onChange={(v) => v && onAssign(v === 'none' ? null : v)}
+          options={[
+            { value: 'none', label: 'Unassign' },
+            ...owners.map((o) => ({ value: o.id, label: o.name })),
+          ]}
           disabled={busy || !canWrite}
-          value=""
-          onChange={(e) =>
-            e.target.value && onAssign(e.target.value === 'none' ? null : e.target.value)
-          }
-          className={sel}
-        >
-          <option value="">Assign owner…</option>
-          <option value="none">Unassign</option>
-          {owners.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.name}
-            </option>
-          ))}
-        </select>
+          tone="dark"
+        />
       </label>
-      <select
+      <Select
         aria-label="Change status"
+        value={''}
+        placeholder="Change status…"
+        onChange={(v) => v && onStage(v as LeadStage)}
+        options={[...STAGES.map((s) => ({ value: s.key, label: s.label }))]}
         disabled={busy || !canWrite}
-        value=""
-        onChange={(e) => e.target.value && onStage(e.target.value as LeadStage)}
-        className={sel}
-      >
-        <option value="">Change status…</option>
-        {STAGES.map((s) => (
-          <option key={s.key} value={s.key}>
-            {s.label}
-          </option>
-        ))}
-      </select>
+        tone="dark"
+      />
       <form
         onSubmit={(e) => {
           e.preventDefault();

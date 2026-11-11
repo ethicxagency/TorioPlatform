@@ -1,5 +1,6 @@
 'use client';
 
+import { usePageSize } from '@/lib/table-prefs';
 import { Download, MoreHorizontal, Plus, RefreshCw, Upload } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useMemo, useRef, useState } from 'react';
@@ -56,6 +57,7 @@ export function CustomersPage() {
   const [sort, setSort] = useState<CustomerSort>('createdAt');
   const [dir, setDir] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = usePageSize('customers', CUSTOMER_PAGE_SIZE);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [openState, setOpen] = useState<CustomerItem | null>(null);
   // Deep link from other pages (e.g. an order): /customers?customer=<id> opens that customer's profile.
@@ -76,7 +78,7 @@ export function CustomersPage() {
     sort,
     dir,
     page,
-    pageSize: CUSTOMER_PAGE_SIZE,
+    pageSize,
   });
   const summary = useCustomerSummary(ws);
   const workspaceTags = useWorkspaceTags(ws);
@@ -294,7 +296,7 @@ export function CustomersPage() {
         customers={customers}
         total={list.data?.meta.total ?? 0}
         page={page}
-        pageSize={CUSTOMER_PAGE_SIZE}
+        pageSize={pageSize}
         state={state}
         errorMessage={list.error?.message}
         fetching={list.isFetching && !list.isPending}
@@ -308,6 +310,10 @@ export function CustomersPage() {
         now={now}
         onSort={headerSort}
         onPage={setPage}
+        onPageSize={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
         onOpen={setOpen}
         onEdit={(c) => setForm({ customer: c })}
         onDelete={setConfirm}

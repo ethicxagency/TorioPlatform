@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/ui/select';
 import { Download, Tag, UserPlus, X } from 'lucide-react';
 import { useState } from 'react';
 import { STATUSES } from '../constants';
@@ -16,9 +17,6 @@ interface Props {
   onTags: (action: 'ADD_TAGS' | 'REMOVE_TAGS', tags: string[]) => void;
   onExport: () => void;
 }
-
-const sel =
-  'h-8 rounded-lg border border-white/20 bg-white/10 px-2 text-[12.5px] text-white disabled:opacity-50 [&>option]:text-ink';
 
 /** Acts on the selected customers only (the count shown), never on every row matching the filters. */
 export function CustomerBulkBar({
@@ -48,38 +46,28 @@ export function CustomerBulkBar({
       <span className="font-semibold">{count} selected</span>
       <label className="flex items-center gap-1.5">
         <UserPlus size={13} aria-hidden />
-        <select
+        <Select
           aria-label="Assign owner"
+          value={''}
+          placeholder="Assign owner…"
+          onChange={(v) => v && onAssign(v === 'none' ? null : v)}
+          options={[
+            { value: 'none', label: 'Unassign' },
+            ...owners.map((o) => ({ value: o.id, label: o.name })),
+          ]}
           disabled={busy || !canWrite}
-          value=""
-          onChange={(e) =>
-            e.target.value && onAssign(e.target.value === 'none' ? null : e.target.value)
-          }
-          className={sel}
-        >
-          <option value="">Assign owner…</option>
-          <option value="none">Unassign</option>
-          {owners.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.name}
-            </option>
-          ))}
-        </select>
+          tone="dark"
+        />
       </label>
-      <select
+      <Select
         aria-label="Change status"
+        value={''}
+        placeholder="Change status…"
+        onChange={(v) => v && onStatus(v as CustomerStatus)}
+        options={[...STATUSES.map((s) => ({ value: s.key, label: s.label }))]}
         disabled={busy || !canWrite}
-        value=""
-        onChange={(e) => e.target.value && onStatus(e.target.value as CustomerStatus)}
-        className={sel}
-      >
-        <option value="">Change status…</option>
-        {STATUSES.map((s) => (
-          <option key={s.key} value={s.key}>
-            {s.label}
-          </option>
-        ))}
-      </select>
+        tone="dark"
+      />
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -88,15 +76,16 @@ export function CustomerBulkBar({
         className="flex items-center gap-1.5"
       >
         <Tag size={13} aria-hidden />
-        <select
+        <Select
           aria-label="Tag action"
           value={mode}
-          onChange={(e) => setMode(e.target.value as typeof mode)}
-          className={sel}
-        >
-          <option value="ADD_TAGS">Add tag</option>
-          <option value="REMOVE_TAGS">Remove tag</option>
-        </select>
+          onChange={(v) => setMode(v as typeof mode)}
+          options={[
+            { value: 'ADD_TAGS', label: 'Add tag' },
+            { value: 'REMOVE_TAGS', label: 'Remove tag' },
+          ]}
+          tone="dark"
+        />
         <input
           aria-label="Tag name"
           value={tag}

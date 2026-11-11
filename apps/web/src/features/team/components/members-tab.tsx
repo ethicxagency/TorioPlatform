@@ -1,6 +1,6 @@
 'use client';
 
-import { CONTROL } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Search, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -30,13 +30,13 @@ interface Props {
   onFilters: (p: Partial<MemberFilters>) => void;
   onClear: () => void;
   onPage: (p: number) => void;
+  onPageSize?: (size: number) => void;
   onOpen: (m: Member) => void;
   onRetry: () => void;
   onInvite: () => void;
   canManage: boolean;
 }
 
-const selectCls = CONTROL;
 const th = 'px-3 py-2.5 text-left text-[12px] font-semibold text-muted whitespace-nowrap';
 
 export function MembersTab(p: Props) {
@@ -64,43 +64,41 @@ export function MembersTab(p: Props) {
             </button>
           )}
         </label>
-        <select
+        <Select
           aria-label="Filter by role"
           value={p.filters.role}
-          onChange={(e) => p.onFilters({ role: e.target.value as MemberFilters['role'] })}
-          className={selectCls}
-        >
-          <option value="">All roles</option>
-          {(Object.keys(ROLE_INFO) as (keyof typeof ROLE_INFO)[]).map((r) => (
-            <option key={r} value={r}>
-              {ROLE_INFO[r].label}
-            </option>
-          ))}
-        </select>
-        <select
+          onChange={(v) => p.onFilters({ role: v as MemberFilters['role'] })}
+          options={[
+            { value: '', label: 'All roles' },
+            ...(Object.keys(ROLE_INFO) as (keyof typeof ROLE_INFO)[]).map((r) => ({
+              value: r,
+              label: ROLE_INFO[r].label,
+            })),
+          ]}
+          className="w-full"
+        />
+        <Select
           aria-label="Filter by status"
           value={p.filters.status}
-          onChange={(e) => p.onFilters({ status: e.target.value as MemberFilters['status'] })}
-          className={selectCls}
-        >
-          <option value="">Any status</option>
-          <option value="ACTIVE">Active</option>
-          <option value="SUSPENDED">Suspended</option>
-        </select>
+          onChange={(v) => p.onFilters({ status: v as MemberFilters['status'] })}
+          options={[
+            { value: '', label: 'Any status' },
+            { value: 'ACTIVE', label: 'Active' },
+            { value: 'SUSPENDED', label: 'Suspended' },
+          ]}
+          className="w-full"
+        />
         {p.teams.length > 0 && (
-          <select
+          <Select
             aria-label="Filter by team"
             value={p.filters.team}
-            onChange={(e) => p.onFilters({ team: e.target.value })}
-            className={selectCls}
-          >
-            <option value="">All teams</option>
-            {p.teams.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => p.onFilters({ team: v })}
+            options={[
+              { value: '', label: 'All teams' },
+              ...p.teams.map((t) => ({ value: t.id, label: t.name })),
+            ]}
+            className="w-full"
+          />
         )}
         {p.filtered && (
           <button
@@ -280,7 +278,13 @@ export function MembersTab(p: Props) {
               </li>
             ))}
           </ul>
-          <Pagination page={p.page} total={p.total} pageSize={p.pageSize} onPage={p.onPage} />
+          <Pagination
+            page={p.page}
+            total={p.total}
+            pageSize={p.pageSize}
+            onPage={p.onPage}
+            onPageSize={p.onPageSize}
+          />
         </div>
       )}
     </div>

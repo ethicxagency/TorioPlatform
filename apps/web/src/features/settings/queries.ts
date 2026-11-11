@@ -127,7 +127,7 @@ export function useUpdateWorkspace(ws: string | null) {
   });
 }
 
-export function useAudit(ws: string | null, p: { page: number; q: string }) {
+export function useAudit(ws: string | null, p: { page: number; q: string; pageSize?: number }) {
   return useQuery({
     queryKey: settingsKeys.audit(ws ?? '', p),
     enabled: !!ws,
@@ -137,7 +137,7 @@ export function useAudit(ws: string | null, p: { page: number; q: string }) {
       const { data, error, response } = await api.GET('/api/v1/workspaces/{workspaceId}/audit', {
         params: {
           path: { workspaceId: ws! },
-          query: { page: p.page, pageSize: 25, ...(p.q.trim() && { q: p.q.trim() }) },
+          query: { page: p.page, pageSize: p.pageSize ?? 25, ...(p.q.trim() && { q: p.q.trim() }) },
         },
       });
       if (!data) throw fail(error, 'Could not load the audit log', response.status);

@@ -91,6 +91,7 @@ export interface InvoiceFilters {
   to: string;
   sort: 'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc';
   page: number;
+  pageSize?: number;
 }
 export function useInvoices(ws: string | null, f: InvoiceFilters) {
   return useQuery({
@@ -103,7 +104,7 @@ export function useInvoices(ws: string | null, f: InvoiceFilters) {
           path: { workspaceId: ws! },
           query: {
             page: f.page,
-            pageSize: 10,
+            pageSize: f.pageSize ?? 10,
             sort: f.sort,
             ...(f.status && { status: f.status }),
             ...(f.q.trim() && { q: f.q.trim() }),

@@ -1,5 +1,6 @@
 'use client';
 
+import { usePageSize } from '@/lib/table-prefs';
 import { UserPlus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useShell } from '@/components/shell/shell-context';
@@ -39,6 +40,7 @@ export function TeamPage() {
   const [search, setSearch] = useState('');
   const q = useDebounced(search, 300);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = usePageSize('members', PAGE_SIZE);
   const [open, setOpen] = useState<Member | null>(null);
   const [inviting, setInviting] = useState(false);
 
@@ -47,7 +49,7 @@ export function TeamPage() {
     filters: effective,
     sort: 'createdAt',
     page,
-    pageSize: PAGE_SIZE,
+    pageSize,
   });
   const everyone = useTeamMembers(ws, {
     filters: EMPTY_MEMBER_FILTERS,
@@ -148,7 +150,7 @@ export function TeamPage() {
           members={members.data?.data ?? []}
           total={members.data?.meta.total ?? 0}
           page={page}
-          pageSize={PAGE_SIZE}
+          pageSize={pageSize}
           state={state}
           errorMessage={members.error?.message}
           fetching={members.isFetching && !members.isPending}
@@ -174,6 +176,10 @@ export function TeamPage() {
             setPage(1);
           }}
           onPage={setPage}
+          onPageSize={(n) => {
+            setPageSize(n);
+            setPage(1);
+          }}
           onOpen={setOpen}
           onRetry={() => members.refetch()}
           onInvite={() => setInviting(true)}

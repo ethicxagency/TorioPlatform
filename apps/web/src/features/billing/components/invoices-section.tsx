@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/ui/select';
 import {
   CircleCheck,
   Download,
@@ -18,6 +19,7 @@ import { controlCls } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTimeZone } from '@/features/settings/queries';
 import { Pagination } from '@/components/ui/pagination';
+import { usePageSize } from '@/lib/table-prefs';
 import { cn } from '@/lib/utils';
 import {
   downloadInvoicePdf,
@@ -84,6 +86,7 @@ export function InvoicesSection({ ws, canManage }: { ws: string; canManage: bool
   const [q, setQ] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [pageSize, setPageSize] = usePageSize('invoices', 10);
   const [sort, setSort] = useState<InvoiceFilters['sort']>('date_desc');
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState<string | null>(null);
@@ -103,6 +106,7 @@ export function InvoicesSection({ ws, canManage }: { ws: string; canManage: bool
     to: badRange ? '' : to,
     sort,
     page,
+    pageSize,
   });
   const m = useBillingMutations(ws);
   const err = (e: unknown) => toast.error(e instanceof Error ? e.message : 'Something went wrong');
@@ -217,21 +221,15 @@ export function InvoicesSection({ ws, canManage }: { ws: string; canManage: bool
             />
             <label>
               <span className="sr-only">Sort invoices</span>
-              <select
+              <Select
                 aria-label="Sort invoices"
                 value={sort}
-                onChange={(e) => {
-                  setSort(e.target.value as InvoiceFilters['sort']);
+                onChange={(v) => {
+                  setSort(v as InvoiceFilters['sort']);
                   setPage(1);
                 }}
-                className={cn(controlCls, 'w-auto cursor-pointer pr-7')}
-              >
-                {SORTS.map((s) => (
-                  <option key={s.key} value={s.key}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
+                options={[...SORTS.map((s) => ({ value: s.key, label: s.label }))]}
+              />
             </label>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -439,6 +437,10 @@ export function InvoicesSection({ ws, canManage }: { ws: string; canManage: bool
                 total={meta.total}
                 pageSize={meta.pageSize}
                 onPage={setPage}
+                onPageSize={(n) => {
+                  setPageSize(n);
+                  setPage(1);
+                }}
               />
             )}
           </>

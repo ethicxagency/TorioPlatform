@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/ui/select';
 import { ChannelIcon, channelKind } from '@/components/channel-icon';
 import {
   ArrowDownAZ,
@@ -100,8 +101,6 @@ const SORTS: (FilterMenuOption<SortKey> & { sort: LeadSortField; dir: 'asc' | 'd
 const ICON_BTN =
   'relative flex h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius-control)] border px-3 text-[13px] font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none';
 
-const selectCls =
-  'h-9 w-full rounded-[var(--radius-control)] border border-line bg-white px-2 text-[13px] text-ink';
 const chip =
   'inline-flex items-center gap-1.5 rounded-full bg-primary-soft py-[3px] pl-2.5 pr-1.5 text-xs font-medium text-primary-hover';
 
@@ -322,32 +321,28 @@ export function LeadsToolbar(p: Props) {
                 <div className="grid grid-cols-2 gap-2.5">
                   <label className="flex flex-col gap-1.5 font-label text-muted">
                     Created
-                    <select
+                    <Select
                       value={f.range}
-                      onChange={(e) => p.onFilters({ range: e.target.value as DateRange })}
-                      className={selectCls}
-                    >
-                      <option value="">Any time</option>
-                      {DATE_RANGES.map((r) => (
-                        <option key={r.key} value={r.key}>
-                          {r.label}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(v) => p.onFilters({ range: v as DateRange })}
+                      options={[
+                        { value: '', label: 'Any time' },
+                        ...DATE_RANGES.map((r) => ({ value: r.key, label: r.label })),
+                      ]}
+                      className="w-full"
+                    />
                   </label>
                   <label className="flex flex-col gap-1.5 font-label text-muted">
                     Lead score
-                    <select
+                    <Select
                       value={f.minScore}
-                      onChange={(e) =>
-                        p.onFilters({ minScore: e.target.value as LeadFilters['minScore'] })
-                      }
-                      className={selectCls}
-                    >
-                      <option value="">Any score</option>
-                      <option value="40">Medium+ (40+)</option>
-                      <option value="70">High (70+)</option>
-                    </select>
+                      onChange={(v) => p.onFilters({ minScore: v as LeadFilters['minScore'] })}
+                      options={[
+                        { value: '', label: 'Any score' },
+                        { value: '40', label: 'Medium+ (40+)' },
+                        { value: '70', label: 'High (70+)' },
+                      ]}
+                      className="w-full"
+                    />
                   </label>
                 </div>
               </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { Pagination } from '@/components/ui/pagination';
+import { usePageSize } from '@/lib/table-prefs';
 import { Search } from 'lucide-react';
 import { useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -16,8 +17,9 @@ export function AuditPage() {
   const [search, setSearch] = useState('');
   const q = useDebounced(search, 300);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = usePageSize('audit', 25);
   const allowed = can('audit:read');
-  const list = useAudit(allowed ? ws : null, { page, q });
+  const list = useAudit(allowed ? ws : null, { page, q, pageSize });
   const meta = list.data?.meta;
 
   if (!isLoading && !allowed)
@@ -79,6 +81,10 @@ export function AuditPage() {
             pageSize={meta?.pageSize ?? 1}
             noun="entries"
             onPage={setPage}
+            onPageSize={(n) => {
+              setPageSize(n);
+              setPage(1);
+            }}
           />
         </div>
       )}

@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/ui/select';
 import { ChannelIcon, channelKind } from '@/components/channel-icon';
 import {
   ArrowDownAZ,
@@ -41,8 +42,6 @@ interface Props {
   onSort: (s: CustomerSort, d: 'asc' | 'desc') => void;
 }
 
-const selectCls =
-  'h-9 w-full rounded-[var(--radius-control)] border border-line bg-white px-2 text-[13px] text-ink';
 const toggle = <T,>(a: T[], v: T) => (a.includes(v) ? a.filter((x) => x !== v) : [...a, v]);
 
 type SortKey = `${CustomerSort}-${'asc' | 'desc'}`;
@@ -228,20 +227,15 @@ export function CustomersToolbar(p: Props) {
                 </div>
                 <label className="flex flex-col gap-1.5 font-label text-muted">
                   Status
-                  <select
+                  <Select
                     value={f.status}
-                    onChange={(e) =>
-                      p.onFilters({ status: e.target.value as CustomerFilters['status'] })
-                    }
-                    className={selectCls}
-                  >
-                    <option value="">Any status</option>
-                    {STATUSES.map((s) => (
-                      <option key={s.key} value={s.key}>
-                        {s.label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => p.onFilters({ status: v as CustomerFilters['status'] })}
+                    options={[
+                      { value: '', label: 'Any status' },
+                      ...STATUSES.map((s) => ({ value: s.key, label: s.label })),
+                    ]}
+                    className="w-full"
+                  />
                 </label>
                 <fieldset className="m-0 border-0 p-0">
                   <legend className="mb-1.5 font-label text-muted">Source</legend>
@@ -306,18 +300,15 @@ export function CustomersToolbar(p: Props) {
                 />
                 <label className="flex flex-col gap-1.5 font-label text-muted">
                   Registered
-                  <select
+                  <Select
                     value={f.range}
-                    onChange={(e) => p.onFilters({ range: e.target.value as DateRange })}
-                    className={selectCls}
-                  >
-                    <option value="">Any time</option>
-                    {DATE_RANGES.map((r) => (
-                      <option key={r.key} value={r.key}>
-                        {r.label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => p.onFilters({ range: v as DateRange })}
+                    options={[
+                      { value: '', label: 'Any time' },
+                      ...DATE_RANGES.map((r) => ({ value: r.key, label: r.label })),
+                    ]}
+                    className="w-full"
+                  />
                 </label>
               </div>
             )}

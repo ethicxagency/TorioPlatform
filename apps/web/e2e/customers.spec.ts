@@ -37,15 +37,68 @@ test.describe('customers', () => {
     expect(await box.evaluate((e) => getComputedStyle(e).overflowY)).toBe('auto');
   });
 
-  test('selects share one chrome: no native arrow, one chevron', async ({ page }) => {
+  test('native selects in forms share one chrome: no OS arrow, one chevron', async ({ page }) => {
+    await page.getByRole('button', { name: 'Add Customer' }).first().click();
+    const sel = page.getByRole('dialog').locator('select').first();
+    await expect(sel).toBeVisible();
+    expect(await sel.evaluate((e) => getComputedStyle(e).appearance)).toBe('none');
+    expect(await sel.evaluate((e) => getComputedStyle(e).backgroundImage)).toContain('svg');
+  });
+
+  test('page size: choosing rows per page asks the API for it, and is remembered', async ({
+    page,
+  }) => {
+    const rows = page.getByRole('combobox', { name: 'Rows per page' });
+    await expect(rows).toContainText('25');
+    await rows.click();
+    await page.getByRole('option', { name: '50' }).click();
+    await expect(rows).toContainText('50');
+    await expect.poll(() => customerRequests.some((q) => q.includes('pageSize=50'))).toBe(true);
+    await page.reload();
+    await expect(page.getByRole('combobox', { name: 'Rows per page' })).toContainText('50');
+  });
+
+  test('columns: hide and restore optional columns, remembered, primary column locked', async ({
+    page,
+  }) => {
+    const head = page.getByRole('columnheader', { name: 'Contact' });
+    await expect(head).toBeVisible();
+    await page.getByRole('button', { name: /^Columns/ }).click();
+    const menu = page.getByRole('menu', { name: 'Visible columns' });
+    await expect(menu.getByRole('menuitemcheckbox', { name: 'Customer' })).toHaveCount(0);
+    await menu.getByRole('menuitemcheckbox', { name: 'Contact' }).click();
+    await expect(head).toBeHidden();
+    await expect(page.getByRole('button', { name: /1 hidden/ })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole('columnheader', { name: 'Contact' })).toBeHidden();
+    await page.getByRole('button', { name: /^Columns/ }).click();
+    await page
+      .getByRole('menuitem', { name: 'Show all columns' })
+      .or(page.getByRole('button', { name: 'Show all columns' }))
+      .click();
+    await expect(page.getByRole('columnheader', { name: 'Contact' })).toBeVisible();
+  });
+
+  test('custom select: opens with the keyboard, picks a value, Escape closes only the select', async ({
+    page,
+  }) => {
     await page
       .getByRole('button', { name: /Filters/ })
       .first()
       .click();
-    const sel = page.locator('select').first();
-    await expect(sel).toBeVisible();
-    expect(await sel.evaluate((e) => getComputedStyle(e).appearance)).toBe('none');
-    expect(await sel.evaluate((e) => getComputedStyle(e).backgroundImage)).toContain('svg');
+    const status = page.getByRole('combobox', { name: 'Status' });
+    await status.focus();
+    await page.keyboard.press('ArrowDown');
+    const list = page.getByRole('listbox', { name: 'Status' });
+    await expect(list).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(list).toHaveCount(0);
+    await expect(status).toBeFocused();
+    await expect(page.getByRole('combobox', { name: 'Status' })).toBeVisible(); // the filter panel stayed open
+    await status.click();
+    await page.getByRole('option', { name: 'Active', exact: true }).click();
+    await expect(status).toContainText('Active');
+    await expect.poll(() => customerRequests.some((q) => q.includes('status=ACTIVE'))).toBe(true);
   });
 
   test('shows real KPIs above the toolbar, marks order-based metrics unavailable, lists customers', async ({

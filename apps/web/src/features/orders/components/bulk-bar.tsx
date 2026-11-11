@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/ui/select';
 import { Download, X } from 'lucide-react';
 import { ORDER_STATUS_LABEL } from '@torio/contracts';
 import type { OrderStatusTarget } from '../queries';
@@ -24,20 +25,22 @@ export function OrderBulkBar({ count, canWrite, busy, onClear, onStatus, onExpor
       className="flex flex-wrap items-center gap-2 rounded-xl bg-ink px-3 py-2 text-[12.5px] text-white"
     >
       <span className="font-semibold">{count} selected</span>
-      <select
+      <Select
         aria-label="Change status"
+        value={''}
+        placeholder="Change status…"
+        onChange={(v) => v && onStatus(v as OrderStatusTarget)}
+        options={[
+          ...TARGETS.map((t) => ({
+            value: t,
+            label:
+              t === 'CANCELLED' ? 'Cancel orders' : `Mark ${ORDER_STATUS_LABEL[t].toLowerCase()}`,
+          })),
+        ]}
         disabled={busy || !canWrite}
-        value=""
-        onChange={(e) => e.target.value && onStatus(e.target.value as OrderStatusTarget)}
-        className="h-8 rounded-lg border border-white/20 bg-white/10 px-2 text-[12.5px] text-white disabled:opacity-50 [&>option]:text-ink"
-      >
-        <option value="">Change status…</option>
-        {TARGETS.map((t) => (
-          <option key={t} value={t}>
-            {t === 'CANCELLED' ? 'Cancel orders' : `Mark ${ORDER_STATUS_LABEL[t].toLowerCase()}`}
-          </option>
-        ))}
-      </select>
+        tone="dark"
+        className=""
+      />
       <span className="flex-1" />
       <button
         type="button"

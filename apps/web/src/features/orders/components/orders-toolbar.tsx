@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/ui/select';
 import {
   ArrowDownWideNarrow,
   ArrowUpNarrowWide,
@@ -269,49 +270,46 @@ export function OrdersToolbar(p: Props) {
                 />
                 <label className="flex flex-col gap-1.5 font-label text-muted">
                   Order date
-                  <select
+                  <Select
                     aria-label="Order date"
                     value={f.range}
-                    onChange={(e) => p.onFilters({ range: e.target.value as OrderRange })}
-                    className={selectCls}
-                  >
-                    <option value="">All time</option>
-                    {DATE_RANGES.map((r) => (
-                      <option key={r.key} value={r.key}>
-                        {r.label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => p.onFilters({ range: v as OrderRange })}
+                    options={[
+                      { value: '', label: 'All time' },
+                      ...DATE_RANGES.map((r) => ({ value: r.key, label: r.label })),
+                    ]}
+                    className="w-full"
+                  />
                 </label>
                 <label className="flex flex-col gap-1.5 font-label text-muted">
                   Sales channel
-                  <select
+                  <Select
                     value={f.channel}
-                    onChange={(e) => p.onFilters({ channel: e.target.value as '' | OrderChannel })}
-                    className={selectCls}
-                  >
-                    <option value="">Any channel</option>
-                    {(Object.keys(CHANNEL_LABEL) as OrderChannel[]).map((c) => (
-                      <option key={c} value={c}>
-                        {CHANNEL_LABEL[c]}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => p.onFilters({ channel: v as '' | OrderChannel })}
+                    options={[
+                      { value: '', label: 'Any channel' },
+                      ...(Object.keys(CHANNEL_LABEL) as OrderChannel[]).map((c) => ({
+                        value: c,
+                        label: CHANNEL_LABEL[c],
+                      })),
+                    ]}
+                    className="w-full"
+                  />
                 </label>
                 <label className="flex flex-col gap-1.5 font-label text-muted">
                   Payment method
-                  <select
+                  <Select
                     value={f.method}
-                    onChange={(e) => p.onFilters({ method: e.target.value as '' | PaymentMethod })}
-                    className={selectCls}
-                  >
-                    <option value="">Any method</option>
-                    {(Object.keys(METHOD_LABEL) as PaymentMethod[]).map((m) => (
-                      <option key={m} value={m}>
-                        {METHOD_LABEL[m]}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => p.onFilters({ method: v as '' | PaymentMethod })}
+                    options={[
+                      { value: '', label: 'Any method' },
+                      ...(Object.keys(METHOD_LABEL) as PaymentMethod[]).map((m) => ({
+                        value: m,
+                        label: METHOD_LABEL[m],
+                      })),
+                    ]}
+                    className="w-full"
+                  />
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {(['min', 'max'] as const).map((k) => (

@@ -351,7 +351,8 @@ test.describe('billing (owner)', () => {
     await open(page, 'invoices');
     const first = page.getByRole('row').nth(1);
     await expect(first).toContainText('INV-0003'); // newest first
-    await page.getByLabel('Sort invoices').selectOption('date_asc');
+    await page.getByRole('combobox', { name: 'Sort invoices' }).click();
+    await page.getByRole('option', { name: 'Oldest first' }).click();
     await expect(page.getByRole('row').nth(1)).toContainText('INV-0002');
     expect(billingState.invoiceQueries.some((q) => q.sort === 'date_asc')).toBe(true);
   });

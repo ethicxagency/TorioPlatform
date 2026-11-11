@@ -4,12 +4,27 @@ import { ArrowDown, ArrowUp, Check, MessageSquare, Pencil, Trash2, UserRound } f
 import { fmtAgo, initialsOf } from '@/features/inbox/format';
 import { SourceBadge } from '@/features/leads/components/badges';
 import { ActionMenu } from '@/components/ui/menu';
+import { ColumnsMenu, hiddenColumnsCss, type ColumnDef } from '@/components/ui/columns-menu';
 import { Pagination } from '@/components/ui/pagination';
+import { useHiddenColumns } from '@/lib/table-prefs';
 import { TableEmpty, TableError, TableLoading } from '@/components/ui/table-states';
 import { cn } from '@/lib/utils';
 import type { CustomerItem, CustomerSort } from '../types';
 import { CustomerStatusBadge } from './status-badge';
 import { fmtDate } from '@/lib/datetime';
+
+// Position of each column among a row's cells (the select-all checkbox is 1). Keep in step with the markup below.
+const COLUMNS: ColumnDef[] = [
+  { key: 'customer', label: 'Customer', index: 2, locked: true },
+  { key: 'contact', label: 'Contact', index: 3 },
+  { key: 'status', label: 'Status', index: 4 },
+  { key: 'conversations', label: 'Conversations', index: 5 },
+  { key: 'source', label: 'Source', index: 6 },
+  { key: 'tags', label: 'Tags', index: 7 },
+  { key: 'last', label: 'Last activity', index: 8 },
+  { key: 'created', label: 'Created', index: 9 },
+  { key: 'actions', label: 'Actions', index: 10, locked: true },
+];
 
 interface Props {
   customers: CustomerItem[];
@@ -29,6 +44,7 @@ interface Props {
   now: number;
   onSort: (f: CustomerSort) => void;
   onPage: (p: number) => void;
+  onPageSize?: (size: number) => void;
   onOpen: (c: CustomerItem) => void;
   onEdit: (c: CustomerItem) => void;
   onDelete: (c: CustomerItem) => void;
@@ -100,6 +116,7 @@ function RowMenu({ c, p }: { c: CustomerItem; p: Props }) {
 }
 
 export function CustomersTable(p: Props) {
+  const [hidden, setHidden] = useHiddenColumns('customers');
   const allOnPage = p.customers.length > 0 && p.customers.every((c) => p.selected.has(c.id));
   const sortHead = (label: string, field: CustomerSort, cls = '') => (
     <th
@@ -135,11 +152,13 @@ export function CustomersTable(p: Props) {
 
   return (
     <div
+      id="customers-cols"
       className={cn(
         'overflow-hidden rounded-card border border-line bg-white transition-opacity',
         p.fetching && 'opacity-80',
       )}
     >
+      <style>{hiddenColumnsCss('customers-cols', COLUMNS, hidden)}</style>
       <div className="max-h-[max(360px,calc(100vh-300px))] overflow-auto max-md:hidden">
         <table className="w-full min-w-[640px] border-collapse text-[13px]">
           <thead className="sticky top-0 z-10 bg-[#FBFBFC] shadow-[0_1px_0_var(--color-line-subtle)]">
@@ -293,7 +312,14 @@ export function CustomersTable(p: Props) {
           </li>
         ))}
       </ul>
-      <Pagination page={p.page} total={p.total} pageSize={p.pageSize} onPage={p.onPage} />
+      <Pagination
+        page={p.page}
+        total={p.total}
+        pageSize={p.pageSize}
+        onPage={p.onPage}
+        onPageSize={p.onPageSize}
+        extra={<ColumnsMenu columns={COLUMNS} hidden={hidden} onChange={setHidden} />}
+      />
     </div>
   );
 }

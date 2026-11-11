@@ -13,13 +13,29 @@ import { fmtAgo, initialsOf } from '@/features/inbox/format';
 import { useTimeZone } from '@/features/settings/queries';
 import { fmtDateTime } from '@/lib/datetime';
 import { ActionMenu } from '@/components/ui/menu';
+import { ColumnsMenu, hiddenColumnsCss, type ColumnDef } from '@/components/ui/columns-menu';
 import { Pagination } from '@/components/ui/pagination';
+import { useHiddenColumns } from '@/lib/table-prefs';
 import { TableEmpty, TableError, TableLoading } from '@/components/ui/table-states';
 import { cn } from '@/lib/utils';
 import { CHANNEL_LABEL } from '../constants';
 import { formatMoney } from '../money';
 import type { OrderItem, OrderSort } from '../types';
 import { FulfillmentBadge, OrderStatusBadge, PaymentBadge, SampleTag } from './badges';
+
+// Position of each column among a row's cells (the select-all checkbox is 1). Keep in step with the markup below.
+const COLUMNS: ColumnDef[] = [
+  { key: 'order', label: 'Order', index: 2, locked: true },
+  { key: 'customer', label: 'Customer', index: 3 },
+  { key: 'items', label: 'Items', index: 4 },
+  { key: 'total', label: 'Total', index: 5 },
+  { key: 'payment', label: 'Payment', index: 6 },
+  { key: 'fulfillment', label: 'Fulfillment', index: 7 },
+  { key: 'status', label: 'Status', index: 8 },
+  { key: 'channel', label: 'Channel', index: 9 },
+  { key: 'created', label: 'Created', index: 10 },
+  { key: 'actions', label: 'Actions', index: 11, locked: true },
+];
 
 interface Props {
   orders: OrderItem[];
@@ -38,6 +54,7 @@ interface Props {
   now: number;
   onSort: (f: OrderSort) => void;
   onPage: (p: number) => void;
+  onPageSize?: (size: number) => void;
   onOpen: (o: OrderItem) => void;
   onExport: (o: OrderItem) => void;
   onOpenConversation: (id: string) => void;
@@ -103,6 +120,7 @@ function RowMenu({ o, p }: { o: OrderItem; p: Props }) {
 }
 
 export function OrdersTable(p: Props) {
+  const [hidden, setHidden] = useHiddenColumns('orders');
   const tz = useTimeZone();
   const allOnPage = p.orders.length > 0 && p.orders.every((o) => p.selected.has(o.id));
   const sortHead = (label: string, field: OrderSort, cls = '') => (
@@ -139,11 +157,13 @@ export function OrdersTable(p: Props) {
 
   return (
     <div
+      id="orders-cols"
       className={cn(
         'overflow-hidden rounded-card border border-line bg-white transition-opacity',
         p.fetching && 'opacity-80',
       )}
     >
+      <style>{hiddenColumnsCss('orders-cols', COLUMNS, hidden)}</style>
       <div className="max-h-[max(360px,calc(100vh-300px))] overflow-auto max-md:hidden">
         <table className="w-full min-w-[720px] border-collapse text-[13px]">
           <thead className="sticky top-0 z-10 bg-[#FBFBFC] shadow-[0_1px_0_var(--color-line-subtle)]">
@@ -305,7 +325,14 @@ export function OrdersTable(p: Props) {
           </li>
         ))}
       </ul>
-      <Pagination page={p.page} total={p.total} pageSize={p.pageSize} onPage={p.onPage} />
+      <Pagination
+        page={p.page}
+        total={p.total}
+        pageSize={p.pageSize}
+        onPage={p.onPage}
+        onPageSize={p.onPageSize}
+        extra={<ColumnsMenu columns={COLUMNS} hidden={hidden} onChange={setHidden} />}
+      />
     </div>
   );
 }

@@ -3,13 +3,29 @@
 import { ArrowDown, ArrowUp, Check, MessageSquare, Pencil, Trash2, UserRound } from 'lucide-react';
 import { fmtAgo, initialsOf } from '@/features/inbox/format';
 import { ActionMenu } from '@/components/ui/menu';
+import { ColumnsMenu, hiddenColumnsCss, type ColumnDef } from '@/components/ui/columns-menu';
 import { Pagination } from '@/components/ui/pagination';
+import { useHiddenColumns } from '@/lib/table-prefs';
 import { TableEmpty, TableError, TableLoading } from '@/components/ui/table-states';
 import { cn } from '@/lib/utils';
 import { DEFAULT_CURRENCY, formatCurrencyMajor } from '@torio/contracts';
 import type { Lead, LeadSortField } from '../types';
 import { ScoreIndicator, SourceBadge, StageBadge } from './badges';
 import { fmtDate } from '@/lib/datetime';
+
+// Position of each column among a row's cells (the select-all checkbox is 1). Keep in step with the markup below.
+const COLUMNS: ColumnDef[] = [
+  { key: 'lead', label: 'Lead', index: 2, locked: true },
+  { key: 'contact', label: 'Contact', index: 3 },
+  { key: 'status', label: 'Status', index: 4 },
+  { key: 'score', label: 'Score', index: 5 },
+  { key: 'value', label: 'Value', index: 6 },
+  { key: 'source', label: 'Source', index: 7 },
+  { key: 'owner', label: 'Owner', index: 8 },
+  { key: 'last', label: 'Last activity', index: 9 },
+  { key: 'created', label: 'Created', index: 10 },
+  { key: 'actions', label: 'Actions', index: 11, locked: true },
+];
 
 interface Props {
   leads: Lead[];
@@ -29,6 +45,7 @@ interface Props {
   now: number;
   onSort: (f: LeadSortField) => void;
   onPage: (p: number) => void;
+  onPageSize?: (size: number) => void;
   onOpen: (l: Lead) => void;
   onEdit: (l: Lead) => void;
   onDelete: (l: Lead) => void;
@@ -124,6 +141,7 @@ function RowMenu({ l, p }: { l: Lead; p: Props }) {
 }
 
 export function LeadsTable(p: Props) {
+  const [hidden, setHidden] = useHiddenColumns('leads');
   const allOnPage = p.leads.length > 0 && p.leads.every((l) => p.selected.has(l.id));
 
   const sortHead = (label: string, field: LeadSortField, cls = '') => (
@@ -160,11 +178,13 @@ export function LeadsTable(p: Props) {
 
   return (
     <div
+      id="leads-cols"
       className={cn(
         'overflow-hidden rounded-card border border-line bg-white transition-opacity',
         p.fetching && 'opacity-80',
       )}
     >
+      <style>{hiddenColumnsCss('leads-cols', COLUMNS, hidden)}</style>
       {/* Table from md up */}
       <div className="max-h-[max(360px,calc(100vh-300px))] overflow-auto max-md:hidden">
         <table className="w-full min-w-[640px] border-collapse text-[13px]">
@@ -329,7 +349,14 @@ export function LeadsTable(p: Props) {
         ))}
       </ul>
 
-      <Pagination page={p.page} total={p.total} pageSize={p.pageSize} onPage={p.onPage} />
+      <Pagination
+        page={p.page}
+        total={p.total}
+        pageSize={p.pageSize}
+        onPage={p.onPage}
+        onPageSize={p.onPageSize}
+        extra={<ColumnsMenu columns={COLUMNS} hidden={hidden} onChange={setHidden} />}
+      />
     </div>
   );
 }
