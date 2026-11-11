@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { hashToken, AuthService, type ClientMeta, type IssuedSession } from './auth.service';
 import { APP_CONFIG, type AppConfig } from '../../config/config.module';
 import { PrismaService } from '../../database/prisma.service';
@@ -52,6 +52,7 @@ const isUnique = (e: unknown) => (e as { code?: string })?.code === 'P2002';
  */
 @Injectable()
 export class SocialAuthService {
+  private readonly log = new Logger(SocialAuthService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
@@ -151,6 +152,7 @@ export class SocialAuthService {
         where: { id: known.id },
         data: { lastLoginAt: new Date() },
       });
+      await this.syncImage(known.userId, profile.image);
       return this.sessionFor(known.userId, meta, returnTo, 'auth.login', profile.provider);
     }
     if (!profile.email)
@@ -173,14 +175,13 @@ export class SocialAuthService {
       }
       if (!(await this.platform.registrationOpen()))
         throw new SocialAuthError('registration_closed');
-      const first = profile.name.split(/\s+/)[0] || 'My';
       const user = await this.auth.createCustomer(
         {
           email: profile.email,
           name: profile.name,
-          workspaceName: `${first}'s workspace`,
           emailVerified: true,
           provider: profile.provider,
+          image: profile.image,
         },
         meta,
       );
@@ -222,11 +223,33 @@ export class SocialAuthService {
       });
       if (row.userId !== userId) throw new SocialAuthError('account_exists');
     }
+    await this.syncImage(userId, profile.image);
     return this.sessionFor(userId, meta, returnTo, audit, profile.provider);
   }
 
+  /**
+   * Keeps the account avatar in step with the provider's. A picture the person chose themselves (imageSource CUSTOM)
+   * is never overwritten, and a provider that gives no picture never clears the existing one. Best effort: a failed
+   * avatar sync must never block sign-in.
+   */
+  private async syncImage(userId: string, image: string | null | undefined) {
+    if (!image) return;
+    try {
+      await this.prisma.client.user.updateMany({
+        where: {
+          id: userId,
+          OR: [{ imageSource: null }, { imageSource: 'PROVIDER' }],
+          NOT: { image },
+        },
+        data: { image, imageSource: 'PROVIDER' },
+      });
+    } catch (e) {
+      this.log.warn(`Could not sync the profile picture: ${(e as Error).name}`);
+    }
+  }
+
   private async startPending(
-    profile: Pick<ProviderProfile, 'provider' | 'providerUserId' | 'name'>,
+    profile: Pick<ProviderProfile, 'provider' | 'providerUserId' | 'name' | 'image'>,
     email: string,
   ) {
     if (!this.mail.configured) throw new SocialAuthError('mail_not_configured');
@@ -237,6 +260,7 @@ export class SocialAuthService {
         provider: profile.provider,
         providerUserId: profile.providerUserId,
         name: profile.name,
+        image: profile.image ?? null,
         email,
         expiresAt: new Date(Date.now() + COMPLETE_TTL),
       },
@@ -275,6 +299,7 @@ export class SocialAuthService {
         name: row.name,
         email: row.email,
         emailVerified: false,
+        image: row.image,
       },
       meta,
       '/',

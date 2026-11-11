@@ -19,6 +19,7 @@ type UserRow = {
   jobTitle: string | null;
   timeZone: string | null;
   landingPage: string;
+  image: string | null;
 };
 
 @Injectable()
@@ -39,6 +40,7 @@ export class UsersService {
       jobTitle: u.jobTitle,
       timeZone: u.timeZone,
       landingPage: u.landingPage as 'dashboard' | 'inbox' | 'leads' | 'customers' | 'orders',
+      image: u.image,
     };
   }
 

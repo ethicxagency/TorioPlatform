@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { passwordSchema } from './index';
 import { isTimeZone } from './locale';
 import { currencyCodeSchema } from './orders';
+import { COUNTRY_CODES, phoneSchema, STORE_INDUSTRIES } from './stores';
 
 /** Settings: personal profile and preferences, security (password, sessions), workspace profile, audit log. */
 
@@ -41,6 +42,8 @@ export const profileSchema = z.object({
   jobTitle: nullableString,
   timeZone: nullableString,
   landingPage: landingPageSchema,
+  /** Avatar URL (from the sign-in provider unless chosen by the person), or null. */
+  image: nullableString,
 });
 
 /** Email, role and workspace membership can’t be changed here; unknown keys are rejected. */
@@ -96,6 +99,25 @@ export const updateWorkspaceSchema = z
       .nullable()
       .optional()
       .transform((v) => (v ? v.toLowerCase() : v === undefined ? undefined : null)),
+    industry: z
+      .union([z.literal(''), z.enum(STORE_INDUSTRIES)])
+      .nullable()
+      .optional()
+      .transform((v) => (v ? v : v === undefined ? undefined : null)),
+    phone: z
+      .union([z.literal(''), phoneSchema])
+      .nullable()
+      .optional()
+      .transform((v) => (v ? v : v === undefined ? undefined : null)),
+    country: z
+      .union([z.literal(''), z.enum(COUNTRY_CODES as [string, ...string[]])])
+      .nullable()
+      .optional()
+      .transform((v) => (v ? v : v === undefined ? undefined : null)),
+    addressLine: optionalText(200),
+    city: optionalText(100),
+    state: optionalText(100),
+    postalCode: optionalText(20),
   })
   .refine((v) => Object.keys(v).length > 0, 'Nothing to update');
 export type UpdateWorkspaceInput = z.infer<typeof updateWorkspaceSchema>;

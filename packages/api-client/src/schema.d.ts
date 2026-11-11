@@ -404,6 +404,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["WorkspacesController_setActive"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/slug-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["WorkspacesController_slugCheck"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}": {
         parameters: {
             query?: never;
@@ -2733,6 +2765,7 @@ export interface components {
             timeZone: string | null;
             /** @enum {string} */
             landingPage: "dashboard" | "inbox" | "leads" | "customers" | "orders";
+            image: string | null;
         };
         UpdateProfileDto: {
             name?: string;
@@ -2779,6 +2812,7 @@ export interface components {
                 timeZone: string | null;
                 /** @enum {string} */
                 landingPage: "dashboard" | "inbox" | "leads" | "customers" | "orders";
+                image: string | null;
             };
             workspaces: {
                 name: string;
@@ -2811,13 +2845,46 @@ export interface components {
             reportingTimeZone: string;
             defaultCurrency: string | null;
             contactEmail: string | null;
+            logo: string | null;
+            phone: string | null;
+            industry: string | null;
+            country: string | null;
+            addressLine: string | null;
+            city: string | null;
+            state: string | null;
+            postalCode: string | null;
             /** Format: date-time */
             createdAt: string;
             /** @enum {string} */
             role: "OWNER" | "ADMIN" | "AGENT";
+            active: boolean;
         };
         CreateWorkspaceDto: {
             name: string;
+            slug: string;
+            /** @enum {string} */
+            industry: "Fashion & Apparel" | "Beauty & Cosmetics" | "Electronics & Technology" | "Food & Beverage" | "Health & Wellness" | "Travel & Tourism" | "Home & Lifestyle" | "Education" | "Digital Products" | "Other";
+            defaultCurrency: string;
+            reportingTimeZone: string;
+            /** Format: email */
+            contactEmail: string;
+            phone?: string | null;
+            /** @enum {string} */
+            country: "AF" | "AL" | "DZ" | "AD" | "AO" | "AG" | "AR" | "AM" | "AU" | "AT" | "AZ" | "BS" | "BH" | "BD" | "BB" | "BY" | "BE" | "BZ" | "BJ" | "BT" | "BO" | "BA" | "BW" | "BR" | "BN" | "BG" | "BF" | "BI" | "KH" | "CM" | "CA" | "CV" | "CF" | "TD" | "CL" | "CN" | "CO" | "KM" | "CG" | "CD" | "CR" | "CI" | "HR" | "CU" | "CY" | "CZ" | "DK" | "DJ" | "DM" | "DO" | "EC" | "EG" | "SV" | "GQ" | "ER" | "EE" | "SZ" | "ET" | "FJ" | "FI" | "FR" | "GA" | "GM" | "GE" | "DE" | "GH" | "GR" | "GD" | "GT" | "GN" | "GW" | "GY" | "HT" | "HN" | "HK" | "HU" | "IS" | "IN" | "ID" | "IR" | "IQ" | "IE" | "IL" | "IT" | "JM" | "JP" | "JO" | "KZ" | "KE" | "KI" | "KP" | "KR" | "XK" | "KW" | "KG" | "LA" | "LV" | "LB" | "LS" | "LR" | "LY" | "LI" | "LT" | "LU" | "MO" | "MG" | "MW" | "MY" | "MV" | "ML" | "MT" | "MH" | "MR" | "MU" | "MX" | "FM" | "MD" | "MC" | "MN" | "ME" | "MA" | "MZ" | "MM" | "NA" | "NR" | "NP" | "NL" | "NZ" | "NI" | "NE" | "NG" | "MK" | "NO" | "OM" | "PK" | "PW" | "PS" | "PA" | "PG" | "PY" | "PE" | "PH" | "PL" | "PT" | "PR" | "QA" | "RO" | "RU" | "RW" | "KN" | "LC" | "VC" | "WS" | "SM" | "ST" | "SA" | "SN" | "RS" | "SC" | "SL" | "SG" | "SK" | "SI" | "SB" | "SO" | "ZA" | "SS" | "ES" | "LK" | "SD" | "SR" | "SE" | "CH" | "SY" | "TW" | "TJ" | "TZ" | "TH" | "TL" | "TG" | "TO" | "TT" | "TN" | "TR" | "TM" | "TV" | "UG" | "UA" | "AE" | "GB" | "US" | "UY" | "UZ" | "VU" | "VA" | "VE" | "VN" | "YE" | "ZM" | "ZW";
+            addressLine?: string | null;
+            city?: string | null;
+            state?: string | null;
+            postalCode?: string | null;
+        };
+        SetActiveDto: {
+            /** Format: uuid */
+            workspaceId: string;
+        };
+        SlugCheckDto: {
+            slug: string;
+            available: boolean;
+            reason: string[];
+            suggestion: string[];
         };
         UpdateWorkspaceDto: {
             name?: string;
@@ -2825,6 +2892,13 @@ export interface components {
             defaultCurrency?: ("" | string) | null;
             reportingTimeZone?: string;
             contactEmail?: ("" | string) | null;
+            industry?: ("" | ("Fashion & Apparel" | "Beauty & Cosmetics" | "Electronics & Technology" | "Food & Beverage" | "Health & Wellness" | "Travel & Tourism" | "Home & Lifestyle" | "Education" | "Digital Products" | "Other")) | null;
+            phone?: ("" | string) | null;
+            country?: ("" | ("AF" | "AL" | "DZ" | "AD" | "AO" | "AG" | "AR" | "AM" | "AU" | "AT" | "AZ" | "BS" | "BH" | "BD" | "BB" | "BY" | "BE" | "BZ" | "BJ" | "BT" | "BO" | "BA" | "BW" | "BR" | "BN" | "BG" | "BF" | "BI" | "KH" | "CM" | "CA" | "CV" | "CF" | "TD" | "CL" | "CN" | "CO" | "KM" | "CG" | "CD" | "CR" | "CI" | "HR" | "CU" | "CY" | "CZ" | "DK" | "DJ" | "DM" | "DO" | "EC" | "EG" | "SV" | "GQ" | "ER" | "EE" | "SZ" | "ET" | "FJ" | "FI" | "FR" | "GA" | "GM" | "GE" | "DE" | "GH" | "GR" | "GD" | "GT" | "GN" | "GW" | "GY" | "HT" | "HN" | "HK" | "HU" | "IS" | "IN" | "ID" | "IR" | "IQ" | "IE" | "IL" | "IT" | "JM" | "JP" | "JO" | "KZ" | "KE" | "KI" | "KP" | "KR" | "XK" | "KW" | "KG" | "LA" | "LV" | "LB" | "LS" | "LR" | "LY" | "LI" | "LT" | "LU" | "MO" | "MG" | "MW" | "MY" | "MV" | "ML" | "MT" | "MH" | "MR" | "MU" | "MX" | "FM" | "MD" | "MC" | "MN" | "ME" | "MA" | "MZ" | "MM" | "NA" | "NR" | "NP" | "NL" | "NZ" | "NI" | "NE" | "NG" | "MK" | "NO" | "OM" | "PK" | "PW" | "PS" | "PA" | "PG" | "PY" | "PE" | "PH" | "PL" | "PT" | "PR" | "QA" | "RO" | "RU" | "RW" | "KN" | "LC" | "VC" | "WS" | "SM" | "ST" | "SA" | "SN" | "RS" | "SC" | "SL" | "SG" | "SK" | "SI" | "SB" | "SO" | "ZA" | "SS" | "ES" | "LK" | "SD" | "SR" | "SE" | "CH" | "SY" | "TW" | "TJ" | "TZ" | "TH" | "TL" | "TG" | "TO" | "TT" | "TN" | "TR" | "TM" | "TV" | "UG" | "UA" | "AE" | "GB" | "US" | "UY" | "UZ" | "VU" | "VA" | "VE" | "VN" | "YE" | "ZM" | "ZW")) | null;
+            addressLine?: string | null;
+            city?: string | null;
+            state?: string | null;
+            postalCode?: string | null;
         };
         AuditListDto: {
             data: {
@@ -6448,6 +6522,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkspaceDto"];
+                };
+            };
+        };
+    };
+    WorkspacesController_setActive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetActiveDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceDto"][];
+                };
+            };
+        };
+    };
+    WorkspacesController_slugCheck: {
+        parameters: {
+            query: {
+                slug: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlugCheckDto"];
                 };
             };
         };

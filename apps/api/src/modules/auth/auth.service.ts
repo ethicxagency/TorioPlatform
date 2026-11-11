@@ -53,23 +53,29 @@ export class AuthService {
     if (existing) throw new ConflictException('An account with this email already exists');
 
     const passwordHash = await this.passwords.hash(input.password);
-    const workspaceName =
-      input.workspaceName ?? `${input.name.split(/\s+/)[0] || 'My'}'s workspace`;
-    const slug = `${slugify(workspaceName)}-${randomBytes(3).toString('hex')}`;
-
+    // A store is created in onboarding (or here only when the caller names one explicitly): an account and a store are
+    // different things, and a person may own several.
     const user = await this.prisma.client.$transaction(async (tx) => {
       const created = await tx.user.create({
         data: { email: input.email, name: input.name, passwordHash },
       });
-      const workspace = await tx.workspace.create({
-        data: { name: workspaceName, slug, createdById: created.id },
-      });
-      await tx.workspaceMembership.create({
-        data: { workspaceId: workspace.id, userId: created.id, role: 'OWNER' },
-      });
+      let workspaceId: string | undefined;
+      if (input.workspaceName) {
+        const workspace = await tx.workspace.create({
+          data: {
+            name: input.workspaceName,
+            slug: `${slugify(input.workspaceName)}-${randomBytes(3).toString('hex')}`,
+            createdById: created.id,
+          },
+        });
+        await tx.workspaceMembership.create({
+          data: { workspaceId: workspace.id, userId: created.id, role: 'OWNER' },
+        });
+        workspaceId = workspace.id;
+      }
       await tx.auditLog.create({
         data: {
-          workspaceId: workspace.id,
+          workspaceId,
           actorId: created.id,
           action: 'auth.register',
           entityType: 'user',
@@ -154,21 +160,22 @@ export class AuthService {
   }
 
   /**
-   * Creates a customer with their own workspace, exactly like password registration, for sign-in methods that have
+   * Creates a customer exactly like password registration (no store yet), for sign-in methods that have
    * no password of their own: the stored hash is of random bytes nobody holds, so password login can never match.
    */
   async createCustomer(
     input: {
       email: string;
       name: string;
-      workspaceName: string;
+      /** Optional: without it no store exists yet and onboarding creates the first one. */
+      workspaceName?: string;
       emailVerified: boolean;
       provider?: string;
+      image?: string | null;
     },
     meta: ClientMeta,
   ) {
     const passwordHash = await this.passwords.hash(randomBytes(32).toString('base64url'));
-    const slug = `${slugify(input.workspaceName)}-${randomBytes(3).toString('hex')}`;
     return this.prisma.client.$transaction(async (tx) => {
       const created = await tx.user.create({
         data: {
@@ -176,17 +183,26 @@ export class AuthService {
           name: input.name,
           passwordHash,
           emailVerifiedAt: input.emailVerified ? new Date() : null,
+          ...(input.image && { image: input.image, imageSource: 'PROVIDER' }),
         },
       });
-      const workspace = await tx.workspace.create({
-        data: { name: input.workspaceName, slug, createdById: created.id },
-      });
-      await tx.workspaceMembership.create({
-        data: { workspaceId: workspace.id, userId: created.id, role: 'OWNER' },
-      });
+      let workspaceId: string | undefined;
+      if (input.workspaceName) {
+        const workspace = await tx.workspace.create({
+          data: {
+            name: input.workspaceName,
+            slug: `${slugify(input.workspaceName)}-${randomBytes(3).toString('hex')}`,
+            createdById: created.id,
+          },
+        });
+        await tx.workspaceMembership.create({
+          data: { workspaceId: workspace.id, userId: created.id, role: 'OWNER' },
+        });
+        workspaceId = workspace.id;
+      }
       await tx.auditLog.create({
         data: {
-          workspaceId: workspace.id,
+          workspaceId,
           actorId: created.id,
           action: 'auth.register',
           entityType: 'user',

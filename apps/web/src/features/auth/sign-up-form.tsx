@@ -68,7 +68,8 @@ export function SignUpForm() {
     adopt(res.data);
     toast.success('Account created successfully.');
     // Only say a verification email was sent when this deployment can actually send one.
-    router.push(cfg.data?.email ? '/verify-email' : next);
+    // A new account has no store yet: the first one is created in onboarding (an invite link keeps its own destination).
+    router.push(cfg.data?.email ? '/verify-email' : next === '/' ? '/onboarding' : next);
   });
 
   const closed = cfg.data && !cfg.data.registrationOpen;

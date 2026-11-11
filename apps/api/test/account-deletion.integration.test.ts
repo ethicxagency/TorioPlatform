@@ -49,11 +49,13 @@ describe.skipIf(!url)('account deletion (real PostgreSQL, fake email provider)',
       Authorization: `Bearer ${await app.get(JwtService).signAsync({ sub: u.id, sid: s.id })}`,
     };
   };
-  const admin = (m: 'get' | 'post', p: string, body: object = {}) =>
-    http()[m](`/api/v1/admin/account-deletions${p}`)
+  const admin = (m: 'get' | 'post', p: string, body: object = {}) => {
+    const call = http()[m].bind(http());
+    return call(`/api/v1/admin/account-deletions${p}`)
       .set('Cookie', cookie)
       .set('X-Torio-Admin', '1')
       .send(body);
+  };
 
   beforeAll(async () => {
     process.env.DATABASE_URL = url!;

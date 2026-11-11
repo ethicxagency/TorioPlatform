@@ -49,7 +49,13 @@ export const authConfigSchema = z.object({
 });
 export type AuthConfig = z.infer<typeof authConfigSchema>;
 
-export const deletionStatusSchema = z.enum(['PENDING_VERIFICATION', 'VERIFIED', 'PROCESSING', 'COMPLETED', 'REJECTED']);
+export const deletionStatusSchema = z.enum([
+  'PENDING_VERIFICATION',
+  'VERIFIED',
+  'PROCESSING',
+  'COMPLETED',
+  'REJECTED',
+]);
 export type DeletionStatus = z.infer<typeof deletionStatusSchema>;
 
 /** Public request from the Delete Account page. Ownership is proven by the emailed link (or the signed-in session + password). */
@@ -146,10 +152,22 @@ export const workspaceSchema = z.object({
   reportingTimeZone: z.string(),
   defaultCurrency: z.string().describe('ISO currency code, or null when not set').nullable(),
   contactEmail: z.string().describe('Text, or null when not set').nullable(),
+  logo: z.string().describe('Image URL, or null when not set').nullable(),
+  phone: z.string().describe('E.164 number, or null when not set').nullable(),
+  industry: z.string().describe('Text, or null when not set').nullable(),
+  country: z.string().describe('ISO 3166-1 alpha-2, or null when not set').nullable(),
+  addressLine: z.string().describe('Text, or null when not set').nullable(),
+  city: z.string().describe('Text, or null when not set').nullable(),
+  state: z.string().describe('Text, or null when not set').nullable(),
+  postalCode: z.string().describe('Text, or null when not set').nullable(),
   createdAt: z.iso.datetime(),
 });
 
-export const workspaceWithRoleSchema = workspaceSchema.extend({ role: workspaceRoleSchema });
+export const workspaceWithRoleSchema = workspaceSchema.extend({
+  role: workspaceRoleSchema,
+  /** The store the app opens now: the last one the person used, else the oldest. Exactly one is true. */
+  active: z.boolean(),
+});
 
 export const membershipStatusSchema = z.enum(['ACTIVE', 'SUSPENDED']);
 
@@ -888,6 +906,7 @@ export * from './orders';
 export * from './currency';
 export * from './locale';
 export * from './settings';
+export * from './stores';
 export * from './automations';
 export * from './billing';
 export * from './admin';
@@ -1022,8 +1041,14 @@ export const metaProvisionResultSchema = z.object({
 /** WhatsApp Embedded Signup result: the code and ids the Facebook SDK returns in the browser; the token is exchanged on the server. */
 export const whatsAppEmbeddedSignupSchema = z.object({
   code: z.string().trim().min(10).max(2000),
-  phoneNumberId: z.string().trim().regex(/^\d{5,30}$/),
-  wabaId: z.string().trim().regex(/^\d{5,30}$/),
+  phoneNumberId: z
+    .string()
+    .trim()
+    .regex(/^\d{5,30}$/),
+  wabaId: z
+    .string()
+    .trim()
+    .regex(/^\d{5,30}$/),
   displayName: z.string().trim().min(1).max(60),
 });
 export type WhatsAppEmbeddedSignupInput = z.infer<typeof whatsAppEmbeddedSignupSchema>;

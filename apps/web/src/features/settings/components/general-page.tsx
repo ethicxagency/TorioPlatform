@@ -6,6 +6,9 @@ import { useShell } from '@/components/shell/shell-context';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { initialsOf } from '@/features/inbox/format';
+import { STORE_INDUSTRIES } from '@torio/contracts';
+import { SearchSelect } from '@/features/inbox/components/search-select';
+import { countryOptions } from '@/features/onboarding/store-options';
 import { useWorkspace } from '@/lib/workspace';
 import { useProfile, useUpdateProfile, useUpdateWorkspace } from '../queries';
 import type { ProfileBody, WorkspaceBody } from '../queries';
@@ -24,6 +27,13 @@ interface WorkspaceForm {
   currency: string;
   email: string;
   tz: string;
+  industry: string;
+  phone: string;
+  country: string;
+  addressLine: string;
+  city: string;
+  state: string;
+  postalCode: string;
 }
 
 /**
@@ -53,6 +63,13 @@ export function GeneralPage() {
     currency: '',
     email: '',
     tz: 'UTC',
+    industry: '',
+    phone: '',
+    country: '',
+    addressLine: '',
+    city: '',
+    state: '',
+    postalCode: '',
   });
   const [errs, setErrs] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState('');
@@ -72,7 +89,21 @@ export function GeneralPage() {
     });
   }
   const wSig = w
-    ? [w.name, w.description, w.defaultCurrency, w.contactEmail, w.reportingTimeZone].join('|')
+    ? [
+        w.id,
+        w.name,
+        w.description,
+        w.defaultCurrency,
+        w.contactEmail,
+        w.reportingTimeZone,
+        w.industry,
+        w.phone,
+        w.country,
+        w.addressLine,
+        w.city,
+        w.state,
+        w.postalCode,
+      ].join('|')
     : null;
   if (w && wSig !== wSeed) {
     setWSeed(wSig);
@@ -82,6 +113,13 @@ export function GeneralPage() {
       currency: w.defaultCurrency ?? '',
       email: w.contactEmail ?? '',
       tz: w.reportingTimeZone,
+      industry: w.industry ?? '',
+      phone: w.phone ?? '',
+      country: w.country ?? '',
+      addressLine: w.addressLine ?? '',
+      city: w.city ?? '',
+      state: w.state ?? '',
+      postalCode: w.postalCode ?? '',
     });
   }
 
@@ -102,6 +140,11 @@ export function GeneralPage() {
       d.defaultCurrency = wf.currency as WorkspaceBody['defaultCurrency'];
     if (wf.email !== (w.contactEmail ?? '')) d.contactEmail = wf.email.trim();
     if (wf.tz !== w.reportingTimeZone) d.reportingTimeZone = wf.tz;
+    for (const k of ['addressLine', 'city', 'state', 'postalCode'] as const)
+      if (wf[k] !== (w[k] ?? '')) d[k] = wf[k].trim();
+    if (wf.industry !== (w.industry ?? '')) d.industry = wf.industry as WorkspaceBody['industry'];
+    if (wf.phone !== (w.phone ?? '')) d.phone = wf.phone.trim();
+    if (wf.country !== (w.country ?? '')) d.country = wf.country as WorkspaceBody['country'];
     return d;
   }, [w, wf, canEdit]);
   const profileDirty = Object.keys(profileDiff).length > 0;
@@ -140,6 +183,13 @@ export function GeneralPage() {
         currency: w.defaultCurrency ?? '',
         email: w.contactEmail ?? '',
         tz: w.reportingTimeZone,
+        industry: w.industry ?? '',
+        phone: w.phone ?? '',
+        country: w.country ?? '',
+        addressLine: w.addressLine ?? '',
+        city: w.city ?? '',
+        state: w.state ?? '',
+        postalCode: w.postalCode ?? '',
       });
     setErrs({});
     setFormError('');
@@ -261,6 +311,113 @@ export function GeneralPage() {
                   className={`${inputCls} h-auto resize-y p-2.5`}
                 />
               </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field
+                  label="Store URL"
+                  htmlFor="ws-slug"
+                  hint="Your store's unique address in Torio. It can't be changed."
+                >
+                  <input id="ws-slug" value={w.slug} disabled className={inputCls} />
+                </Field>
+                <Field label="Industry" htmlFor="ws-industry" error={errs['ws-industry']}>
+                  <SearchSelect
+                    id="ws-industry"
+                    label="Industry"
+                    hideLabel
+                    disabled={!canEdit}
+                    searchPlaceholder="Search industries"
+                    emptyText="No industries."
+                    anyLabel="Not set"
+                    options={STORE_INDUSTRIES.map((i) => ({ value: i, label: i }))}
+                    value={wf.industry}
+                    onChange={(industry) => {
+                      setWf((f) => ({ ...f, industry }));
+                      touch();
+                    }}
+                  />
+                </Field>
+                <Field label="Phone number (optional)" htmlFor="ws-phone" error={errs['ws-phone']}>
+                  <input
+                    id="ws-phone"
+                    type="tel"
+                    value={wf.phone}
+                    maxLength={20}
+                    placeholder="+8801712345678"
+                    disabled={!canEdit}
+                    aria-invalid={!!errs['ws-phone']}
+                    onChange={setW('phone')}
+                    className={inputCls}
+                  />
+                </Field>
+                <Field label="Country" htmlFor="ws-country" error={errs['ws-country']}>
+                  <SearchSelect
+                    id="ws-country"
+                    label="Country"
+                    hideLabel
+                    disabled={!canEdit}
+                    searchPlaceholder="Search countries"
+                    emptyText="No countries."
+                    anyLabel="Not set"
+                    options={countryOptions()}
+                    value={wf.country}
+                    onChange={(country) => {
+                      setWf((f) => ({ ...f, country }));
+                      touch();
+                    }}
+                    limit={80}
+                  />
+                </Field>
+              </div>
+              <Field label="Address (optional)" htmlFor="ws-address" error={errs['ws-addressLine']}>
+                <input
+                  id="ws-address"
+                  value={wf.addressLine}
+                  maxLength={200}
+                  disabled={!canEdit}
+                  onChange={setW('addressLine')}
+                  className={inputCls}
+                />
+              </Field>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Field label="City (optional)" htmlFor="ws-city" error={errs['ws-city']}>
+                  <input
+                    id="ws-city"
+                    value={wf.city}
+                    maxLength={100}
+                    disabled={!canEdit}
+                    onChange={setW('city')}
+                    className={inputCls}
+                  />
+                </Field>
+                <Field
+                  label="State / Region (optional)"
+                  htmlFor="ws-state"
+                  error={errs['ws-state']}
+                >
+                  <input
+                    id="ws-state"
+                    value={wf.state}
+                    maxLength={100}
+                    disabled={!canEdit}
+                    onChange={setW('state')}
+                    className={inputCls}
+                  />
+                </Field>
+                <Field
+                  label="Postal Code (optional)"
+                  htmlFor="ws-postal"
+                  error={errs['ws-postalCode']}
+                >
+                  <input
+                    id="ws-postal"
+                    value={wf.postalCode}
+                    maxLength={20}
+                    disabled={!canEdit}
+                    onChange={setW('postalCode')}
+                    className={inputCls}
+                  />
+                </Field>
+              </div>
               {errs.wsForm && <Notice tone="error">{errs.wsForm}</Notice>}
             </>
           )}
@@ -306,9 +463,20 @@ export function GeneralPage() {
               <div className="flex items-center gap-3">
                 <span
                   aria-hidden
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-base font-semibold text-white"
+                  className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-base font-semibold text-white"
                 >
-                  {initialsOf(pf.name || p.name)}
+                  {p.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={p.image}
+                      alt=""
+                      referrerPolicy="no-referrer"
+                      className="h-full w-full object-cover"
+                      onError={(e) => (e.currentTarget.style.display = 'none')}
+                    />
+                  ) : (
+                    initialsOf(pf.name || p.name)
+                  )}
                 </span>
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold">{pf.name || p.name}</div>

@@ -52,7 +52,15 @@ describe.skipIf(!url)('customer social sign-in (real PostgreSQL, mocked provider
 
   // What the fake providers will answer for the next callback.
   let google: { claims: (nonce: string) => Record<string, unknown>; kid?: string; fail?: boolean };
-  let fb: { id: string; email?: string; name?: string; appId?: string; failExchange?: boolean };
+  let fb: {
+    id: string;
+    email?: string;
+    name?: string;
+    appId?: string;
+    failExchange?: boolean;
+    picture?: string;
+    silhouette?: boolean;
+  };
   let mails: { to: string; subject: string; text: string }[];
   let nonceSeen = '';
 
@@ -74,6 +82,9 @@ describe.skipIf(!url)('customer social sign-in (real PostgreSQL, mocked provider
         id: fb.id,
         name: fb.name ?? 'Fiona Book',
         ...(fb.email && { email: fb.email }),
+        ...(fb.picture && {
+          picture: { data: { url: fb.picture, is_silhouette: !!fb.silhouette } },
+        }),
       });
     if (u.includes('api.resend.com/emails')) {
       mails.push(JSON.parse(String(init?.body)));
@@ -204,7 +215,7 @@ describe.skipIf(!url)('customer social sign-in (real PostgreSQL, mocked provider
       expect(seen).toEqual([sent]);
     });
 
-    it('creates a customer with a workspace for a verified Google identity, then signs the same one in again', async () => {
+    it('creates a customer (no store yet) for a verified Google identity, then signs the same one in again', async () => {
       goodGoogle('g-sub-1', email('gina'));
       const a = await signIn('google', { returnTo: '/orders' });
       expect(a.to.pathname).toBe('/auth/callback');
@@ -216,7 +227,8 @@ describe.skipIf(!url)('customer social sign-in (real PostgreSQL, mocked provider
         include: { memberships: true, identities: true },
       });
       expect(user.emailVerifiedAt).not.toBeNull();
-      expect(user.memberships).toHaveLength(1);
+      // No store yet: onboarding creates the first one, so signing in never invents one.
+      expect(user.memberships).toHaveLength(0);
       expect(user.identities[0]).toMatchObject({ provider: 'GOOGLE', providerUserId: 'g-sub-1' });
       // Same identity again: even with a changed email it is the same account, and nothing is duplicated.
       goodGoogle('g-sub-1', email('gina-new'));
@@ -336,6 +348,81 @@ describe.skipIf(!url)('customer social sign-in (real PostgreSQL, mocked provider
       });
       goodGoogle('g-susp', email('susp'));
       expect(reason(await signIn('google'))).toBe('account_disabled');
+    });
+  });
+
+  describe('profile picture sync (the account avatar belongs to the global user, not a store)', () => {
+    const imageOf = async (mail: string) =>
+      db.user.findUniqueOrThrow({
+        where: { email: mail },
+        select: { image: true, imageSource: true },
+      });
+
+    it('Google: stores the picture on signup, updates it on a later sign-in, and tolerates a missing one', async () => {
+      goodGoogle('g-pic-1', email('pic'), { picture: 'https://lh3.example.test/a.jpg' });
+      await signIn('google');
+      expect(await imageOf(email('pic'))).toEqual({
+        image: 'https://lh3.example.test/a.jpg',
+        imageSource: 'PROVIDER',
+      });
+      goodGoogle('g-pic-1', email('pic'), { picture: 'https://lh3.example.test/b.jpg' });
+      await signIn('google');
+      expect((await imageOf(email('pic'))).image).toBe('https://lh3.example.test/b.jpg');
+      // No picture this time: the existing one stays, and sign-in still works.
+      goodGoogle('g-pic-1', email('pic'));
+      expect((await signIn('google')).to.searchParams.get('status')).toBe('ok');
+      expect((await imageOf(email('pic'))).image).toBe('https://lh3.example.test/b.jpg');
+      expect(await db.user.count({ where: { email: email('pic') } })).toBe(1);
+    });
+
+    it('never stores a non-https picture URL', async () => {
+      goodGoogle('g-pic-2', email('pic2'), { picture: 'http://insecure.example.test/a.jpg' });
+      await signIn('google');
+      expect((await imageOf(email('pic2'))).image).toBeNull();
+    });
+
+    it('a picture the person chose themselves is never overwritten by a sync', async () => {
+      goodGoogle('g-pic-3', email('pic3'), { picture: 'https://lh3.example.test/p.jpg' });
+      await signIn('google');
+      await db.user.update({
+        where: { email: email('pic3') },
+        data: { image: 'https://cdn.example.test/mine.png', imageSource: 'CUSTOM' },
+      });
+      goodGoogle('g-pic-3', email('pic3'), { picture: 'https://lh3.example.test/new.jpg' });
+      await signIn('google');
+      expect(await imageOf(email('pic3'))).toEqual({
+        image: 'https://cdn.example.test/mine.png',
+        imageSource: 'CUSTOM',
+      });
+    });
+
+    it('Facebook: syncs a real picture, ignores the default silhouette', async () => {
+      fb = {
+        id: 'fb-pic-1',
+        email: email('fbpic'),
+        picture: 'https://scontent.example.test/f.jpg',
+      };
+      await signIn('facebook');
+      await http()
+        .post('/api/v1/auth/oauth/complete')
+        .send({ token: linkToken(mails.at(-1)!) })
+        .expect(200);
+      expect((await imageOf(email('fbpic'))).image).toBe('https://scontent.example.test/f.jpg');
+      fb = {
+        id: 'fb-pic-1',
+        email: email('fbpic'),
+        picture: 'https://scontent.example.test/silhouette.jpg',
+        silhouette: true,
+      };
+      await signIn('facebook');
+      expect((await imageOf(email('fbpic'))).image).toBe('https://scontent.example.test/f.jpg');
+    });
+
+    it('a user with no linked stores signs in without any store being invented', async () => {
+      goodGoogle('g-pic-4', email('nostore'));
+      await signIn('google');
+      const u = await db.user.findUniqueOrThrow({ where: { email: email('nostore') } });
+      expect(await db.workspaceMembership.count({ where: { userId: u.id } })).toBe(0);
     });
   });
 
@@ -566,16 +653,26 @@ describe.skipIf(!url)('customer social sign-in (real PostgreSQL, mocked provider
         .expect(400);
     });
 
-    it('registration without a business name names the workspace after the person', async () => {
+    it('registration without a business name creates the account only; a named one also creates its store', async () => {
       const r = await http()
         .post('/api/v1/auth/register')
         .send({ name: 'Ada Lovelace', email: email('noname'), password: 'Strong-pass-1' })
         .expect(201);
+      expect(await db.workspaceMembership.count({ where: { userId: r.body.user.id } })).toBe(0);
+      const named = await http()
+        .post('/api/v1/auth/register')
+        .send({
+          name: 'Ada Lovelace',
+          email: email('named'),
+          password: 'Strong-pass-1',
+          workspaceName: 'Ada Shop',
+        })
+        .expect(201);
       const ws = await db.workspaceMembership.findFirstOrThrow({
-        where: { userId: r.body.user.id },
+        where: { userId: named.body.user.id },
         include: { workspace: true },
       });
-      expect(ws.workspace.name).toBe("Ada's workspace");
+      expect(ws.workspace.name).toBe('Ada Shop');
       expect(ws.role).toBe('OWNER');
     });
 

@@ -4,10 +4,15 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/auth';
+import { useWorkspace } from '@/lib/workspace';
 
 /** Client-side gate: restores the session from the refresh cookie, otherwise sends the user to /login. */
 export function RequireAuth({ children }: { children: React.ReactNode }) {
   const { status } = useAuth();
+  const { stores, isLoading, error } = useWorkspace();
+  // An account with no store cannot use the app: first-store setup is mandatory. The API enforces the same by refusing
+  // every store-scoped request without a membership; this only sends the person to the right place.
+  const needsStore = status === 'authed' && !isLoading && !error && stores.length === 0;
   const router = useRouter();
   const pathname = usePathname();
   useEffect(() => {
@@ -16,9 +21,10 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
       router.replace(
         pathname && pathname !== '/' ? `/login?next=${encodeURIComponent(pathname)}` : '/login',
       );
-  }, [status, router, pathname]);
+    if (needsStore) router.replace('/onboarding');
+  }, [status, router, pathname, needsStore]);
 
-  if (status !== 'authed') {
+  if (status !== 'authed' || isLoading || needsStore) {
     return (
       <div
         className="flex h-screen items-center justify-center bg-canvas"

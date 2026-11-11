@@ -213,6 +213,10 @@ model User {
   timeZone        String?
   /// Where "/" sends this user after sign-in: dashboard, inbox, leads, customers or orders.
   landingPage     String     @default("dashboard")
+  /// Avatar URL. From the sign-in provider (Google/Facebook) unless the person chose their own.
+  image           String?
+  /// Where `image` came from: PROVIDER (re-synced on each social sign-in) or CUSTOM (never overwritten by a sync).
+  imageSource     String?
   suspendedAt     DateTime?
   suspendedReason String?
   createdAt       DateTime   @default(now())
@@ -222,6 +226,7 @@ model User {
   sessions              Session[]
   emailTokens           EmailToken[]
   identities            UserIdentity[]
+  preferences           UserPreferences?
   auditLogs             AuditLog[]            @relation("AuditActor")
   createdWorkspaces     Workspace[]           @relation("WorkspaceCreator")
   assignedConversations Conversation[]        @relation("ConversationAssignee")
@@ -257,6 +262,17 @@ model Workspace {
   /// Pre-selected currency when creating orders.
   defaultCurrency   String?         @db.VarChar(3)
   contactEmail      String?
+  /// A store (the product's name for a workspace) also carries its public business profile:
+  /// General Settings and onboarding read and write these same columns. currency = defaultCurrency,
+  /// email = contactEmail, timezone = reportingTimeZone.
+  logo              String?
+  phone             String?
+  industry          String?
+  country           String?
+  addressLine       String?
+  city              String?
+  state             String?
+  postalCode        String?
   status            WorkspaceStatus @default(ACTIVE)
   /// IANA zone that defines "a day" for dashboard analytics, so every member sees identical numbers.
   reportingTimeZone String          @default("UTC")
@@ -268,6 +284,7 @@ model Workspace {
 
   createdBy            User?                 @relation("WorkspaceCreator", fields: [createdById], references: [id], onDelete: SetNull)
   memberships          WorkspaceMembership[]
+  preferredBy          UserPreferences[]
   auditLogs            AuditLog[]
   channels             Channel[]
   customers            Customer[]
@@ -316,6 +333,20 @@ model WorkspaceMembership {
   @@index([userId])
   @@index([workspaceId, role])
   @@map("workspace_memberships")
+}
+
+/// Per-user preferences that follow the person across stores. `lastActiveWorkspaceId` is the store restored after sign-in.
+model UserPreferences {
+  userId                String   @id @db.Uuid
+  lastActiveWorkspaceId String?  @db.Uuid
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastActiveWorkspace Workspace? @relation(fields: [lastActiveWorkspaceId], references: [id], onDelete: SetNull)
+
+  @@index([lastActiveWorkspaceId])
+  @@map("user_preferences")
 }
 
 /// One row per refresh token. Rotation creates a new row in the same family;
@@ -383,6 +414,8 @@ model PendingSocialSignup {
   provider       AuthProvider
   providerUserId String
   name           String
+  /// The provider's avatar (https) carried through the email confirmation, so it can be synced once the account exists.
+  image          String?
   email          String
   expiresAt      DateTime
   usedAt         DateTime?
@@ -451,37 +484,37 @@ model AuditLog {
 /// A connected messaging account (WhatsApp number, Instagram/Facebook page). Provider
 /// credentials are intentionally NOT stored here; they will live in an encrypted secrets store.
 model Channel {
-  id                String          @id @default(uuid(7)) @db.Uuid
-  workspaceId       String          @db.Uuid
-  provider          ChannelProvider
-  displayName       String
-  status            ChannelStatus   @default(DISCONNECTED)
+  id                 String          @id @default(uuid(7)) @db.Uuid
+  workspaceId        String          @db.Uuid
+  provider           ChannelProvider
+  displayName        String
+  status             ChannelStatus   @default(DISCONNECTED)
   /// Provider-side account name (e.g. Page or business name). Credentials are never stored here.
-  accountName       String?
+  accountName        String?
   /// Masked identifier for display only (e.g. "+880 1•••-••5678").
-  accountMask       String?
-  connectedAt       DateTime?
-  disconnectedAt    DateTime?
+  accountMask        String?
+  connectedAt        DateTime?
+  disconnectedAt     DateTime?
   /// Evidence of health, written only by a real provider check. Null = never checked.
-  lastHealthCheckAt DateTime?
-  lastError         String?
-  defaultAssigneeId String?         @db.Uuid
-  defaultTeamId     String?         @db.Uuid
+  lastHealthCheckAt  DateTime?
+  lastError          String?
+  defaultAssigneeId  String?         @db.Uuid
+  defaultTeamId      String?         @db.Uuid
   /// True for development seed records that have no live provider connection.
-  isSample          Boolean         @default(false)
+  isSample           Boolean         @default(false)
   /// Provider-side account id (WhatsApp phone-number id). Unique per provider so one number can't be connected twice.
-  externalAccountId String?
+  externalAccountId  String?
   /// When the stored access token stops working (null = does not expire or unknown). Drives "reauthorize" prompts.
-  tokenExpiresAt    DateTime?
+  tokenExpiresAt     DateTime?
   /// SUBSCRIBED | FAILED, written only after a real subscribe call to Meta. Null = never attempted (e.g. manual WhatsApp).
-  webhookStatus     String?
-  webhookError      String?
+  webhookStatus      String?
+  webhookError       String?
   /// Last time Meta delivered any event for this channel.
-  lastEventAt       DateTime?
+  lastEventAt        DateTime?
   /// Encrypted two-step verification PIN set when the number was registered for the Cloud API (Embedded Signup).
   phonePinCiphertext String?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
 
   workspace       Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   credential      ChannelCredential?
@@ -1279,16 +1312,16 @@ model ChannelContact {
 /// Short-lived server-side state between Meta's OAuth callback and the user choosing a Page / Instagram account.
 /// Tokens inside are encrypted; the browser only ever sees the session id and display names.
 model ChannelOAuthSession {
-  id          String          @id @default(uuid(7)) @db.Uuid
-  workspaceId String          @db.Uuid
-  userId      String          @db.Uuid
+  id          String           @id @default(uuid(7)) @db.Uuid
+  workspaceId String           @db.Uuid
+  userId      String           @db.Uuid
   /// Unused for the unified flow (each candidate carries its own provider); kept for sessions created earlier.
   provider    ChannelProvider?
   /// JSON array of discovered assets (Pages, Instagram accounts, WhatsApp numbers) with encrypted tokens.
   candidates  Json
   expiresAt   DateTime
   consumedAt  DateTime?
-  createdAt   DateTime        @default(now())
+  createdAt   DateTime         @default(now())
 
   @@index([workspaceId, userId])
   @@index([expiresAt])
@@ -1299,41 +1332,41 @@ model ChannelOAuthSession {
 /// Anything left NULL falls back to the deployment environment, so existing deployments keep working unchanged.
 /// Secrets are stored only as AES-GCM ciphertext (same master key as channel tokens).
 model MetaConfiguration {
-  id                  String   @id @default("default")
+  id                              String    @id @default("default")
   /// BUSINESS_MESSAGING (id "default": Torio Platform app: Messenger, Instagram, WhatsApp) or AUTH (id "auth": Torio Auth app: customer Facebook Login). Two different Meta apps, never mixed.
-  purpose             String   @default("BUSINESS_MESSAGING")
-  appName             String?
-  appId               String?
-  appSecretCiphertext String?
-  apiVersion          String?
-  businessId          String?
+  purpose                         String    @default("BUSINESS_MESSAGING")
+  appName                         String?
+  appId                           String?
+  appSecretCiphertext             String?
+  apiVersion                      String?
+  businessId                      String?
   /// DEVELOPMENT | LIVE (informational: mirrors the mode set in Meta's dashboard)
-  appMode             String?
-  appDomain           String?
-  websiteUrl          String?
-  oauthRedirectUri    String?
-  allowedRedirectUris String[] @default([])
+  appMode                         String?
+  appDomain                       String?
+  websiteUrl                      String?
+  oauthRedirectUri                String?
+  allowedRedirectUris             String[]  @default([])
   /// Customer Portal "Continue with Facebook" callback, independent of the channel callback above.
-  customerAuthRedirectUri String?
-  customerAuthAllowedRedirectUris String[] @default([])
-  oauthStateTtlMinutes Int?
-  allowedDomains      String[] @default([])
-  successUrl          String?
-  failureUrl          String?
-  webhookBaseUrl      String?
-  webhookEnabled      Boolean?
-  verifyTokenCiphertext String?
-  whatsappConfigId    String?
-  discoverWhatsapp    Boolean?
-  messengerEnabled    Boolean  @default(true)
-  instagramEnabled    Boolean  @default(true)
-  whatsappEnabled     Boolean  @default(true)
-  lastWebhookVerifiedAt DateTime?
-  lastKeyRotationAt   DateTime?
-  updatedById         String?  @db.Uuid
-  updatedByEmail      String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  customerAuthRedirectUri         String?
+  customerAuthAllowedRedirectUris String[]  @default([])
+  oauthStateTtlMinutes            Int?
+  allowedDomains                  String[]  @default([])
+  successUrl                      String?
+  failureUrl                      String?
+  webhookBaseUrl                  String?
+  webhookEnabled                  Boolean?
+  verifyTokenCiphertext           String?
+  whatsappConfigId                String?
+  discoverWhatsapp                Boolean?
+  messengerEnabled                Boolean   @default(true)
+  instagramEnabled                Boolean   @default(true)
+  whatsappEnabled                 Boolean   @default(true)
+  lastWebhookVerifiedAt           DateTime?
+  lastKeyRotationAt               DateTime?
+  updatedById                     String?   @db.Uuid
+  updatedByEmail                  String?
+  createdAt                       DateTime  @default(now())
+  updatedAt                       DateTime  @updatedAt
 
   @@map("meta_configuration")
 }

@@ -40,7 +40,20 @@ export interface ProviderProfile {
   email: string | null;
   /** Whether the provider vouches that the user controls the email. Facebook's is never treated as verified. */
   emailVerified: boolean;
+  /** The provider's avatar URL (https only), or null when it gave none or only its generic silhouette. */
+  image?: string | null;
 }
+
+/** Only a plain https URL is ever stored as an avatar. */
+export const safeImageUrl = (v: unknown): string | null => {
+  if (typeof v !== 'string' || v.length > 1000) return null;
+  try {
+    const u = new URL(v);
+    return u.protocol === 'https:' ? u.toString() : null;
+  } catch {
+    return null;
+  }
+};
 
 const GOOGLE_JWKS = 'https://www.googleapis.com/oauth2/v3/certs';
 
@@ -242,6 +255,7 @@ export class SocialProviders implements OnModuleInit {
       email,
       emailVerified:
         !!email && (claims.email_verified === true || claims.email_verified === 'true'),
+      image: safeImageUrl(claims.picture),
     };
   }
 
@@ -273,12 +287,13 @@ export class SocialProviders implements OnModuleInit {
     if (!d.ok || !dbg.data?.is_valid || dbg.data.app_id !== appId)
       throw new SocialAuthError('invalid_token', 'token not issued to this app');
     const me = await this.fetch(
-      `${g}/me?${new URLSearchParams({ fields: 'id,name,email', access_token: tok.access_token })}`,
+      `${g}/me?${new URLSearchParams({ fields: 'id,name,email,picture.type(large){url,is_silhouette}', access_token: tok.access_token })}`,
     );
     const prof = (await me.json().catch(() => ({}))) as {
       id?: string;
       name?: string;
       email?: string;
+      picture?: { data?: { url?: string; is_silhouette?: boolean } };
     };
     if (!me.ok || !prof.id) throw new SocialAuthError('provider_error', 'profile request failed');
     if (dbg.data.user_id && dbg.data.user_id !== prof.id)
@@ -290,6 +305,8 @@ export class SocialProviders implements OnModuleInit {
       email: prof.email ? prof.email.toLowerCase() : null,
       // Facebook can return an email the person never confirmed, so it never counts as proof of ownership on its own.
       emailVerified: false,
+      // Facebook's generic silhouette is not a picture of the person, so it is never stored.
+      image: prof.picture?.data?.is_silhouette ? null : safeImageUrl(prof.picture?.data?.url),
     };
   }
 }

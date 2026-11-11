@@ -779,6 +779,81 @@
         ]
       }
     },
+    "/api/v1/workspaces/active": {
+      "put": {
+        "operationId": "WorkspacesController_setActive",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetActiveDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkspaceDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
+    "/api/v1/workspaces/slug-check": {
+      "get": {
+        "operationId": "WorkspacesController_slugCheck",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "maxLength": 80,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlugCheckDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}": {
       "get": {
         "operationId": "WorkspacesController_get",
@@ -9407,6 +9482,17 @@
               "customers",
               "orders"
             ]
+          },
+          "image": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Text, or null when not set"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -9418,7 +9504,8 @@
           "phone",
           "jobTitle",
           "timeZone",
-          "landingPage"
+          "landingPage",
+          "image"
         ]
       },
       "UpdateProfileDto": {
@@ -9655,6 +9742,17 @@
                   "customers",
                   "orders"
                 ]
+              },
+              "image": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "description": "Text, or null when not set"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             },
             "required": [
@@ -9666,7 +9764,8 @@
               "phone",
               "jobTitle",
               "timeZone",
-              "landingPage"
+              "landingPage",
+              "image"
             ]
           },
           "workspaces": {
@@ -9817,6 +9916,94 @@
               }
             ]
           },
+          "logo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Image URL, or null when not set"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "E.164 number, or null when not set"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "industry": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Text, or null when not set"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "ISO 3166-1 alpha-2, or null when not set"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "addressLine": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Text, or null when not set"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Text, or null when not set"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Text, or null when not set"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "postalCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Text, or null when not set"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -9829,6 +10016,9 @@
               "ADMIN",
               "AGENT"
             ]
+          },
+          "active": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -9840,8 +10030,17 @@
           "reportingTimeZone",
           "defaultCurrency",
           "contactEmail",
+          "logo",
+          "phone",
+          "industry",
+          "country",
+          "addressLine",
+          "city",
+          "state",
+          "postalCode",
           "createdAt",
-          "role"
+          "role",
+          "active"
         ]
       },
       "CreateWorkspaceDto": {
@@ -9851,10 +10050,354 @@
             "type": "string",
             "minLength": 2,
             "maxLength": 80
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 48,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          },
+          "industry": {
+            "type": "string",
+            "enum": [
+              "Fashion & Apparel",
+              "Beauty & Cosmetics",
+              "Electronics & Technology",
+              "Food & Beverage",
+              "Health & Wellness",
+              "Travel & Tourism",
+              "Home & Lifestyle",
+              "Education",
+              "Digital Products",
+              "Other"
+            ]
+          },
+          "defaultCurrency": {
+            "type": "string"
+          },
+          "reportingTimeZone": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "contactEmail": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\+[1-9]\\d{6,14}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "country": {
+            "type": "string",
+            "enum": [
+              "AF",
+              "AL",
+              "DZ",
+              "AD",
+              "AO",
+              "AG",
+              "AR",
+              "AM",
+              "AU",
+              "AT",
+              "AZ",
+              "BS",
+              "BH",
+              "BD",
+              "BB",
+              "BY",
+              "BE",
+              "BZ",
+              "BJ",
+              "BT",
+              "BO",
+              "BA",
+              "BW",
+              "BR",
+              "BN",
+              "BG",
+              "BF",
+              "BI",
+              "KH",
+              "CM",
+              "CA",
+              "CV",
+              "CF",
+              "TD",
+              "CL",
+              "CN",
+              "CO",
+              "KM",
+              "CG",
+              "CD",
+              "CR",
+              "CI",
+              "HR",
+              "CU",
+              "CY",
+              "CZ",
+              "DK",
+              "DJ",
+              "DM",
+              "DO",
+              "EC",
+              "EG",
+              "SV",
+              "GQ",
+              "ER",
+              "EE",
+              "SZ",
+              "ET",
+              "FJ",
+              "FI",
+              "FR",
+              "GA",
+              "GM",
+              "GE",
+              "DE",
+              "GH",
+              "GR",
+              "GD",
+              "GT",
+              "GN",
+              "GW",
+              "GY",
+              "HT",
+              "HN",
+              "HK",
+              "HU",
+              "IS",
+              "IN",
+              "ID",
+              "IR",
+              "IQ",
+              "IE",
+              "IL",
+              "IT",
+              "JM",
+              "JP",
+              "JO",
+              "KZ",
+              "KE",
+              "KI",
+              "KP",
+              "KR",
+              "XK",
+              "KW",
+              "KG",
+              "LA",
+              "LV",
+              "LB",
+              "LS",
+              "LR",
+              "LY",
+              "LI",
+              "LT",
+              "LU",
+              "MO",
+              "MG",
+              "MW",
+              "MY",
+              "MV",
+              "ML",
+              "MT",
+              "MH",
+              "MR",
+              "MU",
+              "MX",
+              "FM",
+              "MD",
+              "MC",
+              "MN",
+              "ME",
+              "MA",
+              "MZ",
+              "MM",
+              "NA",
+              "NR",
+              "NP",
+              "NL",
+              "NZ",
+              "NI",
+              "NE",
+              "NG",
+              "MK",
+              "NO",
+              "OM",
+              "PK",
+              "PW",
+              "PS",
+              "PA",
+              "PG",
+              "PY",
+              "PE",
+              "PH",
+              "PL",
+              "PT",
+              "PR",
+              "QA",
+              "RO",
+              "RU",
+              "RW",
+              "KN",
+              "LC",
+              "VC",
+              "WS",
+              "SM",
+              "ST",
+              "SA",
+              "SN",
+              "RS",
+              "SC",
+              "SL",
+              "SG",
+              "SK",
+              "SI",
+              "SB",
+              "SO",
+              "ZA",
+              "SS",
+              "ES",
+              "LK",
+              "SD",
+              "SR",
+              "SE",
+              "CH",
+              "SY",
+              "TW",
+              "TJ",
+              "TZ",
+              "TH",
+              "TL",
+              "TG",
+              "TO",
+              "TT",
+              "TN",
+              "TR",
+              "TM",
+              "TV",
+              "UG",
+              "UA",
+              "AE",
+              "GB",
+              "US",
+              "UY",
+              "UZ",
+              "VU",
+              "VA",
+              "VE",
+              "VN",
+              "YE",
+              "ZM",
+              "ZW"
+            ]
+          },
+          "addressLine": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "postalCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
-          "name"
+          "name",
+          "slug",
+          "industry",
+          "defaultCurrency",
+          "reportingTimeZone",
+          "contactEmail",
+          "country"
+        ],
+        "additionalProperties": false
+      },
+      "SetActiveDto": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "workspaceId"
+        ],
+        "additionalProperties": false
+      },
+      "SlugCheckDto": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "suggestion": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "slug",
+          "available",
+          "reason",
+          "suggestion"
         ]
       },
       "UpdateWorkspaceDto": {
@@ -9913,6 +10456,319 @@
                     "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
                   }
                 ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "industry": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": ""
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "Fashion & Apparel",
+                      "Beauty & Cosmetics",
+                      "Electronics & Technology",
+                      "Food & Beverage",
+                      "Health & Wellness",
+                      "Travel & Tourism",
+                      "Home & Lifestyle",
+                      "Education",
+                      "Digital Products",
+                      "Other"
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": ""
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^\\+[1-9]\\d{6,14}$"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "country": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": ""
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "AF",
+                      "AL",
+                      "DZ",
+                      "AD",
+                      "AO",
+                      "AG",
+                      "AR",
+                      "AM",
+                      "AU",
+                      "AT",
+                      "AZ",
+                      "BS",
+                      "BH",
+                      "BD",
+                      "BB",
+                      "BY",
+                      "BE",
+                      "BZ",
+                      "BJ",
+                      "BT",
+                      "BO",
+                      "BA",
+                      "BW",
+                      "BR",
+                      "BN",
+                      "BG",
+                      "BF",
+                      "BI",
+                      "KH",
+                      "CM",
+                      "CA",
+                      "CV",
+                      "CF",
+                      "TD",
+                      "CL",
+                      "CN",
+                      "CO",
+                      "KM",
+                      "CG",
+                      "CD",
+                      "CR",
+                      "CI",
+                      "HR",
+                      "CU",
+                      "CY",
+                      "CZ",
+                      "DK",
+                      "DJ",
+                      "DM",
+                      "DO",
+                      "EC",
+                      "EG",
+                      "SV",
+                      "GQ",
+                      "ER",
+                      "EE",
+                      "SZ",
+                      "ET",
+                      "FJ",
+                      "FI",
+                      "FR",
+                      "GA",
+                      "GM",
+                      "GE",
+                      "DE",
+                      "GH",
+                      "GR",
+                      "GD",
+                      "GT",
+                      "GN",
+                      "GW",
+                      "GY",
+                      "HT",
+                      "HN",
+                      "HK",
+                      "HU",
+                      "IS",
+                      "IN",
+                      "ID",
+                      "IR",
+                      "IQ",
+                      "IE",
+                      "IL",
+                      "IT",
+                      "JM",
+                      "JP",
+                      "JO",
+                      "KZ",
+                      "KE",
+                      "KI",
+                      "KP",
+                      "KR",
+                      "XK",
+                      "KW",
+                      "KG",
+                      "LA",
+                      "LV",
+                      "LB",
+                      "LS",
+                      "LR",
+                      "LY",
+                      "LI",
+                      "LT",
+                      "LU",
+                      "MO",
+                      "MG",
+                      "MW",
+                      "MY",
+                      "MV",
+                      "ML",
+                      "MT",
+                      "MH",
+                      "MR",
+                      "MU",
+                      "MX",
+                      "FM",
+                      "MD",
+                      "MC",
+                      "MN",
+                      "ME",
+                      "MA",
+                      "MZ",
+                      "MM",
+                      "NA",
+                      "NR",
+                      "NP",
+                      "NL",
+                      "NZ",
+                      "NI",
+                      "NE",
+                      "NG",
+                      "MK",
+                      "NO",
+                      "OM",
+                      "PK",
+                      "PW",
+                      "PS",
+                      "PA",
+                      "PG",
+                      "PY",
+                      "PE",
+                      "PH",
+                      "PL",
+                      "PT",
+                      "PR",
+                      "QA",
+                      "RO",
+                      "RU",
+                      "RW",
+                      "KN",
+                      "LC",
+                      "VC",
+                      "WS",
+                      "SM",
+                      "ST",
+                      "SA",
+                      "SN",
+                      "RS",
+                      "SC",
+                      "SL",
+                      "SG",
+                      "SK",
+                      "SI",
+                      "SB",
+                      "SO",
+                      "ZA",
+                      "SS",
+                      "ES",
+                      "LK",
+                      "SD",
+                      "SR",
+                      "SE",
+                      "CH",
+                      "SY",
+                      "TW",
+                      "TJ",
+                      "TZ",
+                      "TH",
+                      "TL",
+                      "TG",
+                      "TO",
+                      "TT",
+                      "TN",
+                      "TR",
+                      "TM",
+                      "TV",
+                      "UG",
+                      "UA",
+                      "AE",
+                      "GB",
+                      "US",
+                      "UY",
+                      "UZ",
+                      "VU",
+                      "VA",
+                      "VE",
+                      "VN",
+                      "YE",
+                      "ZM",
+                      "ZW"
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "addressLine": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "postalCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
               },
               {
                 "type": "null"

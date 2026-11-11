@@ -21,7 +21,9 @@ import { clearStoredDrafts } from '@/features/inbox/use-drafts';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import { useWorkspace } from '@/lib/workspace';
+import { useProfile } from '@/features/settings/queries';
 import { HEADER_ICON_BTN, HeaderPopover, usePopoverClose } from './header-popover';
+import { AddStoreButton, StoreSwitcher } from './store-switcher';
 import { useShell } from './shell-context';
 import { TorioLogo } from './torio-logo';
 
@@ -64,6 +66,41 @@ function MenuAction({
   );
 }
 
+/** The account avatar: the provider picture when there is one, else initials (also when the image fails to load). */
+function Avatar({
+  image,
+  initials,
+  className,
+}: {
+  image: string | null;
+  initials: string;
+  className?: string;
+}) {
+  const [failed, setFailed] = useState<string | null>(null);
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        'flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary font-semibold text-white',
+        className,
+      )}
+    >
+      {image && failed !== image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={image}
+          alt=""
+          referrerPolicy="no-referrer"
+          className="h-full w-full object-cover"
+          onError={() => setFailed(image)}
+        />
+      ) : (
+        initials
+      )}
+    </span>
+  );
+}
+
 export function TopBar() {
   const { user, signOut } = useAuth();
   const router = useRouter();
@@ -74,6 +111,7 @@ export function TopBar() {
     .slice(0, 2)
     .join('')
     .toUpperCase();
+  const image = useProfile().data?.image ?? null;
   const { mobile, setMobileNav, mobileNav, toast } = useShell();
   const [searchOpen, setSearchOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -123,6 +161,7 @@ export function TopBar() {
           </button>
         )}
         <TorioLogo className="block h-9 w-auto shrink-0 object-contain" />
+        <StoreSwitcher compact={mobile} />
         <div className="flex-1" />
         {!mobile && <GlobalSearch inputRef={inputRef} />}
         <div className="flex-1" />
@@ -137,6 +176,7 @@ export function TopBar() {
             <Search size={18} aria-hidden />
           </button>
         )}
+        <AddStoreButton compact={mobile} />
         <button
           type="button"
           onClick={stub}
@@ -182,9 +222,7 @@ export function TopBar() {
           triggerClassName="h-12 w-auto gap-2.5 rounded-[14px] border border-line bg-white py-1.5 pl-1.5 pr-3 shadow-[0_1px_2px_rgba(13,37,61,0.04)] transition-[background-color,border-color] duration-150 hover:border-line-input hover:bg-wash aria-expanded:border-line-input aria-expanded:bg-wash focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none max-md:pr-2.5 max-sm:h-10 max-sm:rounded-full max-sm:p-0.5"
           trigger={(open) => (
             <>
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-[13px] font-semibold text-white max-sm:h-9 max-sm:w-9">
-                {initials}
-              </span>
+              <Avatar image={image} initials={initials} className="h-9 w-9 text-[13px]" />
               {!mobile && (
                 <>
                   <span className="max-w-[120px] truncate text-[15px] font-semibold leading-none text-ink lg:max-w-[200px]">
@@ -207,12 +245,7 @@ export function TopBar() {
           {
             <>
               <div className="flex items-center gap-3 px-2 pb-2.5 pt-1.5">
-                <span
-                  aria-hidden
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-[14px] font-semibold text-white"
-                >
-                  {initials}
-                </span>
+                <Avatar image={image} initials={initials} className="h-11 w-11 text-[14px]" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="truncate text-[14px] font-semibold text-ink">

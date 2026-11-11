@@ -398,6 +398,15 @@ export const orderListItem = (o: OrderDetail) => {
   };
 };
 
+/** Multi-store: extra stores beside the main one, which is active until the person switches. */
+export const STORE_2 = '22222222-2222-4222-8222-222222222222';
+export const storesState = {
+  extra: [] as Record<string, unknown>[],
+  activeId: WS as string,
+  noStores: false,
+  created: [] as Record<string, unknown>[],
+  switches: [] as string[],
+};
 export const settingsState = {
   profile: {} as Record<string, unknown>,
   profilePatches: [] as unknown[],
@@ -430,9 +439,23 @@ export const resetSettings = () => {
     reportingTimeZone: 'Asia/Dhaka',
     defaultCurrency: null,
     contactEmail: null,
+    logo: null,
+    phone: null,
+    industry: null,
+    country: null,
+    addressLine: null,
+    city: null,
+    state: null,
+    postalCode: null,
+    status: 'ACTIVE',
     createdAt: USER.createdAt,
   };
   settingsState.workspacePatches = [];
+  storesState.extra = [];
+  storesState.activeId = WS;
+  storesState.noStores = false;
+  storesState.created = [];
+  storesState.switches = [];
 };
 resetSettings();
 
@@ -1292,7 +1315,59 @@ export async function mockApi(
       for (const [k, v] of Object.entries(b)) settingsState.workspace[k] = v === '' ? null : v;
       return reply({ ...settingsState.workspace, role });
     }
-    if (p === '/workspaces') return reply([{ ...settingsState.workspace, role }]);
+    const storeList = (): Record<string, unknown>[] => {
+      const all: Record<string, unknown>[] = storesState.noStores
+        ? [...storesState.extra]
+        : [{ ...settingsState.workspace, role }, ...storesState.extra];
+      const withActive = all.map((w) => ({ ...w, active: w.id === storesState.activeId }));
+      if (withActive.length && !withActive.some((w) => w.active)) withActive[0]!.active = true;
+      return [...withActive.filter((w) => w.active), ...withActive.filter((w) => !w.active)];
+    };
+    if (p === '/workspaces' && req.method() === 'POST') {
+      const b = req.postDataJSON() as Record<string, unknown>;
+      if (b.slug === 'taken-store') return reply({ error: { message: 'taken' } }, 409);
+      const created = {
+        id: `3333333${storesState.created.length}-3333-4333-8333-333333333333`,
+        description: null,
+        status: 'ACTIVE',
+        logo: null,
+        phone: null,
+        addressLine: null,
+        city: null,
+        state: null,
+        postalCode: null,
+        ...b,
+        defaultCurrency: b.defaultCurrency,
+        contactEmail: b.contactEmail,
+        role: 'OWNER',
+        createdAt: USER.createdAt,
+      };
+      storesState.created.push(b);
+      storesState.extra.push(created);
+      storesState.noStores = false;
+      storesState.activeId = created.id as string;
+      return reply({ ...created, active: true }, 201);
+    }
+    if (p === '/workspaces/active' && req.method() === 'PUT') {
+      const { workspaceId } = req.postDataJSON() as { workspaceId: string };
+      if (!storeList().some((w) => w.id === workspaceId))
+        return reply({ error: { message: 'Store not found' } }, 404);
+      storesState.switches.push(workspaceId);
+      storesState.activeId = workspaceId;
+      return reply(storeList());
+    }
+    if (p === '/workspaces/slug-check') {
+      const slug = url.searchParams.get('slug') ?? '';
+      return slug === 'taken-store'
+        ? reply({
+            slug,
+            available: false,
+            reason: 'This address is already taken',
+            suggestion: 'taken-store-2',
+          })
+        : reply({ slug, available: true, reason: null, suggestion: null });
+    }
+    if (p === '/workspaces') return reply(storeList());
     if (p === `/workspaces/${WS}/conversations`)
       return reply({
         data: CONVS,

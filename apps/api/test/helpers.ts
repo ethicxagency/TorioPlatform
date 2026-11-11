@@ -53,6 +53,7 @@ export function makePrismaFake(memberships: FakeMembership[], opts: { dbUp?: boo
       count: async ({ where }: { where: { workspaceId: string } }) =>
         memberships.filter((m) => m.workspaceId === where.workspaceId).length,
     },
+    userPreferences: { findUnique: async () => null, upsert: async () => ({}) },
     workspace: {
       findUniqueOrThrow: async ({ where }: { where: { id: string } }) => ({
         id: where.id,

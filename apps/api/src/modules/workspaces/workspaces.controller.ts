@@ -6,6 +6,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -13,7 +14,10 @@ import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import {
   auditListSchema,
   auditQuerySchema,
-  createWorkspaceSchema,
+  createStoreSchema,
+  setActiveWorkspaceSchema,
+  storeSlugCheckQuerySchema,
+  storeSlugCheckSchema,
   updateWorkspaceSchema,
   workspaceWithRoleSchema,
 } from '@torio/contracts';
@@ -23,7 +27,10 @@ import { WorkspaceAccessGuard } from '../../common/guards/workspace-access.guard
 import type { AuthUser, WorkspaceMembershipContext } from '../../common/types';
 import { WorkspacesService } from './workspaces.service';
 
-class CreateWorkspaceDto extends createZodDto(createWorkspaceSchema) {}
+class CreateWorkspaceDto extends createZodDto(createStoreSchema) {}
+class SetActiveDto extends createZodDto(setActiveWorkspaceSchema) {}
+class SlugCheckQueryDto extends createZodDto(storeSlugCheckQuerySchema) {}
+class SlugCheckDto extends createZodDto(storeSlugCheckSchema) {}
 class WorkspaceDto extends createZodDto(workspaceWithRoleSchema) {}
 class UpdateWorkspaceDto extends createZodDto(updateWorkspaceSchema) {}
 class AuditQueryDto extends createZodDto(auditQuerySchema) {}
@@ -44,7 +51,21 @@ export class WorkspacesController {
   @Post()
   @ApiOkResponse({ type: WorkspaceDto })
   create(@CurrentUser() user: AuthUser, @Body() body: CreateWorkspaceDto) {
-    return this.workspaces.create(user.id, body.name);
+    return this.workspaces.create(user.id, body);
+  }
+
+  /** Switch the active store. Only to a store the caller belongs to; persisted for the next sign-in. */
+  @Put('active')
+  @ApiOkResponse({ type: [WorkspaceDto] })
+  setActive(@CurrentUser() user: AuthUser, @Body() body: SetActiveDto) {
+    return this.workspaces.setActive(user.id, body.workspaceId);
+  }
+
+  /** Whether a store address is free, with a suggestion when it is not. Needs sign-in; reveals nothing but availability. */
+  @Get('slug-check')
+  @ApiOkResponse({ type: SlugCheckDto })
+  slugCheck(@Query() q: SlugCheckQueryDto) {
+    return this.workspaces.slugCheck(q.slug);
   }
 
   @Get(':workspaceId')
