@@ -166,9 +166,9 @@ export function LeadsTable(p: Props) {
       )}
     >
       {/* Table from md up */}
-      <div className="overflow-x-auto max-md:hidden">
+      <div className="max-h-[max(360px,calc(100vh-300px))] overflow-auto max-md:hidden">
         <table className="w-full min-w-[640px] border-collapse text-[13px]">
-          <thead className="border-b border-line-subtle bg-[#FBFBFC]">
+          <thead className="sticky top-0 z-10 bg-[#FBFBFC] shadow-[0_1px_0_var(--color-line-subtle)]">
             <tr>
               <th scope="col" className="w-10 px-3 py-2.5">
                 <Check_

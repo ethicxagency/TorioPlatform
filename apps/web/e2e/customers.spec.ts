@@ -30,6 +30,13 @@ test.describe('customers', () => {
     await expect(menu).toHaveCount(0);
   });
 
+  test('the table header is sticky inside a bounded scroll area', async ({ page }) => {
+    const head = page.locator('thead').first();
+    expect(await head.evaluate((e) => getComputedStyle(e).position)).toBe('sticky');
+    const box = head.locator('xpath=ancestor::div[1]');
+    expect(await box.evaluate((e) => getComputedStyle(e).overflowY)).toBe('auto');
+  });
+
   test('selects share one chrome: no native arrow, one chevron', async ({ page }) => {
     await page
       .getByRole('button', { name: /Filters/ })
