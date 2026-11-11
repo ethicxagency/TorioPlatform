@@ -8,6 +8,39 @@ test.describe('customers', () => {
     await page.goto('/customers');
   });
 
+  test('row actions menu: keyboard opens and moves, Escape closes and returns focus, outside click dismisses', async ({
+    page,
+  }) => {
+    const trigger = page.getByRole('button', { name: /^Actions for Tanvir Hasan/ }).first();
+    await trigger.focus();
+    await page.keyboard.press('ArrowDown');
+    const menu = page.getByRole('menu', { name: /Actions for Tanvir Hasan/ });
+    await expect(menu).toBeVisible();
+    await expect(menu.getByRole('menuitem').first()).toBeFocused();
+    await page.keyboard.press('End');
+    await expect(menu.getByRole('menuitem').last()).toBeFocused();
+    await page.keyboard.press('Home');
+    await expect(menu.getByRole('menuitem').first()).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    await trigger.click();
+    await expect(menu).toBeVisible();
+    await page.getByRole('heading', { name: 'Customers', level: 1 }).click();
+    await expect(menu).toHaveCount(0);
+  });
+
+  test('selects share one chrome: no native arrow, one chevron', async ({ page }) => {
+    await page
+      .getByRole('button', { name: /Filters/ })
+      .first()
+      .click();
+    const sel = page.locator('select').first();
+    await expect(sel).toBeVisible();
+    expect(await sel.evaluate((e) => getComputedStyle(e).appearance)).toBe('none');
+    expect(await sel.evaluate((e) => getComputedStyle(e).backgroundImage)).toContain('svg');
+  });
+
   test('shows real KPIs above the toolbar, marks order-based metrics unavailable, lists customers', async ({
     page,
   }) => {

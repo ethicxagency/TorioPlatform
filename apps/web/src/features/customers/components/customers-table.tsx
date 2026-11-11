@@ -1,23 +1,12 @@
 'use client';
 
-import {
-  ArrowDown,
-  ArrowUp,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  MessageSquare,
-  MoreHorizontal,
-  Pencil,
-  Trash2,
-  UserRound,
-} from 'lucide-react';
-import { useRef, useState } from 'react';
+import { ArrowDown, ArrowUp, Check, MessageSquare, Pencil, Trash2, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fmtAgo, initialsOf } from '@/features/inbox/format';
-import { useDismiss } from '@/features/inbox/use-dismiss';
 import { SourceBadge } from '@/features/leads/components/badges';
+import { ActionMenu } from '@/components/ui/menu';
+import { Pagination } from '@/components/ui/pagination';
 import { cn } from '@/lib/utils';
 import type { CustomerItem, CustomerSort } from '../types';
 import { CustomerStatusBadge } from './status-badge';
@@ -88,93 +77,31 @@ function Box({
 }
 
 function RowMenu({ c, p }: { c: CustomerItem; p: Props }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useDismiss(ref, open, () => setOpen(false));
-  const item =
-    'flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 text-left text-[13px] hover:bg-wash';
   return (
-    <div ref={ref} className="relative" onClick={(e) => e.stopPropagation()}>
-      <button
-        type="button"
-        aria-label={`Actions for ${c.name}`}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-wash-2"
-      >
-        <MoreHorizontal size={16} />
-      </button>
-      {open && (
-        <div
-          role="menu"
-          className="absolute right-0 top-9 z-20 w-[200px] animate-panel-in rounded-xl border border-line glass-menu p-1.5 shadow-popover"
-        >
-          <button
-            role="menuitem"
-            type="button"
-            className={item}
-            onClick={() => {
-              setOpen(false);
-              p.onOpen(c);
-            }}
-          >
-            <UserRound size={14} className="text-muted" />
-            View profile
-          </button>
-          {p.canWrite && (
-            <button
-              role="menuitem"
-              type="button"
-              className={item}
-              onClick={() => {
-                setOpen(false);
-                p.onEdit(c);
-              }}
-            >
-              <Pencil size={14} className="text-muted" />
-              Edit
-            </button>
-          )}
-          {c.conversationId && (
-            <button
-              role="menuitem"
-              type="button"
-              className={item}
-              onClick={() => {
-                setOpen(false);
-                p.onOpenConversation(c);
-              }}
-            >
-              <MessageSquare size={14} className="text-muted" />
-              Open conversation
-            </button>
-          )}
-          {p.canDelete && (
-            <button
-              role="menuitem"
-              type="button"
-              className={cn(item, 'text-danger')}
-              onClick={() => {
-                setOpen(false);
-                p.onDelete(c);
-              }}
-            >
-              <Trash2 size={14} />
-              Delete
-            </button>
-          )}
-        </div>
-      )}
-    </div>
+    <ActionMenu
+      label={`Actions for ${c.name}`}
+      width={200}
+      items={[
+        { label: 'View profile', icon: UserRound, onSelect: () => p.onOpen(c) },
+        p.canWrite && { label: 'Edit', icon: Pencil, onSelect: () => p.onEdit(c) },
+        !!c.conversationId && {
+          label: 'Open conversation',
+          icon: MessageSquare,
+          onSelect: () => p.onOpenConversation(c),
+        },
+        p.canDelete && {
+          label: 'Delete',
+          icon: Trash2,
+          danger: true,
+          onSelect: () => p.onDelete(c),
+        },
+      ]}
+    />
   );
 }
 
 export function CustomersTable(p: Props) {
   const allOnPage = p.customers.length > 0 && p.customers.every((c) => p.selected.has(c.id));
-  const from = p.total === 0 ? 0 : (p.page - 1) * p.pageSize + 1;
-  const to = Math.min(p.total, p.page * p.pageSize);
-  const pages = Math.max(1, Math.ceil(p.total / p.pageSize));
   const sortHead = (label: string, field: CustomerSort, cls = '') => (
     <th
       scope="col"
@@ -407,34 +334,7 @@ export function CustomersTable(p: Props) {
           </li>
         ))}
       </ul>
-      <div className="flex items-center justify-between gap-3 border-t border-line-subtle bg-[#FBFBFC] px-4 py-2.5 text-xs text-muted">
-        <span aria-live="polite">
-          {from}–{to} of {p.total}
-        </span>
-        <div className="flex items-center gap-1.5">
-          <span>
-            Page {p.page} of {pages}
-          </span>
-          <button
-            type="button"
-            aria-label="Previous page"
-            disabled={p.page <= 1}
-            onClick={() => p.onPage(p.page - 1)}
-            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border border-line bg-white disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <ChevronLeft size={14} />
-          </button>
-          <button
-            type="button"
-            aria-label="Next page"
-            disabled={p.page >= pages}
-            onClick={() => p.onPage(p.page + 1)}
-            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border border-line bg-white disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <ChevronRight size={14} />
-          </button>
-        </div>
-      </div>
+      <Pagination page={p.page} total={p.total} pageSize={p.pageSize} onPage={p.onPage} />
     </div>
   );
 }

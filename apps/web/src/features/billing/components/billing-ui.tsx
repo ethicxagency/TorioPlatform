@@ -1,7 +1,8 @@
 'use client';
 
-import { CalendarDays, MoreHorizontal, X, type LucideIcon } from 'lucide-react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { CalendarDays, X, type LucideIcon } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ActionMenu } from '@/components/ui/menu';
 import { cn } from '@/lib/utils';
 import type { InvoiceStatus } from '../types';
 
@@ -56,96 +57,20 @@ export interface MenuAction {
   onSelect: () => void;
 }
 
-/** An overflow ("more actions") menu: opens on click or ArrowDown, closes on Escape or an outside click, and returns focus. */
+/** An overflow ("more actions") menu: the shared ActionMenu with the billing action shape. */
 export function RowMenu({ label, actions }: { label: string; actions: MenuAction[] }) {
-  const [open, setOpen] = useState(false);
-  const wrap = useRef<HTMLDivElement>(null);
-  const btn = useRef<HTMLButtonElement>(null);
-  const id = useId();
-  useEffect(() => {
-    if (!open) return;
-    wrap.current?.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])')?.focus();
-    const away = (e: MouseEvent) => {
-      if (!wrap.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', away);
-    return () => document.removeEventListener('mousedown', away);
-  }, [open]);
-  const close = () => {
-    setOpen(false);
-    btn.current?.focus();
-  };
-  if (!actions.length) return null;
   return (
-    <div ref={wrap} className="relative">
-      <button
-        ref={btn}
-        type="button"
-        aria-label={label}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-controls={open ? id : undefined}
-        onClick={() => setOpen((v) => !v)}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowDown' && !open) {
-            e.preventDefault();
-            setOpen(true);
-          }
-        }}
-        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-muted transition-colors duration-150 hover:bg-wash hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary motion-reduce:transition-none"
-      >
-        <MoreHorizontal size={16} aria-hidden />
-      </button>
-      {open && (
-        <div
-          id={id}
-          role="menu"
-          aria-label={label}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              e.stopPropagation();
-              close();
-            }
-            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-              e.preventDefault();
-              const items = [
-                ...(wrap.current?.querySelectorAll<HTMLElement>(
-                  '[role="menuitem"]:not([disabled])',
-                ) ?? []),
-              ];
-              const i = items.indexOf(document.activeElement as HTMLElement);
-              items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus();
-            }
-          }}
-          className="absolute right-0 top-9 z-30 w-48 animate-panel-in rounded-xl border border-line bg-white p-1 shadow-popover motion-reduce:animate-none"
-        >
-          {actions.map((a) => {
-            const Icon = a.icon;
-            return (
-              <button
-                key={a.label}
-                type="button"
-                role="menuitem"
-                disabled={a.disabled}
-                onClick={() => {
-                  setOpen(false);
-                  a.onSelect();
-                }}
-                className={cn(
-                  'flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg border-none bg-transparent px-2.5 text-left text-[13px] font-medium transition-colors duration-150 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none',
-                  a.danger
-                    ? 'text-danger hover:bg-danger-soft focus-visible:bg-danger-soft'
-                    : 'text-ink hover:bg-wash focus-visible:bg-wash',
-                )}
-              >
-                {Icon && <Icon size={14} aria-hidden />}
-                {a.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+    <ActionMenu
+      label={label}
+      width={192}
+      items={actions.map((a) => ({
+        label: a.label,
+        icon: a.icon,
+        danger: a.danger,
+        disabled: a.disabled,
+        onSelect: a.onSelect,
+      }))}
+    />
   );
 }
 
