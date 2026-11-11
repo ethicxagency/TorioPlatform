@@ -9493,6 +9493,16 @@
                 "type": "null"
               }
             ]
+          },
+          "providers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "GOOGLE",
+                "FACEBOOK"
+              ]
+            }
           }
         },
         "required": [
@@ -9505,7 +9515,8 @@
           "jobTitle",
           "timeZone",
           "landingPage",
-          "image"
+          "image",
+          "providers"
         ]
       },
       "UpdateProfileDto": {
@@ -9753,6 +9764,16 @@
                     "type": "null"
                   }
                 ]
+              },
+              "providers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "GOOGLE",
+                    "FACEBOOK"
+                  ]
+                }
               }
             },
             "required": [
@@ -9765,7 +9786,8 @@
               "jobTitle",
               "timeZone",
               "landingPage",
-              "image"
+              "image",
+              "providers"
             ]
           },
           "workspaces": {

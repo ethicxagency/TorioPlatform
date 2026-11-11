@@ -409,4 +409,49 @@ describe.skipIf(!url)('multi-store (real PostgreSQL)', () => {
       expect(await storesFor(await tokenOf(`member-${sfx}@t.co`))).toEqual([]);
     });
   });
+
+  it('personal profile is global: it lists linked sign-in methods and is the same whichever store is active', async () => {
+    await db.userIdentity.create({
+      data: {
+        userId: users.rabby!.id,
+        provider: 'GOOGLE',
+        providerUserId: `g-${sfx}`,
+        email: `rabby-${sfx}@t.co`,
+      },
+    });
+    const before = (
+      await http()
+        .get('/api/v1/users/me')
+        .set(await as('rabby'))
+        .expect(200)
+    ).body;
+    expect(before.providers).toEqual(['GOOGLE']);
+    const l = await list('rabby');
+    await http()
+      .put('/api/v1/workspaces/active')
+      .set(await as('rabby'))
+      .send({ workspaceId: l[l.length - 1]!.id })
+      .expect(200);
+    const after = (
+      await http()
+        .get('/api/v1/users/me')
+        .set(await as('rabby'))
+        .expect(200)
+    ).body;
+    expect(after).toEqual(before);
+    const patched = (
+      await http()
+        .patch('/api/v1/users/me')
+        .set(await as('rabby'))
+        .send({ phone: '+8801712345678' })
+        .expect(200)
+    ).body;
+    expect(patched).toMatchObject({
+      phone: '+8801712345678',
+      providers: ['GOOGLE'],
+      email: `rabby-${sfx}@t.co`,
+    });
+    // a store's own record never carries personal fields
+    expect(JSON.stringify(await list('rabby'))).not.toContain(`rabby-${sfx}@t.co`);
+  });
 });

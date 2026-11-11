@@ -5,6 +5,7 @@ import { Suspense, useEffect } from 'react';
 import { TorioLogo } from '@/components/shell/torio-logo';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Toaster } from '@/components/ui/toaster';
+import { useProfile } from '@/features/settings/queries';
 import { useAuth } from '@/lib/auth';
 import { useWorkspace } from '@/lib/workspace';
 import { StoreForm } from './store-form';
@@ -14,6 +15,7 @@ function Inner() {
   const router = useRouter();
   const additional = useSearchParams().get('new') === '1';
   const { stores, isLoading } = useWorkspace();
+  const profile = useProfile();
 
   useEffect(() => {
     if (status === 'anon') router.replace('/login?next=%2Fonboarding');
@@ -21,14 +23,19 @@ function Inner() {
     if (status === 'authed' && !isLoading && stores.length > 0 && !additional) router.replace('/');
   }, [status, isLoading, stores.length, additional, router]);
 
-  if (status !== 'authed' || isLoading || (stores.length > 0 && !additional))
+  if (
+    status !== 'authed' ||
+    isLoading ||
+    (!profile.data && !profile.isError) ||
+    (stores.length > 0 && !additional)
+  )
     return <Skeleton className="mx-auto mt-24 h-8 w-48" />;
 
   return (
     <>
       <div className="mx-auto w-full max-w-[720px]">
         <h1 className="m-0 text-[28px] font-semibold tracking-[-0.02em] text-ink">
-          {additional ? 'Add a new store' : 'Let’s set up your store'}
+          {additional ? 'Add a new store' : 'Set up your Torio workspace'}
         </h1>
         <p className="m-0 mt-2 text-[15px] text-muted">
           {additional

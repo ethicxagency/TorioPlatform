@@ -20,6 +20,7 @@ type UserRow = {
   timeZone: string | null;
   landingPage: string;
   image: string | null;
+  identities?: { provider: 'GOOGLE' | 'FACEBOOK' }[];
 };
 
 @Injectable()
@@ -41,11 +42,15 @@ export class UsersService {
       timeZone: u.timeZone,
       landingPage: u.landingPage as 'dashboard' | 'inbox' | 'leads' | 'customers' | 'orders',
       image: u.image,
+      providers: [...new Set((u.identities ?? []).map((i) => i.provider))],
     };
   }
 
   async getProfile(userId: string) {
-    const user = await this.prisma.client.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.client.user.findUnique({
+      where: { id: userId },
+      include: { identities: { select: { provider: true } } },
+    });
     if (!user) throw new NotFoundException('User not found');
     return this.dto(user);
   }
@@ -54,6 +59,7 @@ export class UsersService {
   async updateProfile(userId: string, input: UpdateProfileInput) {
     const user = await this.prisma.client.user.update({
       where: { id: userId },
+      include: { identities: { select: { provider: true } } },
       data: {
         ...(input.name !== undefined && { name: input.name }),
         ...(input.phone !== undefined && { phone: input.phone }),

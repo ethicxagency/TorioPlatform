@@ -2766,6 +2766,7 @@ export interface components {
             /** @enum {string} */
             landingPage: "dashboard" | "inbox" | "leads" | "customers" | "orders";
             image: string | null;
+            providers: ("GOOGLE" | "FACEBOOK")[];
         };
         UpdateProfileDto: {
             name?: string;
@@ -2813,6 +2814,7 @@ export interface components {
                 /** @enum {string} */
                 landingPage: "dashboard" | "inbox" | "leads" | "customers" | "orders";
                 image: string | null;
+                providers: ("GOOGLE" | "FACEBOOK")[];
             };
             workspaces: {
                 name: string;

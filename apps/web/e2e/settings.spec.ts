@@ -178,10 +178,20 @@ test.describe('settings (owner)', () => {
     await expect(page.getByText('Workspace settings changed: name')).toBeVisible();
   });
 
-  test('top-bar account menu opens real settings', async ({ page }) => {
-    await page.getByRole('button', { name: 'Account menu' }).click();
-    await page.getByRole('menuitem', { name: 'Workspace settings' }).click();
-    await expect(page).toHaveURL(/\/settings\/general#workspace$/);
+  test("the store menu's Profile & Account row opens General", async ({ page }) => {
+    await page.getByRole('button', { name: 'Store menu' }).click();
+    await page.getByRole('button', { name: 'Profile & Account' }).click();
+    await expect(page).toHaveURL(/\/settings\/general$/);
+  });
+
+  test('personal and store information are separate sections', async ({ page }) => {
+    await page.goto('/settings/general');
+    await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Business Information' })).toBeVisible();
+    await expect(page.getByText('Sign-in methods')).toBeVisible();
+    await expect(page.getByText('Password', { exact: true })).toBeVisible();
+    const y = async (n: string) => (await page.getByRole('heading', { name: n }).boundingBox())!.y;
+    expect(await y('Your profile')).toBeLessThan(await y('Business Information'));
   });
 
   test('no horizontal overflow on a phone', async ({ page }) => {

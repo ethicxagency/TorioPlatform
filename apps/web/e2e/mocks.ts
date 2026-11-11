@@ -419,6 +419,8 @@ export const settingsState = {
 export const resetSettings = () => {
   settingsState.profile = {
     ...USER,
+    image: null,
+    providers: [],
     phone: null,
     jobTitle: null,
     timeZone: null,

@@ -44,6 +44,8 @@ export const profileSchema = z.object({
   landingPage: landingPageSchema,
   /** Avatar URL (from the sign-in provider unless chosen by the person), or null. */
   image: nullableString,
+  /** Social accounts linked to this sign-in. Password sign-in is separate (every account has one). */
+  providers: z.array(z.enum(['GOOGLE', 'FACEBOOK'])),
 });
 
 /** Email, role and workspace membership can’t be changed here; unknown keys are rejected. */

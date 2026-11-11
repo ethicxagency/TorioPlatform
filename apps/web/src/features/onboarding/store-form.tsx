@@ -1,25 +1,28 @@
 'use client';
 
-import { createStoreSchema, STORE_INDUSTRIES } from '@torio/contracts';
-import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
+import { createStoreSchema, phoneSchema, STORE_INDUSTRIES } from '@torio/contracts';
+import { ArrowLeft, ArrowRight, BadgeCheck, CheckCircle2, Loader2, XCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { controlCls } from '@/components/ui/input';
 import { SearchSelect } from '@/features/inbox/components/search-select';
 import { CurrencySelect, TimeZoneSelect } from '@/features/settings/components/regional';
+import { useProfile, useUpdateProfile } from '@/features/settings/queries';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { checkStoreSlug, StoreFormError, useCreateStore } from '@/lib/workspace';
 import {
-  browserTimeZone,
   countryOptions,
   currencyGuess,
   dialFor,
   dialOptions,
+  joinPhone,
   localeCountry,
+  splitPhone,
   suggestSlug,
+  timeZoneGuess,
 } from './store-options';
 
 type SlugState =
@@ -76,27 +79,75 @@ const Group = ({ title, children }: { title: string; children: React.ReactNode }
   </fieldset>
 );
 
+const STEPS = ['Personal information', 'Business information'] as const;
+
+/** Two-step progress: where the person is, and what is done. */
+function Progress({ step }: { step: 0 | 1 }) {
+  return (
+    <ol aria-label="Progress" className="m-0 mb-8 flex list-none items-center gap-3 p-0">
+      {STEPS.map((label, i) => {
+        const done = i < step;
+        const current = i === step;
+        return (
+          <li
+            key={label}
+            aria-current={current ? 'step' : undefined}
+            className="flex flex-1 flex-col gap-2"
+          >
+            <span
+              className={cn(
+                'h-1 rounded-full transition-colors duration-200 motion-reduce:transition-none',
+                done || current ? 'bg-primary' : 'bg-line',
+              )}
+            />
+            <span
+              className={cn(
+                'text-xs font-semibold',
+                current ? 'text-primary' : done ? 'text-ink' : 'text-faint',
+              )}
+            >
+              Step {i + 1} of 2 · {label}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 /**
- * Creates a store. Used for the mandatory first store (no way out until one exists) and, with `additional`, for the
- * "Add Store" flow. Validation runs on the same schema the server enforces; the server's answer always wins.
+ * Store setup in exactly two steps: who you are (saved to the global account), then the business (saved to the new store).
+ * Values live in one state, so Back and Continue never lose anything. Used for the mandatory first store and, with
+ * `additional`, for Add Store; there the personal step starts from the saved profile and changes it only if edited.
  */
 export function StoreForm({ additional }: { additional?: boolean }) {
   const router = useRouter();
   const { user } = useAuth();
+  const profile = useProfile().data;
+  const saveProfile = useUpdateProfile();
   const create = useCreateStore();
-  // The form mounts only after sign-in is known (never during server rendering), so reading the browser's locale
-  // here is safe. Every suggestion stays editable.
+  const [step, setStep] = useState<0 | 1>(0);
+
+  // The form mounts only after sign-in and the profile are known (never during server rendering), so reading the
+  // browser's locale here is safe. Every suggestion stays editable.
   const [v, setV] = useState(() => {
+    const phone = splitPhone(profile?.phone);
     const c = localeCountry();
     return {
+      // personal (global account)
+      fullName: profile?.name ?? user?.name ?? '',
+      pDial: phone.dial || (c && dialFor(c) ? c : ''),
+      pPhone: phone.national,
+      pCountry: c,
+      // business (this store)
       name: '',
       slug: '',
       industry: '',
       currency: currencyGuess(c),
-      tz: browserTimeZone(),
-      email: user?.email ?? '',
-      dial: c && dialFor(c) ? c : '',
-      phone: '',
+      tz: timeZoneGuess(c),
+      email: profile?.email ?? user?.email ?? '',
+      dial: phone.dial || (c && dialFor(c) ? c : ''),
+      phone: phone.national,
       country: c,
       addressLine: '',
       city: '',
@@ -106,27 +157,49 @@ export function StoreForm({ additional }: { additional?: boolean }) {
   });
   const [slugEdited, setSlugEdited] = useState(false);
   const [currencyEdited, setCurrencyEdited] = useState(false);
+  const [tzEdited, setTzEdited] = useState(false);
+  const [bizCountryEdited, setBizCountryEdited] = useState(false);
+  const [bizPhoneEdited, setBizPhoneEdited] = useState(false);
   const [checked, setChecked] = useState<{ slug: string; state: SlugState } | null>(null);
   const [errs, setErrs] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState('');
   const submitting = useRef(false);
 
+  const clear = (k: string) => {
+    setErrs((e) => ({ ...e, [k]: '', form: '' }));
+    setFormError('');
+  };
   const set = <K extends keyof typeof v>(k: K, val: (typeof v)[K]) => {
     setV((x) => {
       const next = { ...x, [k]: val };
       if (k === 'name' && !slugEdited) next.slug = suggestSlug(val as string);
-      if (k === 'country' && !currencyEdited) next.currency = currencyGuess(val as string);
-      if (k === 'country' && !x.phone && dialFor(val as string)) next.dial = val as string;
+      // Personal country and phone are only suggestions for the business, until the business fields are edited.
+      if (k === 'pCountry') {
+        const c = val as string;
+        if (!bizCountryEdited) next.country = c;
+        if (!currencyEdited) next.currency = currencyGuess(c);
+        if (!tzEdited) next.tz = timeZoneGuess(c);
+        if (!x.pPhone && dialFor(c)) next.pDial = c;
+      }
+      if (k === 'country') {
+        const c = val as string;
+        if (!currencyEdited) next.currency = currencyGuess(c);
+        if (!tzEdited) next.tz = timeZoneGuess(c);
+        if (!x.phone && dialFor(c)) next.dial = c;
+      }
+      if (!bizPhoneEdited && (k === 'pPhone' || k === 'pDial')) {
+        next.phone = k === 'pPhone' ? (val as string) : x.pPhone;
+        next.dial = k === 'pDial' ? (val as string) : x.pDial;
+      }
       return next;
     });
-    setErrs((e) => ({ ...e, [k === 'tz' ? 'reportingTimeZone' : k]: '', form: '' }));
-    setFormError('');
+    clear(k === 'tz' ? 'reportingTimeZone' : k);
   };
 
   // Availability: debounced, and an answer for an older value is ignored (the result is keyed by the slug it is for).
   useEffect(() => {
     const s = v.slug.trim();
-    if (!s) return;
+    if (!s || step !== 1) return;
     let live = true;
     const t = setTimeout(async () => {
       const r = await checkStoreSlug(s).catch(() => null);
@@ -147,7 +220,7 @@ export function StoreForm({ additional }: { additional?: boolean }) {
       live = false;
       clearTimeout(t);
     };
-  }, [v.slug]);
+  }, [v.slug, step]);
   const slug: SlugState = !v.slug.trim()
     ? { kind: 'idle' }
     : checked?.slug === v.slug
@@ -159,24 +232,58 @@ export function StoreForm({ additional }: { additional?: boolean }) {
   const industries = useMemo(() => STORE_INDUSTRIES.map((i) => ({ value: i, label: i })), []);
   const host = typeof window === 'undefined' ? 'torio' : window.location.host;
 
-  const body = () => {
-    const digits = v.phone.replace(/[^\d]/g, '').replace(/^0+/, '');
-    const dial = dialFor(v.dial);
-    return {
-      name: v.name,
-      slug: v.slug,
-      industry: v.industry,
-      defaultCurrency: v.currency,
-      reportingTimeZone: v.tz,
-      contactEmail: v.email,
-      phone: digits ? (dial ? `+${dial}${digits}` : `+${digits}`) : null,
-      country: v.country,
-      addressLine: v.addressLine,
-      city: v.city,
-      state: v.state,
-      postalCode: v.postalCode,
-    };
+  // ---- step 1 -> 2: validate, then save the global profile only if the person actually changed it
+  const next = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (submitting.current) return;
+    const out: Record<string, string> = {};
+    const name = v.fullName.trim();
+    if (!name) out.fullName = 'Enter your full name';
+    else if (name.length > 100) out.fullName = 'Use 100 characters or fewer';
+    const phone = joinPhone(v.pDial, v.pPhone);
+    if (phone) {
+      const p = phoneSchema.safeParse(phone);
+      if (!p.success) out.pPhone = p.error.issues[0]?.message ?? 'Enter a valid phone number';
+    }
+    if (!v.pCountry) out.pCountry = 'Choose your country';
+    if (Object.keys(out).length) {
+      setErrs(out);
+      setFormError('Check the highlighted fields.');
+      return;
+    }
+    const patch: { name?: string; phone?: string } = {};
+    if (name !== (profile?.name ?? '')) patch.name = name;
+    if ((phone ?? '') !== (profile?.phone ?? '')) patch.phone = phone ?? '';
+    if (Object.keys(patch).length) {
+      submitting.current = true;
+      try {
+        await saveProfile.mutateAsync(patch);
+      } catch (err) {
+        setFormError((err as Error).message || 'Could not save your details. Try again.');
+        return;
+      } finally {
+        submitting.current = false;
+      }
+    }
+    setErrs({});
+    setFormError('');
+    setStep(1);
   };
+
+  const body = () => ({
+    name: v.name,
+    slug: v.slug,
+    industry: v.industry,
+    defaultCurrency: v.currency,
+    reportingTimeZone: v.tz,
+    contactEmail: v.email,
+    phone: joinPhone(v.dial, v.phone),
+    country: v.country,
+    addressLine: v.addressLine,
+    city: v.city,
+    state: v.state,
+    postalCode: v.postalCode,
+  });
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -239,8 +346,131 @@ export function StoreForm({ additional }: { additional?: boolean }) {
       'Lowercase letters, numbers and hyphens.'
     );
 
-  return (
+  const personal = (
+    <form onSubmit={next} noValidate className="flex flex-col gap-6">
+      <div>
+        <h2 className="m-0 text-xl font-semibold tracking-[-0.01em] text-ink">
+          Let&apos;s get to know you
+        </h2>
+        <p className="m-0 mt-1 text-sm text-muted">
+          Tell us a little about yourself before setting up your workspace.
+        </p>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="sm:col-span-2">
+          <Field label="Full name" htmlFor="pf-name" required error={err('fullName')}>
+            <input
+              id="pf-name"
+              className={controlCls}
+              autoComplete="name"
+              value={v.fullName}
+              aria-invalid={!!err('fullName')}
+              onChange={(e) => set('fullName', e.target.value)}
+            />
+          </Field>
+        </div>
+        <div className="sm:col-span-2">
+          <Field
+            label="Email address"
+            htmlFor="pf-email"
+            required
+            hint={
+              profile?.emailVerified ? (
+                <span className="inline-flex items-center gap-1 text-success">
+                  <BadgeCheck size={13} aria-hidden /> Verified
+                </span>
+              ) : (
+                'This is your sign-in email. It can’t be changed here.'
+              )
+            }
+          >
+            <input
+              id="pf-email"
+              type="email"
+              className={controlCls}
+              value={profile?.email ?? user?.email ?? ''}
+              disabled
+              readOnly
+            />
+          </Field>
+        </div>
+        <div className="sm:col-span-2">
+          <Field label="Phone number" htmlFor="pf-phone" error={err('pPhone')}>
+            <div className="grid grid-cols-[minmax(0,150px)_1fr] gap-2">
+              <SearchSelect
+                label="Country code"
+                hideLabel
+                searchPlaceholder="Search country or code"
+                emptyText="No codes."
+                options={dials}
+                value={v.pDial}
+                onChange={(d) => set('pDial', d)}
+                anyLabel="Code"
+                limit={80}
+              />
+              <input
+                id="pf-phone"
+                type="tel"
+                inputMode="tel"
+                className={controlCls}
+                autoComplete="tel-national"
+                placeholder="1712 345678"
+                value={v.pPhone}
+                aria-invalid={!!err('pPhone')}
+                onChange={(e) => set('pPhone', e.target.value)}
+              />
+            </div>
+          </Field>
+        </div>
+        <div className="sm:col-span-2">
+          <Field label="Country" htmlFor="pf-country" required error={err('pCountry')}>
+            <SearchSelect
+              id="pf-country"
+              label="Your country"
+              hideLabel
+              searchPlaceholder="Search countries"
+              emptyText="No countries."
+              options={countries}
+              value={v.pCountry}
+              onChange={(c) => set('pCountry', c)}
+              anyLabel="Select a country"
+              limit={80}
+            />
+          </Field>
+        </div>
+      </div>
+      {formError && (
+        <p
+          role="alert"
+          className="m-0 rounded-xl bg-danger-soft px-3 py-2.5 text-[12.5px] text-[#8F2424]"
+        >
+          {formError}
+        </p>
+      )}
+      <div className="flex items-center justify-end gap-2">
+        {additional && (
+          <Button variant="outline" onClick={() => router.back()}>
+            Cancel
+          </Button>
+        )}
+        <Button type="submit" loading={saveProfile.isPending} className="h-10 px-5">
+          Continue
+          <ArrowRight aria-hidden />
+        </Button>
+      </div>
+    </form>
+  );
+
+  const business = (
     <form onSubmit={submit} noValidate className="flex flex-col gap-8">
+      <div>
+        <h2 className="m-0 text-xl font-semibold tracking-[-0.01em] text-ink">
+          Set up your business
+        </h2>
+        <p className="m-0 mt-1 text-sm text-muted">
+          Configure your store so Torio can personalize your workspace.
+        </p>
+      </div>
       <Group title="Store information">
         <div className="sm:col-span-2">
           <Field label="Store name" htmlFor="st-name" required error={err('name')}>
@@ -310,7 +540,14 @@ export function StoreForm({ additional }: { additional?: boolean }) {
           />
         </Field>
         <Field label="Time zone" htmlFor="st-tz" required error={err('reportingTimeZone')}>
-          <TimeZoneSelect id="st-tz" value={v.tz} onChange={(z) => set('tz', z)} />
+          <TimeZoneSelect
+            id="st-tz"
+            value={v.tz}
+            onChange={(z) => {
+              setTzEdited(true);
+              set('tz', z);
+            }}
+          />
         </Field>
       </Group>
 
@@ -321,7 +558,7 @@ export function StoreForm({ additional }: { additional?: boolean }) {
               id="st-email"
               type="email"
               className={controlCls}
-              autoComplete="email"
+              autoComplete="off"
               value={v.email}
               aria-invalid={!!err('contactEmail')}
               onChange={(e) => set('email', e.target.value)}
@@ -329,16 +566,19 @@ export function StoreForm({ additional }: { additional?: boolean }) {
           </Field>
         </div>
         <div className="sm:col-span-2">
-          <Field label="Phone number" htmlFor="st-phone" error={err('phone')}>
+          <Field label="Business phone" htmlFor="st-phone" error={err('phone')}>
             <div className="grid grid-cols-[minmax(0,150px)_1fr] gap-2">
               <SearchSelect
-                label="Country code"
+                label="Business country code"
                 hideLabel
                 searchPlaceholder="Search country or code"
                 emptyText="No codes."
                 options={dials}
                 value={v.dial}
-                onChange={(d) => set('dial', d)}
+                onChange={(d) => {
+                  setBizPhoneEdited(true);
+                  set('dial', d);
+                }}
                 anyLabel="Code"
                 limit={80}
               />
@@ -347,29 +587,35 @@ export function StoreForm({ additional }: { additional?: boolean }) {
                 type="tel"
                 inputMode="tel"
                 className={controlCls}
-                autoComplete="tel-national"
+                autoComplete="off"
                 placeholder="1712 345678"
                 value={v.phone}
                 aria-invalid={!!err('phone')}
-                onChange={(e) => set('phone', e.target.value)}
+                onChange={(e) => {
+                  setBizPhoneEdited(true);
+                  set('phone', e.target.value);
+                }}
               />
             </div>
           </Field>
         </div>
       </Group>
 
-      <Group title="Address">
+      <Group title="Business address">
         <div className="sm:col-span-2">
           <Field label="Country" htmlFor="st-country" required error={err('country')}>
             <SearchSelect
               id="st-country"
-              label="Country"
+              label="Business country"
               hideLabel
               searchPlaceholder="Search countries"
               emptyText="No countries."
               options={countries}
               value={v.country}
-              onChange={(c) => set('country', c)}
+              onChange={(c) => {
+                setBizCountryEdited(true);
+                set('country', c);
+              }}
               anyLabel="Select a country"
               limit={80}
             />
@@ -380,7 +626,7 @@ export function StoreForm({ additional }: { additional?: boolean }) {
             <input
               id="st-address"
               className={controlCls}
-              autoComplete="street-address"
+              autoComplete="off"
               value={v.addressLine}
               onChange={(e) => set('addressLine', e.target.value)}
             />
@@ -390,7 +636,7 @@ export function StoreForm({ additional }: { additional?: boolean }) {
           <input
             id="st-city"
             className={controlCls}
-            autoComplete="address-level2"
+            autoComplete="off"
             value={v.city}
             onChange={(e) => set('city', e.target.value)}
           />
@@ -399,7 +645,7 @@ export function StoreForm({ additional }: { additional?: boolean }) {
           <input
             id="st-state"
             className={controlCls}
-            autoComplete="address-level1"
+            autoComplete="off"
             value={v.state}
             onChange={(e) => set('state', e.target.value)}
           />
@@ -408,7 +654,7 @@ export function StoreForm({ additional }: { additional?: boolean }) {
           <input
             id="st-postal"
             className={controlCls}
-            autoComplete="postal-code"
+            autoComplete="off"
             value={v.postalCode}
             onChange={(e) => set('postalCode', e.target.value)}
           />
@@ -423,16 +669,22 @@ export function StoreForm({ additional }: { additional?: boolean }) {
           {formError}
         </p>
       )}
-      <div className="flex items-center justify-end gap-2">
-        {additional && (
-          <Button variant="outline" onClick={() => router.back()} disabled={create.isPending}>
-            Back
-          </Button>
-        )}
+      <div className="flex items-center justify-between gap-2">
+        <Button variant="outline" onClick={() => setStep(0)} disabled={create.isPending}>
+          <ArrowLeft aria-hidden />
+          Back
+        </Button>
         <Button type="submit" loading={create.isPending} className="h-10 px-5">
           Create Store
         </Button>
       </div>
     </form>
+  );
+
+  return (
+    <div>
+      <Progress step={step} />
+      {step === 0 ? personal : business}
+    </div>
   );
 }

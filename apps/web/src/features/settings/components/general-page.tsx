@@ -261,7 +261,106 @@ export function GeneralPage() {
     <div>
       <PageHeader title="General" />
       <form onSubmit={submit} noValidate>
-        <Section id="workspace" title="Business Information">
+        <Section
+          id="personal"
+          title="Your profile"
+          description="Your own account. It is the same in every store you belong to."
+        >
+          {loadingP && <Skeleton className="h-40 w-full" />}
+          {profileQ.isError && (
+            <Notice tone="error">Couldn&apos;t load your profile. Please refresh the page.</Notice>
+          )}
+          {p && (
+            <>
+              <div className="flex items-center gap-3">
+                <span
+                  aria-hidden
+                  className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-base font-semibold text-white"
+                >
+                  {p.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={p.image}
+                      alt=""
+                      referrerPolicy="no-referrer"
+                      className="h-full w-full object-cover"
+                      onError={(e) => (e.currentTarget.style.display = 'none')}
+                    />
+                  ) : (
+                    initialsOf(pf.name || p.name)
+                  )}
+                </span>
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold">{pf.name || p.name}</div>
+                  <div className="truncate text-xs text-muted">{p.email}</div>
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Full name" htmlFor="pf-name" required error={errs.name}>
+                  <input
+                    id="pf-name"
+                    value={pf.name}
+                    maxLength={100}
+                    placeholder="Your name"
+                    aria-invalid={!!errs.name}
+                    onChange={setP('name')}
+                    className={inputCls}
+                  />
+                </Field>
+                <Field
+                  label="Email"
+                  htmlFor="pf-email"
+                  hint={p.emailVerified ? 'Verified' : 'Not verified'}
+                >
+                  <input id="pf-email" value={p.email} disabled className={inputCls} />
+                </Field>
+                <Field label="Phone (optional)" htmlFor="pf-phone" error={errs.phone}>
+                  <input
+                    id="pf-phone"
+                    type="tel"
+                    value={pf.phone}
+                    maxLength={40}
+                    placeholder="+880 1700 000000"
+                    aria-invalid={!!errs.phone}
+                    onChange={setP('phone')}
+                    className={inputCls}
+                  />
+                </Field>
+                <Field label="Job title (optional)" htmlFor="pf-job" error={errs.jobTitle}>
+                  <input
+                    id="pf-job"
+                    value={pf.jobTitle}
+                    maxLength={100}
+                    placeholder="e.g. Head of Support"
+                    aria-invalid={!!errs.jobTitle}
+                    onChange={setP('jobTitle')}
+                    className={inputCls}
+                  />
+                </Field>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-[13px]">
+                <span className="text-muted">Sign-in methods</span>
+                {[
+                  'Password',
+                  ...(p.providers ?? []).map((x) => (x === 'GOOGLE' ? 'Google' : 'Facebook')),
+                ].map((m) => (
+                  <span
+                    key={m}
+                    className="rounded-full bg-primary-soft px-2.5 py-0.5 text-xs font-medium text-primary-hover"
+                  >
+                    {m}
+                  </span>
+                ))}
+              </div>
+              {errs.form && <Notice tone="error">{errs.form}</Notice>}
+            </>
+          )}
+        </Section>
+        <Section
+          id="workspace"
+          title="Business Information"
+          description={w ? `Settings for ${w.name}. Other stores keep their own.` : undefined}
+        >
           {wsLoading && <Skeleton className="h-44 w-full" />}
           {w && (
             <>
@@ -423,7 +522,11 @@ export function GeneralPage() {
           )}
         </Section>
 
-        <Section id="regional" title="Regional & Financial">
+        <Section
+          id="regional"
+          title="Regional & Financial"
+          description="Defaults for this store only."
+        >
           {wsLoading && <Skeleton className="h-20 w-full" />}
           {w && (
             <div className="grid gap-4 sm:grid-cols-2">
@@ -450,84 +553,6 @@ export function GeneralPage() {
                 />
               </Field>
             </div>
-          )}
-        </Section>
-
-        <Section id="personal" title="Your profile">
-          {loadingP && <Skeleton className="h-40 w-full" />}
-          {profileQ.isError && (
-            <Notice tone="error">Couldn&apos;t load your profile. Please refresh the page.</Notice>
-          )}
-          {p && (
-            <>
-              <div className="flex items-center gap-3">
-                <span
-                  aria-hidden
-                  className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-base font-semibold text-white"
-                >
-                  {p.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={p.image}
-                      alt=""
-                      referrerPolicy="no-referrer"
-                      className="h-full w-full object-cover"
-                      onError={(e) => (e.currentTarget.style.display = 'none')}
-                    />
-                  ) : (
-                    initialsOf(pf.name || p.name)
-                  )}
-                </span>
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold">{pf.name || p.name}</div>
-                  <div className="truncate text-xs text-muted">{p.email}</div>
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Full name" htmlFor="pf-name" required error={errs.name}>
-                  <input
-                    id="pf-name"
-                    value={pf.name}
-                    maxLength={100}
-                    placeholder="Your name"
-                    aria-invalid={!!errs.name}
-                    onChange={setP('name')}
-                    className={inputCls}
-                  />
-                </Field>
-                <Field
-                  label="Email"
-                  htmlFor="pf-email"
-                  hint={p.emailVerified ? 'Verified' : 'Not verified'}
-                >
-                  <input id="pf-email" value={p.email} disabled className={inputCls} />
-                </Field>
-                <Field label="Phone (optional)" htmlFor="pf-phone" error={errs.phone}>
-                  <input
-                    id="pf-phone"
-                    type="tel"
-                    value={pf.phone}
-                    maxLength={40}
-                    placeholder="+880 1700 000000"
-                    aria-invalid={!!errs.phone}
-                    onChange={setP('phone')}
-                    className={inputCls}
-                  />
-                </Field>
-                <Field label="Job title (optional)" htmlFor="pf-job" error={errs.jobTitle}>
-                  <input
-                    id="pf-job"
-                    value={pf.jobTitle}
-                    maxLength={100}
-                    placeholder="e.g. Head of Support"
-                    aria-invalid={!!errs.jobTitle}
-                    onChange={setP('jobTitle')}
-                    className={inputCls}
-                  />
-                </Field>
-              </div>
-              {errs.form && <Notice tone="error">{errs.form}</Notice>}
-            </>
           )}
         </Section>
 
