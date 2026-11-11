@@ -1,18 +1,36 @@
 'use client';
 
-import { areas, changedSections, issuesOf, readinessPct, type BrainConfig } from '@torio/contracts';
-import { Check, Loader2, Sparkles, Undo2 } from 'lucide-react';
+import {
+  areas,
+  changedSections,
+  conflicts,
+  issuesOf,
+  readinessPct,
+  type BrainConfig,
+  type SectionKey,
+} from '@torio/contracts';
+import { Sparkles } from 'lucide-react';
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShell } from '@/components/shell/shell-context';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWorkspace } from '@/lib/workspace';
 import { cn } from '@/lib/utils';
 import { useBrain, useSaveBrain, type BrainDoc } from '../queries';
-import { BrainHero } from './brain-hero';
+import { BrainHeader, SaveControls } from './brain-header';
+import {
+  DEFAULT_TAB,
+  isTab,
+  KNOWLEDGE_NAV,
+  RULES_NAV,
+  SECTION_TAB,
+  TABS,
+  type TabId,
+} from './brain-tabs';
+import { IntelligenceTab } from './intelligence-tab';
 import { Playground, type PlaygroundHandle } from './playground';
-import { Readiness } from './readiness';
 import { FieldsSection } from './sections-fields';
 import { KbSection, ProductsSection } from './sections-knowledge';
 import { InstructionsSection, LogicSection } from './sections-logic';
@@ -22,19 +40,8 @@ import {
   PoliciesSection,
   VoiceSection,
 } from './sections-basic';
+import { fixItems, SummaryTab } from './summary-tab';
 import type { Mut } from './types';
-
-const NAV = [
-  { key: 'identity', label: 'Business Profile' },
-  { key: 'products', label: 'Products & Catalog' },
-  { key: 'policies', label: 'Customer Policies' },
-  { key: 'voice', label: 'Brand Voice' },
-  { key: 'fields', label: 'Custom Fields' },
-  { key: 'instructions', label: 'Custom Instructions' },
-  { key: 'logic', label: 'Business Logic' },
-  { key: 'kb', label: 'Knowledge Base' },
-];
-const SEC_OF: Record<string, string> = { returns: 'policies', guardrails: 'instructions' };
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 interface UndoToast {
@@ -76,13 +83,16 @@ export function BrainPage() {
       </div>
     );
   return (
-    <BrainEditor
-      key={`${ws}`}
-      ws={ws}
-      initial={brain.data}
-      canWrite={can('brain:write')}
-      onReload={async () => (await brain.refetch()).data}
-    />
+    // useSearchParams (the active tab) needs a Suspense boundary.
+    <Suspense fallback={<Skeleton className="m-6 h-40" />}>
+      <BrainEditor
+        key={`${ws}`}
+        ws={ws}
+        initial={brain.data}
+        canWrite={can('brain:write')}
+        onReload={async () => (await brain.refetch()).data}
+      />
+    </Suspense>
   );
 }
 
@@ -97,20 +107,25 @@ function BrainEditor({
   canWrite: boolean;
   onReload: () => Promise<BrainDoc | undefined>;
 }) {
-  const { vw, contentWidth, toast } = useShell();
+  const { toast } = useShell();
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const tabParam = params.get('tab');
+  // The tab lives in the URL: it survives a refresh, can be bookmarked, and back/forward move between tabs.
+  const tab: TabId = isTab(tabParam) ? tabParam : DEFAULT_TAB;
   const save = useSaveBrain(ws);
   const [saved, setSaved] = useState<BrainDoc>(initial);
   const [draft, setDraft] = useState<BrainConfig>(initial.config);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [conflict, setConflict] = useState(false);
   const [active, setActive] = useState('identity');
-  const [tab, setTab] = useState<'knowledge' | 'test'>('knowledge');
+  const pendingScroll = useRef<{ sec: string; focus: boolean } | null>(null);
   const [undoToast, setUndoToast] = useState<UndoToast | null>(null);
   const [fieldRequest, setFieldRequest] = useState(false);
   const [showChanges, setShowChanges] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const play = useRef<PlaygroundHandle>(null);
-  const readyRef = useRef<HTMLElement>(null);
 
   const mut: Mut = useCallback((fn) => {
     setDraft((p) => {
@@ -125,7 +140,6 @@ function BrainEditor({
   const issues = useMemo(() => issuesOf(draft), [draft]);
   const list = useMemo(() => areas(draft), [draft]);
   const pct = readinessPct(list);
-  const wide = contentWidth >= 1180;
 
   const flash = (t: UndoToast, ms = 4500) => {
     clearTimeout(toastTimer.current);
@@ -156,11 +170,20 @@ function BrainEditor({
     return () => window.removeEventListener('beforeunload', h);
   }, [dirty]);
 
-  // Scroll tracking: highlight the section nearest the top of the scrolling area.
+  const selectTab = useCallback(
+    (id: TabId) => {
+      if (id === tab) return;
+      router.push(id === DEFAULT_TAB ? pathname : `${pathname}?tab=${id}`, { scroll: false });
+    },
+    [router, pathname, tab],
+  );
+
+  // Scroll tracking: highlight the section nearest the top, within the visible editing tab.
   useEffect(() => {
-    if (tab !== 'knowledge') return;
+    const nav = tab === 'knowledge' ? KNOWLEDGE_NAV : tab === 'rules' ? RULES_NAV : null;
+    if (!nav) return;
     const root = document.querySelector('main');
-    const els = NAV.map((n) => document.getElementById(n.key)).filter((e): e is HTMLElement => !!e);
+    const els = nav.map((n) => document.getElementById(n.key)).filter((e): e is HTMLElement => !!e);
     if (!root || !els.length) return;
     const io = new IntersectionObserver(
       (entries) => {
@@ -175,24 +198,40 @@ function BrainEditor({
     return () => io.disconnect();
   }, [tab]);
 
+  const scrollTo = useCallback((sec: string, focus = false) => {
+    const el = document.getElementById(sec);
+    el?.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'start',
+    });
+    setActive(sec === 'returns' ? 'policies' : sec);
+    if (focus) {
+      // Put the cursor in the section's first field (or, failing that, its first action) so Fix lands on the thing to do.
+      const target = el?.querySelector<HTMLElement>(
+        'input:not([disabled]):not([type=hidden]), textarea:not([disabled]), select:not([disabled]), button:not([disabled])',
+      );
+      target?.focus({ preventScroll: true });
+    }
+  }, []);
+  // After the tab that holds a section becomes visible, bring the section into view.
+  useEffect(() => {
+    const pending = pendingScroll.current;
+    if (!pending) return;
+    pendingScroll.current = null;
+    const t = setTimeout(() => scrollTo(pending.sec, pending.focus), 40);
+    return () => clearTimeout(t);
+  }, [tab, scrollTo]);
+
+  /** Opens the tab that holds `sec` and scrolls to it. */
   const goTo = useCallback(
-    (sec: string) => {
-      const key = SEC_OF[sec] ?? sec;
-      const run = () => {
-        document.getElementById(sec)?.scrollIntoView({
-          behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
-            ? 'auto'
-            : 'smooth',
-          block: 'start',
-        });
-        if (NAV.some((n) => n.key === key)) setActive(key);
-      };
-      if (tab !== 'knowledge') {
-        setTab('knowledge');
-        setTimeout(run, 40);
-      } else run();
+    (sec: string, focus = false) => {
+      const target = SECTION_TAB[sec];
+      if (target && target !== tab) {
+        pendingScroll.current = { sec, focus };
+        selectTab(target);
+      } else scrollTo(sec, focus);
     },
-    [tab],
+    [tab, selectTab, scrollTo],
   );
 
   const doSave = () => {
@@ -254,181 +293,67 @@ function BrainEditor({
     }
   };
 
-  const testAI = () => {
-    if (!wide && tab !== 'test') {
-      setTab('test');
-      setTimeout(() => play.current?.focus(), 60);
-    } else play.current?.focus();
-  };
   const runTest = (msg: string) => {
-    if (!wide) setTab('test');
-    setTimeout(() => play.current?.ask(msg), wide ? 0 : 60);
+    selectTab('test');
+    setTimeout(() => play.current?.ask(msg), 60);
   };
-
   const bundle = { d: draft, mut, canWrite };
 
-  const knowledge = (
-    <div className="flex min-w-0 flex-col gap-4">
-      <Readiness ref={readyRef} d={draft} pct={pct} onGoTo={goTo} />
-      <nav
-        aria-label="Brain sections"
-        className="sticky top-0 z-20 -mx-1 overflow-x-auto rounded-xl border border-line bg-white/80 px-1.5 py-1.5 backdrop-blur-[16px] [scrollbar-width:none]"
-      >
-        <ul className="m-0 flex list-none gap-1 p-0">
-          {NAV.map((n) => (
-            <li key={n.key}>
-              <button
-                type="button"
-                aria-current={active === n.key ? 'true' : undefined}
-                onClick={() => goTo(n.key)}
-                className={cn(
-                  'h-8 cursor-pointer whitespace-nowrap rounded-lg px-3 text-[13px]',
-                  active === n.key
-                    ? 'bg-primary-soft font-semibold text-primary-hover'
-                    : 'font-medium text-muted hover:bg-wash',
-                )}
-              >
-                {n.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </nav>
-      {!canWrite && (
-        <p
-          role="status"
-          className="m-0 rounded-lg border border-line bg-[#FBFBFC] px-3 py-2 text-[13px] text-muted"
-        >
-          You can view Brain but only admins and owners can edit it.
-        </p>
-      )}
-      <fieldset disabled={!canWrite} className="m-0 flex min-w-0 flex-col gap-4 border-0 p-0">
-        <IdentitySection {...bundle} onAddField={() => setFieldRequest(true)} />
-        <ProductsSection {...bundle} remove={remove} />
-        <PoliciesSection {...bundle} />
-        <VoiceSection {...bundle} />
-        <FieldsSection
-          {...bundle}
-          remove={remove}
-          openRequest={fieldRequest}
-          onRequestHandled={() => setFieldRequest(false)}
-        />
-        <InstructionsSection {...bundle} remove={remove} onTest={runTest} />
-        <GuardrailsSection {...bundle} />
-        <LogicSection {...bundle} remove={remove} onTest={(m) => runTest(m)} />
-        <KbSection {...bundle} remove={remove} />
-      </fieldset>
-      <section
-        aria-label="Inbox integration"
-        className="rounded-[14px] border border-[rgba(91,92,226,0.18)] bg-[linear-gradient(135deg,rgba(240,240,255,0.9),rgba(255,255,255,0.9))] p-4"
-      >
-        <div className="flex flex-wrap items-center gap-2.5">
-          <span className="min-w-[200px] flex-1 text-[13.5px] font-semibold">
-            Brain helps your AI understand your business before responding to customers.
-          </span>
-          <Link href="/inbox" className="text-[13px] font-semibold">
-            Open Inbox →
-          </Link>
-        </div>
-        <dl className="m-0 mt-3 grid grid-cols-1 gap-x-5 gap-y-2 text-[12.5px] sm:grid-cols-3">
-          <div>
-            <dt className="text-faint">Brand knowledge configured</dt>
-            <dd className="m-0 mt-0.5 font-medium">
-              {pct}% complete · {draft.products.length} products ·{' '}
-              {draft.faqs.filter((f) => f.active).length} FAQs
-            </dd>
-          </div>
-          <div>
-            <dt className="text-faint">AI reply behavior</dt>
-            <dd className="m-0 mt-0.5 font-medium">
-              {draft.voice.tone} · {draft.voice.language} · {draft.voice.length}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-faint">Human approval required</dt>
-            <dd className="m-0 mt-0.5 font-medium">
-              {draft.rules.approvalTopics.join(', ') || 'No topics selected'}
-            </dd>
-          </div>
-        </dl>
-        <p className="m-0 mt-3 text-xs text-muted">
-          <b>AI suggestions in Inbox aren&apos;t connected yet</b> — saving Brain stores your
-          configuration; nothing here changes live replies today. When AI is connected it will use
-          the last saved version only.
-        </p>
-      </section>
-    </div>
+  const controls = {
+    dirty,
+    changed,
+    saveState,
+    canWrite,
+    showChanges,
+    onToggleChanges: () => setShowChanges((v) => !v),
+    onDiscard: discard,
+    onSave: doSave,
+  };
+  const subNav = (items: readonly { key: string; label: string }[], label: string) => (
+    <nav
+      aria-label={label}
+      className="sticky top-0 z-20 -mx-1 overflow-x-auto rounded-xl border border-line bg-white/80 px-1.5 py-1.5 backdrop-blur-[16px] [scrollbar-width:none]"
+    >
+      <ul className="m-0 flex list-none gap-1 p-0">
+        {items.map((n) => (
+          <li key={n.key}>
+            <button
+              type="button"
+              aria-current={active === n.key ? 'true' : undefined}
+              onClick={() => goTo(n.key)}
+              className={cn(
+                'h-8 cursor-pointer whitespace-nowrap rounded-lg px-3 text-[13px] transition-colors duration-150 motion-reduce:transition-none',
+                active === n.key
+                  ? 'bg-primary-soft font-semibold text-primary-hover'
+                  : 'font-medium text-muted hover:bg-wash',
+              )}
+            >
+              {n.label}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
+  const readOnlyNote = !canWrite && (
+    <p
+      role="status"
+      className="m-0 rounded-lg border border-line bg-[#FBFBFC] px-3 py-2 text-[13px] text-muted"
+    >
+      You can view Brain but only admins and owners can edit it.
+    </p>
+  );
+  const goToSection = (s: SectionKey) => goTo(s);
 
   return (
-    <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 pb-8 pt-5 sm:px-6">
-      <BrainHero
+    <div className="mx-auto flex max-w-[1240px] flex-col gap-3 px-4 pb-8 pt-5 sm:px-6">
+      <BrainHeader
         maturity={saved.maturity}
-        liveIssues={issues.length}
-        dirty={dirty}
+        setup={pct}
         savedAt={saved.updatedAt}
-        savedBy={saved.updatedBy?.name ?? null}
-        onGoTo={goTo}
-        actions={
-          <>
-            {dirty && (
-              <div className="relative">
-                <button
-                  type="button"
-                  aria-expanded={showChanges}
-                  onClick={() => setShowChanges((v) => !v)}
-                  className="flex h-9 cursor-pointer items-center gap-1.5 rounded-[9px] border border-[#FBE3B5] bg-warning-soft px-2.5 text-[12.5px] font-medium text-[#7A4700]"
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#D98A00]" />
-                  Unsaved changes ({changed.length})
-                </button>
-                {showChanges && (
-                  <div className="absolute right-0 top-11 z-30 w-60 animate-panel-in rounded-xl border border-line glass-menu p-3 shadow-popover">
-                    <div className="mb-1 text-xs font-semibold text-faint">Changed sections</div>
-                    <ul className="m-0 mb-2 list-none p-0 text-[13px]">
-                      {changed.map((c) => (
-                        <li key={c}>{c}</li>
-                      ))}
-                    </ul>
-                    <Button size="sm" variant="outline" onClick={discard}>
-                      <Undo2 size={13} />
-                      Discard changes
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
-            {canWrite && (
-              <Button
-                disabled={!dirty || saveState === 'saving'}
-                onClick={doSave}
-                variant={saveState === 'error' ? 'outline' : 'primary'}
-                className={cn('h-9', saveState === 'error' && 'border-danger text-danger')}
-                aria-live="polite"
-              >
-                {saveState === 'saving' ? (
-                  <>
-                    <Loader2 size={14} className="animate-spin" />
-                    Saving…
-                  </>
-                ) : saveState === 'saved' && !dirty ? (
-                  <>
-                    <Check size={14} />
-                    Saved
-                  </>
-                ) : saveState === 'error' ? (
-                  'Fix & save'
-                ) : (
-                  'Save Changes'
-                )}
-              </Button>
-            )}
-            <Button variant="dark" className="h-9" onClick={testAI}>
-              <Sparkles size={14} />
-              Test AI
-            </Button>
-          </>
-        }
+        dirty={dirty}
+        showActions={tab !== 'summary'}
+        controls={controls}
       />
 
       {conflict && (
@@ -465,48 +390,187 @@ function BrainEditor({
         </div>
       )}
 
-      {!wide && (
-        <div role="tablist" aria-label="Brain views" className="flex gap-1 border-b border-line">
-          {(
-            [
-              ['knowledge', 'Knowledge'],
-              ['test', 'Test AI'],
-            ] as const
-          ).map(([k, l]) => (
+      <div
+        role="tablist"
+        aria-label="Brain"
+        className="-mx-1 flex gap-1 overflow-x-auto border-b border-line px-1 [scrollbar-width:none]"
+      >
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const on = tab === t.id;
+          return (
             <button
-              key={k}
+              key={t.id}
               role="tab"
-              aria-selected={tab === k}
+              id={`brain-tab-${t.id}`}
+              aria-selected={on}
+              aria-controls={`brain-panel-${t.id}`}
+              tabIndex={on ? 0 : -1}
               type="button"
-              onClick={() => setTab(k)}
+              onClick={() => selectTab(t.id)}
+              onKeyDown={(e) => {
+                const i = TABS.findIndex((x) => x.id === tab);
+                const go = (n: number) => {
+                  e.preventDefault();
+                  const next = TABS[(n + TABS.length) % TABS.length]!;
+                  selectTab(next.id);
+                  setTimeout(() => document.getElementById(`brain-tab-${next.id}`)?.focus(), 0);
+                };
+                if (e.key === 'ArrowRight') go(i + 1);
+                else if (e.key === 'ArrowLeft') go(i - 1);
+                else if (e.key === 'Home') go(0);
+                else if (e.key === 'End') go(TABS.length - 1);
+              }}
               className={cn(
-                '-mb-px cursor-pointer border-b-2 px-3 py-2 text-[13px] font-medium',
-                tab === k ? 'border-primary text-primary-hover' : 'border-transparent text-muted',
+                '-mb-px flex h-10 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 px-3 text-[13px] transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary motion-reduce:transition-none',
+                on
+                  ? 'border-primary font-semibold text-primary-hover'
+                  : 'border-transparent font-medium text-muted hover:text-ink',
               )}
             >
-              {l}
+              <Icon size={15} aria-hidden />
+              {t.label}
             </button>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
 
-      {wide ? (
-        <div className="grid grid-cols-[minmax(0,1fr)_380px] items-start gap-5">
-          {knowledge}
-          <div className="sticky top-4 h-[calc(100vh-110px)] min-h-[480px]">
-            <Playground ref={play} config={draft} dirty={dirty} onGoTo={goTo} />
-          </div>
-        </div>
-      ) : tab === 'knowledge' ? (
-        knowledge
-      ) : (
-        <div className="h-[calc(100vh-260px)] min-h-[480px]">
+      {/* Every panel stays mounted (hidden when inactive), so unsaved edits, open drawers and the test chat survive a tab switch. */}
+      <div
+        role="tabpanel"
+        id="brain-panel-summary"
+        aria-labelledby="brain-tab-summary"
+        hidden={tab !== 'summary'}
+      >
+        <SummaryTab
+          maturity={saved.maturity}
+          areaList={list}
+          pct={pct}
+          fixes={fixItems(issues, conflicts(draft))}
+          savedAt={saved.updatedAt}
+          savedBy={saved.updatedBy?.name ?? null}
+          dirty={dirty}
+          onGoTo={goTo}
+          actions={
+            <>
+              <SaveControls {...controls} />
+              <Button variant="dark" className="h-9" onClick={() => selectTab('test')}>
+                <Sparkles size={14} />
+                Test AI
+              </Button>
+            </>
+          }
+        />
+      </div>
+      <div
+        role="tabpanel"
+        id="brain-panel-intelligence"
+        aria-labelledby="brain-tab-intelligence"
+        hidden={tab !== 'intelligence'}
+      >
+        <IntelligenceTab
+          maturity={saved.maturity}
+          dirty={dirty}
+          savedAt={saved.updatedAt}
+          savedBy={saved.updatedBy?.name ?? null}
+          onGoTo={goToSection}
+        />
+      </div>
+      <div
+        role="tabpanel"
+        id="brain-panel-knowledge"
+        aria-labelledby="brain-tab-knowledge"
+        hidden={tab !== 'knowledge'}
+        className="flex min-w-0 flex-col gap-4"
+      >
+        {subNav(KNOWLEDGE_NAV, 'Knowledge sections')}
+        {readOnlyNote}
+        <fieldset disabled={!canWrite} className="m-0 flex min-w-0 flex-col gap-4 border-0 p-0">
+          <IdentitySection {...bundle} onAddField={() => setFieldRequest(true)} />
+          <ProductsSection {...bundle} remove={remove} />
+          <PoliciesSection {...bundle} />
+          <FieldsSection
+            {...bundle}
+            remove={remove}
+            openRequest={fieldRequest}
+            onRequestHandled={() => setFieldRequest(false)}
+          />
+          <KbSection {...bundle} remove={remove} />
+        </fieldset>
+      </div>
+      <div
+        role="tabpanel"
+        id="brain-panel-rules"
+        aria-labelledby="brain-tab-rules"
+        hidden={tab !== 'rules'}
+        className="flex min-w-0 flex-col gap-4"
+      >
+        {subNav(RULES_NAV, 'Rules and behavior sections')}
+        {readOnlyNote}
+        <fieldset disabled={!canWrite} className="m-0 flex min-w-0 flex-col gap-4 border-0 p-0">
+          <VoiceSection {...bundle} />
+          <InstructionsSection {...bundle} remove={remove} onTest={runTest} />
+          <GuardrailsSection {...bundle} />
+          <LogicSection {...bundle} remove={remove} onTest={(m) => runTest(m)} />
+        </fieldset>
+      </div>
+      <div
+        role="tabpanel"
+        id="brain-panel-test"
+        aria-labelledby="brain-tab-test"
+        hidden={tab !== 'test'}
+        className="mx-auto flex w-full max-w-[860px] min-w-0 flex-col gap-3"
+      >
+        <p className="m-0 flex items-start gap-2 rounded-xl border border-[rgba(91,92,226,0.18)] bg-primary-tint px-3 py-2.5 text-[13px] text-ink">
+          <Sparkles size={15} aria-hidden className="mt-0.5 shrink-0 text-primary" />
+          <span>
+            <b>This is a test, not a live conversation.</b> Nothing here is sent to customers, and
+            it uses your current edits, saved or not.
+          </span>
+        </p>
+        <div className="h-[calc(100vh-300px)] min-h-[480px]">
           <Playground ref={play} config={draft} dirty={dirty} onGoTo={goTo} />
         </div>
-      )}
-      <span className="sr-only" aria-hidden>
-        {vw}
-      </span>
+        <section
+          aria-label="Inbox integration"
+          className="rounded-[14px] border border-line bg-white p-4 text-[12.5px] text-muted"
+        >
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="min-w-[200px] flex-1 text-[13.5px] font-semibold text-ink">
+              Brain helps your AI understand your business before responding to customers.
+            </span>
+            <Link href="/inbox" className="text-[13px] font-semibold">
+              Open Inbox →
+            </Link>
+          </div>
+          <dl className="m-0 mt-3 grid grid-cols-1 gap-x-5 gap-y-2 sm:grid-cols-3">
+            <div>
+              <dt className="text-faint">Brand knowledge configured</dt>
+              <dd className="m-0 mt-0.5 font-medium text-ink">
+                {pct}% complete · {draft.products.length} products ·{' '}
+                {draft.faqs.filter((f) => f.active).length} FAQs
+              </dd>
+            </div>
+            <div>
+              <dt className="text-faint">AI reply behavior</dt>
+              <dd className="m-0 mt-0.5 font-medium text-ink">
+                {draft.voice.tone} · {draft.voice.language} · {draft.voice.length}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-faint">Human approval required</dt>
+              <dd className="m-0 mt-0.5 font-medium text-ink">
+                {draft.rules.approvalTopics.join(', ') || 'No topics selected'}
+              </dd>
+            </div>
+          </dl>
+          <p className="m-0 mt-3 text-xs">
+            <b>AI suggestions in Inbox aren&apos;t connected yet</b> — saving Brain stores your
+            configuration; nothing here changes live replies today. When AI is connected it will use
+            the last saved version only.
+          </p>
+        </section>
+      </div>
 
       {undoToast && (
         <div
