@@ -1,6 +1,6 @@
 'use client';
 
-import { annualSavingsPct, USAGE_LABEL, USAGE_METRICS, type UsageMetric } from '@torio/contracts';
+import { annualSavingsPct } from '@torio/contracts';
 import { Check } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { useBillingMutations, usePlans } from '../queries';
 import type { Interval, Overview, Plan, Preview } from '../types';
 import { Card, money, Notice, PlaceholderTag } from './bits';
+import { ComparePlans } from './compare-plans';
 
 const limitText = (v: number | undefined) =>
   v === undefined ? '—' : v < 0 ? 'Unlimited' : v.toLocaleString();
@@ -160,63 +161,7 @@ export function PlansTab({
       </ul>
 
       <Card title="Compare plans">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] border-collapse text-[13px]">
-            <thead>
-              <tr className="border-b border-line-subtle text-left text-xs text-faint">
-                <th scope="col" className="py-2 pr-3 font-medium">
-                  Feature
-                </th>
-                {list.map((p) => (
-                  <th
-                    key={p.key}
-                    scope="col"
-                    className={cn(
-                      'px-3 py-2 font-medium',
-                      p.key === o.plan.key && 'text-primary-hover',
-                    )}
-                  >
-                    {p.name}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {USAGE_METRICS.map((m: UsageMetric) => (
-                <tr key={m} className="border-b border-line-subtle last:border-0">
-                  <th scope="row" className="py-2 pr-3 text-left font-normal text-muted">
-                    {USAGE_LABEL[m]}
-                  </th>
-                  {list.map((p) => (
-                    <td key={p.key} className="px-3 py-2 tabular-nums">
-                      {limitText(p.limits[m])}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-              <tr className="border-b border-line-subtle">
-                <th scope="row" className="py-2 pr-3 text-left font-normal text-muted">
-                  AI credits
-                </th>
-                {list.map((p) => (
-                  <td key={p.key} className="px-3 py-2 text-faint">
-                    Not metered yet
-                  </td>
-                ))}
-              </tr>
-              <tr>
-                <th scope="row" className="py-2 pr-3 text-left font-normal text-muted">
-                  Price ({interval === 'YEAR' ? 'yearly' : 'monthly'})
-                </th>
-                {list.map((p) => (
-                  <td key={p.key} className="px-3 py-2 tabular-nums">
-                    {money(price(p), p.currency)}
-                  </td>
-                ))}
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <ComparePlans plans={list} currentKey={o.plan.key} interval={interval} />
       </Card>
 
       {target && (

@@ -60,13 +60,42 @@ test.describe('billing (owner)', () => {
     await page.getByRole('button', { name: 'Yearly' }).click();
     await expect(page.getByText('৳15,000', { exact: true }).first()).toBeVisible();
     await expect(page.getByText(/Saves 17%/).first()).toBeVisible();
-    await expect(page.getByText('Recommended')).toBeVisible();
+    await expect(page.getByText('Recommended').first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Switch to yearly' })).toBeVisible();
     await page.getByRole('button', { name: 'Monthly' }).click();
     await expect(page.getByRole('button', { name: 'Current plan' })).toBeDisabled();
     const t = page.getByRole('table');
     await expect(t.getByRole('columnheader', { name: 'Growth' })).toBeVisible();
     await expect(t.getByText('Unlimited').first()).toBeVisible();
+  });
+
+  test('compare plans: grouped rows, all four plans, prices exact, no page overflow on a phone', async ({
+    page,
+  }) => {
+    await open(page, 'plans');
+    const t = page.getByRole('table');
+    for (const n of ['Free', 'Starter', 'Growth', 'Scale'])
+      await expect(t.getByRole('columnheader', { name: new RegExp(n) })).toBeVisible();
+    for (const g of [
+      'Team & channels',
+      'Customer capacity',
+      'Messaging & usage',
+      'AI capabilities',
+      'Pricing',
+    ])
+      await expect(t.getByText(g, { exact: true })).toBeVisible();
+    const price = t.getByRole('row', { name: /Price \(monthly\)/ });
+    for (const v of ['৳0', '৳1,500', '৳4,500', '৳12,000'])
+      await expect(price.getByText(v, { exact: true })).toBeVisible();
+    await expect(t.getByText('Not metered yet')).toHaveCount(4);
+    await expect(
+      t.getByRole('columnheader', { name: /Growth/ }).getByText('Recommended'),
+    ).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.getByText('Scroll for more plans')).toBeVisible();
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
   });
 
   test('free → paid goes to hosted checkout; the browser never sends a price or status', async ({
