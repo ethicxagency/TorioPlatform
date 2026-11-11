@@ -1,14 +1,11 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger } from '@nestjs/common';
 import {
   brainConfigSchema,
   changedSections,
-  brainMaturitySchema,
   emptyBrainConfig,
   evaluateMaturity,
   issuesOf,
-  MATURITY_ENGINE_VERSION,
   type BrainConfig,
-  type BrainMaturity,
 } from '@torio/contracts';
 import type { Prisma } from '@torio/database';
 import { PrismaService } from '../../database/prisma.service';
@@ -20,12 +17,20 @@ import { PrismaService } from '../../database/prisma.service';
  */
 @Injectable()
 export class BrainService {
+  private readonly log = new Logger(BrainService.name);
   constructor(private readonly prisma: PrismaService) {}
 
   private async view(workspaceId: string) {
+    // Explicit columns: the maturity columns are derived data and are never read, so a database that has not yet had the
+    // maturity migration still serves Brain (the evaluation is recomputed, which is cheap and deterministic).
     const row = await this.prisma.client.brainConfig.findUnique({
       where: { workspaceId },
-      include: { updatedBy: { select: { id: true, name: true } } },
+      select: {
+        data: true,
+        version: true,
+        updatedAt: true,
+        updatedBy: { select: { id: true, name: true } },
+      },
     });
     if (!row) {
       const config = emptyBrainConfig();
@@ -42,17 +47,12 @@ export class BrainService {
     const config = parsed.success ? parsed.data : emptyBrainConfig();
     return {
       config,
-      // The evaluation stored at the last save when it is current; otherwise recomputed from the saved document.
-      maturity: this.storedMaturity(row.maturity) ?? evaluateMaturity(config),
+      // Always evaluated from the saved document, so it can never describe an older one.
+      maturity: evaluateMaturity(config),
       version: row.version,
       updatedAt: row.updatedAt.toISOString(),
       updatedBy: row.updatedBy,
     };
-  }
-
-  private storedMaturity(v: unknown): BrainMaturity | null {
-    const p = brainMaturitySchema.safeParse(v);
-    return p.success && p.data.engine === MATURITY_ENGINE_VERSION ? p.data : null;
   }
 
   get(workspaceId: string) {
@@ -84,12 +84,13 @@ export class BrainService {
       if (baseVersion === 0) {
         // Unique workspaceId makes a concurrent first save fail instead of duplicating.
         await tx.brainConfig.create({
-          data: { workspaceId, data: config, version: 1, updatedById: userId, ...maturityData },
+          data: { workspaceId, data: config, version: 1, updatedById: userId },
+          select: { id: true }, // never read the derived maturity columns
         });
       } else {
         const res = await tx.brainConfig.updateMany({
           where: { workspaceId, version: baseVersion },
-          data: { data: config, version: baseVersion + 1, updatedById: userId, ...maturityData },
+          data: { data: config, version: baseVersion + 1, updatedById: userId },
         });
         if (res.count !== 1)
           throw new ConflictException(
@@ -111,6 +112,17 @@ export class BrainService {
         },
       });
     });
+    // The stored copy of the evaluation is a convenience (it is always recomputed on read). Writing it is best effort, so
+    // a database without the maturity columns, or any failure here, can never fail or block saving the knowledge itself.
+    try {
+      await db.brainConfig.update({
+        where: { workspaceId },
+        data: maturityData,
+        select: { id: true },
+      });
+    } catch (e) {
+      this.log.warn(`Brain maturity could not be stored: ${(e as Error).name}`);
+    }
     return this.view(workspaceId);
   }
 }

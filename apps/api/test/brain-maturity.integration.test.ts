@@ -151,7 +151,7 @@ describe.skipIf(!url)('brain maturity (real PostgreSQL)', () => {
         .set(await auth(ids.owner!))
     ).body;
     expect(after.version).toBe(cur.version);
-    expect(after.maturity).toEqual(cur.maturity);
+    expect({ ...after.maturity, evaluatedAt: 0 }).toEqual({ ...cur.maturity, evaluatedAt: 0 });
   });
 
   it('an evaluation from an older engine (or a corrupted one) is recomputed from the saved document', async () => {
