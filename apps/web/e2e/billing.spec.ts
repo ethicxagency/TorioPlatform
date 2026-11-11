@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { billingState, mockApi, resetBilling } from './mocks';
+import { billingState, mockApi, resetBilling, resetSettings, settingsState } from './mocks';
 
 /** `tab` is '' (the plan), 'plans' or 'usage' on the Subscription page; 'invoices' opens the Billing page. */
 const open = async (page: Page, tab = '') => {
@@ -15,6 +15,7 @@ const open = async (page: Page, tab = '') => {
 test.describe('billing (owner)', () => {
   test.beforeEach(async ({ page }) => {
     resetBilling();
+    resetSettings();
     await mockApi(page, { role: 'OWNER' });
   });
 
@@ -38,9 +39,10 @@ test.describe('billing (owner)', () => {
     await expect(upgrade).toBeDisabled();
     await expect(upgrade).toHaveAttribute('title', /aren.t connected/);
     await open(page, 'payment-methods');
-    // one concise notice, and the action is disabled with a reason
-    await expect(page.getByText(/Payments aren.t connected/)).toHaveCount(1);
-    await expect(page.getByRole('button', { name: 'Add payment method' })).toBeDisabled();
+    // one compact status, and no action that looks functional
+    await expect(page.getByText('Payment provider not connected')).toHaveCount(1);
+    await expect(page.getByText(/currently unavailable/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add payment method' })).toHaveCount(0);
   });
 
   test('plans: interval toggle, placeholder pricing label, current plan highlight, comparison table', async ({
@@ -194,14 +196,14 @@ test.describe('billing (owner)', () => {
     await open(page, 'payment-methods');
     await expect(page.getByText('•••• 4242')).toBeVisible();
     await expect(page.getByText('Default', { exact: true })).toBeVisible();
-    await expect(
-      page.getByText(/Torio keeps only the brand, last four digits and expiry/),
-    ).toBeVisible();
-    await page.getByRole('button', { name: 'Make default' }).click();
+    await expect(page.getByText(/added on the payment provider.s secure page/)).toBeVisible();
+    await expect(page.getByText('Expires 12/2030')).toBeVisible();
+    await page.getByRole('button', { name: 'Set as default' }).click();
     await expect(
       page.getByRole('status').filter({ hasText: 'Default payment method updated' }),
     ).toBeVisible();
-    await page.getByRole('button', { name: 'Remove' }).first().click();
+    await page.getByRole('button', { name: /^More actions for visa/i }).click();
+    await page.getByRole('menuitem', { name: 'Remove payment method' }).click();
     await expect(page.getByRole('alertdialog')).toContainText(
       'removed from your account at the payment provider',
     );
@@ -226,12 +228,12 @@ test.describe('billing (owner)', () => {
       '$49',
     );
     await expect(page.getByRole('row', { name: /INV-0003/ })).toBeVisible();
-    await expect(page.getByRole('row', { name: /INV-0003/ })).toContainText('USD');
+    await expect(page.getByRole('row', { name: /INV-0003/ })).toContainText('$49.00');
     await page.getByRole('button', { name: 'Paid', exact: true }).click();
     await expect(page.getByRole('row', { name: /INV-0003/ })).toHaveCount(0);
     await expect(page.getByRole('row', { name: /INV-0002/ })).toBeVisible();
     await page.getByRole('button', { name: 'Refunded' }).click();
-    await expect(page.getByText('No invoices match your filters.')).toBeVisible();
+    await expect(page.getByText('No invoices match your filters')).toBeVisible();
     // the overview describes the whole history, not the filtered list
     await expect(
       overview.getByRole('listitem').filter({ hasText: 'Total invoices' }),
@@ -239,7 +241,7 @@ test.describe('billing (owner)', () => {
     await page.getByRole('button', { name: 'Paid', exact: true }).click();
     await page
       .getByRole('row', { name: /INV-0002/ })
-      .getByRole('button', { name: 'View' })
+      .getByRole('button', { name: /^View invoice INV-0002/ })
       .click();
     const d = page.getByRole('dialog', { name: 'Invoice details' });
     await expect(d.getByText('1 × Growth plan')).toBeVisible();
@@ -254,12 +256,14 @@ test.describe('billing (owner)', () => {
     await expect(page.getByRole('row', { name: /INV-0003/ })).toHaveCount(0);
     await expect(page.getByRole('row', { name: /INV-0002/ })).toBeVisible();
     expect(billingState.invoiceQueries.some((q) => q.q === 'INV-0002')).toBe(true);
-    await page.getByRole('button', { name: 'Clear filters' }).click();
+    await page.getByRole('button', { name: 'Clear filters' }).first().click();
     await expect(page.getByRole('row', { name: /INV-0003/ })).toBeVisible();
+    await page.getByRole('button', { name: 'Any date' }).click();
     await page.getByLabel('From date').fill('2999-01-01');
-    await expect(page.getByText('No invoices match your filters.')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByText('No invoices match your filters')).toBeVisible();
     expect(billingState.invoiceQueries.some((q) => q.from === '2999-01-01')).toBe(true);
-    await page.getByRole('button', { name: 'Clear filters' }).click();
+    await page.getByRole('button', { name: 'Clear filters' }).first().click();
     await expect(page.getByRole('row', { name: /INV-0003/ })).toBeVisible();
   });
 
@@ -268,42 +272,73 @@ test.describe('billing (owner)', () => {
   }) => {
     billingState.noInvoices = true;
     await open(page, 'invoices');
+    await expect(page.getByRole('heading', { name: 'No invoices yet' })).toBeVisible();
     await expect(
       page.getByText(
-        'No invoices yet. Your invoices will appear here when a payment provider issues them.',
+        'When an invoice is generated, it will appear here with its payment status and download option.',
       ),
     ).toBeVisible();
-    await expect(page.getByRole('row')).toHaveCount(0);
+    // no table header, rows or pagination around an empty list
+    await expect(page.getByRole('table')).toHaveCount(0);
+    await expect(page.getByText(/Showing \d/)).toHaveCount(0);
     const overview = page.getByRole('list', { name: 'Billing overview' });
     await expect(
       overview.getByRole('listitem').filter({ hasText: 'Total invoices' }),
-    ).toContainText('0');
-    await expect(overview.getByRole('listitem').filter({ hasText: 'Outstanding' })).toContainText(
-      'None',
-    );
+    ).toContainText('None issued yet');
+    await expect(
+      overview.getByRole('listitem').filter({ hasText: 'Outstanding balance' }),
+    ).toContainText('No invoices yet');
   });
 
-  test('billing information validates, saves through the API, and shows saved values', async ({
+  test('billing details are not edited here: no Billing information section, and complete details show no notice', async ({
     page,
   }) => {
-    await open(page, 'info');
-    await page.getByRole('button', { name: 'Edit billing information' }).click();
-    await page.getByLabel('Billing email').fill('nope');
-    await page.getByLabel(/Country/).fill('Bangladesh');
-    await page.getByRole('button', { name: 'Save changes' }).click();
-    await expect(page.getByText('Enter a valid email address')).toBeVisible();
-    await expect(page.getByText('Use a 2-letter code, e.g. BD')).toBeVisible();
-    expect(billingState.profilePuts).toHaveLength(0);
-    await page.getByLabel('Billing email').fill('pay@acme.co');
-    await page.getByLabel(/Country/).fill('bd');
-    await page.getByLabel('Business / company name').fill('Acme Ltd');
-    await page.getByRole('button', { name: 'Save changes' }).click();
-    await expect(page.getByText('Acme Ltd')).toBeVisible();
-    await expect(page.getByText('BD', { exact: true })).toBeVisible();
-    expect(billingState.profilePuts[0]).toMatchObject({
-      billingEmail: 'pay@acme.co',
-      companyName: 'Acme Ltd',
-    });
+    settingsState.workspace.contactEmail = 'pay@acme.co';
+    settingsState.workspace.country = 'BD';
+    await open(page, 'invoices');
+    await expect(page.getByText('Billing information', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /billing information/i })).toHaveCount(0);
+    await expect(page.getByTestId('billing-details-notice')).toHaveCount(0);
+    // only the overview, the invoices and the payment methods
+    await expect(page.getByRole('list', { name: 'Billing overview' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Invoices' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Payment methods' })).toBeVisible();
+  });
+
+  test('missing invoice details are named, with a link to Settings → General', async ({ page }) => {
+    await open(page, 'invoices'); // the default store has no email or country saved
+    const n = page.getByTestId('billing-details-notice');
+    await expect(n).toContainText('Email');
+    await expect(n).toContainText('Country');
+    await n.getByRole('link', { name: /Settings → General/ }).click();
+    await expect(page).toHaveURL(/\/settings\/general#workspace$/);
+    await expect(page.getByRole('heading', { name: 'General', level: 1 })).toBeVisible();
+  });
+
+  test('invoice sorting goes to the server and reorders the list', async ({ page }) => {
+    await open(page, 'invoices');
+    const first = page.getByRole('row').nth(1);
+    await expect(first).toContainText('INV-0003'); // newest first
+    await page.getByLabel('Sort invoices').selectOption('date_asc');
+    await expect(page.getByRole('row').nth(1)).toContainText('INV-0002');
+    expect(billingState.invoiceQueries.some((q) => q.sort === 'date_asc')).toBe(true);
+  });
+
+  test('on a phone invoices are compact cards, with secondary actions in a menu', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await open(page, 'invoices');
+    await expect(page.getByRole('table')).toBeHidden();
+    const card = page.getByRole('listitem').filter({ hasText: 'INV-0003' }).last();
+    await expect(card).toContainText('Failed');
+    await expect(card).toContainText('$49.00');
+    await expect(card.getByRole('button', { name: /View invoice/ })).toBeVisible();
+    await card.getByRole('button', { name: /^More actions for INV-0003/ }).click();
+    await expect(page.getByRole('menuitem', { name: 'Download PDF' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Retry payment' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('menu')).toHaveCount(0);
   });
 
   test('settings lists Subscription and Billing once each, and the old route redirects', async ({
@@ -333,8 +368,8 @@ test.describe('billing (owner)', () => {
     await expect(page).toHaveURL(/\/billing\/subscription\?tab=plans$/);
     await page.goto('/billing?tab=history');
     await expect(page).toHaveURL(/\/billing\/invoices\?section=invoices$/);
-    await page.goto('/billing?tab=info');
-    await expect(page).toHaveURL(/\/billing\/invoices\?section=info$/);
+    await page.goto('/billing?tab=info'); // billing details live in General Settings now
+    await expect(page).toHaveURL(/\/settings\/general#workspace$/);
     // a provider return link keeps its result
     await page.goto('/billing?result=success&pm=1');
     await expect(page).toHaveURL(/\/billing\/invoices\?result=success&section=payment-methods$/);
@@ -356,7 +391,7 @@ test.describe('billing (owner)', () => {
     await open(page, 'invoices');
     await expect(page.getByRole('heading', { name: 'Usage & limits' })).toHaveCount(0);
     await expect(page.getByText('Payment methods', { exact: true })).toBeVisible();
-    await expect(page.getByText('Billing information', { exact: true })).toBeVisible();
+    await expect(page.getByText('Billing information', { exact: true })).toHaveCount(0);
     await page.setViewportSize({ width: 390, height: 844 });
     for (const tab of ['', 'plans', 'usage', 'invoices']) {
       await open(page, tab);
@@ -381,7 +416,6 @@ test.describe('billing (admin and agent)', () => {
     await expect(page.getByRole('button', { name: 'Cancel subscription' })).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Change plan' })).toBeDisabled();
     await open(page, 'invoices');
-    await expect(page.getByRole('button', { name: 'Edit billing information' })).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Add payment method' })).toBeDisabled();
   });
 

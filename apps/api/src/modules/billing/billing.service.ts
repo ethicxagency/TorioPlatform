@@ -16,12 +16,16 @@ import {
   usagePercent,
   type BillingInterval,
   type InvoiceQuery,
-  type UpdateBillingProfileInput,
   type UsageMetric,
 } from '@torio/contracts';
 import { APP_CONFIG, type AppConfig } from '../../config/config.module';
 import { PrismaService } from '../../database/prisma.service';
 import { renderInvoicePdf } from './invoice-pdf';
+import {
+  billingDetailsOf,
+  missingBillingDetails,
+  WORKSPACE_DETAIL_SELECT,
+} from './billing-details';
 import { priceMinor } from './plans';
 import { effectivePlan, PlansService, type CatalogPlan } from './plans.service';
 import { PlatformSettingsService } from '../platform/platform-settings.service';
@@ -238,53 +242,50 @@ export class BillingService {
   // ---------- billing profile ----------
 
   private emptyProfile() {
-    return {
-      companyName: null,
-      contactName: null,
-      billingEmail: null,
+    return billingDetailsOf({
+      name: '',
+      contactEmail: null,
       phone: null,
       country: null,
-      state: null,
-      city: null,
       addressLine: null,
+      city: null,
+      state: null,
       postalCode: null,
-      taxId: null,
-    };
+    });
   }
+
+  private async workspaceDetails(ws: string) {
+    const w = await this.prisma.client.workspace.findUniqueOrThrow({
+      where: { id: ws },
+      select: WORKSPACE_DETAIL_SELECT,
+    });
+    return billingDetailsOf(w);
+  }
+
+  /**
+   * The billing details new invoices will use: this store's General Settings, read-only here. `missing` lists what an
+   * invoice cannot be issued without, so the page can point at Settings → General.
+   */
   async profile(ws: string) {
-    const a = await this.prisma.client.billingAccount.findUnique({ where: { workspaceId: ws } });
-    if (!a) return this.emptyProfile();
+    const details = await this.workspaceDetails(ws);
+    const missing = missingBillingDetails(details);
     return {
-      companyName: a.companyName,
-      contactName: a.contactName,
-      billingEmail: a.billingEmail,
-      phone: a.phone,
-      country: a.country,
-      state: a.state,
-      city: a.city,
-      addressLine: a.addressLine,
-      postalCode: a.postalCode,
-      taxId: a.taxId,
+      details,
+      missing,
+      complete: missing.length === 0,
+      source: 'general-settings' as const,
     };
   }
 
-  async updateProfile(ws: string, actorId: string, input: UpdateBillingProfileInput) {
-    const data = Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined));
-    await this.prisma.client.$transaction(async (tx) => {
-      await tx.billingAccount.upsert({
-        where: { workspaceId: ws },
-        create: { workspaceId: ws, ...data },
-        update: data,
+  /** Refuses to start a purchase that would produce an invoice without the required details. */
+  private async requireBillingDetails(ws: string) {
+    const missing = missingBillingDetails(await this.workspaceDetails(ws));
+    if (missing.length)
+      throw new BadRequestException({
+        message: `Complete your business information in Settings → General before purchasing: ${missing.map((m) => m.label).join(', ')}.`,
+        code: 'BILLING_DETAILS_INCOMPLETE',
+        missing,
       });
-      await this.audit(
-        tx,
-        ws,
-        actorId,
-        'billing.profile_update',
-        `Billing details changed: ${Object.keys(data).join(', ')}`,
-      );
-    });
-    return this.profile(ws);
   }
 
   private audit(
@@ -309,10 +310,11 @@ export class BillingService {
   private async customerId(ws: string, actor: { email: string | null; name: string | null }) {
     const acct = await this.prisma.client.billingAccount.findUnique({ where: { workspaceId: ws } });
     if (acct?.providerCustomerId) return acct.providerCustomerId;
+    const d = await this.workspaceDetails(ws);
     const id = await this.provider.ensureCustomer({
       workspaceId: ws,
-      email: acct?.billingEmail ?? actor.email,
-      name: acct?.companyName ?? actor.name,
+      email: d.billingEmail ?? actor.email,
+      name: d.companyName ?? actor.name,
     });
     await this.prisma.client.billingAccount.upsert({
       where: { workspaceId: ws },
@@ -468,7 +470,14 @@ export class BillingService {
       this.prisma.client.invoice.count({ where }),
       this.prisma.client.invoice.findMany({
         where,
-        orderBy: [{ issuedAt: 'desc' }, { id: 'desc' }],
+        orderBy:
+          q.sort === 'date_asc'
+            ? [{ issuedAt: 'asc' }, { id: 'asc' }]
+            : q.sort === 'amount_desc'
+              ? [{ totalMinor: 'desc' }, { issuedAt: 'desc' }, { id: 'desc' }]
+              : q.sort === 'amount_asc'
+                ? [{ totalMinor: 'asc' }, { issuedAt: 'desc' }, { id: 'desc' }]
+                : [{ issuedAt: 'desc' }, { id: 'desc' }],
         skip: (q.page - 1) * q.pageSize,
         take: q.pageSize,
       }),
@@ -675,6 +684,7 @@ export class BillingService {
       throw new BadRequestException(
         'This plan can’t be purchased: no provider price is configured for it.',
       );
+    await this.requireBillingDetails(ws);
     const customerId = await this.customerId(ws, await this.actorInfo(userId));
     return this.provider.createCheckoutSession({
       customerId,
@@ -703,6 +713,7 @@ export class BillingService {
       return this.cancel(ws, actorId, { atPeriodEnd: true, reason: 'Downgrade to Free' });
     const priceId = this.catalog.priceIdFor(plan, input.interval, this.config.BILLING_PRICE_IDS);
     if (!priceId) throw new BadRequestException('This plan has no provider price configured.');
+    await this.requireBillingDetails(ws);
     await this.provider.changeSubscription({ subscriptionId: sub.providerSubscriptionId, priceId });
     await this.prisma.client.auditLog.create({
       data: {

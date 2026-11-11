@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@torio/database';
 import { mapInvoiceStatus, mapProviderStatus } from '@torio/contracts';
+import { billingDetailsOf, WORKSPACE_DETAIL_SELECT } from './billing-details';
 import { APP_CONFIG, type AppConfig } from '../../config/config.module';
 import { PrismaService } from '../../database/prisma.service';
 import { PlansService, snapshotOf } from './plans.service';
@@ -201,7 +202,11 @@ export class BillingWebhookService {
       cur?.planKey ||
       null;
     const period = rec(lines[0]?.period);
-    const acct = await tx.billingAccount.findUnique({ where: { workspaceId: ws } });
+    // The billing details come from this store's General Settings, captured once when the invoice is first recorded.
+    const wsRow = await tx.workspace.findUnique({
+      where: { id: ws },
+      select: WORKSPACE_DETAIL_SELECT,
+    });
     const defaultPm = await tx.paymentMethodRef.findFirst({
       where: { workspaceId: ws, isDefault: true },
     });
@@ -217,8 +222,9 @@ export class BillingWebhookService {
       periodEnd: at(period.end) ?? at(o.period_end) ?? cur?.periodEnd ?? null,
       planKey,
       hostedUrl: str(o.hosted_invoice_url),
+      // Immutable: an invoice that already has a snapshot keeps it, whatever General Settings say now.
       customerSnapshot: (cur?.customerSnapshot ??
-        (acct ? profileOf(acct) : Prisma.JsonNull)) as Prisma.InputJsonValue,
+        (wsRow ? billingDetailsOf(wsRow) : Prisma.JsonNull)) as Prisma.InputJsonValue,
       paymentSummary:
         status === 'PAID' && defaultPm
           ? `Card ending ${defaultPm.last4}`
@@ -314,20 +320,4 @@ export class BillingWebhookService {
     }
     return { workspaceId: ws, outcome: 'processed' };
   }
-}
-
-function profileOf(a: Record<string, unknown>) {
-  const k = [
-    'companyName',
-    'contactName',
-    'billingEmail',
-    'phone',
-    'country',
-    'state',
-    'city',
-    'addressLine',
-    'postalCode',
-    'taxId',
-  ];
-  return Object.fromEntries(k.map((x) => [x, (a[x] as string | null) ?? null]));
 }

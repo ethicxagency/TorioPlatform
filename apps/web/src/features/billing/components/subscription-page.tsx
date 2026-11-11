@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useWorkspace } from '@/lib/workspace';
 import { useOverview } from '../queries';
 import { Notice, SubscriptionBadge } from './bits';
+import { DetailsNotice } from './details-notice';
 import { OverviewTab } from './overview-tab';
 import { UsageTab } from './other-tabs';
 import { PlansTab } from './plans-tab';
@@ -78,6 +79,7 @@ export function SubscriptionPage() {
       {q.isError && !o && (
         <Notice tone="bad">Couldn&apos;t load your subscription. {q.error?.message}</Notice>
       )}
+      {plansView && <DetailsNotice ws={ws} />}
       {o && !o.providerConfigured && (
         <Notice tone="warn">
           Payments aren&apos;t connected, so plans can be reviewed but nothing can be purchased or

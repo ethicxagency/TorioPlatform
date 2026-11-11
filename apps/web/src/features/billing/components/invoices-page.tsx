@@ -5,12 +5,13 @@ import { useEffect } from 'react';
 import { useWorkspace } from '@/lib/workspace';
 import { useOverview } from '../queries';
 import { Notice } from './bits';
+import { DetailsNotice } from './details-notice';
 import { InvoicesSection } from './invoices-section';
-import { CardsTab, InfoTab } from './other-tabs';
+import { PaymentMethodsSection } from './payment-methods-section';
 
 /**
- * Settings → Billing: invoices, payment methods and billing details. The one payments notice lives here, once, and
- * only when it changes what can be done (adding a payment method).
+ * Settings → Billing: overview, invoices, payment methods and billing details. The payment-provider status appears once,
+ * inside Payment methods, where it changes what can be done.
  */
 export function BillingInvoicesPage() {
   const params = useSearchParams();
@@ -42,12 +43,9 @@ export function BillingInvoicesPage() {
     <div className="flex flex-col gap-5">
       <header>
         <h1 className="m-0 font-page-title">Billing</h1>
+        <p className="m-0 mt-1 text-[13.5px] text-muted">Manage invoices and payment methods.</p>
       </header>
-      {o && !o.providerConfigured && (
-        <Notice tone="warn">
-          Payments aren&apos;t connected, so payment methods can&apos;t be added yet.
-        </Notice>
-      )}
+      <DetailsNotice ws={ws} />
       {result === 'success' && (
         <Notice>
           Back from the provider. A new payment method appears here as soon as the provider confirms
@@ -60,12 +58,9 @@ export function BillingInvoicesPage() {
       </section>
       {o && (
         <section id="billing-payment-methods" className="scroll-mt-4">
-          <CardsTab ws={ws} o={o} canManage={canManage} />
+          <PaymentMethodsSection ws={ws} o={o} canManage={canManage} />
         </section>
       )}
-      <section id="billing-info" className="scroll-mt-4">
-        <InfoTab ws={ws} canManage={canManage} />
-      </section>
     </div>
   );
 }

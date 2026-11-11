@@ -11,8 +11,9 @@ const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v
 export default async function Page({ searchParams }: { searchParams: Params }) {
   const sp = await searchParams;
   const tab = first(sp.tab);
-  const toBilling =
-    first(sp.pm) === '1' || tab === 'payment-methods' || tab === 'history' || tab === 'info';
+  const toBilling = first(sp.pm) === '1' || tab === 'payment-methods' || tab === 'history';
+  // Billing details are edited in General Settings now; an old Billing Information link goes there.
+  if (tab === 'info') redirect('/settings/general#workspace');
   const out = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) {
     const val = first(v);
@@ -20,7 +21,7 @@ export default async function Page({ searchParams }: { searchParams: Params }) {
     out.set(k, val);
   }
   if (toBilling) {
-    const section = tab === 'history' ? 'invoices' : tab === 'info' ? 'info' : 'payment-methods';
+    const section = tab === 'history' ? 'invoices' : 'payment-methods';
     out.set('section', section);
     redirect(`/billing/invoices?${out}`);
   }

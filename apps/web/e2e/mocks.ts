@@ -648,10 +648,12 @@ export const billingState = {
   calls: [] as { path: string; body: unknown }[],
   overMembers: false,
   noInvoices: false,
+  detailsEmail: null as string | null,
   invoiceQueries: [] as Record<string, string>[],
 };
 export const resetBilling = () => {
   billingState.noInvoices = false;
+  billingState.detailsEmail = null;
   billingState.invoiceQueries = [];
   billingState.configured = true;
   billingState.sub = null;
@@ -2291,13 +2293,32 @@ export async function mockApi(
           notTracked: ['AI conversations', 'AI credits consumed', 'Storage'],
         });
       if (rest === '/profile') {
-        if (req.method() === 'PUT') {
-          const b = req.postDataJSON() as Record<string, string>;
-          billingState.profilePuts.push(b);
-          for (const [k, v] of Object.entries(b))
-            billingState.profile[k] = v === '' ? null : k === 'country' ? v.toUpperCase() : v;
-        }
-        return reply(billingState.profile);
+        // Invoice billing details are this store's General Settings, read-only here.
+        const ws = settingsState.workspace as Record<string, string | null>;
+        const details = {
+          companyName: ws.name ?? null,
+          contactName: null,
+          billingEmail: billingState.detailsEmail ?? ws.contactEmail ?? null,
+          phone: ws.phone ?? null,
+          country: ws.country ?? null,
+          state: ws.state ?? null,
+          city: ws.city ?? null,
+          addressLine: ws.addressLine ?? null,
+          postalCode: ws.postalCode ?? null,
+          taxId: null,
+        };
+        const missing = [
+          ['billingEmail', 'Email'],
+          ['country', 'Country'],
+        ]
+          .filter(([k]) => !details[k as keyof typeof details])
+          .map(([field, label]) => ({ field, label }));
+        return reply({
+          details,
+          missing,
+          complete: missing.length === 0,
+          source: 'general-settings',
+        });
       }
       if (rest === '/payment-methods') return reply({ data: billingState.cards });
       if (rest === '/payment-methods/session')
@@ -2317,12 +2338,22 @@ export async function mockApi(
         const to = sp.get('to');
         billingState.invoiceQueries.push(Object.fromEntries(sp.entries()));
         const day = (i: { issuedAt: string }) => i.issuedAt.slice(0, 10);
+        const sortKey = sp.get('sort') ?? 'date_desc';
         const rows = (billingState.noInvoices ? [] : INVOICES).filter(
           (i) =>
             (!st || i.status === st) &&
             (!q || `${i.number} ${i.planKey}`.toLowerCase().includes(q)) &&
             (!from || day(i) >= from) &&
             (!to || day(i) <= to),
+        );
+        rows.sort((a, b) =>
+          sortKey === 'amount_desc'
+            ? b.totalMinor - a.totalMinor
+            : sortKey === 'amount_asc'
+              ? a.totalMinor - b.totalMinor
+              : sortKey === 'date_asc'
+                ? a.issuedAt.localeCompare(b.issuedAt)
+                : b.issuedAt.localeCompare(a.issuedAt),
         );
         const all = billingState.noInvoices ? [] : INVOICES;
         return reply({

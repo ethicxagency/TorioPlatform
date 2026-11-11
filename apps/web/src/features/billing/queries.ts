@@ -89,6 +89,7 @@ export interface InvoiceFilters {
   q: string;
   from: string;
   to: string;
+  sort: 'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc';
   page: number;
 }
 export function useInvoices(ws: string | null, f: InvoiceFilters) {
@@ -103,6 +104,7 @@ export function useInvoices(ws: string | null, f: InvoiceFilters) {
           query: {
             page: f.page,
             pageSize: 10,
+            sort: f.sort,
             ...(f.status && { status: f.status }),
             ...(f.q.trim() && { q: f.q.trim() }),
             ...(f.from && { from: f.from }),
@@ -135,17 +137,6 @@ export function useBillingMutations(ws: string | null) {
   const w = ws ?? '';
   const refresh = () => qc.invalidateQueries({ queryKey: billingKeys.all(w) });
   return {
-    saveProfile: useMutation({
-      mutationFn: async (body: Body<'UpdateBillingProfileDto'>) => {
-        const { data, error, response } = await api.PUT(`${P}/profile`, { ...path(w), body });
-        if (!data) throw fail(error, 'Could not save billing details', response.status);
-        return data;
-      },
-      onSuccess: (d) => {
-        qc.setQueryData(billingKeys.profile(w), d);
-        void refresh();
-      },
-    }),
     preview: useMutation({
       mutationFn: async (body: Body<'PlanChangeDto'>) => {
         const { data, error, response } = await api.POST(`${P}/subscription/preview`, {

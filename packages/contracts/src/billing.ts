@@ -233,6 +233,13 @@ export const billingProfileSchema = z.object({
   postalCode: nullableString,
   taxId: nullableString,
 });
+/** What the Billing page and checkout read: the store's General Settings as invoice details, and what is still missing. */
+export const billingDetailsResponseSchema = z.object({
+  details: billingProfileSchema,
+  missing: z.array(z.object({ field: z.string(), label: z.string() })),
+  complete: z.boolean(),
+  source: z.literal('general-settings'),
+});
 const opt = (max: number) =>
   z
     .string()
@@ -397,6 +404,8 @@ export const invoiceQuerySchema = z.object({
   /** Issue date range, inclusive, in UTC. */
   from: dateOnly.optional(),
   to: dateOnly.optional(),
+  /** Newest first by default. */
+  sort: z.enum(['date_desc', 'date_asc', 'amount_desc', 'amount_asc']).default('date_desc'),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(10),
 });

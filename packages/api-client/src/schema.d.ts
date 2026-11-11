@@ -1756,7 +1756,7 @@ export interface paths {
             cookie?: never;
         };
         get: operations["BillingController_profile"];
-        put: operations["BillingController_updateProfile"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -4946,28 +4946,25 @@ export interface components {
             notTracked: string[];
         };
         BillingProfileDto: {
-            companyName: string | null;
-            contactName: string | null;
-            billingEmail: string | null;
-            phone: string | null;
-            country: string | null;
-            state: string | null;
-            city: string | null;
-            addressLine: string | null;
-            postalCode: string | null;
-            taxId: string | null;
-        };
-        UpdateBillingProfileDto: {
-            companyName?: string | null;
-            contactName?: string | null;
-            billingEmail?: ("" | string) | null;
-            phone?: string | null;
-            country?: ("" | string) | null;
-            state?: string | null;
-            city?: string | null;
-            addressLine?: string | null;
-            postalCode?: string | null;
-            taxId?: string | null;
+            details: {
+                companyName: string | null;
+                contactName: string | null;
+                billingEmail: string | null;
+                phone: string | null;
+                country: string | null;
+                state: string | null;
+                city: string | null;
+                addressLine: string | null;
+                postalCode: string | null;
+                taxId: string | null;
+            };
+            missing: {
+                field: string;
+                label: string;
+            }[];
+            complete: boolean;
+            /** @constant */
+            source: "general-settings";
         };
         SavedPaymentMethodListDto: {
             data: {
@@ -9228,31 +9225,6 @@ export interface operations {
             };
         };
     };
-    BillingController_updateProfile: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspaceId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateBillingProfileDto"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BillingProfileDto"];
-                };
-            };
-        };
-    };
     BillingController_paymentMethods: {
         parameters: {
             query?: never;
@@ -9346,6 +9318,7 @@ export interface operations {
                 q?: string;
                 from?: string;
                 to?: string;
+                sort?: "date_desc" | "date_asc" | "amount_desc" | "amount_asc";
                 page?: number;
                 pageSize?: number;
             };

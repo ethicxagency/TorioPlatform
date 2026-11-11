@@ -6637,49 +6637,6 @@
         "tags": [
           "billing"
         ]
-      },
-      "put": {
-        "operationId": "BillingController_updateProfile",
-        "parameters": [
-          {
-            "name": "workspaceId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateBillingProfileDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BillingProfileDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "billing"
-        ]
       }
     },
     "/api/v1/workspaces/{workspaceId}/billing/payment-methods": {
@@ -6890,6 +6847,21 @@
             "schema": {
               "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
               "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "date_desc",
+              "type": "string",
+              "enum": [
+                "date_desc",
+                "date_asc",
+                "amount_desc",
+                "amount_asc"
+              ]
             }
           },
           {
@@ -21427,263 +21399,165 @@
       "BillingProfileDto": {
         "type": "object",
         "properties": {
-          "companyName": {
-            "anyOf": [
-              {
-                "type": "string",
-                "description": "Text, or null when not set"
+          "details": {
+            "type": "object",
+            "properties": {
+              "companyName": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "description": "Text, or null when not set"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
-              {
-                "type": "null"
+              "contactName": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "description": "Text, or null when not set"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "billingEmail": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "description": "Text, or null when not set"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "phone": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "description": "Text, or null when not set"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "country": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "description": "Text, or null when not set"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "state": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "description": "Text, or null when not set"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "city": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "description": "Text, or null when not set"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "addressLine": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "description": "Text, or null when not set"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "postalCode": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "description": "Text, or null when not set"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "taxId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "description": "Text, or null when not set"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
+            },
+            "required": [
+              "companyName",
+              "contactName",
+              "billingEmail",
+              "phone",
+              "country",
+              "state",
+              "city",
+              "addressLine",
+              "postalCode",
+              "taxId"
             ]
           },
-          "contactName": {
-            "anyOf": [
-              {
-                "type": "string",
-                "description": "Text, or null when not set"
+          "missing": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                }
               },
-              {
-                "type": "null"
-              }
-            ]
+              "required": [
+                "field",
+                "label"
+              ]
+            }
           },
-          "billingEmail": {
-            "anyOf": [
-              {
-                "type": "string",
-                "description": "Text, or null when not set"
-              },
-              {
-                "type": "null"
-              }
-            ]
+          "complete": {
+            "type": "boolean"
           },
-          "phone": {
-            "anyOf": [
-              {
-                "type": "string",
-                "description": "Text, or null when not set"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "country": {
-            "anyOf": [
-              {
-                "type": "string",
-                "description": "Text, or null when not set"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "state": {
-            "anyOf": [
-              {
-                "type": "string",
-                "description": "Text, or null when not set"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "city": {
-            "anyOf": [
-              {
-                "type": "string",
-                "description": "Text, or null when not set"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "addressLine": {
-            "anyOf": [
-              {
-                "type": "string",
-                "description": "Text, or null when not set"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "postalCode": {
-            "anyOf": [
-              {
-                "type": "string",
-                "description": "Text, or null when not set"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "taxId": {
-            "anyOf": [
-              {
-                "type": "string",
-                "description": "Text, or null when not set"
-              },
-              {
-                "type": "null"
-              }
-            ]
+          "source": {
+            "type": "string",
+            "const": "general-settings"
           }
         },
         "required": [
-          "companyName",
-          "contactName",
-          "billingEmail",
-          "phone",
-          "country",
-          "state",
-          "city",
-          "addressLine",
-          "postalCode",
-          "taxId"
+          "details",
+          "missing",
+          "complete",
+          "source"
         ]
-      },
-      "UpdateBillingProfileDto": {
-        "type": "object",
-        "properties": {
-          "companyName": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 120
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "contactName": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 100
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "billingEmail": {
-            "anyOf": [
-              {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "const": ""
-                  },
-                  {
-                    "type": "string",
-                    "maxLength": 254,
-                    "format": "email",
-                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
-                  }
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "phone": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 40
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "country": {
-            "anyOf": [
-              {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "const": ""
-                  },
-                  {
-                    "type": "string",
-                    "pattern": "^[A-Za-z]{2}$"
-                  }
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "state": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 80
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "city": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 80
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "addressLine": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 200
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "postalCode": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 20
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "taxId": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 40
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "additionalProperties": false
       },
       "SavedPaymentMethodListDto": {
         "type": "object",

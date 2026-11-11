@@ -8,7 +8,6 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
-  Put,
   Query,
   Res,
   UseGuards,
@@ -16,7 +15,7 @@ import {
 import { ApiBearerAuth, ApiOkResponse, ApiProduces, ApiTags } from '@nestjs/swagger';
 import {
   acceptedResultSchema,
-  billingProfileSchema,
+  billingDetailsResponseSchema,
   cancelSubscriptionSchema,
   checkoutResultSchema,
   invoiceDetailSchema,
@@ -28,7 +27,6 @@ import {
   planListSchema,
   planPreviewSchema,
   savedPaymentMethodListSchema,
-  updateBillingProfileSchema,
   usageSchema,
 } from '@torio/contracts';
 import type { Response } from 'express';
@@ -41,8 +39,7 @@ import { BillingService } from './billing.service';
 class BillingOverviewDto extends createZodDto(overviewSchema) {}
 class BillingPlanListDto extends createZodDto(planListSchema) {}
 class BillingUsageDto extends createZodDto(usageSchema) {}
-class BillingProfileDto extends createZodDto(billingProfileSchema) {}
-class UpdateBillingProfileDto extends createZodDto(updateBillingProfileSchema) {}
+class BillingProfileDto extends createZodDto(billingDetailsResponseSchema) {}
 class SavedPaymentMethodListDto extends createZodDto(savedPaymentMethodListSchema) {}
 class InvoiceListDto extends createZodDto(invoiceListSchema) {}
 class InvoiceQueryDto extends createZodDto(invoiceQuerySchema) {}
@@ -87,17 +84,6 @@ export class BillingController {
   @ApiOkResponse({ type: BillingProfileDto })
   profile(@Param('workspaceId', ParseUUIDPipe) ws: string) {
     return this.billing.profile(ws);
-  }
-
-  @Put('profile')
-  @RequirePermission('billing:manage')
-  @ApiOkResponse({ type: BillingProfileDto })
-  updateProfile(
-    @Param('workspaceId', ParseUUIDPipe) ws: string,
-    @CurrentUser() u: AuthUser,
-    @Body() body: UpdateBillingProfileDto,
-  ) {
-    return this.billing.updateProfile(ws, u.id, body);
   }
 
   @Get('payment-methods')

@@ -132,7 +132,17 @@ describe.skipIf(!url)('billing (real PostgreSQL)', () => {
       mk('agent'),
       mk('outsider'),
     ]);
-    const wsA = await db.workspace.create({ data: { name: 'A', slug: `bla-${sfx}` } });
+    const wsA = await db.workspace.create({
+      data: {
+        name: 'Acme Ltd',
+        slug: `bla-${sfx}`,
+        contactEmail: 'pay@acme.co',
+        country: 'BD',
+        city: 'Dhaka',
+        addressLine: '1 Road',
+        postalCode: '1207',
+      },
+    });
     const wsB = await db.workspace.create({ data: { name: 'B', slug: `blb-${sfx}` } });
     await db.workspaceMembership.createMany({
       data: [
@@ -180,7 +190,8 @@ describe.skipIf(!url)('billing (real PostgreSQL)', () => {
     await http().get(`${base()}/overview`).set(agent).expect(403);
     await http().get(`${base()}/invoices`).set(agent).expect(403);
     await http().get(`${base()}/overview`).set(admin).expect(200);
-    await http().put(`${base()}/profile`).set(admin).send({ companyName: 'X' }).expect(403);
+    // billing details are General Settings now: there is nothing to PUT here
+    await http().put(`${base()}/profile`).set(admin).send({ companyName: 'X' }).expect(404);
     await http()
       .post(`${base()}/subscription/checkout`)
       .set(admin)
@@ -266,40 +277,63 @@ describe.skipIf(!url)('billing (real PostgreSQL)', () => {
     expect(p.find((x: { key: string }) => x.key === 'scale').limits.members).toBe(-1);
   });
 
-  it('saves and validates the billing profile, audits it, and rejects unknown fields', async () => {
+  it('billing details come from General Settings: read-only, scoped to the store, with what is missing', async () => {
     const owner = await auth(ids.owner!);
-    const put = (b: object) => http().put(`${base()}/profile`).set(owner).send(b);
-    await put({ billingEmail: 'nope' }).expect(400);
-    await put({ country: 'Bangladesh' }).expect(400);
-    await put({}).expect(400);
-    await put({ providerCustomerId: 'cus_evil' }).expect(400);
-    const r = await put({
-      companyName: 'Acme Ltd',
-      billingEmail: 'Pay@Acme.co',
-      country: 'bd',
-      city: 'Dhaka',
-      addressLine: '1 Road',
-      taxId: 'BIN-1',
-    }).expect(200);
-    expect(r.body).toMatchObject({
-      companyName: 'Acme Ltd',
-      billingEmail: 'pay@acme.co',
-      country: 'BD',
-      taxId: 'BIN-1',
+    const a = (await http().get(`${base()}/profile`).set(owner).expect(200)).body;
+    expect(a).toMatchObject({
+      source: 'general-settings',
+      complete: true,
+      missing: [],
+      details: {
+        companyName: 'Acme Ltd',
+        billingEmail: 'pay@acme.co',
+        country: 'BD',
+        city: 'Dhaka',
+        addressLine: '1 Road',
+        postalCode: '1207',
+        contactName: null,
+        taxId: null,
+      },
     });
-    expect((await http().get(`${base()}/profile`).set(owner)).body.city).toBe('Dhaka');
+    // the other store has its own, incomplete, details: nothing is mixed
+    const b = (
+      await http()
+        .get(`${base(ids.wsB)}/profile`)
+        .set(await auth(ids.outsider!))
+        .expect(200)
+    ).body;
+    expect(b.details.companyName).toBe('B');
+    expect(b.details.billingEmail).toBeNull();
+    expect(b.complete).toBe(false);
+    expect(b.missing.map((m: { field: string }) => m.field)).toEqual(['billingEmail', 'country']);
+    // and a member of one store cannot read the other's
+    await http()
+      .get(`${base(ids.wsB)}/profile`)
+      .set(owner)
+      .expect(404);
+    // General Settings is the source: editing it changes what the page shows
+    await db.workspace.update({ where: { id: ids.wsA! }, data: { state: 'Dhaka Division' } });
+    expect((await http().get(`${base()}/profile`).set(owner)).body.details.state).toBe(
+      'Dhaka Division',
+    );
+    await db.workspace.update({ where: { id: ids.wsA! }, data: { state: null } });
+  });
+
+  it('a purchase is refused, with a pointer to Settings → General, while required details are missing', async () => {
+    const wsBOwner = await auth(ids.outsider!);
+    const r = await http()
+      .post(`${base(ids.wsB)}/subscription/checkout`)
+      .set(wsBOwner)
+      .send({ planKey: 'growth', interval: 'MONTH' })
+      .expect(400);
+    expect(r.body.error.message).toMatch(/Settings → General/);
+    expect(JSON.stringify(r.body)).toMatch(/BILLING_DETAILS_INCOMPLETE|Email|Country/);
+    // no provider customer was created for it
     expect(
-      (
-        await http()
-          .get(`${base(ids.wsB)}/profile`)
-          .set(await auth(ids.outsider!))
-      ).body.companyName,
-    ).toBeNull();
-    expect(
-      await db.auditLog.count({
-        where: { workspaceId: ids.wsA!, action: 'billing.profile_update' },
-      }),
-    ).toBe(1);
+      calls.some(
+        (c) => c.path === '/v1/customers' && c.form.get('metadata[workspace_id]') === ids.wsB,
+      ),
+    ).toBe(false);
   });
 
   it('checkout creates a provider customer and a hosted session for a known price only; no amounts are sent', async () => {
@@ -477,6 +511,8 @@ describe.skipIf(!url)('billing (real PostgreSQL)', () => {
     expect((await q('to=2000-01-01')).data).toHaveLength(0);
     expect((await q('from=2100-01-01')).data).toHaveLength(0);
     await http().get(`${base()}/invoices?from=yesterday`).set(owner).expect(400);
+    await http().get(`${base()}/invoices?sort=nonsense`).set(owner).expect(400);
+    expect((await q('sort=amount_asc')).data).toHaveLength(1);
     let o = (await http().get(`${base()}/overview`).set(owner)).body;
     expect(o.hasFailedPayment).toBe(true);
     const id = list.data[0].id;
@@ -543,6 +579,50 @@ describe.skipIf(!url)('billing (real PostgreSQL)', () => {
       ),
     ).expect(200);
     expect((await http().get(`${base()}/invoices/${id}`).set(owner)).body.status).toBe('REFUNDED');
+  });
+
+  it('an invoice keeps the billing details it was issued with; new invoices use the latest General Settings', async () => {
+    const owner = await auth(ids.owner!);
+    const list = (await http().get(`${base()}/invoices?sort=date_asc`).set(owner)).body.data;
+    const first = list[0];
+    const before = (await http().get(`${base()}/invoices/${first.id}`).set(owner)).body.customer;
+    expect(before).toMatchObject({
+      companyName: 'Acme Ltd',
+      city: 'Dhaka',
+      billingEmail: 'pay@acme.co',
+    });
+    await db.workspace.update({
+      where: { id: ids.wsA! },
+      data: { name: 'Acme Holdings', city: 'Chattogram', contactEmail: 'billing@acme.co' },
+    });
+    await deliver(evt('invoice.created', invObj(ids.cusA!, `in_${sfx}_0002`), NOW + 100)).expect(
+      200,
+    );
+    const all = (await http().get(`${base()}/invoices?sort=date_desc`).set(owner)).body.data;
+    const second = all.find((x: { id: string }) => x.id !== first.id);
+    const d2 = (await http().get(`${base()}/invoices/${second.id}`).set(owner)).body.customer;
+    expect(d2).toMatchObject({
+      companyName: 'Acme Holdings',
+      city: 'Chattogram',
+      billingEmail: 'billing@acme.co',
+    });
+    // the first invoice is untouched, even after a later provider event for it
+    await deliver(
+      evt(
+        'invoice.updated',
+        invObj(ids.cusA!, `in_${sfx}_0001`, { status: 'paid', amount_paid: 4900 }),
+        NOW + 200,
+      ),
+    ).expect(200);
+    const after = (await http().get(`${base()}/invoices/${first.id}`).set(owner)).body.customer;
+    expect(after).toEqual(before);
+    // the stored snapshot is what a reprint uses
+    const row = await db.invoice.findUniqueOrThrow({ where: { id: first.id } });
+    expect((row.customerSnapshot as { city: string }).city).toBe('Dhaka');
+    await db.workspace.update({
+      where: { id: ids.wsA! },
+      data: { name: 'Acme Ltd', city: 'Dhaka', contactEmail: 'pay@acme.co' },
+    });
   });
 
   it('manages payment methods from provider events and provider-confirmed actions; card data never appears', async () => {
@@ -874,8 +954,8 @@ describe.skipIf(!url)('billing without a payment provider (real PostgreSQL)', ()
       .expect(400);
     await http().post(`${b}/payment-methods/session`).set(owner).expect(503);
     expect(await db.subscription.count({ where: { workspaceId: ids.ws! } })).toBe(0);
-    // the profile still works without a provider
-    await http().put(`${b}/profile`).set(owner).send({ companyName: 'NP Ltd' }).expect(200);
+    // the billing details (General Settings) can still be read without a provider
+    await http().get(`${b}/profile`).set(owner).expect(200);
     // webhooks can't be accepted without a configured secret
     await http()
       .post('/api/v1/billing/webhooks/stripe')
