@@ -1,7 +1,15 @@
 'use client';
 
 import { annualSavingsPct } from '@torio/contracts';
-import { Check } from 'lucide-react';
+import {
+  Check,
+  Contact,
+  MessageSquare,
+  Plug,
+  TriangleAlert,
+  Users,
+  type LucideIcon,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -11,6 +19,7 @@ import { useBillingMutations, usePlans } from '../queries';
 import type { Interval, Overview, Plan, Preview } from '../types';
 import { Card, money, Notice, PlaceholderTag } from './bits';
 import { ComparePlans } from './compare-plans';
+import { planIdentity } from './plan-identity';
 
 const limitText = (v: number | undefined) =>
   v === undefined ? '—' : v < 0 ? 'Unlimited' : v.toLocaleString();
@@ -60,8 +69,15 @@ export function PlansTab({
         <div
           role="group"
           aria-label="Billing interval"
-          className="inline-flex rounded-xl border border-line bg-white p-0.5"
+          className="relative inline-grid grid-cols-2 rounded-xl border border-line bg-wash p-0.5"
         >
+          <span
+            aria-hidden
+            className={cn(
+              'absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-[10px] bg-white shadow-[0_1px_3px_rgba(0,55,112,0.12)] transition-transform duration-200 ease-out motion-reduce:transition-none',
+              interval === 'YEAR' && 'translate-x-full',
+            )}
+          />
           {(['MONTH', 'YEAR'] as const).map((i) => (
             <button
               key={i}
@@ -69,8 +85,8 @@ export function PlansTab({
               aria-pressed={interval === i}
               onClick={() => setIntervalState(i)}
               className={cn(
-                'h-8 cursor-pointer rounded-[10px] px-3.5 text-[13px]',
-                interval === i ? 'bg-primary-soft font-semibold text-primary-hover' : 'text-muted',
+                'relative z-10 h-8 min-w-[84px] cursor-pointer rounded-[10px] border-none bg-transparent px-3.5 text-[13px] transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary motion-reduce:transition-none',
+                interval === i ? 'font-semibold text-primary-hover' : 'text-muted hover:text-ink',
               )}
             >
               {i === 'MONTH' ? 'Monthly' : 'Yearly'}
@@ -84,7 +100,7 @@ export function PlansTab({
         )}
       </div>
       {list.some((p) => p.placeholderPricing) && (
-        <Notice tone="warn">
+        <Notice tone="warn" icon={TriangleAlert}>
           Prices on this page are <b>placeholders</b> until real pricing is configured. The amount
           actually charged is always the price set at the payment provider.
         </Notice>
@@ -94,66 +110,111 @@ export function PlansTab({
         {list.map((p) => {
           const current = p.key === o.plan.key;
           const blocked = why(p);
+          const id = planIdentity(p.key);
+          const featured = p.recommended && !current;
+          const premium = p.key === 'scale' && !current;
+          const reason = current ? null : blocked;
+          const limitsRows: [LucideIcon, string][] = [
+            [Users, `${limitText(p.limits.members)} team members`],
+            [Plug, `${limitText(p.limits.channels)} channels`],
+            [Contact, `${limitText(p.limits.contacts)} contacts`],
+            [MessageSquare, `${limitText(p.limits.messages)} messages / month`],
+          ];
           return (
             <li
               key={p.key}
               className={cn(
-                'flex flex-col rounded-card border bg-white p-4',
-                current ? 'border-primary shadow-[0_0_0_3px_rgba(91,92,226,0.12)]' : 'border-line',
+                'relative flex flex-col rounded-card border bg-white p-4 transition-shadow duration-200 hover:shadow-[0_4px_16px_rgba(0,55,112,0.08)] motion-reduce:transition-none sm:p-5',
+                current
+                  ? 'border-primary shadow-[0_0_0_3px_rgba(91,92,226,0.12)]'
+                  : featured
+                    ? 'border-primary-line shadow-[0_0_0_3px_rgba(91,92,226,0.08)]'
+                    : premium
+                      ? 'border-[#DDD0F7]'
+                      : 'border-line',
               )}
+              style={
+                premium
+                  ? { backgroundImage: 'linear-gradient(180deg,#FAF7FF,#fff 120px)' }
+                  : undefined
+              }
             >
-              <div className="flex items-center gap-2">
-                <h3 className="m-0 text-[15px] font-semibold">{p.name}</h3>
-                {current && (
-                  <span className="rounded bg-primary-soft px-1.5 py-0.5 text-[10.5px] font-medium text-primary-hover">
-                    Current
-                  </span>
-                )}
-                {p.recommended && !current && (
-                  <span className="rounded bg-success-soft px-1.5 py-0.5 text-[10.5px] font-medium text-success">
-                    Recommended
-                  </span>
-                )}
+              {(current || featured) && (
+                <span
+                  className={cn(
+                    'absolute -top-2.5 right-4 rounded-full border px-2 py-0.5 text-[10.5px] font-medium',
+                    current
+                      ? 'border-primary-line bg-primary-soft text-primary-hover'
+                      : 'border-[#BFE8CF] bg-success-soft text-success',
+                  )}
+                >
+                  {current ? 'Current' : 'Recommended'}
+                </span>
+              )}
+              <div className="flex items-start gap-3">
+                <span
+                  aria-hidden
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]"
+                  style={{ backgroundColor: id.tint, color: id.color }}
+                >
+                  <id.icon size={19} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h3 className="m-0 text-[16px] font-semibold">{p.name}</h3>
+                  <p className="m-0 mt-1 min-h-[38px] text-[12.5px] leading-snug text-muted">
+                    {p.description}
+                  </p>
+                </div>
               </div>
-              <p className="m-0 mt-1 min-h-[34px] text-[12.5px] text-muted">{p.description}</p>
-              <div className="mt-3 flex items-baseline gap-1">
-                <span className="text-2xl font-metric">{money(price(p), p.currency)}</span>
-                <span className="text-xs text-faint">
-                  {p.key === 'free' ? 'forever' : `/ ${interval === 'YEAR' ? 'year' : 'month'}`}
+              <div className="mt-4 flex items-baseline gap-1.5">
+                <span className="text-[28px] font-metric leading-none">
+                  {money(price(p), p.currency)}
+                </span>
+                <span className="text-[12.5px] text-faint">
+                  {p.key === 'free' ? 'Forever' : `/ ${interval === 'YEAR' ? 'year' : 'month'}`}
                 </span>
               </div>
-              <div className="mt-1 min-h-[18px] text-xs text-faint">
+              <div className="mt-1.5 flex min-h-[22px] flex-wrap items-center gap-1.5 text-xs">
                 {interval === 'YEAR' && annualSavingsPct(p) > 0 && (
                   <span className="text-success">Saves {annualSavingsPct(p)}% vs monthly</span>
                 )}
-                {p.placeholderPricing && (
-                  <span className="ml-1">
-                    <PlaceholderTag />
-                  </span>
-                )}
+                {p.placeholderPricing && <PlaceholderTag />}
               </div>
-              <ul className="m-0 mt-3 flex list-none flex-col gap-1.5 p-0 text-[12.5px]">
-                <li>{limitText(p.limits.members)} team members</li>
-                <li>{limitText(p.limits.channels)} channels</li>
-                <li>{limitText(p.limits.contacts)} contacts</li>
-                <li>{limitText(p.limits.messages)} messages / month</li>
-                {p.features.map((f) => (
-                  <li key={f} className="flex items-start gap-1.5 text-muted">
-                    <Check size={13} className="mt-0.5 shrink-0 text-success" aria-hidden />
-                    {f}
+              <ul className="m-0 mt-4 flex list-none flex-col gap-2 border-t border-line-subtle p-0 pt-4 text-[13px]">
+                {limitsRows.map(([Icon, text]) => (
+                  <li key={text} className="flex items-center gap-2.5 text-ink">
+                    <Icon size={14} aria-hidden className="shrink-0 text-faint" />
+                    {text}
                   </li>
                 ))}
               </ul>
-              <div className="mt-auto pt-4">
+              {p.features.length > 0 && (
+                <ul className="m-0 mt-3 flex list-none flex-col gap-2 border-t border-line-subtle p-0 pt-3 text-[12.5px]">
+                  {p.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2.5 text-muted">
+                      <Check size={14} className="mt-0.5 shrink-0 text-success" aria-hidden />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="mt-auto pt-5">
                 <Button
                   className="w-full"
                   variant={current ? 'outline' : 'primary'}
                   disabled={!!blocked}
+                  aria-describedby={reason ? `why-${p.key}` : undefined}
                   title={blocked ?? undefined}
                   onClick={() => setTarget(p)}
                 >
                   {label(p)}
                 </Button>
+                <p
+                  id={`why-${p.key}`}
+                  className="m-0 mt-1.5 min-h-[16px] text-center text-[11.5px] text-faint"
+                >
+                  {reason}
+                </p>
               </div>
             </li>
           );

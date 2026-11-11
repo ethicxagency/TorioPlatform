@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Info } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useShell } from '@/components/shell/shell-context';
@@ -11,7 +11,7 @@ import { useOverview } from '../queries';
 import { Notice, SubscriptionBadge } from './bits';
 import { DetailsNotice } from './details-notice';
 import { OverviewTab } from './overview-tab';
-import { UsageTab } from './other-tabs';
+import { UsageSection } from './usage-section';
 import { PlansTab } from './plans-tab';
 
 /**
@@ -81,7 +81,7 @@ export function SubscriptionPage() {
       )}
       {plansView && <DetailsNotice ws={ws} />}
       {o && !o.providerConfigured && (
-        <Notice tone="warn">
+        <Notice tone="warn" icon={Info}>
           Payments aren&apos;t connected, so plans can be reviewed but nothing can be purchased or
           changed yet.
         </Notice>
@@ -127,8 +127,7 @@ export function SubscriptionPage() {
             aria-label="Usage and limits"
             className="flex scroll-mt-4 flex-col gap-3"
           >
-            <h2 className="m-0 text-[15px] font-semibold">Usage &amp; limits</h2>
-            <UsageTab ws={ws} o={o} go={go} />
+            <UsageSection ws={ws} o={o} go={go} />
           </section>
         </>
       )}

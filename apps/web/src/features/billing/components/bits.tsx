@@ -1,5 +1,6 @@
 'use client';
 
+import type { LucideIcon } from 'lucide-react';
 import { CardHeader } from '@/components/ui/card';
 import { formatMoney } from '@torio/contracts';
 import { Pill } from '@/features/brain/components/bits';
@@ -48,51 +49,6 @@ export const PlaceholderTag = () => (
   </span>
 );
 
-export function Progress({
-  percent,
-  level,
-  label,
-}: {
-  percent: number;
-  level: string;
-  label: string;
-}) {
-  const color =
-    level === 'reached'
-      ? 'bg-danger'
-      : level === 'near'
-        ? 'bg-[#D97706]'
-        : level === 'approaching'
-          ? 'bg-warning'
-          : 'bg-primary';
-  return (
-    <div
-      role="progressbar"
-      aria-label={label}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={percent}
-      className="h-2 overflow-hidden rounded-full bg-wash-2"
-    >
-      <div
-        className={cn(
-          'h-full rounded-full transition-[width] motion-reduce:transition-none',
-          color,
-        )}
-        style={{ width: `${percent}%` }}
-      />
-    </div>
-  );
-}
-
-export const LEVEL_TEXT: Record<string, string> = {
-  unlimited: 'Unlimited',
-  ok: 'Within limit',
-  approaching: 'Approaching limit',
-  near: 'Near limit',
-  reached: 'Limit reached',
-};
-
 export const fmtDate = (iso: string | null | undefined, tz?: string) =>
   iso
     ? fmtWsDate(iso, {
@@ -120,20 +76,24 @@ export function Card({
 
 export const Notice = ({
   tone = 'info',
+  icon: Icon,
   children,
 }: {
   tone?: 'info' | 'warn' | 'bad';
+  icon?: LucideIcon;
   children: React.ReactNode;
 }) => (
   <div
     role={tone === 'bad' ? 'alert' : 'status'}
     className={cn(
       'rounded-xl px-3.5 py-2.5 text-[13px]',
+      Icon && 'flex items-start gap-2.5',
       tone === 'bad' && 'bg-danger-soft text-[#8F2424]',
       tone === 'warn' && 'bg-warning-soft text-warning',
       tone === 'info' && 'bg-wash text-muted',
     )}
   >
-    {children}
+    {Icon && <Icon size={16} aria-hidden className="mt-0.5 shrink-0" />}
+    {Icon ? <div className="min-w-0">{children}</div> : children}
   </div>
 );

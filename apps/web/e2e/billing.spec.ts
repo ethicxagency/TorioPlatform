@@ -25,6 +25,7 @@ test.describe('billing (owner)', () => {
     await open(page);
     await expect(page.getByText('Free plan').first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Upgrade plan' }).first()).toBeEnabled();
+    await expect(page.getByText('No renewal required')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Cancel subscription' })).toHaveCount(0);
     await expect(page.getByText('Next payment')).toHaveCount(0); // a free plan has none
   });
@@ -201,7 +202,12 @@ test.describe('billing (owner)', () => {
     page,
   }) => {
     await open(page, 'usage');
-    await expect(page.getByText('Limit reached').first()).toBeVisible(); // members 3 / 2
+    await expect(page.getByText('Limit exceeded').first()).toBeVisible(); // members 3 / 2: the real count, not a capped 2
+    await expect(page.getByText('1 over')).toBeVisible();
+    await expect(page.getByRole('progressbar', { name: 'Team members' })).toHaveAttribute(
+      'aria-valuetext',
+      '3 of 2 used',
+    );
     await expect(page.getByText('Approaching limit').first()).toBeVisible(); // contacts 80 / 100
     await expect(page.getByText('Unlimited').first()).toBeVisible();
     await expect(page.getByRole('progressbar', { name: 'Team members' })).toHaveAttribute(

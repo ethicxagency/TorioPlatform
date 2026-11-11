@@ -6,84 +6,8 @@ import { useShell } from '@/components/shell/shell-context';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTimeZone } from '@/features/settings/queries';
-import { cn } from '@/lib/utils';
-import { useInvoice, useUsage } from '../queries';
-import type { Overview } from '../types';
-import { Card, fmtDate, InvoiceBadge, LEVEL_TEXT, money, Notice, Progress } from './bits';
-
-// ---------- Usage ----------
-
-export function UsageTab({ ws, go }: { ws: string; o?: Overview; go: (t: string) => void }) {
-  const q = useUsage(ws);
-  const tz = useTimeZone();
-  if (q.isPending) return <Skeleton className="h-64 w-full" />;
-  if (q.isError || !q.data) return <Notice tone="bad">Couldn&apos;t load usage.</Notice>;
-  const u = q.data;
-  const pressed = u.data.some(
-    (d) => d.level === 'approaching' || d.level === 'near' || d.level === 'reached',
-  );
-  return (
-    <div className="flex flex-col gap-4">
-      <p className="m-0 text-xs text-muted">
-        {fmtDate(u.periodStart, tz)} – {fmtDate(u.periodEnd, tz)} · counted from your real data ·
-        limits are warnings only; usage isn&apos;t blocked.
-      </p>
-      {pressed && (
-        <Notice tone="warn">
-          Some usage is at or near your plan&apos;s limits.{' '}
-          <button
-            type="button"
-            onClick={() => go('plans')}
-            className="cursor-pointer font-semibold underline"
-          >
-            Upgrade plan
-          </button>
-        </Notice>
-      )}
-      <ul className="m-0 grid list-none grid-cols-1 gap-3 p-0 md:grid-cols-2">
-        {u.data.map((d) => (
-          <li key={d.metric} className="rounded-card border border-line bg-white p-4">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[13px] font-medium">{d.label}</span>
-              <span
-                className={cn(
-                  'text-xs font-medium',
-                  d.level === 'reached'
-                    ? 'text-danger'
-                    : d.level === 'near' || d.level === 'approaching'
-                      ? 'text-warning'
-                      : 'text-faint',
-                )}
-              >
-                {LEVEL_TEXT[d.level]}
-              </span>
-            </div>
-            <div className="mt-2 text-[19px] font-semibold tabular-nums">
-              {d.used.toLocaleString()}
-              <span className="text-[13px] font-normal text-faint">
-                {' '}
-                / {d.limit < 0 ? 'unlimited' : d.limit.toLocaleString()}
-              </span>
-            </div>
-            <div className="mt-2">
-              <Progress percent={d.percent} level={d.level} label={d.label} />
-            </div>
-            <div className="mt-1.5 flex justify-between text-xs text-faint">
-              <span>{d.limit < 0 ? 'No limit' : `${d.percent}% used`}</span>
-              <span>{d.limit < 0 ? '' : `${d.remaining.toLocaleString()} remaining`}</span>
-            </div>
-          </li>
-        ))}
-      </ul>
-      <Card title="Not tracked yet">
-        <p className="m-0 text-[13px] text-muted">
-          {u.notTracked.join(', ')}: the application doesn&apos;t measure these yet, so no number is
-          shown rather than an invented one.
-        </p>
-      </Card>
-    </div>
-  );
-}
+import { useInvoice } from '../queries';
+import { fmtDate, InvoiceBadge, money, Notice } from './bits';
 
 // ---------- Invoice details ----------
 

@@ -1,11 +1,22 @@
 'use client';
 
+import {
+  ArrowUpRight,
+  CalendarCheck,
+  CalendarClock,
+  CreditCard,
+  Hourglass,
+  Repeat,
+  Wallet,
+  type LucideIcon,
+} from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/features/leads/components/modal';
 import { useTimeZone } from '@/features/settings/queries';
 import { useBillingMutations } from '../queries';
 import type { Overview } from '../types';
+import { planIdentity } from './plan-identity';
 import { Card, fmtDate, money, Notice, PlaceholderTag, SubscriptionBadge } from './bits';
 
 export function OverviewTab({
@@ -29,54 +40,95 @@ export function OverviewTab({
   const manage = (reason: string) => (canManage ? undefined : reason);
   const providerOff = !o.providerConfigured ? 'Payments aren’t connected yet' : undefined;
   const dis = (v: boolean, reason?: string) => ({ disabled: v || !!reason, title: reason });
+  const id = planIdentity(o.plan.key);
+  const ends = !!s && (s.cancelAtPeriodEnd || s.status === 'CANCELED');
+  const blocks: { label: string; icon: LucideIcon; value: React.ReactNode }[] = [
+    {
+      label: 'Price',
+      icon: Wallet,
+      value: s ? (
+        <>
+          {`${money(price, o.plan.currency)} / ${s.interval === 'YEAR' ? 'year' : 'month'}`}
+          {o.plan.placeholderPricing && <PlaceholderTag />}
+        </>
+      ) : (
+        'Free'
+      ),
+    },
+    {
+      label: 'Billing cycle',
+      icon: Repeat,
+      value: s ? (s.interval === 'YEAR' ? 'Yearly' : 'Monthly') : 'No billing',
+    },
+    ...(s
+      ? [
+          { label: 'Started', icon: CalendarCheck, value: fmtDate(s.startedAt, tz) },
+          {
+            label: ends ? 'Access until' : 'Renews',
+            icon: CalendarClock,
+            value: fmtDate(s.currentPeriodEnd, tz),
+          },
+        ]
+      : [{ label: 'Renewal', icon: CalendarClock, value: 'No renewal required' }]),
+    ...(o.nextPayment
+      ? [
+          {
+            label: 'Next payment',
+            icon: CreditCard,
+            value: (
+              <>
+                {money(o.nextPayment.amountMinor, o.nextPayment.currency)} on{' '}
+                {fmtDate(o.nextPayment.date, tz)}
+                {o.nextPayment.placeholderPricing && <PlaceholderTag />}
+              </>
+            ),
+          },
+        ]
+      : []),
+    ...(s?.trialEnd
+      ? [{ label: 'Trial ends', icon: Hourglass, value: fmtDate(s.trialEnd, tz) }]
+      : []),
+  ];
 
   return (
     <div className="flex flex-col gap-4">
       <Card title="Current subscription">
-        <dl className="m-0 grid grid-cols-[130px_1fr] gap-x-3 gap-y-2 text-[13px] sm:grid-cols-[150px_1fr_150px_1fr]">
-          <dt className="text-faint">Plan</dt>
-          <dd className="m-0 font-medium">{o.plan.name}</dd>
-          <dt className="text-faint">Status</dt>
-          <dd className="m-0">
-            <SubscriptionBadge o={o} />
-          </dd>
-          <dt className="text-faint">Description</dt>
-          <dd className="m-0 text-muted">{o.plan.description}</dd>
-          <dt className="text-faint">Price</dt>
-          <dd className="m-0">
-            {s
-              ? `${money(price, o.plan.currency)} / ${s.interval === 'YEAR' ? 'year' : 'month'}`
-              : 'Free'}{' '}
-            {s && o.plan.placeholderPricing && <PlaceholderTag />}
-          </dd>
-          <dt className="text-faint">Billing cycle</dt>
-          <dd className="m-0">{s ? (s.interval === 'YEAR' ? 'Yearly' : 'Monthly') : '—'}</dd>
-          <dt className="text-faint">Started</dt>
-          <dd className="m-0">{fmtDate(s?.startedAt, tz)}</dd>
-          <dt className="text-faint">
-            {s?.cancelAtPeriodEnd || s?.status === 'CANCELED' ? 'Access until' : 'Renews'}
-          </dt>
-          <dd className="m-0">{fmtDate(s?.currentPeriodEnd, tz)}</dd>
-          {o.nextPayment && (
-            <>
-              <dt className="text-faint">Next payment</dt>
-              <dd className="m-0">
-                {money(o.nextPayment.amountMinor, o.nextPayment.currency)} on{' '}
-                {fmtDate(o.nextPayment.date, tz)}{' '}
-                {o.nextPayment.placeholderPricing && <PlaceholderTag />}
+        <div className="flex flex-wrap items-center gap-3.5">
+          <span
+            aria-hidden
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px]"
+            style={{ backgroundColor: id.tint, color: id.color }}
+          >
+            <id.icon size={22} />
+          </span>
+          <div className="min-w-0 flex-1 basis-56">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="m-0 text-[18px] font-semibold">{o.plan.name}</h3>
+              <SubscriptionBadge o={o} />
+            </div>
+            <p className="m-0 mt-0.5 text-[13px] text-muted">{o.plan.description}</p>
+          </div>
+        </div>
+
+        <dl className="m-0 mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+          {blocks.map((b) => (
+            <div key={b.label} className="rounded-xl bg-wash px-3.5 py-3">
+              <dt className="flex items-center gap-1.5 text-xs text-faint">
+                <b.icon size={13} aria-hidden /> {b.label}
+              </dt>
+              <dd className="m-0 mt-1 flex flex-wrap items-center gap-1.5 text-[14px] font-semibold text-ink">
+                {b.value}
               </dd>
-            </>
-          )}
-          {s?.trialEnd && (
-            <>
-              <dt className="text-faint">Trial ends</dt>
-              <dd className="m-0">{fmtDate(s.trialEnd, tz)}</dd>
-            </>
-          )}
+            </div>
+          ))}
         </dl>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          {!s && <Button onClick={() => go('plans')}>Upgrade plan</Button>}
+          {!s && (
+            <Button onClick={() => go('plans')}>
+              <ArrowUpRight aria-hidden /> Upgrade plan
+            </Button>
+          )}
           {s && o.plan.rank < 3 && !s.cancelAtPeriodEnd && (
             <Button
               onClick={() => go('plans')}
@@ -87,7 +139,7 @@ export function OverviewTab({
                   : 'Your subscription can’t be changed right now',
               )}
             >
-              Upgrade plan
+              <ArrowUpRight aria-hidden /> Upgrade plan
             </Button>
           )}
           {s && (
