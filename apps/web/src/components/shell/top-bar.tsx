@@ -119,7 +119,7 @@ export function TopBar() {
           label="Store menu"
           tooltip={workspaceName || 'Stores'}
           role="dialog"
-          panelClassName="max-h-[min(560px,calc(100vh-72px))] w-[min(320px,calc(100vw-24px))] overflow-y-auto rounded-2xl p-0"
+          panelClassName="max-h-[min(600px,calc(100vh-72px))] w-[min(336px,calc(100vw-24px))] overflow-y-auto rounded-[18px] bg-white! p-0 shadow-[0_16px_40px_rgba(13,37,61,0.14),0_2px_8px_rgba(13,37,61,0.06)] [backdrop-filter:none]!"
           triggerClassName="h-12 w-auto gap-2.5 rounded-[14px] border border-line bg-white py-1.5 pl-1.5 pr-3 shadow-[0_1px_2px_rgba(13,37,61,0.04)] transition-[background-color,border-color] duration-150 hover:border-line-input hover:bg-wash aria-expanded:border-line-input aria-expanded:bg-wash focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none max-md:pr-2.5 max-sm:h-10 max-sm:rounded-full max-sm:p-0.5"
           trigger={(open) => (
             <>

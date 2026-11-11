@@ -89,10 +89,27 @@ export function AccountPanel() {
   const name = profile?.name ?? user?.name ?? '';
   const email = profile?.email ?? user?.email ?? '';
 
+  // Arrow keys move between the store rows; Home and End jump to the ends.
+  const onListKey = (e: React.KeyboardEvent<HTMLUListElement>) => {
+    const keys = ['ArrowDown', 'ArrowUp', 'Home', 'End'];
+    if (!keys.includes(e.key)) return;
+    const rows = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];
+    if (!rows.length) return;
+    e.preventDefault();
+    const i = rows.indexOf(document.activeElement as HTMLButtonElement);
+    const n =
+      e.key === 'Home'
+        ? 0
+        : e.key === 'End'
+          ? rows.length - 1
+          : (i + (e.key === 'ArrowDown' ? 1 : -1) + rows.length) % rows.length;
+    rows[n]?.focus();
+  };
+
   return (
     <div className="flex flex-col">
       {stores.length > 4 && (
-        <label className="m-2 mb-0 flex h-9 items-center gap-2 rounded-[var(--radius-input)] bg-wash px-2.5">
+        <label className="mx-3 mt-3 flex h-9 items-center gap-2 rounded-[var(--radius-input)] bg-wash px-2.5">
           <Search size={14} aria-hidden className="shrink-0 text-faint" />
           <input
             aria-label="Search stores"
@@ -106,7 +123,8 @@ export function AccountPanel() {
       <ul
         role="listbox"
         aria-label="Stores"
-        className="m-0 max-h-[260px] list-none overflow-y-auto p-1.5"
+        onKeyDown={onListKey}
+        className="m-0 flex max-h-[272px] list-none flex-col gap-1 overflow-y-auto p-2"
       >
         {shown.map((s) => {
           const on = s.id === workspaceId;
@@ -118,21 +136,36 @@ export function AccountPanel() {
                 onClick={() => void pick(s.id)}
                 className={cn(
                   ROW,
-                  'min-h-[52px]',
-                  on && 'border border-primary-line bg-primary-tint hover:bg-primary-tint',
+                  'group min-h-[60px] gap-3 rounded-[14px] px-2.5 py-2',
+                  on && 'bg-primary-tint hover:bg-primary-tint',
                 )}
               >
-                <StoreAvatar name={s.name} logo={s.logo} className="h-10 w-10 text-[13px]" />
+                <StoreAvatar
+                  name={s.name}
+                  logo={s.logo}
+                  className="h-11 w-11 rounded-[12px] text-[14px]"
+                />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13.5px] font-semibold text-ink">
+                  <span className="block truncate text-[14px] font-semibold text-ink">
                     {s.name}
                   </span>
-                  <span className="block truncate text-xs text-muted">
+                  <span className="block truncate text-[12.5px] text-muted">
                     {on ? 'Current workspace' : s.slug}
                   </span>
                 </span>
-                {on && (
-                  <Check size={16} aria-label="Active store" className="shrink-0 text-primary" />
+                {on ? (
+                  <Check
+                    size={17}
+                    strokeWidth={2.2}
+                    aria-label="Active store"
+                    className="shrink-0 text-primary"
+                  />
+                ) : (
+                  <ChevronRight
+                    size={15}
+                    aria-hidden
+                    className="shrink-0 text-faint opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 motion-reduce:transition-none"
+                  />
                 )}
               </button>
             </li>
@@ -143,21 +176,21 @@ export function AccountPanel() {
         )}
       </ul>
 
-      <div className="px-2 pb-2">
+      <div className="px-3 pb-3">
         <button
           type="button"
           onClick={() => {
             close();
             router.push('/onboarding?new=1');
           }}
-          className="flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-[10px] border-none bg-primary text-[13.5px] font-semibold text-white shadow-[0_1px_3px_rgba(0,55,112,0.08)] transition-colors duration-150 hover:bg-primary-hover active:bg-primary-press focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+          className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-[11px] border-none bg-primary text-[14px] font-semibold text-white shadow-[0_1px_2px_rgba(0,55,112,0.12)] transition-colors duration-150 hover:bg-primary-hover active:bg-primary-press focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
         >
-          <Plus size={16} aria-hidden />
-          Add Store
+          <Plus size={17} aria-hidden />
+          Create a new store
         </button>
       </div>
 
-      <div className="border-t border-line-subtle p-1.5">
+      <div className="flex flex-col gap-0.5 border-t border-line-subtle p-2">
         <button
           type="button"
           aria-label={`${name}, ${email}`}
@@ -165,12 +198,16 @@ export function AccountPanel() {
             close();
             router.push('/settings/general');
           }}
-          className={cn(ROW, 'min-h-[56px]')}
+          className={cn(ROW, 'min-h-[60px] gap-3 rounded-[14px] px-2.5 py-2')}
         >
-          <UserAvatar image={profile?.image} name={name} className="h-10 w-10 text-[13px]" />
+          <UserAvatar
+            image={profile?.image}
+            name={name}
+            className="h-11 w-11 rounded-[12px] text-[14px]"
+          />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[13.5px] font-semibold text-ink">{name}</span>
-            <span className="block truncate text-xs text-muted">{email}</span>
+            <span className="block truncate text-[14px] font-semibold text-ink">{name}</span>
+            <span className="block truncate text-[12.5px] text-muted">{email}</span>
           </span>
           <ChevronRight size={15} aria-hidden className="shrink-0 text-faint" />
         </button>
@@ -183,7 +220,7 @@ export function AccountPanel() {
           }}
           className={cn(
             ROW,
-            'h-10 text-[13.5px] font-medium text-danger hover:bg-danger-soft focus-visible:bg-danger-soft',
+            'h-10 gap-3 rounded-[12px] px-3 text-[13.5px] font-medium text-danger hover:bg-danger-soft focus-visible:bg-danger-soft',
           )}
         >
           <LogOut size={16} aria-hidden />

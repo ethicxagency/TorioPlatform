@@ -58,7 +58,7 @@ test.describe('global header', () => {
       'true',
     );
     const y = async (l: ReturnType<typeof panel.getByRole>) => (await l.boundingBox())!.y;
-    const add = panel.getByRole('button', { name: 'Add Store' });
+    const add = panel.getByRole('button', { name: 'Create a new store' });
     const profile = panel.getByRole('button', { name: /agent@test\.dev/ });
     const out = panel.getByRole('button', { name: 'Sign out' });
     expect(await y(list)).toBeLessThan(await y(add));
@@ -91,7 +91,7 @@ test.describe('global header', () => {
     await expect(page.getByRole('button', { name: 'Sign out' })).toHaveClass(/text-danger/);
     await page
       .getByRole('dialog', { name: 'Store menu' })
-      .getByRole('button', { name: 'Add Store' })
+      .getByRole('button', { name: 'Create a new store' })
       .click();
     await expect(page).toHaveURL(/\/onboarding\?new=1$/);
     await page.goto('/');
@@ -106,9 +106,9 @@ test.describe('global header', () => {
   test('the header has no standalone Add Store button, and avatars are rounded squares', async ({
     page,
   }) => {
-    await expect(page.getByRole('banner').getByRole('button', { name: 'Add Store' })).toHaveCount(
-      0,
-    );
+    await expect(
+      page.getByRole('banner').getByRole('button', { name: 'Create a new store' }),
+    ).toHaveCount(0);
     const radius = await page
       .getByRole('button', { name: 'Store menu' })
       .locator('span')
@@ -120,8 +120,8 @@ test.describe('global header', () => {
       .getByRole('dialog', { name: 'Store menu' })
       .getByRole('button', { name: /agent@test\.dev/ });
     const avatar = await row.locator('span').first().boundingBox();
-    expect(Math.round(avatar!.width)).toBe(40);
-    expect(Math.round(avatar!.height)).toBe(40);
+    expect(Math.round(avatar!.width)).toBe(44);
+    expect(Math.round(avatar!.height)).toBe(44);
   });
 
   test('billing stays reachable through its own route', async ({ page }) => {

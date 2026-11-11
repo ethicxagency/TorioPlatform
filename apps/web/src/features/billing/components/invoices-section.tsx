@@ -55,7 +55,7 @@ function Kpi({
   color: string;
   label: string;
   value: React.ReactNode;
-  hint: string;
+  hint?: string;
 }) {
   return (
     <li className="flex items-start gap-3 rounded-[13px] border border-line bg-white p-4 transition-[border-color,box-shadow] duration-150 hover:border-line-input hover:shadow-[0_2px_10px_-4px_rgba(23,24,28,0.12)] motion-reduce:transition-none">
@@ -65,7 +65,7 @@ function Kpi({
         <div className="mt-0.5 text-[22px] font-semibold leading-tight tabular-nums text-ink">
           {value}
         </div>
-        <div className="mt-0.5 text-[11.5px] text-faint">{hint}</div>
+        {hint && <div className="mt-0.5 text-[11.5px] text-faint">{hint}</div>}
       </div>
     </li>
   );
@@ -148,23 +148,23 @@ export function InvoicesSection({ ws, canManage }: { ws: string; canManage: bool
           icon={Receipt}
           color="#5B5CE2"
           label="Total invoices"
-          value={sum ? sum.total : '—'}
-          hint={sum && sum.total === 0 ? 'None issued yet' : 'All time'}
+          value={sum ? sum.total : <Skeleton className="mt-1 h-6 w-10" />}
+          hint={sum && sum.total > 0 ? 'All time' : undefined}
         />
         <Kpi
           icon={CircleCheck}
           color="#16A34A"
           label="Paid invoices"
-          value={sum ? sum.paid : '—'}
-          hint={sum && sum.total > 0 ? `${sum.paid} of ${sum.total}` : 'Nothing paid yet'}
+          value={sum ? sum.paid : <Skeleton className="mt-1 h-6 w-10" />}
+          hint={sum && sum.total > 0 ? `${sum.paid} of ${sum.total}` : undefined}
         />
         <Kpi
           icon={Wallet}
           color="#D97706"
           label="Outstanding balance"
           value={
-            !sum || sum.total === 0 ? (
-              '—'
+            !sum ? (
+              <Skeleton className="mt-1 h-6 w-16" />
             ) : sum.outstanding.length ? (
               <span className="flex flex-col">
                 {sum.outstanding.map((o) => (
@@ -177,7 +177,7 @@ export function InvoicesSection({ ws, canManage }: { ws: string; canManage: bool
           }
           hint={
             !sum || sum.total === 0
-              ? 'No invoices yet'
+              ? undefined
               : sum.outstanding.length
                 ? 'Pending and failed invoices'
                 : 'Nothing is due'
@@ -304,13 +304,15 @@ export function InvoicesSection({ ws, canManage }: { ws: string; canManage: bool
             >
               {filtered ? <SearchX size={20} /> : <Receipt size={20} />}
             </span>
-            <h3 className="m-0 text-[14.5px] font-semibold text-ink">
-              {filtered ? 'No invoices match your filters' : 'No invoices yet'}
-            </h3>
+            {filtered && (
+              <h3 className="m-0 text-[14.5px] font-semibold text-ink">
+                No invoices match your filters
+              </h3>
+            )}
             <p className="m-0 mt-1 max-w-[360px] text-[13px] text-muted">
               {filtered
                 ? 'Try a different search or widen the dates.'
-                : 'When an invoice is generated, it will appear here with its payment status and download option.'}
+                : 'Invoices appear here with their payment status and a download option.'}
             </p>
             {filtered && (
               <Button size="sm" variant="outline" className="mt-3" onClick={clear}>

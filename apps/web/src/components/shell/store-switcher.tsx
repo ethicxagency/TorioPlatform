@@ -11,6 +11,21 @@ const initialsOf = (name: string) =>
     .join('')
     .toUpperCase() || '?';
 
+/** Soft tint pairs for stores without a logo, chosen from the name so a store keeps its colour everywhere. */
+const TONES: [string, string][] = [
+  ['#F0F0FF', '#4F50D1'],
+  ['#EAF4FD', '#1E6BB0'],
+  ['#E6F7F3', '#0F766E'],
+  ['#F5F0FF', '#6D28D9'],
+  ['#FFF5E4', '#92560A'],
+  ['#FDEEF2', '#B4234B'],
+];
+const toneOf = (name: string) => {
+  let h = 0;
+  for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return TONES[h % TONES.length]!;
+};
+
 /** A store's logo, or its initials when it has none (or the image fails to load). */
 export function StoreAvatar({
   name,
@@ -22,11 +37,13 @@ export function StoreAvatar({
   className?: string;
 }) {
   const [broken, setBroken] = useState(false);
+  const [bg, fg] = toneOf(name);
   return (
     <span
       aria-hidden
+      style={!logo || broken ? { backgroundColor: bg, color: fg } : undefined}
       className={cn(
-        'flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-primary-soft text-[12px] font-semibold text-primary-hover',
+        'flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-[10px] text-[12px] font-semibold',
         className,
       )}
     >

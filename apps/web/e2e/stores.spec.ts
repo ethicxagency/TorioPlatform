@@ -43,9 +43,9 @@ test.describe('store dropdown and Add Store (existing user)', () => {
     page,
   }) => {
     // Add Store lives only inside the dropdown, never as a header button.
-    await expect(page.getByRole('banner').getByRole('button', { name: 'Add Store' })).toHaveCount(
-      0,
-    );
+    await expect(
+      page.getByRole('banner').getByRole('button', { name: 'Create a new store' }),
+    ).toHaveCount(0);
     const panel = await open(page);
     const list = panel.getByRole('listbox', { name: 'Stores' });
     await expect(list.getByRole('option')).toHaveCount(2);
@@ -54,7 +54,7 @@ test.describe('store dropdown and Add Store (existing user)', () => {
       'true',
     );
     await expect(list.getByRole('option', { name: /Fashion BD/ })).toContainText('fashion-bd');
-    await expect(panel.getByRole('button', { name: 'Add Store' })).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'Create a new store' })).toBeVisible();
   });
 
   test('switching persists the choice, updates the header store, and shows the new store’s own settings', async ({
@@ -102,8 +102,34 @@ test.describe('store dropdown and Add Store (existing user)', () => {
     await expect(page.getByRole('button', { name: 'Store menu' }).locator('img')).toHaveCount(0);
   });
 
+  test('the dropdown is a solid panel with 44px square avatars, a 44px create button, and arrow-key navigation', async ({
+    page,
+  }) => {
+    const panel = await open(page);
+    const css = await panel.evaluate((el) => {
+      const c = getComputedStyle(el);
+      return {
+        bg: c.backgroundColor,
+        radius: parseFloat(c.borderTopLeftRadius),
+        blur: c.backdropFilter,
+      };
+    });
+    expect(css.bg).toBe('rgb(255, 255, 255)');
+    expect(css.radius).toBeGreaterThanOrEqual(16);
+    expect(css.blur === 'none' || css.blur === '').toBe(true);
+    const create = panel.getByRole('button', { name: 'Create a new store' });
+    expect(Math.round((await create.boundingBox())!.height)).toBe(44);
+    const rows = panel.getByRole('listbox', { name: 'Stores' }).getByRole('button');
+    expect(Math.round((await rows.first().locator('span').first().boundingBox())!.width)).toBe(44);
+    await rows.first().focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(rows.nth(1)).toBeFocused();
+    await page.keyboard.press('ArrowUp');
+    await expect(rows.first()).toBeFocused();
+  });
+
   test('Add Store opens store setup for another store, starting at step 1', async ({ page }) => {
-    await (await open(page)).getByRole('button', { name: 'Add Store' }).click();
+    await (await open(page)).getByRole('button', { name: 'Create a new store' }).click();
     await expect(page).toHaveURL(/\/onboarding\?new=1$/);
     await expect(page.getByRole('heading', { name: 'Add a new store', level: 1 })).toBeVisible();
     await expect(page.getByRole('heading', { name: /Let.s get to know you/ })).toBeVisible();
@@ -156,7 +182,7 @@ test.describe('first-time store onboarding (no store yet)', () => {
     await expect(
       page.getByText('Tell us a little about yourself before setting up your workspace.'),
     ).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Add Store' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Create a new store' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Back' })).toHaveCount(0);
   });
 

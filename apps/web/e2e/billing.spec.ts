@@ -307,22 +307,19 @@ test.describe('billing (owner)', () => {
   }) => {
     billingState.noInvoices = true;
     await open(page, 'invoices');
-    await expect(page.getByRole('heading', { name: 'No invoices yet' })).toBeVisible();
+    await expect(page.getByText('No invoices yet')).toHaveCount(0);
     await expect(
-      page.getByText(
-        'When an invoice is generated, it will appear here with its payment status and download option.',
-      ),
+      page.getByText('Invoices appear here with their payment status and a download option.'),
     ).toBeVisible();
     // no table header, rows or pagination around an empty list
     await expect(page.getByRole('table')).toHaveCount(0);
     await expect(page.getByText(/Showing \d/)).toHaveCount(0);
     const overview = page.getByRole('list', { name: 'Billing overview' });
+    for (const gone of ['None issued yet', 'Nothing paid yet', 'No invoices yet'])
+      await expect(page.getByText(gone)).toHaveCount(0);
     await expect(
       overview.getByRole('listitem').filter({ hasText: 'Total invoices' }),
-    ).toContainText('None issued yet');
-    await expect(
-      overview.getByRole('listitem').filter({ hasText: 'Outstanding balance' }),
-    ).toContainText('No invoices yet');
+    ).toContainText('0');
   });
 
   test('billing details are not edited here: no Billing information section, and complete details show no notice', async ({

@@ -7,10 +7,19 @@ test.describe('team (owner)', () => {
     await page.goto('/team');
   });
 
-  test('shows real KPIs, marks presence unavailable, lists members', async ({ page }) => {
+  test('shows real KPIs without placeholder labels, lists members', async ({ page }) => {
     await expect(page.getByRole('heading', { name: 'Teams', level: 1 })).toBeVisible();
     await expect(page.getByRole('row', { name: /Nadia Islam/ })).toBeVisible();
-    await expect(page.getByText("Presence isn't tracked yet")).toBeVisible();
+    for (const gone of [
+      "Presence isn't tracked yet",
+      'Online agents',
+      'Accounts with access',
+      'Not yet accepted',
+      'Open, no assignee',
+      '0 suspended',
+    ])
+      await expect(page.getByText(gone)).toHaveCount(0);
+    await expect(page.getByText('Total members', { exact: true })).toBeVisible();
   });
 
   test('member drawer offers role change only within policy and asks before applying', async ({
