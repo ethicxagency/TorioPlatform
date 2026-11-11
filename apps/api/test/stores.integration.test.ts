@@ -371,4 +371,42 @@ describe.skipIf(!url)('multi-store (real PostgreSQL)', () => {
       'Store theirs',
     );
   });
+
+  describe('real login never depends on having a store', () => {
+    const login = (email: string, password: string) =>
+      http().post('/api/v1/auth/login').send({ email, password });
+    const tokenOf = async (email: string) =>
+      (await login(email, 'Some-pass-1').expect(200)).body.accessToken as string;
+    const storesFor = async (t: string) =>
+      (await http().get('/api/v1/workspaces').set('Authorization', `Bearer ${t}`).expect(200))
+        .body as { name: string; active: boolean }[];
+
+    it('an account with no store signs in (200), gets an empty store list, and wrong credentials stay 401', async () => {
+      const email = `member-${sfx}@t.co`;
+      await db.workspaceMembership.deleteMany({ where: { userId: users.member!.id } });
+      expect(await storesFor(await tokenOf(email))).toEqual([]);
+      const bad = await login(email, 'wrong-password');
+      expect(bad.status).toBe(401);
+      expect(bad.body.error.requestId).toBeTruthy();
+      expect(JSON.stringify(bad.body)).not.toMatch(/prisma|stack|column/i);
+      expect((await login(`nobody-${sfx}@t.co`, 'x')).status).toBe(401);
+    });
+
+    it('an account with several stores signs in and gets the last active one first', async () => {
+      const email = `rabby-${sfx}@t.co`;
+      const mine = (await list('rabby')).filter((w) => w.slug.startsWith('st-'));
+      await db.userPreferences.update({
+        where: { userId: users.rabby!.id },
+        data: { lastActiveWorkspaceId: mine[mine.length - 1]!.id },
+      });
+      const l = await storesFor(await tokenOf(email));
+      expect(l.length).toBeGreaterThan(1);
+      expect(l[0]).toMatchObject({ name: mine[mine.length - 1]!.name, active: true });
+    });
+
+    it('an account that never had preferences or memberships still signs in', async () => {
+      await db.userPreferences.deleteMany({ where: { userId: users.member!.id } });
+      expect(await storesFor(await tokenOf(`member-${sfx}@t.co`))).toEqual([]);
+    });
+  });
 });
