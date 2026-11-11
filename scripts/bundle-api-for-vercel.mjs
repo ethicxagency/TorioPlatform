@@ -16,7 +16,15 @@ await build({
   platform: 'node',
   format: 'cjs',
   target: 'node20',
-  external: ['@node-rs/argon2', '@nestjs/microservices*', '@nestjs/websockets/socket-module', 'class-transformer*', 'class-validator*', 'bufferutil', 'utf-8-validate'],
+  external: [
+    '@node-rs/argon2',
+    '@nestjs/microservices*',
+    '@nestjs/websockets/socket-module',
+    'class-transformer*',
+    'class-validator*',
+    'bufferutil',
+    'utf-8-validate',
+  ],
   logLevel: 'warning',
 });
 // The builder ships dist/ as the function, so replace its entry with the bundle.

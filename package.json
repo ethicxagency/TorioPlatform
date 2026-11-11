@@ -18,11 +18,13 @@
     "db:generate": "prisma generate",
     "db:validate": "prisma validate",
     "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy",
+    "db:migrate:status": "prisma migrate status",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:deploy": "node scripts/db-deploy.mjs",
     "db:seed": "prisma db seed",
+    "db:studio": "prisma studio",
     "admin:create": "tsx prisma/create-admin.ts",
     "accounts:create-test": "tsx prisma/create-test-accounts.ts",
-    "db:studio": "prisma studio",
     "api:openapi": "pnpm --filter @torio/api openapi && pnpm --filter @torio/api-client generate"
   },
   "prisma": {

@@ -4,8 +4,11 @@
 //   everything else       -> Next.js web  (127.0.0.1:WEB_INTERNAL_PORT)
 //
 // Serving both from one domain keeps the refresh cookie first-party and lets the Inbox's
-// WebSocket reach the API. Database migrations run first, so a deploy never starts on an old schema.
-import { spawn, spawnSync } from 'node:child_process';
+// WebSocket reach the API.
+//
+// This script never touches the database schema. Migrations are a separate, explicit release step
+// (`pnpm db:deploy`, set as Render's Pre-Deploy Command), so they run once per release, not on every boot or replica.
+import { spawn } from 'node:child_process';
 import http from 'node:http';
 import net from 'node:net';
 import { createRequire } from 'node:module';
@@ -31,20 +34,6 @@ const env = {
 };
 
 const log = (msg) => console.log(`[render-start] ${msg}`);
-
-if (process.env.SKIP_MIGRATIONS !== 'true') {
-  log('applying database migrations');
-  const prisma = createRequire(resolve(root, 'package.json')).resolve('prisma/build/index.js');
-  const r = spawnSync(process.execPath, [prisma, 'migrate', 'deploy'], {
-    cwd: root,
-    env,
-    stdio: 'inherit',
-  });
-  if (r.status !== 0) {
-    log('migrations failed; not starting');
-    process.exit(r.status ?? 1);
-  }
-}
 
 const nextBin = createRequire(resolve(root, 'apps/web/package.json')).resolve('next/dist/bin/next');
 const children = [

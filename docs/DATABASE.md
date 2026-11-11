@@ -76,3 +76,27 @@ User 1─* Notification (workspaceId),  Workspace 1─1 Subscription (billing) 1
 ```
 
 Add these feature by feature, each with a migration and tenant-isolation tests.
+
+## Migrations workflow
+
+Prisma Client generation and database migration are different things. `pnpm db:generate` (also run by the `database`
+package build) only writes the generated client. It never touches a database. Migrations change a database and run only
+as an explicit step:
+
+| Command                  | What it does                                                                                        | When                                                   |
+| ------------------------ | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `pnpm db:generate`       | Generate Prisma Client                                                                              | install / build; safe anywhere                         |
+| `pnpm db:validate`       | Validate the schema file                                                                            | any time                                               |
+| `pnpm db:migrate`        | `prisma migrate dev`: create and apply a **development** migration                                  | local development only, after a real schema change     |
+| `pnpm db:migrate:status` | Read-only: which migrations are applied or pending                                                  | any time, any database                                 |
+| `pnpm db:deploy`         | Release step: check status, apply pending migrations only if there are some, stop on a failed state | once per release, before the new version takes traffic |
+| `pnpm db:migrate:deploy` | Raw `prisma migrate deploy`                                                                         | by hand, when you already know what is pending         |
+
+Nothing in `dev`, `build`, `start`, `postinstall`, health checks, workers or request handling runs a migration, and none of
+them should. On Vercel the database is prepared by running `pnpm db:deploy` yourself (or a CI job) with the production
+`DATABASE_URL` before promoting the deployment; on Render it is the Pre-Deploy Command.
+
+To ship a schema change: edit `prisma/schema.prisma`, run `pnpm db:migrate` locally to create the migration, commit it,
+then run `pnpm db:deploy` against production as part of that release. If the schema did not change there is no migration to
+create and nothing to run. Never edit or delete a migration that has been applied, never use `prisma migrate reset` or
+`prisma db push` against production, and never mark a migration applied without checking the real schema.

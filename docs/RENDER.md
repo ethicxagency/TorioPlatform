@@ -19,8 +19,10 @@ starts both on internal ports and proxies the public port:
 Render's default `npm install; npm run build` cannot work: npm does not understand pnpm's `workspace:*`
 links. The build script installs pnpm 11 and builds the API and web through turbo.
 
-Database migrations (`prisma migrate deploy`) run at start, before either app. Set `SKIP_MIGRATIONS=true`
-to turn that off.
+The start script does **not** migrate the database. Set Render's **Pre-Deploy Command** to `pnpm db:deploy`
+(with the production `DATABASE_URL`): it runs once per release, before the new version takes traffic, does nothing
+when the database is already up to date, and stops the release if a migration is in a failed state. See
+[DATABASE.md](DATABASE.md#migrations-workflow).
 
 ## Environment variables
 
