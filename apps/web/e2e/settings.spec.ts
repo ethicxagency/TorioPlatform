@@ -178,9 +178,9 @@ test.describe('settings (owner)', () => {
     await expect(page.getByText('Workspace settings changed: name')).toBeVisible();
   });
 
-  test("the store menu's Profile & Account row opens General", async ({ page }) => {
+  test("the store menu's account row opens General", async ({ page }) => {
     await page.getByRole('button', { name: 'Store menu' }).click();
-    await page.getByRole('button', { name: 'Profile & Account' }).click();
+    await page.getByRole('button', { name: /agent@test\.dev/ }).click();
     await expect(page).toHaveURL(/\/settings\/general$/);
   });
 

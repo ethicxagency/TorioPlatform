@@ -35,7 +35,7 @@ export function UserAvatar({
     <span
       aria-hidden
       className={cn(
-        'flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary font-semibold text-white',
+        'flex shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-primary font-semibold text-white',
         className,
       )}
     >
@@ -118,11 +118,11 @@ export function AccountPanel() {
                 onClick={() => void pick(s.id)}
                 className={cn(
                   ROW,
-                  'min-h-[48px]',
+                  'min-h-[52px]',
                   on && 'border border-primary-line bg-primary-tint hover:bg-primary-tint',
                 )}
               >
-                <StoreAvatar name={s.name} logo={s.logo} className="h-9 w-9" />
+                <StoreAvatar name={s.name} logo={s.logo} className="h-10 w-10 text-[13px]" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13.5px] font-semibold text-ink">
                     {s.name}
@@ -150,7 +150,7 @@ export function AccountPanel() {
             close();
             router.push('/onboarding?new=1');
           }}
-          className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-control)] border-none bg-primary text-[13.5px] font-semibold text-white shadow-[0_1px_3px_rgba(0,55,112,0.08)] transition-colors duration-150 hover:bg-primary-hover active:bg-primary-press focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+          className="flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-[10px] border-none bg-primary text-[13.5px] font-semibold text-white shadow-[0_1px_3px_rgba(0,55,112,0.08)] transition-colors duration-150 hover:bg-primary-hover active:bg-primary-press focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
         >
           <Plus size={16} aria-hidden />
           Add Store
@@ -160,22 +160,19 @@ export function AccountPanel() {
       <div className="border-t border-line-subtle p-1.5">
         <button
           type="button"
-          aria-label="Profile & Account"
+          aria-label={`${name}, ${email}`}
           onClick={() => {
             close();
             router.push('/settings/general');
           }}
-          className={cn(ROW, 'min-h-[52px]')}
+          className={cn(ROW, 'min-h-[56px]')}
         >
-          <UserAvatar image={profile?.image} name={name} className="h-9 w-9 text-[13px]" />
+          <UserAvatar image={profile?.image} name={name} className="h-10 w-10 text-[13px]" />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[13.5px] font-semibold text-ink">{name}</span>
             <span className="block truncate text-xs text-muted">{email}</span>
           </span>
-          <span className="flex shrink-0 items-center gap-0.5 text-xs font-medium text-muted">
-            <span className="max-sm:hidden">Profile &amp; Account</span>
-            <ChevronRight size={14} aria-hidden className="text-faint" />
-          </span>
+          <ChevronRight size={15} aria-hidden className="shrink-0 text-faint" />
         </button>
         <button
           type="button"

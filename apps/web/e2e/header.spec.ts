@@ -59,7 +59,7 @@ test.describe('global header', () => {
     );
     const y = async (l: ReturnType<typeof panel.getByRole>) => (await l.boundingBox())!.y;
     const add = panel.getByRole('button', { name: 'Add Store' });
-    const profile = panel.getByRole('button', { name: 'Profile & Account' });
+    const profile = panel.getByRole('button', { name: /agent@test\.dev/ });
     const out = panel.getByRole('button', { name: 'Sign out' });
     expect(await y(list)).toBeLessThan(await y(add));
     expect(await y(add)).toBeLessThan(await y(profile));
@@ -67,8 +67,13 @@ test.describe('global header', () => {
     // the account row shows the person
     await expect(profile).toContainText('Farid Ahmed');
     await expect(profile).toContainText('agent@test.dev');
-    // the old entries are gone from the dropdown
-    for (const gone of ['My profile', 'Workspace settings', 'Billing & subscription'])
+    // the old entries and the "Profile & Account" label are gone from the dropdown
+    for (const gone of [
+      'My profile',
+      'Workspace settings',
+      'Billing & subscription',
+      'Profile & Account',
+    ])
       await expect(panel.getByText(gone, { exact: true })).toHaveCount(0);
     await expect(panel.getByRole('menuitem')).toHaveCount(0);
     const box = (await panel.boundingBox())!;
@@ -79,17 +84,44 @@ test.describe('global header', () => {
     await expect(trigger).toBeFocused();
   });
 
-  test('Add Store opens store setup; Profile & Account opens Settings → General; Sign out is destructive', async ({
+  test('Add Store opens store setup; the account row opens Settings → General; Sign out is destructive', async ({
     page,
   }) => {
     await page.getByRole('button', { name: 'Store menu' }).click();
     await expect(page.getByRole('button', { name: 'Sign out' })).toHaveClass(/text-danger/);
-    await page.getByRole('button', { name: 'Add Store', exact: true }).last().click();
+    await page
+      .getByRole('dialog', { name: 'Store menu' })
+      .getByRole('button', { name: 'Add Store' })
+      .click();
     await expect(page).toHaveURL(/\/onboarding\?new=1$/);
     await page.goto('/');
     await page.getByRole('button', { name: 'Store menu' }).click();
-    await page.getByRole('button', { name: 'Profile & Account' }).click();
+    await page
+      .getByRole('dialog', { name: 'Store menu' })
+      .getByRole('button', { name: /agent@test\.dev/ })
+      .click();
     await expect(page).toHaveURL(/\/settings\/general$/);
+  });
+
+  test('the header has no standalone Add Store button, and avatars are rounded squares', async ({
+    page,
+  }) => {
+    await expect(page.getByRole('banner').getByRole('button', { name: 'Add Store' })).toHaveCount(
+      0,
+    );
+    const radius = await page
+      .getByRole('button', { name: 'Store menu' })
+      .locator('span')
+      .first()
+      .evaluate((el) => getComputedStyle(el).borderTopLeftRadius);
+    expect(parseFloat(radius)).toBeLessThan(14);
+    await page.getByRole('button', { name: 'Store menu' }).click();
+    const row = page
+      .getByRole('dialog', { name: 'Store menu' })
+      .getByRole('button', { name: /agent@test\.dev/ });
+    const avatar = await row.locator('span').first().boundingBox();
+    expect(Math.round(avatar!.width)).toBe(40);
+    expect(Math.round(avatar!.height)).toBe(40);
   });
 
   test('billing stays reachable through its own route', async ({ page }) => {

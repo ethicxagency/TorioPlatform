@@ -42,7 +42,10 @@ test.describe('store dropdown and Add Store (existing user)', () => {
   test('lists only the stores the user can open, marks the active one, and has Add Store', async ({
     page,
   }) => {
-    await expect(page.getByRole('button', { name: 'Add Store' })).toBeVisible();
+    // Add Store lives only inside the dropdown, never as a header button.
+    await expect(page.getByRole('banner').getByRole('button', { name: 'Add Store' })).toHaveCount(
+      0,
+    );
     const panel = await open(page);
     const list = panel.getByRole('listbox', { name: 'Stores' });
     await expect(list.getByRole('option')).toHaveCount(2);
@@ -74,7 +77,12 @@ test.describe('store dropdown and Add Store (existing user)', () => {
   });
 
   test('a store logo is shown in the header when there is one', async ({ page }) => {
-    storesState.extra = [{ ...second, logo: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' }];
+    storesState.extra = [
+      {
+        ...second,
+        logo: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+      },
+    ];
     await page.reload();
     const panel = await open(page);
     await panel.getByRole('option', { name: /Fashion BD/ }).click();
@@ -84,17 +92,18 @@ test.describe('store dropdown and Add Store (existing user)', () => {
   test('the person’s own picture is in the account row, separate from the store avatar', async ({
     page,
   }) => {
-    settingsState.profile.image = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    settingsState.profile.image =
+      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
     await page.reload();
     const panel = await open(page);
-    await expect(
-      panel.getByRole('button', { name: 'Profile & Account' }).locator('img'),
-    ).toHaveCount(1);
+    await expect(panel.getByRole('button', { name: /agent@test\.dev/ }).locator('img')).toHaveCount(
+      1,
+    );
     await expect(page.getByRole('button', { name: 'Store menu' }).locator('img')).toHaveCount(0);
   });
 
   test('Add Store opens store setup for another store, starting at step 1', async ({ page }) => {
-    await page.getByRole('button', { name: 'Add Store' }).first().click();
+    await (await open(page)).getByRole('button', { name: 'Add Store' }).click();
     await expect(page).toHaveURL(/\/onboarding\?new=1$/);
     await expect(page.getByRole('heading', { name: 'Add a new store', level: 1 })).toBeVisible();
     await expect(page.getByRole('heading', { name: /Let.s get to know you/ })).toBeVisible();

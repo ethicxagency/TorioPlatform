@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { useWorkspace } from '@/lib/workspace';
 import { HEADER_ICON_BTN, HeaderPopover } from './header-popover';
 import { AccountPanel } from './account-panel';
-import { AddStoreButton, StoreAvatar } from './store-switcher';
+import { StoreAvatar } from './store-switcher';
 import { useShell } from './shell-context';
 import { TorioLogo } from './torio-logo';
 
@@ -78,7 +78,6 @@ export function TopBar() {
             <Search size={18} aria-hidden />
           </button>
         )}
-        <AddStoreButton compact={mobile} />
         <button
           type="button"
           onClick={stub}
@@ -120,7 +119,7 @@ export function TopBar() {
           label="Store menu"
           tooltip={workspaceName || 'Stores'}
           role="dialog"
-          panelClassName="max-h-[min(560px,calc(100vh-72px))] w-[min(340px,calc(100vw-24px))] overflow-y-auto rounded-2xl p-0"
+          panelClassName="max-h-[min(560px,calc(100vh-72px))] w-[min(320px,calc(100vw-24px))] overflow-y-auto rounded-2xl p-0"
           triggerClassName="h-12 w-auto gap-2.5 rounded-[14px] border border-line bg-white py-1.5 pl-1.5 pr-3 shadow-[0_1px_2px_rgba(13,37,61,0.04)] transition-[background-color,border-color] duration-150 hover:border-line-input hover:bg-wash aria-expanded:border-line-input aria-expanded:bg-wash focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none max-md:pr-2.5 max-sm:h-10 max-sm:rounded-full max-sm:p-0.5"
           trigger={(open) => (
             <>
@@ -128,7 +127,7 @@ export function TopBar() {
               <StoreAvatar
                 name={workspaceName || 'Torio'}
                 logo={workspace?.logo}
-                className="h-9 w-9 rounded-full text-[13px]"
+                className="h-9 w-9 text-[13px]"
               />
               {!mobile && (
                 <>
