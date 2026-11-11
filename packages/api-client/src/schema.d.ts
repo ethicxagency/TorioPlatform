@@ -4075,6 +4075,62 @@ export interface components {
                 id: string;
                 name: string;
             } | null;
+            maturity: {
+                engine: number;
+                /** Format: date-time */
+                evaluatedAt: string;
+                score: number;
+                /** @enum {string} */
+                stage: "BORN" | "BABY" | "GROWING" | "SMART" | "MATURE" | "EXPERT";
+                stageIndex: number;
+                nextStage: ("BORN" | "BABY" | "GROWING" | "SMART" | "MATURE" | "EXPERT") | null;
+                progressToNext: number;
+                dimensions: {
+                    key: string;
+                    label: string;
+                    weight: number;
+                    score: number;
+                }[];
+                gates: {
+                    /** @enum {string} */
+                    stage: "BORN" | "BABY" | "GROWING" | "SMART" | "MATURE" | "EXPERT";
+                    id: string;
+                    label: string;
+                    met: boolean;
+                    /** @enum {string} */
+                    section: "identity" | "products" | "policies" | "voice" | "fields" | "instructions" | "guardrails" | "logic" | "kb";
+                }[];
+                requirements: {
+                    /** @enum {string} */
+                    kind: "score" | "gate";
+                    id: string;
+                    label: string;
+                    section: ("identity" | "products" | "policies" | "voice" | "fields" | "instructions" | "guardrails" | "logic" | "kb") | null;
+                }[];
+                recommendations: {
+                    id: string;
+                    /** @enum {string} */
+                    severity: "critical" | "important" | "improve";
+                    title: string;
+                    why: string;
+                    /** @enum {string} */
+                    section: "identity" | "products" | "policies" | "voice" | "fields" | "instructions" | "guardrails" | "logic" | "kb";
+                    cta: string;
+                }[];
+                setupCompletion: number;
+                /** @enum {string} */
+                businessKind: "physical" | "service" | "general";
+                stats: {
+                    activeRules: number;
+                    customFields: number;
+                    activeFaqs: number;
+                    products: number;
+                    activeInstructions: number;
+                    issues: number;
+                    conflicts: number;
+                    duplicates: number;
+                };
+            };
         };
         SaveBrainDto: {
             config: {

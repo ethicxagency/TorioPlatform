@@ -822,13 +822,17 @@ model TeamMembership {
 
 /// One validated JSON document per workspace holding the Brain knowledge/rules. `version` is an optimistic-concurrency counter.
 model BrainConfig {
-  id          String   @id @default(uuid(7)) @db.Uuid
-  workspaceId String   @unique @db.Uuid
+  id          String    @id @default(uuid(7)) @db.Uuid
+  workspaceId String    @unique @db.Uuid
   data        Json
-  version     Int      @default(1)
-  updatedById String?  @db.Uuid
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  version     Int       @default(1)
+  /// The maturity evaluation of `data`, written on every save (null until a save under this engine). It is derived data:
+  /// it can always be recomputed from `data`, so a missing or old-engine value is simply recalculated on read.
+  maturity    Json?
+  maturityAt  DateTime?
+  updatedById String?   @db.Uuid
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   updatedBy User?     @relation("BrainConfigUpdater", fields: [updatedById], references: [id], onDelete: SetNull)

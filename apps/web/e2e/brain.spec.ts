@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { emptyBrainConfig, evaluateMaturity, type BrainConfig } from '@torio/contracts';
 import { brainState, mockApi } from './mocks';
 
 test.describe('brain (admin)', () => {
@@ -6,6 +7,7 @@ test.describe('brain (admin)', () => {
   test.beforeEach(async ({ page }) => {
     brainState.version = 3;
     brainState.puts.length = 0;
+    brainState.config = null;
     await mockApi(page, { role: 'ADMIN' });
     await page.goto('/brain');
     await expect(page.getByRole('heading', { name: 'Brain', level: 1 })).toBeVisible();
@@ -137,6 +139,185 @@ test.describe('brain (admin)', () => {
     ).toBe(false);
     await page.getByRole('tab', { name: 'Test AI' }).click();
     await expect(page.getByLabel('Customer message')).toBeVisible();
+  });
+
+  test('the hero shows the real maturity: BORN for a sparse Brain, with its score, dimensions and journey', async ({
+    page,
+  }) => {
+    const hero = page.getByRole('region', { name: 'Brain overview' });
+    await expect(hero.getByTestId('maturity-stage')).toHaveText('BORN');
+    await expect(
+      hero.getByRole('img', { name: /intelligence score \d+ out of 100, stage Born/ }),
+    ).toBeVisible();
+    // four dimensions, each a real number out of 100
+    const dims = hero.getByRole('list', { name: 'Intelligence dimensions' }).getByRole('listitem');
+    await expect(dims).toHaveCount(4);
+    for (const n of [
+      'Information Quality',
+      'Knowledge Completeness',
+      'Information Validity',
+      'Operational Intelligence',
+    ])
+      await expect(dims.filter({ hasText: n }).getByText(/\/100/)).toBeVisible();
+    // journey: six stages, Born is current, the rest locked
+    const steps = hero.getByRole('list', { name: 'Growth journey' }).getByRole('listitem');
+    await expect(steps).toHaveCount(6);
+    await expect(steps.first()).toHaveAttribute('data-state', 'current');
+    await expect(steps.nth(1)).toHaveAttribute('data-state', 'locked');
+    await expect(hero.getByText('Next:')).toContainText('Baby');
+  });
+
+  test('setup completion and issues come from real data, and last saved is honest', async ({
+    page,
+  }) => {
+    const hero = page.getByRole('region', { name: 'Brain overview' });
+    await expect(hero.getByText('Setup completion', { exact: true })).toBeVisible();
+    await expect(hero.getByText('Configuration valid')).toBeVisible();
+    await expect(hero.getByText('Active rules', { exact: true })).toBeVisible();
+    await expect(hero.getByText('Custom fields', { exact: true })).toBeVisible();
+    await expect(hero.getByText('Knowledge base', { exact: true })).toBeVisible();
+    await expect(hero.getByText(/ago|Just now|Never/).first()).toBeVisible();
+  });
+
+  test('the next step is the highest-priority gap and its button opens that section', async ({
+    page,
+  }) => {
+    const cta = page.getByRole('button', { name: 'Complete Business Profile' });
+    await expect(cta).toBeVisible();
+    await expect(page.getByText('Your next step')).toBeVisible();
+    await page.getByRole('heading', { name: 'Knowledge Base' }).scrollIntoViewIfNeeded();
+    await cta.click();
+    await expect(page.getByRole('heading', { name: 'Business Profile' })).toBeInViewport();
+  });
+
+  test('a richer saved Brain moves the stage, and the journey reflects the server’s evaluation', async ({
+    page,
+  }) => {
+    const d: BrainConfig = emptyBrainConfig();
+    d.identity = {
+      ...d.identity,
+      name: 'Lumi Learning',
+      category: 'Education',
+      country: 'Bangladesh',
+      website: 'https://lumi.example.com',
+      description:
+        'Lumi Learning runs live online courses in spoken English and coding for school students.',
+      audience: 'Parents of students from grade six to ten who want structured weekend classes',
+      usp: 'Small batches of eight students with weekly progress reports for parents',
+      positioning: 'Affordable, structured and friendly online tuition for school students',
+    };
+    d.products = ['Spoken English', 'Python Basics', 'Math Olympiad'].map((n, i) => ({
+      id: `p${i}`,
+      name: n,
+      category: 'Course',
+      description: `${n} is an eight week live course with weekly assignments, recorded sessions and a certificate at the end.`,
+      price: '3000',
+      variants: '',
+      sizes: '',
+      colors: '',
+      stock: 'In stock' as const,
+      benefits: 'Builds confidence through live practice and personal feedback every week',
+      usage: 'Join from any device using the class link sent on the morning of each session',
+      limitations: 'Not suitable for students below grade five',
+      faqs: '',
+    }));
+    d.faqs = [
+      [
+        'What age group is this for?',
+        'Students from grade six to ten, grouped into small batches by level.',
+      ],
+      [
+        'Are classes recorded?',
+        'Yes, every live session is recorded and shared within two hours after class.',
+      ],
+      [
+        'How do I pay the fee?',
+        'Pay through bKash or card at checkout; instalments are available for longer courses.',
+      ],
+    ].map(([q, a], i) => ({ id: `f${i}`, q: q!, a: a!, cat: 'General' as const, active: true }));
+    brainState.config = d;
+    const expected = evaluateMaturity(d);
+    expect(expected.stage).not.toBe('BORN');
+    await page.reload();
+    const hero = page.getByRole('region', { name: 'Brain overview' });
+    await expect(hero.getByTestId('maturity-stage')).toHaveText(expected.stage);
+    await expect(
+      hero.getByRole('img', { name: new RegExp(`score ${expected.score} out of 100`) }),
+    ).toBeVisible();
+    const steps = hero.getByRole('list', { name: 'Growth journey' }).getByRole('listitem');
+    for (let i = 0; i < 6; i++)
+      await expect(steps.nth(i)).toHaveAttribute(
+        'data-state',
+        i < expected.stageIndex ? 'done' : i === expected.stageIndex ? 'current' : 'locked',
+      );
+    await expect(
+      hero.getByText('Knowledge base', { exact: true }).locator('..').locator('..'),
+    ).toContainText('3');
+    // the dimension numbers on screen are the engine's
+    for (const x of expected.dimensions)
+      await expect(hero.getByRole('progressbar', { name: x.label, exact: true })).toHaveAttribute(
+        'aria-valuenow',
+        String(x.score),
+      );
+  });
+
+  test('saving updates the evaluation from the server; unsaved edits are not scored', async ({
+    page,
+  }) => {
+    const hero = page.getByRole('region', { name: 'Brain overview' });
+    const score = async () =>
+      Number(
+        /score (\d+)/.exec(
+          (await hero.getByRole('img', { name: /intelligence score/ }).getAttribute('aria-label'))!,
+        )![1],
+      );
+    const before = await score();
+    await page
+      .getByLabel('Brand description')
+      .fill(
+        'UrbanNest sells handmade ceramic vases, planters and table lamps designed for small Dhaka apartments.',
+      );
+    await expect(hero.getByText(/Scores describe your last saved Brain/)).toBeVisible();
+    expect(await score()).toBe(before); // not scored until saved
+    await page.getByRole('button', { name: 'Save Changes' }).click();
+    await expect(page.getByText('Brain saved.')).toBeVisible();
+    await expect(hero.getByText(/Scores describe your last saved Brain/)).toHaveCount(0);
+    await expect.poll(score).toBeGreaterThan(before);
+  });
+
+  test('a real validation problem shows in the Issues card and becomes the first thing to fix', async ({
+    page,
+  }) => {
+    const d = emptyBrainConfig();
+    d.identity.name = 'UrbanNest';
+    d.instructions = [
+      {
+        id: 'i1',
+        title: 'Greeting',
+        content: '',
+        category: 'General',
+        priority: 'High',
+        enabled: true,
+        conditions: '',
+        example: '',
+        expected: '',
+      },
+    ];
+    brainState.config = d;
+    await page.reload();
+    const hero = page.getByRole('region', { name: 'Brain overview' });
+    await expect(hero.getByText('Fix before saving')).toBeVisible();
+    await expect(hero.getByText('Fix this first')).toBeVisible();
+    await expect(hero.getByText('Configuration valid')).toHaveCount(0);
+  });
+
+  test('the hero fits a phone without horizontal scroll', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/brain');
+    await expect(page.getByTestId('maturity-stage')).toBeVisible();
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
+    ).toBe(false);
   });
 });
 

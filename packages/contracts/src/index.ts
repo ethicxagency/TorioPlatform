@@ -901,6 +901,7 @@ export const updateTeamSchema = z.object({
 export type UpdateTeamInput = z.infer<typeof updateTeamSchema>;
 
 export * from './brain';
+export * from './brain-maturity';
 export * from './brain-preview';
 export * from './orders';
 export * from './currency';

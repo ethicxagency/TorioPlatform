@@ -2,10 +2,15 @@ import { BadRequestException, ConflictException, Injectable } from '@nestjs/comm
 import {
   brainConfigSchema,
   changedSections,
+  brainMaturitySchema,
   emptyBrainConfig,
+  evaluateMaturity,
   issuesOf,
+  MATURITY_ENGINE_VERSION,
   type BrainConfig,
+  type BrainMaturity,
 } from '@torio/contracts';
+import type { Prisma } from '@torio/database';
 import { PrismaService } from '../../database/prisma.service';
 
 /**
@@ -22,15 +27,32 @@ export class BrainService {
       where: { workspaceId },
       include: { updatedBy: { select: { id: true, name: true } } },
     });
-    if (!row) return { config: emptyBrainConfig(), version: 0, updatedAt: null, updatedBy: null };
+    if (!row) {
+      const config = emptyBrainConfig();
+      return {
+        config,
+        version: 0,
+        updatedAt: null,
+        updatedBy: null,
+        maturity: evaluateMaturity(config),
+      };
+    }
     // Stored data was validated on write; re-parse so older documents gain new defaults/limits and never leak unexpected keys.
     const parsed = brainConfigSchema.safeParse(row.data);
+    const config = parsed.success ? parsed.data : emptyBrainConfig();
     return {
-      config: parsed.success ? parsed.data : emptyBrainConfig(),
+      config,
+      // The evaluation stored at the last save when it is current; otherwise recomputed from the saved document.
+      maturity: this.storedMaturity(row.maturity) ?? evaluateMaturity(config),
       version: row.version,
       updatedAt: row.updatedAt.toISOString(),
       updatedBy: row.updatedBy,
     };
+  }
+
+  private storedMaturity(v: unknown): BrainMaturity | null {
+    const p = brainMaturitySchema.safeParse(v);
+    return p.success && p.data.engine === MATURITY_ENGINE_VERSION ? p.data : null;
   }
 
   get(workspaceId: string) {
@@ -51,16 +73,23 @@ export class BrainService {
         'Brain was changed by someone else. Reload to see the latest version before saving.',
       );
     const changed = changedSections(before.config, config);
+    // Scored from exactly what is being persisted, in the same write, so the stored evaluation can never describe an
+    // older document. It is cheap and deterministic, and it never blocks or fails the save of the knowledge itself.
+    const maturity = evaluateMaturity(config);
+    const maturityData = {
+      maturity: maturity as unknown as Prisma.InputJsonValue,
+      maturityAt: new Date(maturity.evaluatedAt),
+    };
     await db.$transaction(async (tx) => {
       if (baseVersion === 0) {
         // Unique workspaceId makes a concurrent first save fail instead of duplicating.
         await tx.brainConfig.create({
-          data: { workspaceId, data: config, version: 1, updatedById: userId },
+          data: { workspaceId, data: config, version: 1, updatedById: userId, ...maturityData },
         });
       } else {
         const res = await tx.brainConfig.updateMany({
           where: { workspaceId, version: baseVersion },
-          data: { data: config, version: baseVersion + 1, updatedById: userId },
+          data: { data: config, version: baseVersion + 1, updatedById: userId, ...maturityData },
         });
         if (res.count !== 1)
           throw new ConflictException(

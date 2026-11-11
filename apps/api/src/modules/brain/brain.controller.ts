@@ -1,13 +1,13 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Put, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
-import { brainDocumentSchema, saveBrainSchema } from '@torio/contracts';
+import { brainDocumentWithMaturitySchema, saveBrainSchema } from '@torio/contracts';
 import { createZodDto } from 'nestjs-zod';
 import { CurrentUser, RequirePermission } from '../../common/decorators';
 import { WorkspaceAccessGuard } from '../../common/guards/workspace-access.guard';
 import type { AuthUser } from '../../common/types';
 import { BrainService } from './brain.service';
 
-class BrainDocumentDto extends createZodDto(brainDocumentSchema) {}
+class BrainDocumentDto extends createZodDto(brainDocumentWithMaturitySchema) {}
 class SaveBrainDto extends createZodDto(saveBrainSchema) {}
 
 @ApiTags('brain')

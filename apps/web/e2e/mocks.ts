@@ -1,5 +1,7 @@
 import type { Page } from '@playwright/test';
 
+import { evaluateMaturity, type BrainConfig } from '@torio/contracts';
+
 const WS = '11111111-1111-4111-8111-111111111111';
 const USER = {
   id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -119,7 +121,12 @@ export const MEMBERS = [
   },
 ];
 
-export const brainState = { version: 3, puts: [] as unknown[] };
+export const brainState = {
+  version: 3,
+  puts: [] as unknown[],
+  /** A saved config set by a test; otherwise the default sparse one. */
+  config: null as unknown,
+};
 const brainConfig = () => ({
   identity: {
     name: 'UrbanNest (test)',
@@ -1635,15 +1642,20 @@ export async function mockApi(
             409,
           );
         brainState.version += 1;
+        brainState.config = b.config;
         return reply({
           config: b.config,
+          // The real server evaluates the document it just saved, with the same shared engine.
+          maturity: evaluateMaturity(b.config as BrainConfig),
           version: brainState.version,
           updatedAt: iso(0),
           updatedBy: { id: USER.id, name: USER.name },
         });
       }
+      const cfg = (brainState.config ?? brainConfig()) as BrainConfig;
       return reply({
-        config: brainConfig(),
+        config: cfg,
+        maturity: evaluateMaturity(cfg),
         version: brainState.version,
         updatedAt: iso(120),
         updatedBy: { id: USER.id, name: USER.name },

@@ -1,7 +1,7 @@
 'use client';
 
 import { areas, changedSections, issuesOf, readinessPct, type BrainConfig } from '@torio/contracts';
-import { Brain, Check, Loader2, Sparkles, TriangleAlert, Undo2 } from 'lucide-react';
+import { Check, Loader2, Sparkles, Undo2 } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShell } from '@/components/shell/shell-context';
@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useWorkspace } from '@/lib/workspace';
 import { cn } from '@/lib/utils';
 import { useBrain, useSaveBrain, type BrainDoc } from '../queries';
-import { fmtAgoIso, Pill } from './bits';
+import { BrainHero } from './brain-hero';
 import { Playground, type PlaygroundHandle } from './playground';
 import { Readiness } from './readiness';
 import { FieldsSection } from './sections-fields';
@@ -265,7 +265,6 @@ function BrainEditor({
     setTimeout(() => play.current?.ask(msg), wide ? 0 : 60);
   };
 
-  const activeRules = draft.logic.filter((r) => r.enabled).length;
   const bundle = { d: draft, mut, canWrite };
 
   const knowledge = (
@@ -363,116 +362,74 @@ function BrainEditor({
 
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 pb-8 pt-5 sm:px-6">
-      <header className="flex flex-wrap items-start gap-4">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary-line bg-primary-soft">
-          <Brain size={22} className="text-primary" />
-        </span>
-        <div className="min-w-0 flex-1 basis-72">
-          <h1 className="m-0 font-page-title">Brain</h1>
-          <p className="m-0 text-sm font-medium text-primary-hover">
-            Your business. Your rules. Your AI.
-          </p>
-          <p className="m-0 mt-1 max-w-[640px] text-[13.5px] text-muted">
-            Teach Torio how your business works, what your customers need, and how your AI should
-            respond.
-          </p>
-          <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12.5px]">
-            <button
-              type="button"
-              onClick={() => readyRef.current?.scrollIntoView({ behavior: 'smooth' })}
-              className="flex cursor-pointer items-center gap-2"
-            >
-              <span className="h-1.5 w-20 overflow-hidden rounded-full bg-wash-2" aria-hidden>
-                <span
-                  className="block h-full rounded-full bg-primary"
-                  style={{ width: `${pct}%` }}
-                />
-              </span>
-              <span className="font-semibold tabular-nums">{pct}% ready</span>
-            </button>
-            <span className="text-muted">
-              {activeRules} active rule{activeRules === 1 ? '' : 's'}
-            </span>
-            <span className="text-muted">
-              {draft.customFields.length} custom field{draft.customFields.length === 1 ? '' : 's'}
-            </span>
-            {issues.length > 0 ? (
-              <Pill tone="bad">
-                <TriangleAlert size={11} className="mr-1" />
-                {issues.length} issue{issues.length > 1 ? 's' : ''}
-              </Pill>
-            ) : (
-              <Pill tone="ok">
-                <Check size={11} className="mr-1" />
-                Configuration valid
-              </Pill>
+      <BrainHero
+        maturity={saved.maturity}
+        liveIssues={issues.length}
+        dirty={dirty}
+        savedAt={saved.updatedAt}
+        savedBy={saved.updatedBy?.name ?? null}
+        onGoTo={goTo}
+        actions={
+          <>
+            {dirty && (
+              <div className="relative">
+                <button
+                  type="button"
+                  aria-expanded={showChanges}
+                  onClick={() => setShowChanges((v) => !v)}
+                  className="flex h-9 cursor-pointer items-center gap-1.5 rounded-[9px] border border-[#FBE3B5] bg-warning-soft px-2.5 text-[12.5px] font-medium text-[#7A4700]"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#D98A00]" />
+                  Unsaved changes ({changed.length})
+                </button>
+                {showChanges && (
+                  <div className="absolute right-0 top-11 z-30 w-60 animate-panel-in rounded-xl border border-line glass-menu p-3 shadow-popover">
+                    <div className="mb-1 text-xs font-semibold text-faint">Changed sections</div>
+                    <ul className="m-0 mb-2 list-none p-0 text-[13px]">
+                      {changed.map((c) => (
+                        <li key={c}>{c}</li>
+                      ))}
+                    </ul>
+                    <Button size="sm" variant="outline" onClick={discard}>
+                      <Undo2 size={13} />
+                      Discard changes
+                    </Button>
+                  </div>
+                )}
+              </div>
             )}
-            <span className="text-faint">
-              {saved.updatedAt
-                ? `Last saved ${fmtAgoIso(saved.updatedAt)}${saved.updatedBy ? ` by ${saved.updatedBy.name}` : ''}`
-                : 'Never saved'}
-            </span>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {dirty && (
-            <div className="relative">
-              <button
-                type="button"
-                aria-expanded={showChanges}
-                onClick={() => setShowChanges((v) => !v)}
-                className="flex h-9 cursor-pointer items-center gap-1.5 rounded-[9px] border border-[#FBE3B5] bg-warning-soft px-2.5 text-[12.5px] font-medium text-[#7A4700]"
+            {canWrite && (
+              <Button
+                disabled={!dirty || saveState === 'saving'}
+                onClick={doSave}
+                variant={saveState === 'error' ? 'outline' : 'primary'}
+                className={cn('h-9', saveState === 'error' && 'border-danger text-danger')}
+                aria-live="polite"
               >
-                <span className="h-1.5 w-1.5 rounded-full bg-[#D98A00]" />
-                Unsaved changes ({changed.length})
-              </button>
-              {showChanges && (
-                <div className="absolute right-0 top-11 z-30 w-60 animate-panel-in rounded-xl border border-line glass-menu p-3 shadow-popover">
-                  <div className="mb-1 text-xs font-semibold text-faint">Changed sections</div>
-                  <ul className="m-0 mb-2 list-none p-0 text-[13px]">
-                    {changed.map((c) => (
-                      <li key={c}>{c}</li>
-                    ))}
-                  </ul>
-                  <Button size="sm" variant="outline" onClick={discard}>
-                    <Undo2 size={13} />
-                    Discard changes
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-          {canWrite && (
-            <Button
-              disabled={!dirty || saveState === 'saving'}
-              onClick={doSave}
-              variant={saveState === 'error' ? 'outline' : 'primary'}
-              className={cn('h-9', saveState === 'error' && 'border-danger text-danger')}
-              aria-live="polite"
-            >
-              {saveState === 'saving' ? (
-                <>
-                  <Loader2 size={14} className="animate-spin" />
-                  Saving…
-                </>
-              ) : saveState === 'saved' && !dirty ? (
-                <>
-                  <Check size={14} />
-                  Saved
-                </>
-              ) : saveState === 'error' ? (
-                'Fix & save'
-              ) : (
-                'Save Changes'
-              )}
+                {saveState === 'saving' ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Saving…
+                  </>
+                ) : saveState === 'saved' && !dirty ? (
+                  <>
+                    <Check size={14} />
+                    Saved
+                  </>
+                ) : saveState === 'error' ? (
+                  'Fix & save'
+                ) : (
+                  'Save Changes'
+                )}
+              </Button>
+            )}
+            <Button variant="dark" className="h-9" onClick={testAI}>
+              <Sparkles size={14} />
+              Test AI
             </Button>
-          )}
-          <Button variant="dark" className="h-9" onClick={testAI}>
-            <Sparkles size={14} />
-            Test AI
-          </Button>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       {conflict && (
         <div

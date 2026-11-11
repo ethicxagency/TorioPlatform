@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { BrainConfig } from '@torio/contracts';
+import type { BrainConfig, BrainMaturity } from '@torio/contracts';
 import { api } from '@/lib/api';
 import { ApiRequestError } from '@/features/leads/queries';
 
@@ -12,6 +12,8 @@ const fail = (e: unknown, fallback: string, status?: number) =>
 
 export interface BrainDoc {
   config: BrainConfig;
+  /** The server's evaluation of this saved document. */
+  maturity: BrainMaturity;
   version: number;
   updatedAt: string | null;
   updatedBy: { id: string; name: string } | null;

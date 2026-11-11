@@ -16995,13 +16995,330 @@
                 "type": "null"
               }
             ]
+          },
+          "maturity": {
+            "type": "object",
+            "properties": {
+              "engine": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "evaluatedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              "score": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "stage": {
+                "type": "string",
+                "enum": [
+                  "BORN",
+                  "BABY",
+                  "GROWING",
+                  "SMART",
+                  "MATURE",
+                  "EXPERT"
+                ]
+              },
+              "stageIndex": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "nextStage": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "BORN",
+                      "BABY",
+                      "GROWING",
+                      "SMART",
+                      "MATURE",
+                      "EXPERT"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "progressToNext": {
+                "type": "number"
+              },
+              "dimensions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "weight": {
+                      "type": "number"
+                    },
+                    "score": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "label",
+                    "weight",
+                    "score"
+                  ]
+                }
+              },
+              "gates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "stage": {
+                      "type": "string",
+                      "enum": [
+                        "BORN",
+                        "BABY",
+                        "GROWING",
+                        "SMART",
+                        "MATURE",
+                        "EXPERT"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "met": {
+                      "type": "boolean"
+                    },
+                    "section": {
+                      "type": "string",
+                      "enum": [
+                        "identity",
+                        "products",
+                        "policies",
+                        "voice",
+                        "fields",
+                        "instructions",
+                        "guardrails",
+                        "logic",
+                        "kb"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "stage",
+                    "id",
+                    "label",
+                    "met",
+                    "section"
+                  ]
+                }
+              },
+              "requirements": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "score",
+                        "gate"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "section": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "identity",
+                            "products",
+                            "policies",
+                            "voice",
+                            "fields",
+                            "instructions",
+                            "guardrails",
+                            "logic",
+                            "kb"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id",
+                    "label",
+                    "section"
+                  ]
+                }
+              },
+              "recommendations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "severity": {
+                      "type": "string",
+                      "enum": [
+                        "critical",
+                        "important",
+                        "improve"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "why": {
+                      "type": "string"
+                    },
+                    "section": {
+                      "type": "string",
+                      "enum": [
+                        "identity",
+                        "products",
+                        "policies",
+                        "voice",
+                        "fields",
+                        "instructions",
+                        "guardrails",
+                        "logic",
+                        "kb"
+                      ]
+                    },
+                    "cta": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "severity",
+                    "title",
+                    "why",
+                    "section",
+                    "cta"
+                  ]
+                }
+              },
+              "setupCompletion": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "businessKind": {
+                "type": "string",
+                "enum": [
+                  "physical",
+                  "service",
+                  "general"
+                ]
+              },
+              "stats": {
+                "type": "object",
+                "properties": {
+                  "activeRules": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "customFields": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "activeFaqs": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "products": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "activeInstructions": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "issues": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "conflicts": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "duplicates": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "activeRules",
+                  "customFields",
+                  "activeFaqs",
+                  "products",
+                  "activeInstructions",
+                  "issues",
+                  "conflicts",
+                  "duplicates"
+                ]
+              }
+            },
+            "required": [
+              "engine",
+              "evaluatedAt",
+              "score",
+              "stage",
+              "stageIndex",
+              "nextStage",
+              "progressToNext",
+              "dimensions",
+              "gates",
+              "requirements",
+              "recommendations",
+              "setupCompletion",
+              "businessKind",
+              "stats"
+            ]
           }
         },
         "required": [
           "config",
           "version",
           "updatedAt",
-          "updatedBy"
+          "updatedBy",
+          "maturity"
         ]
       },
       "SaveBrainDto": {
