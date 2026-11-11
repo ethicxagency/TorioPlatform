@@ -19,6 +19,7 @@ import {
   deletionRequestSchema,
   deletionSignedInRequestSchema,
   deletionStatusViewSchema,
+  myPrivacyRequestsSchema,
   tokenBodySchema,
 } from '@torio/contracts';
 import { createZodDto } from 'nestjs-zod';
@@ -32,6 +33,7 @@ class SignedInDto extends createZodDto(deletionSignedInRequestSchema) {}
 class TokenDto extends createZodDto(tokenBodySchema) {}
 class CreatedDto extends createZodDto(deletionCreatedSchema) {}
 class StatusDto extends createZodDto(deletionStatusViewSchema) {}
+class MineDto extends createZodDto(myPrivacyRequestsSchema) {}
 class AdminListDto extends createZodDto(adminDeletionListSchema) {}
 class RejectDto extends createZodDto(adminDeletionRejectSchema) {}
 
@@ -57,6 +59,13 @@ export class AccountDeletionController {
   @ApiOkResponse({ type: CreatedDto })
   signedIn(@CurrentUser() user: AuthUser, @Body() b: SignedInDto, @Ip() ip: string) {
     return this.svc.requestSignedIn(user.id, b, ip);
+  }
+
+  /** The caller's own privacy requests (never anyone else's). */
+  @Get('my-requests')
+  @ApiOkResponse({ type: MineDto })
+  mine(@CurrentUser() user: AuthUser) {
+    return this.svc.mine(user.id);
   }
 
   @Public()

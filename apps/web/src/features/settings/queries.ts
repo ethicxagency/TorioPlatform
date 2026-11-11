@@ -157,3 +157,41 @@ export async function downloadMyData() {
   a.click();
   URL.revokeObjectURL(a.href);
 }
+
+export type PrivacyRequest = ApiSchemas['MineDto']['data'][number];
+
+/** The signed-in person's own privacy requests (today: account deletion), newest first. */
+export function usePrivacyRequests() {
+  const { status } = useAuth();
+  return useQuery({
+    queryKey: ['privacy-requests'] as const,
+    enabled: status === 'authed',
+    queryFn: async () => {
+      const { data, error, response } = await api.GET('/api/v1/account-deletion/my-requests');
+      if (!data) throw fail(error, 'Could not load your privacy requests', response.status);
+      return data.data;
+    },
+  });
+}
+
+/** Asks for deletion. With a password the request is verified at once; without one an emailed link confirms it. */
+export function useRequestDeletion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (b: { password?: string; reason?: string }) => {
+      const { data, error, response } = await api.POST('/api/v1/account-deletion/requests/me', {
+        body: { ...b, confirm: true },
+      });
+      if (!data)
+        throw fail(
+          error,
+          response.status === 401
+            ? 'That password is not correct.'
+            : 'The request could not be created. Try again shortly.',
+          response.status,
+        );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['privacy-requests'] }),
+  });
+}

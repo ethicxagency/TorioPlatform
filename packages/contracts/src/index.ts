@@ -78,6 +78,15 @@ export const deletionStatusViewSchema = z.object({
   /** Only when rejected. */
   rejectionReason: z.string().nullable(),
 });
+/** The signed-in person's own privacy requests, newest first (today: account deletion requests). */
+export const myPrivacyRequestsSchema = z.object({
+  data: z.array(
+    deletionStatusViewSchema.extend({
+      type: z.literal('ACCOUNT_DELETION'),
+      processedAt: z.iso.datetime().nullable(),
+    }),
+  ),
+});
 /** `reference`/`status` are present only once a request really exists; an emailed-link request answers with `verificationSent`. */
 export const deletionCreatedSchema = z.object({
   verificationSent: z.boolean(),

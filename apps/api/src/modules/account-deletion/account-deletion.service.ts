@@ -183,6 +183,26 @@ export class AccountDeletionService {
     return { reference: row.reference, status: 'VERIFIED' as const };
   }
 
+  /** Only the caller's own requests. Requests still waiting for the emailed confirmation are not shown: they do not exist for the customer yet. */
+  async mine(userId: string) {
+    const rows = await this.prisma.client.accountDeletionRequest.findMany({
+      where: { userId, status: { not: 'PENDING_VERIFICATION' } },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+    return {
+      data: rows.map((r) => ({
+        type: 'ACCOUNT_DELETION' as const,
+        reference: r.reference,
+        status: r.status,
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+        processedAt: r.processedAt?.toISOString() ?? null,
+        rejectionReason: r.status === 'REJECTED' ? r.rejectionReason : null,
+      })),
+    };
+  }
+
   async statusOf(reference: string) {
     const r = await this.prisma.client.accountDeletionRequest.findUnique({ where: { reference } });
     if (!r) throw new NotFoundException('No request with that reference.');

@@ -1097,6 +1097,7 @@ export const deletionState = {
   requests: [] as unknown[],
   signedIn: [] as unknown[],
   verifies: [] as string[],
+  mine: [] as unknown[],
   mailConfigured: true,
   goodToken: 'good-deletion-token-000000000000',
 };
@@ -1104,6 +1105,7 @@ export function resetDeletion() {
   deletionState.requests = [];
   deletionState.signedIn = [];
   deletionState.verifies = [];
+  deletionState.mine = [];
   deletionState.mailConfigured = true;
 }
 
@@ -1171,11 +1173,22 @@ export async function mockApi(
             503,
           );
     }
+    if (p === '/account-deletion/my-requests') return reply({ data: deletionState.mine });
     if (p === '/account-deletion/requests/me') {
       const b = req.postDataJSON() as { password?: string };
       deletionState.signedIn.push(b);
       if (b.password && b.password !== 'Correct-pass-1')
         return reply({ error: { message: 'That password is not correct.' } }, 401);
+      if (b.password)
+        deletionState.mine.unshift({
+          reference: 'TDR-AAAAA-BBBBB-CCCCC-DDDDD',
+          type: 'ACCOUNT_DELETION',
+          status: 'VERIFIED',
+          createdAt: iso(0),
+          updatedAt: iso(0),
+          processedAt: null,
+          rejectionReason: null,
+        });
       return b.password
         ? reply({
             verificationSent: false,

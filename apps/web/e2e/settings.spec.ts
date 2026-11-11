@@ -164,14 +164,55 @@ test.describe('settings (owner)', () => {
     );
   });
 
-  test('privacy: exports only after the server responds; deletion is not offered', async ({
+  test('privacy: exports only after the server responds', async ({ page }) => {
+    await page.goto('/settings/privacy');
+    await expect(page.getByRole('heading', { name: 'Data & Privacy' })).toBeVisible();
+    await expect(page.getByText('Your data. Your privacy. Your control.')).toBeVisible();
+    await expect(page.getByText('Not requested')).toBeVisible();
+    const dl = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Request data export' }).click();
+    expect((await dl).suggestedFilename()).toMatch(/^torio-my-data-/);
+    await expect(page.getByText('Ready', { exact: true })).toBeVisible();
+  });
+
+  test('privacy: honest controls, policy link, and empty request history', async ({ page }) => {
+    await page.goto('/settings/privacy');
+    await expect(page.getByRole('link', { name: /View policy/ })).toHaveAttribute(
+      'href',
+      '/privacy-policy',
+    );
+    await expect(page.getByText('Not available yet')).toBeVisible();
+    await expect(page.getByText('No privacy requests yet')).toBeVisible();
+    await expect(page.getByRole('switch')).toHaveCount(0);
+  });
+
+  test('privacy: deletion needs explicit confirmation and shows up in history', async ({
     page,
   }) => {
     await page.goto('/settings/privacy');
-    const dl = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Download my data' }).click();
-    expect((await dl).suggestedFilename()).toMatch(/^torio-my-data-/);
-    await expect(page.getByRole('button', { name: /delete/i })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Request deletion' }).click();
+    const dlg = page.getByRole('dialog');
+    const submit = dlg.getByRole('button', { name: 'Request deletion' });
+    await expect(submit).toBeDisabled();
+    await dlg.getByLabel('Password', { exact: true }).fill('Wrong-pass-1');
+    await dlg.getByRole('checkbox').check();
+    await submit.click();
+    await expect(dlg.getByRole('alert')).toContainText('not correct');
+    await dlg.getByLabel('Password', { exact: true }).fill('Correct-pass-1');
+    await submit.click();
+    await expect(dlg.getByText('TDR-AAAAA-BBBBB-CCCCC-DDDDD')).toBeVisible();
+    await dlg.getByRole('button', { name: 'Done' }).click();
+    await expect(page.getByRole('cell', { name: 'TDR-AAAAA-BBBBB-CCCCC-DDDDD' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Request deletion' })).toBeDisabled();
+  });
+
+  test('privacy: no horizontal overflow on a phone', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/settings/privacy');
+    await expect(page.getByRole('heading', { name: 'Data & Privacy' })).toBeVisible();
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
   });
 
   test('audit log lists entries for Owner', async ({ page }) => {

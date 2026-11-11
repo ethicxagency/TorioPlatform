@@ -368,4 +368,43 @@ describe.skipIf(!url)('account deletion (real PostgreSQL, fake email provider)',
     expect(JSON.stringify(r.body)).toMatch(/Email delivery isn.t set up/);
     mail.c.RESEND_API_KEY = key;
   });
+
+  it("my-requests lists only the caller's own requests, and needs a session", async () => {
+    const a = await mkUser('mine-a');
+    const b = await mkUser('mine-b');
+    await http().get('/api/v1/account-deletion/my-requests').expect(401);
+    expect(
+      (
+        await http()
+          .get('/api/v1/account-deletion/my-requests')
+          .set(await bearer(a))
+          .expect(200)
+      ).body.data,
+    ).toEqual([]);
+    await post('/requests/me')
+      .set(await bearer(a))
+      .send({ password: PW, confirm: true })
+      .expect(200);
+    const mineA = (
+      await http()
+        .get('/api/v1/account-deletion/my-requests')
+        .set(await bearer(a))
+        .expect(200)
+    ).body.data;
+    expect(mineA).toHaveLength(1);
+    expect(mineA[0]).toMatchObject({
+      type: 'ACCOUNT_DELETION',
+      status: 'VERIFIED',
+      processedAt: null,
+    });
+    // another person sees none of it
+    expect(
+      (
+        await http()
+          .get('/api/v1/account-deletion/my-requests')
+          .set(await bearer(b))
+          .expect(200)
+      ).body.data,
+    ).toEqual([]);
+  });
 });
