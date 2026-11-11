@@ -125,8 +125,8 @@ test.describe('global header', () => {
   });
 
   test('billing stays reachable through its own route', async ({ page }) => {
-    await page.goto('/billing');
-    await expect(page).toHaveURL(/\/billing$/);
+    await page.goto('/billing/invoices');
+    await expect(page).toHaveURL(/\/billing\/invoices$/);
   });
 
   test('phone header stays on one row without overflow', async ({ page }) => {

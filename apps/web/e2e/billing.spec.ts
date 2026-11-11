@@ -1,11 +1,15 @@
 import { expect, test, type Page } from '@playwright/test';
 import { billingState, mockApi, resetBilling } from './mocks';
 
+/** `tab` is '' (the plan), 'plans' or 'usage' on the Subscription page; 'invoices' opens the Billing page. */
 const open = async (page: Page, tab = '') => {
-  await page.goto(`/billing${tab ? `?tab=${tab}` : ''}`);
-  await expect(
-    page.getByRole('heading', { name: /Billing & Subscriptions/, level: 1 }),
-  ).toBeVisible();
+  if (tab === 'invoices' || tab === 'payment-methods' || tab === 'info' || tab === 'history') {
+    await page.goto('/billing/invoices');
+    await expect(page.getByRole('heading', { name: 'Billing', level: 1 })).toBeVisible();
+  } else {
+    await page.goto(`/billing/subscription${tab ? `?tab=${tab}` : ''}`);
+    await expect(page.getByRole('heading', { name: /^Subscription/, level: 1 })).toBeVisible();
+  }
 };
 
 test.describe('billing (owner)', () => {
@@ -14,15 +18,14 @@ test.describe('billing (owner)', () => {
     await mockApi(page, { role: 'OWNER' });
   });
 
-  test('free workspace: overview shows the Free plan, honest credits, and an upgrade path', async ({
+  test('free workspace: the Free plan, no invented payment date, and an upgrade path', async ({
     page,
   }) => {
     await open(page);
     await expect(page.getByText('Free plan').first()).toBeVisible();
-    await expect(page.getByText('Not tracked', { exact: true })).toBeVisible();
-    await expect(page.getByText(/AI credits aren.t metered yet/)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Upgrade plan' }).first()).toBeEnabled();
     await expect(page.getByRole('button', { name: 'Cancel subscription' })).toHaveCount(0);
+    await expect(page.getByText('Next payment')).toHaveCount(0); // a free plan has none
   });
 
   test('without a provider, a banner explains nothing can be bought and plan actions are disabled with a reason', async ({
@@ -35,6 +38,8 @@ test.describe('billing (owner)', () => {
     await expect(upgrade).toBeDisabled();
     await expect(upgrade).toHaveAttribute('title', /aren.t connected/);
     await open(page, 'payment-methods');
+    // one concise notice, and the action is disabled with a reason
+    await expect(page.getByText(/Payments aren.t connected/)).toHaveCount(1);
     await expect(page.getByRole('button', { name: 'Add payment method' })).toBeDisabled();
   });
 
@@ -135,14 +140,14 @@ test.describe('billing (owner)', () => {
     await open(page);
     await expect(page.getByText('Cancels at period end').first()).toBeVisible();
     await expect(page.getByText(/keep full access until then/)).toBeVisible();
-    await expect(page.getByText('No renewal: cancellation scheduled')).toBeVisible();
+    await expect(page.getByText('Access until', { exact: true })).toBeVisible(); // no renewal date is shown
     await page.getByRole('button', { name: 'Reactivate subscription' }).click();
     await expect
       .poll(() => billingState.calls.some((c) => c.path.includes('/subscription/resume')))
       .toBe(true);
   });
 
-  test('past due: failed-payment banner, limited access note, retry from history, plan changes blocked', async ({
+  test('past due: failed-payment banner, limited access note, retry from Billing, plan changes blocked', async ({
     page,
   }) => {
     billingState.sub = {
@@ -156,11 +161,7 @@ test.describe('billing (owner)', () => {
     await expect(page.getByText('Past due').first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Change plan' })).toBeDisabled();
     await page.getByRole('button', { name: 'Retry payment' }).first().click();
-    await expect(
-      page
-        .getByRole('navigation', { name: 'Billing sections' })
-        .getByRole('button', { name: 'Billing History' }),
-    ).toHaveAttribute('aria-current', 'location');
+    await expect(page).toHaveURL(/\/billing\/invoices$/);
     await page.getByRole('button', { name: 'Retry payment' }).last().click();
     await expect(page.getByText('Payment retry submitted.').first()).toBeVisible();
   });
@@ -178,6 +179,7 @@ test.describe('billing (owner)', () => {
     );
     await expect(page.getByRole('button', { name: 'Upgrade plan' }).first()).toBeVisible();
     await expect(page.getByText(/AI conversations, AI credits consumed, Storage/)).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Usage and limits' })).toBeVisible();
   });
 
   test('payment methods: masked cards, default badge, set default, confirmed removal; card entry is hosted', async ({
@@ -192,7 +194,9 @@ test.describe('billing (owner)', () => {
     await open(page, 'payment-methods');
     await expect(page.getByText('•••• 4242')).toBeVisible();
     await expect(page.getByText('Default', { exact: true })).toBeVisible();
-    await expect(page.getByText(/never the full number or CVV/)).toBeVisible();
+    await expect(
+      page.getByText(/Torio keeps only the brand, last four digits and expiry/),
+    ).toBeVisible();
     await page.getByRole('button', { name: 'Make default' }).click();
     await expect(
       page.getByRole('status').filter({ hasText: 'Default payment method updated' }),
@@ -207,16 +211,31 @@ test.describe('billing (owner)', () => {
     await page.waitForURL(/pm=1/);
   });
 
-  test('billing history: filters, invoice details with line items, PDF download', async ({
+  test('billing: overview figures, invoice table with currency, status filter, details and PDF', async ({
     page,
   }) => {
-    await open(page, 'history');
+    await open(page, 'invoices');
+    const overview = page.getByRole('list', { name: 'Billing overview' });
+    await expect(
+      overview.getByRole('listitem').filter({ hasText: 'Total invoices' }),
+    ).toContainText('2');
+    await expect(overview.getByRole('listitem').filter({ hasText: 'Paid invoices' })).toContainText(
+      '1',
+    );
+    await expect(overview.getByRole('listitem').filter({ hasText: 'Outstanding' })).toContainText(
+      '$49',
+    );
     await expect(page.getByRole('row', { name: /INV-0003/ })).toBeVisible();
+    await expect(page.getByRole('row', { name: /INV-0003/ })).toContainText('USD');
     await page.getByRole('button', { name: 'Paid', exact: true }).click();
     await expect(page.getByRole('row', { name: /INV-0003/ })).toHaveCount(0);
     await expect(page.getByRole('row', { name: /INV-0002/ })).toBeVisible();
     await page.getByRole('button', { name: 'Refunded' }).click();
-    await expect(page.getByText('No invoices with that status.')).toBeVisible();
+    await expect(page.getByText('No invoices match your filters.')).toBeVisible();
+    // the overview describes the whole history, not the filtered list
+    await expect(
+      overview.getByRole('listitem').filter({ hasText: 'Total invoices' }),
+    ).toContainText('2');
     await page.getByRole('button', { name: 'Paid', exact: true }).click();
     await page
       .getByRole('row', { name: /INV-0002/ })
@@ -227,6 +246,41 @@ test.describe('billing (owner)', () => {
     await expect(d.getByText('Card ending 4242')).toBeVisible();
     await expect(d.getByText('Subtotal')).toBeVisible();
     await expect(d.getByRole('button', { name: 'Download PDF' })).toBeVisible();
+  });
+
+  test('billing: search and date range go to the server, and can be cleared', async ({ page }) => {
+    await open(page, 'invoices');
+    await page.getByLabel('Search invoices').fill('INV-0002');
+    await expect(page.getByRole('row', { name: /INV-0003/ })).toHaveCount(0);
+    await expect(page.getByRole('row', { name: /INV-0002/ })).toBeVisible();
+    expect(billingState.invoiceQueries.some((q) => q.q === 'INV-0002')).toBe(true);
+    await page.getByRole('button', { name: 'Clear filters' }).click();
+    await expect(page.getByRole('row', { name: /INV-0003/ })).toBeVisible();
+    await page.getByLabel('From date').fill('2999-01-01');
+    await expect(page.getByText('No invoices match your filters.')).toBeVisible();
+    expect(billingState.invoiceQueries.some((q) => q.from === '2999-01-01')).toBe(true);
+    await page.getByRole('button', { name: 'Clear filters' }).click();
+    await expect(page.getByRole('row', { name: /INV-0003/ })).toBeVisible();
+  });
+
+  test('billing: with no invoices the empty state says so and nothing is invented', async ({
+    page,
+  }) => {
+    billingState.noInvoices = true;
+    await open(page, 'invoices');
+    await expect(
+      page.getByText(
+        'No invoices yet. Your invoices will appear here when a payment provider issues them.',
+      ),
+    ).toBeVisible();
+    await expect(page.getByRole('row')).toHaveCount(0);
+    const overview = page.getByRole('list', { name: 'Billing overview' });
+    await expect(
+      overview.getByRole('listitem').filter({ hasText: 'Total invoices' }),
+    ).toContainText('0');
+    await expect(overview.getByRole('listitem').filter({ hasText: 'Outstanding' })).toContainText(
+      'None',
+    );
   });
 
   test('billing information validates, saves through the API, and shows saved values', async ({
@@ -252,13 +306,59 @@ test.describe('billing (owner)', () => {
     });
   });
 
-  test('settings links to billing and no horizontal overflow on a phone', async ({ page }) => {
+  test('settings lists Subscription and Billing once each, and the old route redirects', async ({
+    page,
+  }) => {
     await page.goto('/settings');
-    await expect(
-      page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: /Billing/ }),
-    ).toBeVisible();
+    const nav = page.getByRole('navigation', { name: 'Settings' });
+    await expect(nav.getByRole('link', { name: /^Subscription/ })).toHaveCount(1);
+    await expect(nav.getByRole('link', { name: /^Billing$/ })).toHaveCount(1);
+    await expect(nav.getByRole('link', { name: /Billing & Subscriptions/ })).toHaveCount(0);
+    await nav.getByRole('link', { name: /^Subscription/ }).click();
+    await expect(page).toHaveURL(/\/billing\/subscription$/);
+    await expect(nav.getByRole('link', { name: /^Subscription/ })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    await nav.getByRole('link', { name: /^Billing$/ }).click();
+    await expect(page).toHaveURL(/\/billing\/invoices$/);
+    await expect(nav.getByRole('link', { name: /^Billing$/ })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    // the old combined page and its section links
+    await page.goto('/billing');
+    await expect(page).toHaveURL(/\/billing\/subscription$/);
+    await page.goto('/billing?tab=plans');
+    await expect(page).toHaveURL(/\/billing\/subscription\?tab=plans$/);
+    await page.goto('/billing?tab=history');
+    await expect(page).toHaveURL(/\/billing\/invoices\?section=invoices$/);
+    await page.goto('/billing?tab=info');
+    await expect(page).toHaveURL(/\/billing\/invoices\?section=info$/);
+    // a provider return link keeps its result
+    await page.goto('/billing?result=success&pm=1');
+    await expect(page).toHaveURL(/\/billing\/invoices\?result=success&section=payment-methods$/);
+    await page.goto('/billing?result=cancelled');
+    await expect(page).toHaveURL(/\/billing\/subscription\?result=cancelled$/);
+  });
+
+  test('the two pages keep their own content and fit a phone', async ({ page }) => {
+    billingState.sub = {
+      planKey: 'growth',
+      interval: 'MONTH',
+      status: 'ACTIVE',
+      cancelAtPeriodEnd: false,
+    };
+    await open(page);
+    await expect(page.getByRole('heading', { name: 'Usage & limits' })).toBeVisible();
+    await expect(page.getByText('Payment methods', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('table')).toHaveCount(0);
+    await open(page, 'invoices');
+    await expect(page.getByRole('heading', { name: 'Usage & limits' })).toHaveCount(0);
+    await expect(page.getByText('Payment methods', { exact: true })).toBeVisible();
+    await expect(page.getByText('Billing information', { exact: true })).toBeVisible();
     await page.setViewportSize({ width: 390, height: 844 });
-    for (const tab of ['', 'plans', 'usage', 'payment-methods', 'history', 'info']) {
+    for (const tab of ['', 'plans', 'usage', 'invoices']) {
       await open(page, tab);
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
@@ -280,22 +380,19 @@ test.describe('billing (admin and agent)', () => {
     await open(page);
     await expect(page.getByRole('button', { name: 'Cancel subscription' })).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Change plan' })).toBeDisabled();
-    await page
-      .getByRole('navigation', { name: 'Billing sections' })
-      .getByRole('button', { name: 'Billing Information' })
-      .click();
+    await open(page, 'invoices');
     await expect(page.getByRole('button', { name: 'Edit billing information' })).toBeDisabled();
-    await page
-      .getByRole('navigation', { name: 'Billing sections' })
-      .getByRole('button', { name: 'Payment Methods' })
-      .click();
     await expect(page.getByRole('button', { name: 'Add payment method' })).toBeDisabled();
   });
 
   test('agents are told billing is for owners and admins', async ({ page }) => {
     resetBilling();
     await mockApi(page, { role: 'AGENT' });
-    await page.goto('/billing');
+    await page.goto('/billing/subscription');
+    await expect(
+      page.getByText('Billing is available to workspace owners and admins.'),
+    ).toBeVisible();
+    await page.goto('/billing/invoices');
     await expect(
       page.getByText('Billing is available to workspace owners and admins.'),
     ).toBeVisible();

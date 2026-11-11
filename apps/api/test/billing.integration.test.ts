@@ -461,6 +461,22 @@ describe.skipIf(!url)('billing (real PostgreSQL)', () => {
     list = (await http().get(`${base()}/invoices?status=FAILED`).set(owner)).body;
     expect(list.data).toHaveLength(1);
     expect(list.data[0].canRetry).toBe(true);
+    // whole-history summary: one invoice, none paid, the unpaid amount per currency
+    expect(list.summary.total).toBe(1);
+    expect(list.summary.paid).toBe(0);
+    expect(list.summary.outstanding).toEqual([
+      { currency: list.data[0].currency, amountMinor: 4900 },
+    ]);
+    // search and date filters narrow the list but never the summary
+    const q = async (qs: string) =>
+      (await http().get(`${base()}/invoices?${qs}`).set(owner).expect(200)).body;
+    expect((await q('q=growth')).data).toHaveLength(1);
+    expect((await q('q=zzz-nothing')).data).toHaveLength(0);
+    expect((await q('q=zzz-nothing')).summary.total).toBe(1);
+    expect((await q('from=1970-01-01&to=2100-01-01')).data).toHaveLength(1);
+    expect((await q('to=2000-01-01')).data).toHaveLength(0);
+    expect((await q('from=2100-01-01')).data).toHaveLength(0);
+    await http().get(`${base()}/invoices?from=yesterday`).set(owner).expect(400);
     let o = (await http().get(`${base()}/overview`).set(owner)).body;
     expect(o.hasFailedPayment).toBe(true);
     const id = list.data[0].id;
@@ -490,6 +506,8 @@ describe.skipIf(!url)('billing (real PostgreSQL)', () => {
     ).toHaveLength(0);
     o = (await http().get(`${base()}/overview`).set(owner)).body;
     expect(o.hasFailedPayment).toBe(false);
+    const paidList = (await http().get(`${base()}/invoices`).set(owner)).body;
+    expect(paidList.summary).toMatchObject({ total: 1, paid: 1, outstanding: [] });
     // the PDF is generated from the stored record
     const pdf = await http()
       .get(`${base()}/invoices/${id}/pdf`)

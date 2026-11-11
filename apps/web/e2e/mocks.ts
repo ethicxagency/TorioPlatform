@@ -647,8 +647,12 @@ export const billingState = {
   }[],
   calls: [] as { path: string; body: unknown }[],
   overMembers: false,
+  noInvoices: false,
+  invoiceQueries: [] as Record<string, string>[],
 };
 export const resetBilling = () => {
+  billingState.noInvoices = false;
+  billingState.invoiceQueries = [];
   billingState.configured = true;
   billingState.sub = null;
   billingState.failed = false;
@@ -2306,10 +2310,38 @@ export async function mockApi(
         return reply({ data: billingState.cards });
       }
       if (rest === '/invoices') {
-        const st = url2(req.url()).searchParams.get('status');
-        const rows = INVOICES.filter((i) => !st || i.status === st);
+        const sp = url2(req.url()).searchParams;
+        const st = sp.get('status');
+        const q = (sp.get('q') ?? '').toLowerCase();
+        const from = sp.get('from');
+        const to = sp.get('to');
+        billingState.invoiceQueries.push(Object.fromEntries(sp.entries()));
+        const day = (i: { issuedAt: string }) => i.issuedAt.slice(0, 10);
+        const rows = (billingState.noInvoices ? [] : INVOICES).filter(
+          (i) =>
+            (!st || i.status === st) &&
+            (!q || `${i.number} ${i.planKey}`.toLowerCase().includes(q)) &&
+            (!from || day(i) >= from) &&
+            (!to || day(i) <= to),
+        );
+        const all = billingState.noInvoices ? [] : INVOICES;
         return reply({
           data: rows,
+          // whole-history summary, never narrowed by the filters
+          summary: {
+            total: all.length,
+            paid: all.filter((i) => i.status === 'PAID').length,
+            outstanding: all.some((i) => i.status === 'FAILED' || i.status === 'PENDING')
+              ? [
+                  {
+                    currency: 'USD',
+                    amountMinor: all
+                      .filter((i) => i.status === 'FAILED' || i.status === 'PENDING')
+                      .reduce((a, i) => a + i.totalMinor, 0),
+                  },
+                ]
+              : [],
+          },
           meta: { page: 1, pageSize: 10, total: rows.length, totalPages: 1 },
         });
       }

@@ -84,16 +84,30 @@ export function useCards(ws: string | null) {
     },
   });
 }
-export function useInvoices(ws: string | null, status: '' | InvoiceStatus, page: number) {
+export interface InvoiceFilters {
+  status: '' | InvoiceStatus;
+  q: string;
+  from: string;
+  to: string;
+  page: number;
+}
+export function useInvoices(ws: string | null, f: InvoiceFilters) {
   return useQuery({
-    queryKey: billingKeys.invoices(ws ?? '', { status, page }),
+    queryKey: billingKeys.invoices(ws ?? '', f),
     enabled: !!ws,
     placeholderData: keepPreviousData,
     queryFn: async () => {
       const { data, error } = await api.GET(`${P}/invoices`, {
         params: {
           path: { workspaceId: ws! },
-          query: { page, pageSize: 10, ...(status && { status }) },
+          query: {
+            page: f.page,
+            pageSize: 10,
+            ...(f.status && { status: f.status }),
+            ...(f.q.trim() && { q: f.q.trim() }),
+            ...(f.from && { from: f.from }),
+            ...(f.to && { to: f.to }),
+          },
         },
       });
       if (!data) throw fail(error, 'Could not load invoices');

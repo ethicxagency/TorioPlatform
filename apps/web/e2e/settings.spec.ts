@@ -16,7 +16,8 @@ test.describe('settings (owner)', () => {
     for (const t of ['General', 'Security', 'Teams', 'Channels', 'Audit Log'])
       await expect(rail.getByRole('link', { name: new RegExp(t) })).toBeVisible();
     await expect(rail.getByRole('link', { name: /Notifications/ })).toContainText('Soon');
-    await expect(rail.getByRole('link', { name: /Billing & Subscriptions/ })).toBeVisible();
+    await expect(rail.getByRole('link', { name: /Subscription/ })).toBeVisible();
+    await expect(rail.getByRole('link', { name: /^Billing/ })).toBeVisible();
   });
 
   test('general: profile saves through the API, shows saved only after, keeps email read-only', async ({

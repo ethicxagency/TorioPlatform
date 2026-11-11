@@ -1,13 +1,29 @@
-import type { Metadata } from 'next';
-import { Suspense } from 'react';
-import { BillingPage } from '@/features/billing/components/billing-page';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = { title: 'Billing & Subscriptions' };
+type Params = Promise<Record<string, string | string[] | undefined>>;
+const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
-export default function Page() {
-  return (
-    <Suspense fallback={null}>
-      <BillingPage />
-    </Suspense>
-  );
+/**
+ * The old combined "Billing & Subscriptions" page. A bookmark or a provider return link lands on the page that now holds
+ * what it pointed at: payment methods, invoices and billing details moved to /billing/invoices, everything else (the
+ * plan, usage, choosing a plan) to /billing/subscription. Query parameters such as `result` are carried along.
+ */
+export default async function Page({ searchParams }: { searchParams: Params }) {
+  const sp = await searchParams;
+  const tab = first(sp.tab);
+  const toBilling =
+    first(sp.pm) === '1' || tab === 'payment-methods' || tab === 'history' || tab === 'info';
+  const out = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) {
+    const val = first(v);
+    if (val === undefined || k === 'tab' || k === 'pm') continue;
+    out.set(k, val);
+  }
+  if (toBilling) {
+    const section = tab === 'history' ? 'invoices' : tab === 'info' ? 'info' : 'payment-methods';
+    out.set('section', section);
+    redirect(`/billing/invoices?${out}`);
+  }
+  if (tab === 'plans' || tab === 'usage') out.set('tab', tab);
+  redirect(`/billing/subscription${out.size ? `?${out}` : ''}`);
 }

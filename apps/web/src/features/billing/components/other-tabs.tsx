@@ -8,21 +8,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmDialog } from '@/features/inbox/components/confirm-dialog';
 import { useTimeZone } from '@/features/settings/queries';
 import { cn } from '@/lib/utils';
-import {
-  downloadInvoicePdf,
-  useBillingMutations,
-  useBillingProfile,
-  useCards,
-  useInvoice,
-  useInvoices,
-  useUsage,
-} from '../queries';
-import type { InvoiceItem, InvoiceStatus, Overview, SavedCard } from '../types';
+import { useBillingMutations, useBillingProfile, useCards, useInvoice, useUsage } from '../queries';
+import type { Overview, SavedCard } from '../types';
 import { Card, fmtDate, InvoiceBadge, LEVEL_TEXT, money, Notice, Progress } from './bits';
 
 // ---------- Usage ----------
 
-export function UsageTab({ ws, o, go }: { ws: string; o: Overview; go: (t: string) => void }) {
+export function UsageTab({ ws, go }: { ws: string; o?: Overview; go: (t: string) => void }) {
   const q = useUsage(ws);
   const tz = useTimeZone();
   if (q.isPending) return <Skeleton className="h-64 w-full" />;
@@ -33,10 +25,9 @@ export function UsageTab({ ws, o, go }: { ws: string; o: Overview; go: (t: strin
   );
   return (
     <div className="flex flex-col gap-4">
-      <p className="m-0 text-[13px] text-muted">
-        Current period: {fmtDate(u.periodStart, tz)} to {fmtDate(u.periodEnd, tz)}. These numbers
-        are counted from your real data. Limits come from your plan ({o.plan.name}) and are shown as
-        warnings only; Torio doesn&apos;t block usage when a limit is reached yet.
+      <p className="m-0 text-xs text-muted">
+        {fmtDate(u.periodStart, tz)} – {fmtDate(u.periodEnd, tz)} · counted from your real data ·
+        limits are warnings only; usage isn&apos;t blocked.
       </p>
       {pressed && (
         <Notice tone="warn">
@@ -128,8 +119,8 @@ export function CardsTab({ ws, o, canManage }: { ws: string; o: Overview; canMan
       }
     >
       <p className="m-0 mb-3 text-xs text-faint">
-        Cards are entered on the payment provider&apos;s secure page. Torio only keeps the brand,
-        last four digits and expiry, never the full number or CVV.
+        Cards are entered on the payment provider&apos;s page. Torio keeps only the brand, last four
+        digits and expiry.
       </p>
       {q.isPending && <Skeleton className="h-20 w-full" />}
       {q.isError && <Notice tone="bad">Couldn&apos;t load payment methods.</Notice>}
@@ -209,163 +200,9 @@ export function CardsTab({ ws, o, canManage }: { ws: string; o: Overview; canMan
   );
 }
 
-// ---------- History ----------
+// ---------- Invoice details ----------
 
-const FILTERS: { key: '' | InvoiceStatus; label: string }[] = [
-  { key: '', label: 'All' },
-  { key: 'PAID', label: 'Paid' },
-  { key: 'PENDING', label: 'Pending' },
-  { key: 'FAILED', label: 'Failed' },
-  { key: 'REFUNDED', label: 'Refunded' },
-];
-
-export function HistoryTab({ ws, canManage }: { ws: string; canManage: boolean }) {
-  const { toast } = useShell();
-  const tz = useTimeZone();
-  const [status, setStatus] = useState<'' | InvoiceStatus>('');
-  const [page, setPage] = useState(1);
-  const [open, setOpen] = useState<string | null>(null);
-  const q = useInvoices(ws, status, page);
-  const m = useBillingMutations(ws);
-  const err = (e: unknown) => toast.error(e instanceof Error ? e.message : 'Something went wrong');
-  const download = (i: InvoiceItem) =>
-    downloadInvoicePdf(ws, i.id, i.number ?? 'invoice').catch(err);
-  const meta = q.data?.meta;
-  return (
-    <Card title="Billing history">
-      <div role="group" aria-label="Filter invoices" className="mb-3 flex flex-wrap gap-1.5">
-        {FILTERS.map((f) => (
-          <button
-            key={f.label}
-            type="button"
-            aria-pressed={status === f.key}
-            onClick={() => {
-              setStatus(f.key);
-              setPage(1);
-            }}
-            className={cn(
-              'h-7 cursor-pointer rounded-full border px-3 text-[12.5px]',
-              status === f.key
-                ? 'border-[rgba(91,92,226,0.25)] bg-primary-soft font-semibold text-primary-hover'
-                : 'border-line bg-white text-muted hover:bg-wash',
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-      {q.isPending && <Skeleton className="h-40 w-full" />}
-      {q.isError && !q.data && <Notice tone="bad">Couldn&apos;t load invoices.</Notice>}
-      {q.data && q.data.data.length === 0 && (
-        <div className="rounded-xl border border-dashed border-line px-4 py-10 text-center text-[13px] text-muted">
-          {status
-            ? 'No invoices with that status.'
-            : 'No invoices yet. They appear here once the payment provider issues them.'}
-        </div>
-      )}
-      {q.data && q.data.data.length > 0 && (
-        <>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse text-[13px]">
-              <thead>
-                <tr className="border-b border-line-subtle text-left text-xs text-faint">
-                  {['Invoice', 'Date', 'Description', 'Period', 'Amount', 'Status', ''].map(
-                    (h, i) => (
-                      <th key={i} scope="col" className="px-2 py-2 font-medium">
-                        {h || <span className="sr-only">Actions</span>}
-                      </th>
-                    ),
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {q.data.data.map((i) => (
-                  <tr key={i.id} className="border-b border-line-subtle last:border-0">
-                    <td className="px-2 py-2.5 font-medium">{i.number ?? i.id.slice(0, 8)}</td>
-                    <td className="px-2 py-2.5">{fmtDate(i.issuedAt, tz)}</td>
-                    <td className="px-2 py-2.5">{i.description}</td>
-                    <td className="px-2 py-2.5 text-xs text-muted">
-                      {i.periodStart
-                        ? `${fmtDate(i.periodStart, tz)} – ${fmtDate(i.periodEnd, tz)}`
-                        : '—'}
-                    </td>
-                    <td className="px-2 py-2.5 tabular-nums">{money(i.totalMinor, i.currency)}</td>
-                    <td className="px-2 py-2.5">
-                      <InvoiceBadge status={i.status} />
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-2.5 text-right">
-                      <Button size="sm" variant="ghost" onClick={() => setOpen(i.id)}>
-                        View
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        aria-label={`Download PDF for ${i.number ?? 'invoice'}`}
-                        onClick={() => void download(i)}
-                      >
-                        <Download size={13} /> PDF
-                      </Button>
-                      {i.canRetry && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={!canManage || m.retryInvoice.isPending}
-                          title={
-                            canManage ? undefined : 'Only the workspace owner can retry payments'
-                          }
-                          onClick={() =>
-                            m.retryInvoice.mutate(i.id, {
-                              onSuccess: (r) => toast(r.message),
-                              onError: err,
-                            })
-                          }
-                        >
-                          Retry payment
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="mt-3 flex items-center justify-between text-xs text-muted">
-            <span aria-live="polite">{meta?.total} invoices</span>
-            <span className="flex items-center gap-2">
-              Page {meta?.page} of {meta?.totalPages}
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                Previous
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={page >= (meta?.totalPages ?? 1)}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
-            </span>
-          </div>
-        </>
-      )}
-      {open && (
-        <InvoiceDrawer
-          ws={ws}
-          id={open}
-          onClose={() => setOpen(null)}
-          onDownload={(n) => downloadInvoicePdf(ws, open, n).catch(err)}
-        />
-      )}
-    </Card>
-  );
-}
-
-function InvoiceDrawer({
+export function InvoiceDrawer({
   ws,
   id,
   onClose,

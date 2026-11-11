@@ -5002,6 +5002,14 @@ export interface components {
                 hostedUrl: string | null;
                 canRetry: boolean;
             }[];
+            summary: {
+                total: number;
+                paid: number;
+                outstanding: {
+                    currency: string;
+                    amountMinor: number;
+                }[];
+            };
             meta: {
                 page: number;
                 pageSize: number;
@@ -9335,6 +9343,9 @@ export interface operations {
         parameters: {
             query?: {
                 status?: "PENDING" | "PAID" | "FAILED" | "REFUNDED" | "VOID";
+                q?: string;
+                from?: string;
+                to?: string;
                 page?: number;
                 pageSize?: number;
             };

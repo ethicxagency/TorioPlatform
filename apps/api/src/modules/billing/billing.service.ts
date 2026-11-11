@@ -450,11 +450,21 @@ export class BillingService {
   }
 
   async invoices(ws: string, q: InvoiceQuery) {
+    const issuedAt: Prisma.DateTimeFilter = {};
+    if (q.from) issuedAt.gte = new Date(`${q.from}T00:00:00.000Z`);
+    if (q.to) issuedAt.lte = new Date(`${q.to}T23:59:59.999Z`);
     const where: Prisma.InvoiceWhereInput = {
       workspaceId: ws,
       ...(q.status && { status: q.status }),
+      ...((q.from || q.to) && { issuedAt }),
+      ...(q.q && {
+        OR: [
+          { number: { contains: q.q, mode: 'insensitive' } },
+          { planKey: { contains: q.q, mode: 'insensitive' } },
+        ],
+      }),
     };
-    const [total, rows] = await Promise.all([
+    const [total, rows, byStatus] = await Promise.all([
       this.prisma.client.invoice.count({ where }),
       this.prisma.client.invoice.findMany({
         where,
@@ -462,10 +472,30 @@ export class BillingService {
         skip: (q.page - 1) * q.pageSize,
         take: q.pageSize,
       }),
+      // Whole-history summary for this workspace only (the list filters do not narrow it).
+      this.prisma.client.invoice.groupBy({
+        by: ['status', 'currency'],
+        where: { workspaceId: ws },
+        _count: { _all: true },
+        _sum: { totalMinor: true, amountPaidMinor: true },
+      }),
     ]);
     const names = await this.planNames();
+    const outstanding = new Map<string, number>();
+    for (const g of byStatus)
+      if (g.status === 'PENDING' || g.status === 'FAILED')
+        outstanding.set(
+          g.currency,
+          (outstanding.get(g.currency) ?? 0) +
+            Math.max(0, (g._sum.totalMinor ?? 0) - (g._sum.amountPaidMinor ?? 0)),
+        );
     return {
       data: rows.map((r) => this.invDto(r, names)),
+      summary: {
+        total: byStatus.reduce((a, g) => a + g._count._all, 0),
+        paid: byStatus.filter((g) => g.status === 'PAID').reduce((a, g) => a + g._count._all, 0),
+        outstanding: [...outstanding].map(([currency, amountMinor]) => ({ currency, amountMinor })),
+      },
       meta: {
         page: q.page,
         pageSize: q.pageSize,

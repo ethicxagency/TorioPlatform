@@ -1,26 +1,12 @@
 'use client';
 
-import { USAGE_LABEL, type UsageMetric } from '@torio/contracts';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { MetricCard } from '@/components/ui/card';
 import { Modal } from '@/features/leads/components/modal';
 import { useTimeZone } from '@/features/settings/queries';
 import { useBillingMutations } from '../queries';
 import type { Overview } from '../types';
-import { Card, fmtDate, money, Notice, PlaceholderTag, Progress, SubscriptionBadge } from './bits';
-
-function Stat({
-  label,
-  value,
-  sub,
-}: {
-  label: string;
-  value: React.ReactNode;
-  sub?: React.ReactNode;
-}) {
-  return <MetricCard label={label} value={value} sub={sub} valueClassName="text-[22px]" />;
-}
+import { Card, fmtDate, money, Notice, PlaceholderTag, SubscriptionBadge } from './bits';
 
 export function OverviewTab({
   ws,
@@ -43,72 +29,9 @@ export function OverviewTab({
   const manage = (reason: string) => (canManage ? undefined : reason);
   const providerOff = !o.providerConfigured ? 'Payments aren’t connected yet' : undefined;
   const dis = (v: boolean, reason?: string) => ({ disabled: v || !!reason, title: reason });
-  const top = o.usage;
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat
-          label="Current plan"
-          value={o.plan.name}
-          sub={
-            <span className="flex flex-wrap items-center gap-1.5">
-              {s ? (s.interval === 'YEAR' ? 'Yearly' : 'Monthly') : 'No billing'}{' '}
-              <SubscriptionBadge o={o} />
-            </span>
-          }
-        />
-        <Stat
-          label="Next payment"
-          value={o.nextPayment ? money(o.nextPayment.amountMinor, o.nextPayment.currency) : '—'}
-          sub={
-            o.nextPayment ? (
-              <>
-                {fmtDate(o.nextPayment.date, tz)}{' '}
-                {o.nextPayment.placeholderPricing && <PlaceholderTag />}
-              </>
-            ) : s?.cancelAtPeriodEnd ? (
-              'No renewal: cancellation scheduled'
-            ) : (
-              'No upcoming payment'
-            )
-          }
-        />
-        <Stat
-          label="Monthly usage"
-          value={top ? `${top.percent}%` : o.plan.limits.members === -1 ? 'Unlimited' : '—'}
-          sub={
-            top ? (
-              <>
-                {USAGE_LABEL[top.metric as UsageMetric] ?? top.metric}: {top.used} of {top.limit}
-                <div className="mt-1.5">
-                  <Progress
-                    percent={top.percent}
-                    level={
-                      top.percent >= 100
-                        ? 'reached'
-                        : top.percent >= 90
-                          ? 'near'
-                          : top.percent >= 70
-                            ? 'approaching'
-                            : 'ok'
-                    }
-                    label="Highest usage"
-                  />
-                </div>
-              </>
-            ) : (
-              'No limited meters on this plan'
-            )
-          }
-        />
-        <Stat
-          label="Available credits"
-          value="Not tracked"
-          sub="AI credits aren’t metered yet, so no balance is shown."
-        />
-      </div>
-
       <Card title="Current subscription">
         <dl className="m-0 grid grid-cols-[130px_1fr] gap-x-3 gap-y-2 text-[13px] sm:grid-cols-[150px_1fr_150px_1fr]">
           <dt className="text-faint">Plan</dt>
@@ -134,6 +57,16 @@ export function OverviewTab({
             {s?.cancelAtPeriodEnd || s?.status === 'CANCELED' ? 'Access until' : 'Renews'}
           </dt>
           <dd className="m-0">{fmtDate(s?.currentPeriodEnd, tz)}</dd>
+          {o.nextPayment && (
+            <>
+              <dt className="text-faint">Next payment</dt>
+              <dd className="m-0">
+                {money(o.nextPayment.amountMinor, o.nextPayment.currency)} on{' '}
+                {fmtDate(o.nextPayment.date, tz)}{' '}
+                {o.nextPayment.placeholderPricing && <PlaceholderTag />}
+              </dd>
+            </>
+          )}
           {s?.trialEnd && (
             <>
               <dt className="text-faint">Trial ends</dt>
@@ -172,7 +105,7 @@ export function OverviewTab({
             </Button>
           )}
           {o.actions.canRetryPayment && (
-            <Button variant="outline" onClick={() => go('history')}>
+            <Button variant="outline" onClick={() => go('invoices')}>
               Retry payment
             </Button>
           )}

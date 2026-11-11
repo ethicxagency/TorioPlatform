@@ -375,6 +375,13 @@ export const invoiceDetailSchema = invoiceItemSchema.extend({
 });
 export const invoiceListSchema = z.object({
   data: z.array(invoiceItemSchema),
+  /** Whole-history figures for this workspace, never narrowed by the list filters. */
+  summary: z.object({
+    total: z.number().int(),
+    paid: z.number().int(),
+    /** Unpaid pending and failed invoices, per currency (amounts are never added across currencies). */
+    outstanding: z.array(z.object({ currency: z.string(), amountMinor: z.number().int() })),
+  }),
   meta: z.object({
     page: z.number().int(),
     pageSize: z.number().int(),
@@ -382,8 +389,14 @@ export const invoiceListSchema = z.object({
     totalPages: z.number().int(),
   }),
 });
+const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD');
 export const invoiceQuerySchema = z.object({
   status: invoiceStatusSchema.optional(),
+  /** Matches the invoice number or plan. */
+  q: z.string().trim().max(80).optional(),
+  /** Issue date range, inclusive, in UTC. */
+  from: dateOnly.optional(),
+  to: dateOnly.optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(10),
 });
