@@ -123,7 +123,9 @@ describe.skipIf(!url)('multi-store (real PostgreSQL)', () => {
   });
 
   it('store addresses are unique and validated, and a failed creation leaves nothing behind', async () => {
-    const before = await db.workspace.count();
+    // only this suite's users: other suites create workspaces in parallel
+    const mine = { createdById: { in: Object.values(users).map((u) => u.id) } };
+    const before = await db.workspace.count({ where: mine });
     const dup = await create('other', store('one'));
     expect(dup.status).toBe(409);
     for (const bad of [
@@ -139,7 +141,7 @@ describe.skipIf(!url)('multi-store (real PostgreSQL)', () => {
       { name: 'x' },
     ])
       expect((await create('other', store('bad', bad))).status).toBe(400);
-    expect(await db.workspace.count()).toBe(before);
+    expect(await db.workspace.count({ where: mine })).toBe(before);
     expect(await db.workspaceMembership.count({ where: { userId: users.other!.id } })).toBe(0);
     expect(await list('other')).toEqual([]);
   });
