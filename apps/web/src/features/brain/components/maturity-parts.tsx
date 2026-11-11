@@ -1,8 +1,8 @@
 'use client';
 
-import type { BrainMaturity, Stage } from '@torio/contracts';
-import { STAGES } from '@torio/contracts';
-import { ArrowRight, Brain, Check, type LucideIcon } from 'lucide-react';
+import type { BrainMaturity, SectionKey, Stage } from '@torio/contracts';
+import { STAGE_MIN, STAGES } from '@torio/contracts';
+import { ArrowRight, Brain, Check, Lock, type LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { DIMENSION_INFO, STAGE_META } from './stage-meta';
@@ -289,68 +289,383 @@ export function Dimensions({ m, compact }: { m: BrainMaturity; compact?: boolean
   );
 }
 
-export function Journey({ m }: { m: BrainMaturity }) {
+/** The score range a stage covers, read from the engine's own thresholds (never hardcoded here). */
+const rangeOf = (i: number) => {
+  const lo = STAGE_MIN[STAGES[i]!];
+  const next = STAGES[i + 1];
+  return `${lo}–${next ? STAGE_MIN[next] - 1 : 100}`;
+};
+
+/** A stage's icon, in its own container colour, with its own animation while it is the current stage. */
+function StageNode({
+  stage,
+  state,
+  celebrate,
+}: {
+  stage: Stage;
+  state: 'done' | 'current' | 'locked';
+  celebrate: boolean;
+}) {
+  const sm = STAGE_META[stage];
+  const Icon = sm.icon;
+  const live = state === 'current';
   return (
-    <ol
-      aria-label="Growth journey"
-      className="m-0 flex list-none gap-3.5 overflow-x-auto p-0 pb-1 [scrollbar-width:none] md:grid md:grid-cols-6 md:overflow-visible"
+    <span className="relative inline-flex shrink-0">
+      <span
+        data-stage-icon={stage}
+        className={cn(
+          'relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-[12px]',
+          live && sm.anim !== 'smart' && 'stage-halo',
+          live && sm.anim === 'born' && 'stage-anim-born',
+          live && sm.anim === 'baby' && 'stage-anim-baby',
+          live && sm.anim === 'growing' && 'stage-anim-growing',
+          live && sm.anim === 'smart' && 'stage-anim-smart',
+          celebrate && 'stage-unlock',
+        )}
+        style={
+          {
+            backgroundColor: state === 'locked' ? '#F1F2F5' : sm.iconBg,
+            color: state === 'locked' ? '#A3A6AE' : sm.color,
+            '--halo': `${sm.color}2B`,
+          } as React.CSSProperties
+        }
+      >
+        <Icon size={19} aria-hidden />
+        {live && sm.anim === 'expert' && (
+          <span aria-hidden className="stage-anim-expert absolute inset-0" />
+        )}
+      </span>
+      {live && sm.anim === 'mature' && (
+        <span
+          aria-hidden
+          className="stage-anim-mature-ring pointer-events-none absolute -inset-1.5"
+        >
+          <span
+            className="absolute left-1/2 top-0 h-1.5 w-1.5 -translate-x-1/2 rounded-full"
+            style={{ backgroundColor: sm.color }}
+          />
+        </span>
+      )}
+      {state === 'done' && (
+        <span
+          aria-hidden
+          className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-white text-white"
+          style={{ backgroundColor: sm.color }}
+        >
+          <Check size={9} strokeWidth={3} />
+        </span>
+      )}
+      {state === 'locked' && (
+        <span
+          aria-hidden
+          className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-white bg-[#A3A6AE] text-white"
+        >
+          <Lock size={8} strokeWidth={3} />
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** Click a stage to see what it means, what it needs, and (for the current and next stage) what to do about it. */
+function StageDetail({
+  m,
+  index,
+  onGoTo,
+}: {
+  m: BrainMaturity;
+  index: number;
+  onGoTo?: (section: SectionKey) => void;
+}) {
+  const stage = STAGES[index]!;
+  const sm = STAGE_META[stage];
+  const Icon = sm.icon;
+  const state = index < m.stageIndex ? 'done' : index === m.stageIndex ? 'current' : 'locked';
+  const gates = m.gates.filter((g) => g.stage === stage);
+  const scoreOk = m.score >= STAGE_MIN[stage];
+  const isNext = index === m.stageIndex + 1;
+  const remaining =
+    state === 'current'
+      ? m.requirements
+      : state === 'locked'
+        ? [
+            ...(scoreOk
+              ? []
+              : [
+                  {
+                    id: 'score',
+                    label: `Raise your intelligence score from ${m.score} to ${STAGE_MIN[stage]}`,
+                    section: null,
+                  },
+                ]),
+            ...gates
+              .filter((g) => !g.met)
+              .map((g) => ({ id: g.id, label: g.label, section: g.section })),
+          ]
+        : [];
+  const stats = m.stats;
+  const knows = [
+    stats.products > 0 && `${stats.products} product${stats.products === 1 ? '' : 's'}`,
+    stats.activeFaqs > 0 && `${stats.activeFaqs} active FAQ${stats.activeFaqs === 1 ? '' : 's'}`,
+    stats.activeRules > 0 &&
+      `${stats.activeRules} active rule${stats.activeRules === 1 ? '' : 's'}`,
+    stats.activeInstructions > 0 &&
+      `${stats.activeInstructions} active instruction${stats.activeInstructions === 1 ? '' : 's'}`,
+  ].filter(Boolean) as string[];
+  const recs = state === 'current' || isNext ? m.recommendations.slice(0, 3) : [];
+
+  return (
+    <div
+      role="region"
+      aria-label={`${sm.label} stage details`}
+      data-testid="stage-detail"
+      className="mt-3 rounded-xl border p-4 animate-fade-in motion-reduce:animate-none"
+      style={{ borderColor: `${sm.color}55`, backgroundColor: sm.tint }}
     >
-      {STAGES.map((s: Stage, i) => {
-        const sm = STAGE_META[s];
-        const Icon = sm.icon;
-        const state = i < m.stageIndex ? 'done' : i === m.stageIndex ? 'current' : 'locked';
-        return (
-          <li
-            key={s}
-            aria-current={state === 'current' ? 'step' : undefined}
-            data-state={state}
-            className={cn(
-              'relative flex min-w-[148px] flex-1 flex-col gap-1.5 rounded-xl border p-3 transition-colors duration-200 motion-reduce:transition-none md:min-w-0',
-              state === 'locked' && 'border-line-subtle bg-white opacity-70',
-              state === 'done' && 'border-line-subtle',
-              state === 'current' && 'shadow-[0_0_0_3px_var(--ring)]',
+      <div className="flex flex-wrap items-center gap-2.5">
+        <span
+          className="flex h-8 w-8 items-center justify-center rounded-[10px]"
+          style={{ backgroundColor: sm.iconBg, color: sm.color }}
+        >
+          <Icon size={16} aria-hidden />
+        </span>
+        <h3 className="m-0 text-[14.5px] font-semibold text-ink">{sm.label}</h3>
+        <span
+          className="rounded-full px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.04em]"
+          style={
+            state === 'locked'
+              ? { backgroundColor: '#EEF0F4', color: '#62656D' }
+              : { backgroundColor: sm.color, color: '#fff' }
+          }
+        >
+          {state === 'done' ? 'Completed' : state === 'current' ? 'You are here' : 'Locked'}
+        </span>
+        <span className="text-xs text-muted">Score {rangeOf(index)}</span>
+      </div>
+      <p className="m-0 mt-2 text-[13px] text-ink">{sm.now}</p>
+      <div className="mt-3 grid gap-4 md:grid-cols-2">
+        <div>
+          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted">
+            What your Brain understands
+          </div>
+          {state === 'locked' ? (
+            <p className="m-0 text-[12.5px] text-muted">
+              Not yet. This stage is locked until its requirements are met.
+            </p>
+          ) : knows.length ? (
+            <p className="m-0 text-[12.5px] text-ink">{knows.join(' · ')}</p>
+          ) : (
+            <p className="m-0 text-[12.5px] text-muted">
+              Very little so far. Add business knowledge to teach it.
+            </p>
+          )}
+        </div>
+        <div>
+          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted">
+            Requirements for this stage
+          </div>
+          <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[12.5px]">
+            {index === 0 ? (
+              <li className="text-muted">Every Brain starts here.</li>
+            ) : (
+              <>
+                <li className="flex items-start gap-1.5">
+                  <ReqMark ok={scoreOk} color={sm.color} />
+                  <span className={scoreOk ? 'text-ink' : 'text-muted'}>
+                    Intelligence score {STAGE_MIN[stage]} or more
+                  </span>
+                </li>
+                {gates.map((g) => (
+                  <li key={g.id} className="flex items-start gap-1.5">
+                    <ReqMark ok={g.met} color={sm.color} />
+                    <span className={g.met ? 'text-ink' : 'text-muted'}>{g.label}</span>
+                  </li>
+                ))}
+              </>
             )}
-            style={
-              {
-                '--ring': `${sm.color}26`,
-                backgroundColor: state === 'locked' ? undefined : sm.tint,
-                borderColor: state === 'current' ? sm.color : undefined,
-              } as React.CSSProperties
-            }
-          >
-            {i < STAGES.length - 1 && (
-              <span
-                aria-hidden
-                className="absolute -right-[15px] top-[27px] z-10 hidden h-0.5 w-[14px] md:block"
-                style={{
-                  backgroundColor: i < m.stageIndex ? STAGE_META[STAGES[i + 1]!].color : '#E5E7EB',
-                }}
-              />
-            )}
-            <div className="flex items-center justify-between">
-              <span
-                className="flex h-8 w-8 items-center justify-center rounded-[10px]"
-                style={{
-                  backgroundColor: state === 'locked' ? '#EEF0F4' : sm.color,
-                  color: state === 'locked' ? '#9A9DA6' : '#fff',
-                }}
-              >
-                {state === 'done' ? (
-                  <Check size={16} aria-hidden />
-                ) : (
-                  <Icon size={16} aria-hidden />
+          </ul>
+        </div>
+      </div>
+      {remaining.length > 0 && (
+        <div className="mt-3 border-t pt-3" style={{ borderColor: `${sm.color}33` }}>
+          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted">
+            {state === 'current' ? 'Remaining for the next stage' : 'Still needed to unlock'}
+          </div>
+          <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[12.5px] text-ink">
+            {remaining.map((r) => (
+              <li key={r.id} className="flex items-start justify-between gap-3">
+                <span>{r.label}</span>
+                {r.section && onGoTo && (
+                  <button
+                    type="button"
+                    onClick={() => onGoTo(r.section!)}
+                    className="shrink-0 cursor-pointer border-none bg-transparent p-0 text-[12.5px] font-semibold text-primary"
+                  >
+                    Go
+                  </button>
                 )}
-              </span>
-              <span className="text-[10.5px] font-medium uppercase tracking-[0.04em] text-muted">
-                {state === 'done' ? 'Done' : state === 'current' ? 'You are here' : 'Locked'}
-              </span>
-            </div>
-            <div className="text-[13px] font-semibold text-ink">{sm.label}</div>
-            <div className="text-[11.5px] leading-snug text-muted">{sm.blurb}</div>
-          </li>
-        );
-      })}
-    </ol>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {recs.length > 0 && onGoTo && (
+        <div className="mt-3 border-t pt-3" style={{ borderColor: `${sm.color}33` }}>
+          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted">
+            Recommended
+          </div>
+          <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[12.5px]">
+            {recs.map((r) => (
+              <li key={r.id} className="flex items-start justify-between gap-3">
+                <span className="text-ink">{r.title}</span>
+                <button
+                  type="button"
+                  onClick={() => onGoTo(r.section)}
+                  className="shrink-0 cursor-pointer border-none bg-transparent p-0 font-semibold text-primary"
+                >
+                  {r.cta}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReqMark({ ok, color }: { ok: boolean; color: string }) {
+  return ok ? (
+    <span
+      aria-label="Met"
+      className="mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full text-white"
+      style={{ backgroundColor: color }}
+    >
+      <Check size={9} strokeWidth={3} />
+    </span>
+  ) : (
+    <span
+      aria-label="Not met"
+      className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded-full border-2 border-[#C9CBD3]"
+    />
+  );
+}
+
+/**
+ * The six-stage journey. Every stage keeps its own colour identity whether it is completed, current or locked; the
+ * connector between stages is filled with real progress (completed segments full, the current one to the engine's own
+ * progress toward the next stage). Only the current stage's icon animates, and `celebrate` plays once when a stage was
+ * just unlocked.
+ */
+export function Journey({
+  m,
+  celebrate,
+  onGoTo,
+}: {
+  m: BrainMaturity;
+  celebrate?: Stage | null;
+  onGoTo?: (section: SectionKey) => void;
+}) {
+  const [picked, setPicked] = useState<number | null>(null);
+  const sel = picked ?? m.stageIndex;
+  return (
+    <div>
+      <ol
+        aria-label="Growth journey"
+        className="m-0 flex list-none gap-3.5 overflow-x-auto p-0 pb-1 [scrollbar-width:none] md:grid md:grid-cols-6 md:overflow-visible"
+      >
+        {STAGES.map((s: Stage, i) => {
+          const sm = STAGE_META[s];
+          const state = i < m.stageIndex ? 'done' : i === m.stageIndex ? 'current' : 'locked';
+          const fill = i < m.stageIndex ? 1 : i === m.stageIndex ? m.progressToNext : 0;
+          const selected = sel === i;
+          return (
+            <li
+              key={s}
+              aria-current={state === 'current' ? 'step' : undefined}
+              data-state={state}
+              className="min-w-[160px] flex-1 md:min-w-0"
+            >
+              <button
+                type="button"
+                aria-pressed={selected}
+                aria-label={`${sm.label}, ${state === 'done' ? 'completed' : state === 'current' ? 'you are here' : 'locked'}`}
+                onClick={() => setPicked(i === m.stageIndex && picked === null ? null : i)}
+                className={cn(
+                  'relative flex h-full w-full cursor-pointer flex-col gap-2 rounded-xl border p-3 text-left transition-[border-color,box-shadow,background-color] duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
+                  state === 'locked' && 'bg-white',
+                  state === 'current' && 'shadow-[0_0_0_3px_var(--ring)]',
+                )}
+                style={
+                  {
+                    '--ring': `${sm.color}22`,
+                    backgroundColor: state === 'locked' ? undefined : sm.tint,
+                    borderColor: selected || state === 'current' ? sm.color : '#E5E7EB',
+                  } as React.CSSProperties
+                }
+              >
+                <div className="flex items-center">
+                  <StageNode stage={s} state={state} celebrate={celebrate === s} />
+                  {i < STAGES.length - 1 && (
+                    <span
+                      aria-hidden
+                      data-connector={i}
+                      className="relative ml-2 h-[3px] flex-1 overflow-hidden rounded-full bg-[#E5E7EB]"
+                      style={{ marginRight: -27 }}
+                    >
+                      <span
+                        className={cn(
+                          'absolute inset-y-0 left-0 rounded-full transition-[width] duration-700 motion-reduce:transition-none',
+                          state === 'current' && fill > 0 && fill < 1 && 'stage-track-live',
+                        )}
+                        style={{ width: `${fill * 100}%`, backgroundColor: sm.color }}
+                      />
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[13px] font-semibold text-ink">{sm.label}</span>
+                    {celebrate === s && (
+                      <span
+                        className="rounded-full px-1.5 py-px text-[9.5px] font-semibold uppercase text-white animate-fade-in"
+                        style={{ backgroundColor: sm.color }}
+                      >
+                        Unlocked
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] tabular-nums text-faint">Score {rangeOf(i)}</div>
+                </div>
+                <div className="text-[11.5px] leading-snug text-muted">{sm.blurb}</div>
+                <div
+                  className="mt-auto flex items-center gap-1 text-[10.5px] font-semibold uppercase tracking-[0.04em]"
+                  style={{ color: state === 'locked' ? '#8A8D96' : sm.color }}
+                >
+                  {state === 'done' ? (
+                    <>
+                      <Check size={11} aria-hidden /> Completed
+                    </>
+                  ) : state === 'current' ? (
+                    <span
+                      className="rounded-full px-2 py-0.5 text-white"
+                      style={{ backgroundColor: sm.color }}
+                    >
+                      You are here
+                    </span>
+                  ) : (
+                    <>
+                      <Lock size={11} aria-hidden /> Locked · needs {STAGE_MIN[s]}+
+                    </>
+                  )}
+                </div>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+      <StageDetail m={m} index={sel} onGoTo={onGoTo} />
+    </div>
   );
 }
 

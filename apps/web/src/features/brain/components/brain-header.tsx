@@ -3,6 +3,7 @@
 import { Brain, Check, Loader2, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { fmtAgoIso } from './bits';
 import { STAGE_META } from './stage-meta';
 import type { BrainMaturity } from '@torio/contracts';
 
@@ -109,49 +110,87 @@ export function BrainHeader({
   const meta = STAGE_META[m.stage];
   const StageIcon = meta.icon;
   return (
-    <header className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <div className="flex min-w-0 flex-1 basis-72 items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border border-primary-line bg-primary-soft">
-          <Brain size={20} className="text-primary" aria-hidden />
+    <header className="flex flex-wrap items-center gap-x-6 gap-y-3">
+      <div className="flex min-w-0 flex-1 basis-72 items-center gap-3.5">
+        {/* a larger tinted container with a little depth: an inner white tile on a soft indigo plate */}
+        <span
+          aria-hidden
+          className="relative flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[15px] border border-primary-line bg-gradient-to-br from-primary-soft to-[#F6F0FF] shadow-[0_1px_2px_rgba(91,92,226,0.12)]"
+        >
+          <span className="flex h-[38px] w-[38px] items-center justify-center rounded-[11px] bg-white shadow-[0_2px_8px_-2px_rgba(91,92,226,0.35)]">
+            <Brain size={22} strokeWidth={1.6} className="text-primary" />
+          </span>
         </span>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="m-0 font-page-title">Brain</h1>
             <span
-              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-white"
-              style={{ backgroundColor: meta.color }}
+              data-testid="header-stage"
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.04em]"
+              style={{
+                backgroundColor: meta.tint,
+                color: meta.color,
+                boxShadow: `inset 0 0 0 1px ${meta.color}40`,
+              }}
               title={`Brain stage: ${meta.label}`}
             >
-              <StageIcon size={11} aria-hidden />
+              <span
+                className="flex h-4 w-4 items-center justify-center rounded-full"
+                style={{ backgroundColor: meta.iconBg }}
+              >
+                <StageIcon size={10} aria-hidden />
+              </span>
               {m.stage}
             </span>
           </div>
-          <p className="m-0 text-[13px] text-muted">Your business. Your rules. Your AI.</p>
+          <p className="m-0 mt-0.5 text-[13px] text-muted">Your business. Your rules. Your AI.</p>
         </div>
       </div>
 
-      <div
-        className="flex items-center gap-2 text-[12.5px]"
-        title="Setup completion: how much of the recommended setup is filled in"
-      >
-        <span className="text-muted">Setup</span>
-        <span className="h-1.5 w-20 overflow-hidden rounded-full bg-wash-2" aria-hidden>
-          <span
-            className="block h-full rounded-full bg-primary transition-[width] duration-500 motion-reduce:transition-none"
-            style={{ width: `${setup}%` }}
-          />
-        </span>
-        <span className="font-semibold tabular-nums">{setup}%</span>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <span
-          aria-live="polite"
-          className={cn('text-xs', dirty ? 'font-medium text-[#7A4700]' : 'text-faint')}
+      <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-5 gap-y-2">
+        <div
+          className="min-w-[188px] max-w-full"
+          title="Setup progress: how much of the recommended setup is filled in. It is separate from the intelligence score."
         >
-          {dirty ? 'Unsaved changes' : savedAt ? 'All changes saved' : 'Never saved'}
-        </span>
-        {showActions && <SaveControls {...controls} />}
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-[11.5px] font-medium text-muted">Setup Progress</span>
+            <span className="text-[18px] font-semibold leading-none tabular-nums text-ink">
+              {setup}
+              <span className="text-[12px] font-medium text-muted">%</span>
+            </span>
+          </div>
+          <div
+            role="progressbar"
+            aria-label="Setup progress"
+            aria-valuenow={setup}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-wash-2"
+          >
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[#5B5CE2] to-[#8B5CF6] transition-[width] duration-700 ease-out motion-reduce:transition-none"
+              style={{ width: `${setup}%` }}
+            />
+          </div>
+          <div
+            aria-live="polite"
+            className={cn(
+              'mt-1 text-[11.5px]',
+              dirty ? 'font-medium text-[#7A4700]' : 'text-faint',
+            )}
+          >
+            {dirty
+              ? 'Unsaved changes'
+              : savedAt
+                ? `Last saved ${fmtAgoIso(savedAt)}`
+                : 'Never saved'}
+          </div>
+        </div>
+        {showActions && (
+          <div className="flex flex-wrap items-center gap-2">
+            <SaveControls {...controls} />
+          </div>
+        )}
       </div>
     </header>
   );

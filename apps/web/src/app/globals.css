@@ -406,3 +406,138 @@
     -webkit-backdrop-filter: none;
   }
 }
+
+/* Brain growth journey: one restrained animation per stage, run only on the CURRENT stage's icon. */
+@keyframes stage-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.07);
+  }
+}
+@keyframes stage-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+@keyframes stage-sprout {
+  0%,
+  100% {
+    transform: scale(1) translateY(0);
+    transform-origin: 50% 100%;
+  }
+  50% {
+    transform: scale(1.1, 1.14) translateY(-1px);
+    transform-origin: 50% 100%;
+  }
+}
+@keyframes stage-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(37, 99, 235, 0.16);
+  }
+}
+@keyframes stage-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes stage-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+@keyframes stage-halo {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--halo, rgba(91, 92, 226, 0));
+  }
+  50% {
+    box-shadow: 0 0 0 6px var(--halo, rgba(91, 92, 226, 0.16));
+  }
+}
+@keyframes stage-unlock {
+  0% {
+    transform: scale(0.8);
+  }
+  45% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes stage-track {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 24px 0;
+  }
+}
+.stage-anim-born {
+  animation: stage-breathe 3.2s ease-in-out infinite;
+}
+.stage-anim-baby {
+  animation: stage-float 2.6s ease-in-out infinite;
+}
+.stage-anim-growing {
+  animation: stage-sprout 2.8s ease-in-out infinite;
+}
+.stage-anim-smart {
+  animation: stage-glow 2.6s ease-in-out infinite;
+}
+.stage-anim-mature-ring {
+  animation: stage-orbit 9s linear infinite;
+}
+.stage-anim-expert {
+  background-image: linear-gradient(
+    110deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.75) 50%,
+    transparent 70%
+  );
+  background-size: 220% 100%;
+  animation: stage-shimmer 3.6s ease-in-out infinite;
+}
+.stage-halo {
+  animation: stage-halo 2.8s ease-in-out infinite;
+}
+.stage-unlock {
+  animation: stage-unlock 700ms var(--ease-enter) 1;
+}
+.stage-track-live {
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.45) 0 6px,
+    transparent 6px 12px
+  );
+  background-size: 24px 100%;
+  animation: stage-track 1.4s linear infinite;
+}
+/* The global reduced-motion rule shortens durations; looping decoration is switched off entirely instead. */
+@media (prefers-reduced-motion: reduce) {
+  .stage-anim-born,
+  .stage-anim-baby,
+  .stage-anim-growing,
+  .stage-anim-smart,
+  .stage-anim-mature-ring,
+  .stage-anim-expert,
+  .stage-halo,
+  .stage-unlock,
+  .stage-track-live {
+    animation: none !important;
+  }
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import type { BrainMaturity, SectionKey } from '@torio/contracts';
+import type { BrainMaturity, SectionKey, Stage } from '@torio/contracts';
 import { useAudit } from '@/features/settings/queries';
 import { useWorkspace } from '@/lib/workspace';
 import { fmtAgoIso } from './bits';
@@ -16,12 +16,14 @@ export function IntelligenceTab({
   dirty,
   savedAt,
   savedBy,
+  celebrate,
   onGoTo,
 }: {
   maturity: BrainMaturity;
   dirty: boolean;
   savedAt: string | null;
   savedBy: string | null;
+  celebrate?: Stage | null;
   onGoTo: (section: SectionKey) => void;
 }) {
   const { workspaceId, can } = useWorkspace();
@@ -50,7 +52,7 @@ export function IntelligenceTab({
       <section aria-label="Maturity progression" className="flex flex-col gap-2">
         <h2 className="m-0 text-[13.5px] font-semibold">Your Brain&apos;s Growth Journey</h2>
         <div className="rounded-2xl border border-line bg-white p-4">
-          <Journey m={m} />
+          <Journey m={m} celebrate={celebrate} onGoTo={onGoTo} />
         </div>
       </section>
       <section aria-label="Improvement recommendations" className="flex flex-col gap-2">

@@ -1,6 +1,6 @@
 'use client';
 
-import type { BrainArea, BrainConflict, BrainIssue, BrainMaturity } from '@torio/contracts';
+import type { BrainArea, BrainConflict, BrainIssue, BrainMaturity, Stage } from '@torio/contracts';
 import {
   ArrowRight,
   BookOpenText,
@@ -140,6 +140,7 @@ export function SummaryTab({
   savedAt,
   savedBy,
   dirty,
+  celebrate,
   actions,
   onGoTo,
 }: {
@@ -152,6 +153,8 @@ export function SummaryTab({
   savedAt: string | null;
   savedBy: string | null;
   dirty: boolean;
+  /** The stage that was just unlocked by a save, for a one-time celebration. */
+  celebrate?: Stage | null;
   actions: React.ReactNode;
   onGoTo: (section: string, focus?: boolean) => void;
 }) {
@@ -283,7 +286,7 @@ export function SummaryTab({
       <section aria-label="Brain growth journey" className="flex flex-col gap-2">
         <Heading>Your Brain&apos;s Growth Journey</Heading>
         <div className="rounded-2xl border border-line bg-white p-4">
-          <Journey m={m} />
+          <Journey m={m} celebrate={celebrate} onGoTo={(sec) => onGoTo(sec, true)} />
         </div>
       </section>
 

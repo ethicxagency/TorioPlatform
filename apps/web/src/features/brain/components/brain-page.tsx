@@ -8,6 +8,7 @@ import {
   readinessPct,
   type BrainConfig,
   type SectionKey,
+  type Stage,
 } from '@torio/contracts';
 import { Sparkles } from 'lucide-react';
 import Link from 'next/link';
@@ -120,6 +121,8 @@ function BrainEditor({
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [conflict, setConflict] = useState(false);
   const [active, setActive] = useState('identity');
+  const [celebrate, setCelebrate] = useState<Stage | null>(null);
+  const celebrateTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const pendingScroll = useRef<{ sec: string; focus: boolean } | null>(null);
   const [undoToast, setUndoToast] = useState<UndoToast | null>(null);
   const [fieldRequest, setFieldRequest] = useState(false);
@@ -146,7 +149,13 @@ function BrainEditor({
     setUndoToast(t);
     toastTimer.current = setTimeout(() => setUndoToast(null), t.undo ? 6000 : ms);
   };
-  useEffect(() => () => clearTimeout(toastTimer.current), []);
+  useEffect(
+    () => () => {
+      clearTimeout(toastTimer.current);
+      clearTimeout(celebrateTimer.current);
+    },
+    [],
+  );
   const remove = useCallback(
     (label: string, restore: () => void) =>
       flash({
@@ -254,6 +263,12 @@ function BrainEditor({
       { config: draft, baseVersion: saved.version },
       {
         onSuccess: (doc) => {
+          // A new stage is celebrated only when the SERVER's evaluation of what was just saved is higher than before.
+          if (doc.maturity.stageIndex > saved.maturity.stageIndex) {
+            setCelebrate(doc.maturity.stage);
+            clearTimeout(celebrateTimer.current);
+            celebrateTimer.current = setTimeout(() => setCelebrate(null), 4500);
+          }
           setSaved(doc);
           setSaveState('saved');
           setConflict(false);
@@ -393,7 +408,7 @@ function BrainEditor({
       <div
         role="tablist"
         aria-label="Brain"
-        className="-mx-1 flex gap-1 overflow-x-auto border-b border-line px-1 [scrollbar-width:none]"
+        className="-mx-1 flex gap-1 overflow-x-auto border-b border-line px-1 pb-2 [scrollbar-width:none]"
       >
         {TABS.map((t) => {
           const Icon = t.icon;
@@ -422,10 +437,10 @@ function BrainEditor({
                 else if (e.key === 'End') go(TABS.length - 1);
               }}
               className={cn(
-                '-mb-px flex h-10 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 px-3 text-[13px] transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary motion-reduce:transition-none',
+                'relative flex h-9 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg border-none px-3 text-[13px] transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary motion-reduce:transition-none',
                 on
-                  ? 'border-primary font-semibold text-primary-hover'
-                  : 'border-transparent font-medium text-muted hover:text-ink',
+                  ? 'bg-primary-soft font-semibold text-primary-hover after:absolute after:inset-x-3 after:-bottom-2 after:h-0.5 after:rounded-full after:bg-primary'
+                  : 'bg-transparent font-medium text-muted hover:bg-wash hover:text-ink',
               )}
             >
               <Icon size={15} aria-hidden />
@@ -450,6 +465,7 @@ function BrainEditor({
           savedAt={saved.updatedAt}
           savedBy={saved.updatedBy?.name ?? null}
           dirty={dirty}
+          celebrate={celebrate}
           onGoTo={goTo}
           actions={
             <>
@@ -473,6 +489,7 @@ function BrainEditor({
           dirty={dirty}
           savedAt={saved.updatedAt}
           savedBy={saved.updatedBy?.name ?? null}
+          celebrate={celebrate}
           onGoTo={goToSection}
         />
       </div>

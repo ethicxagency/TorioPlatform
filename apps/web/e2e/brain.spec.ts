@@ -4,6 +4,7 @@ import {
   emptyBrainConfig,
   evaluateMaturity,
   readinessPct,
+  STAGE_MIN,
   type BrainConfig,
 } from '@torio/contracts';
 import { brainState, mockApi } from './mocks';
@@ -720,6 +721,180 @@ test.describe('brain (admin)', () => {
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
     ).toBe(false);
+  });
+
+  test('header: identity, stage badge, setup progress from real data, last saved', async ({
+    page,
+  }) => {
+    const header = page.locator('main header').first();
+    await expect(header.getByRole('heading', { name: 'Brain', level: 1 })).toBeVisible();
+    await expect(header.getByTestId('header-stage')).toHaveText(/BORN/);
+    await expect(header.getByText('Setup Progress')).toBeVisible();
+    const bar = header.getByRole('progressbar', { name: 'Setup progress' });
+    const shown = Number(await bar.getAttribute('aria-valuenow'));
+    // the same readiness percentage the Summary's Knowledge readiness shows
+    await expect(
+      summary(page).getByRole('progressbar', { name: 'Knowledge readiness' }),
+    ).toHaveAttribute('aria-valuenow', String(shown));
+    await expect(
+      header.getByText(/Last saved .*ago|Last saved Just now|Never saved/),
+    ).toBeVisible();
+    await openTab(page, 'Knowledge');
+    await page.getByLabel('Brand name *').fill('Changed');
+    await expect(header.getByText('Unsaved changes').first()).toBeVisible();
+  });
+
+  test('tabs: soft active background, keyboard navigation, and no overflow at tablet and phone widths', async ({
+    page,
+  }) => {
+    const active = page.getByRole('tab', { name: 'Summary' });
+    const bg = await active.evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(bg).not.toBe('rgba(0, 0, 0, 0)');
+    await active.focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(page.getByRole('tab', { name: 'Intelligence' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await page.keyboard.press('End');
+    await expect(page.getByRole('tab', { name: 'Test AI' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await page.keyboard.press('Home');
+    await expect(active).toHaveAttribute('aria-selected', 'true');
+    for (const width of [768, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
+      ).toBe(false);
+      for (const t of ['Summary', 'Intelligence', 'Knowledge', 'Rules & Behavior', 'Test AI'])
+        await expect(page.getByRole('tab', { name: t })).toBeAttached();
+    }
+  });
+
+  test('growth journey: six distinct stage identities, the current one animates, locked ones are marked', async ({
+    page,
+  }) => {
+    const palette: Record<string, string> = {
+      BORN: 'rgb(91, 92, 226)',
+      BABY: 'rgb(217, 119, 6)',
+      GROWING: 'rgb(5, 150, 105)',
+      SMART: 'rgb(37, 99, 235)',
+      MATURE: 'rgb(124, 58, 237)',
+      EXPERT: 'rgb(183, 121, 31)',
+    };
+    const journey = summary(page).getByRole('list', { name: 'Growth journey' });
+    const seen = new Set<string>();
+    for (const [stage, rgb] of Object.entries(palette)) {
+      const node = journey.locator(`[data-stage-icon="${stage}"]`);
+      const colors = await node.evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return { fg: cs.color, bg: cs.backgroundColor };
+      });
+      seen.add(colors.bg);
+      // current (BORN) and completed stages use their own primary; locked ones are muted, never another stage's colour
+      if (stage === 'BORN') expect(colors.fg).toBe(rgb);
+      else expect(Object.values(palette)).not.toContain(colors.fg);
+    }
+    expect(seen.size).toBeGreaterThan(1);
+    // exactly the current stage animates
+    const animated = await journey
+      .locator('[data-stage-icon]')
+      .evaluateAll((els) => els.filter((e) => getComputedStyle(e).animationName !== 'none').length);
+    expect(animated).toBe(1);
+    await expect(journey.locator('[data-stage-icon="BORN"]')).toHaveClass(/stage-anim-born/);
+    await expect(journey.getByRole('listitem').nth(3)).toContainText('Locked');
+    await expect(journey.getByRole('listitem').nth(3)).toContainText(`needs ${STAGE_MIN.SMART}+`);
+  });
+
+  test('reduced motion switches the stage animations off', async ({ page }) => {
+    const node = summary(page).locator('[data-stage-icon="BORN"]');
+    expect(await node.evaluate((e) => getComputedStyle(e).animationName)).not.toBe('none');
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    expect(await node.evaluate((e) => getComputedStyle(e).animationName)).toBe('none');
+  });
+
+  test('stage detail: current and locked stages tell the truth about what is needed', async ({
+    page,
+  }) => {
+    const journey = summary(page).getByRole('list', { name: 'Growth journey' });
+    const detail = summary(page).getByTestId('stage-detail');
+    // the current stage is shown first
+    await expect(detail).toContainText('Born');
+    await expect(detail).toContainText('You are here');
+    await expect(detail).toContainText('Remaining for the next stage');
+    await journey.getByRole('button', { name: /^Smart, locked/ }).click();
+    await expect(detail).toContainText('Smart');
+    await expect(detail).toContainText('Locked');
+    await expect(detail).not.toContainText('You are here');
+    await expect(detail).toContainText(`Intelligence score ${STAGE_MIN.SMART} or more`);
+    await expect(detail).toContainText('Still needed to unlock');
+    await expect(detail).toContainText(`Score ${STAGE_MIN.SMART}–${STAGE_MIN.MATURE - 1}`);
+    await journey.getByRole('button', { name: /^Expert, locked/ }).click();
+    await expect(detail).toContainText(`Score ${STAGE_MIN.EXPERT}–100`);
+  });
+
+  test('the connector fills with the engine’s real progress, in each completed stage’s colour', async ({
+    page,
+  }) => {
+    const d: BrainConfig = emptyBrainConfig();
+    d.identity = {
+      ...d.identity,
+      name: 'Lumi Learning',
+      category: 'Education',
+      country: 'Bangladesh',
+      website: 'https://lumi.example.com',
+      description:
+        'Lumi Learning runs live online courses in spoken English and coding for school students.',
+      audience: 'Parents of students from grade six to ten who want structured weekend classes',
+      usp: 'Small batches of eight students with weekly progress reports for parents',
+      positioning: 'Affordable, structured and friendly online tuition for school students',
+    };
+    brainState.config = d;
+    const m = evaluateMaturity(d);
+    expect(m.stageIndex).toBeGreaterThanOrEqual(1);
+    await page.reload();
+    const fills = await summary(page).evaluate(
+      (root, n) =>
+        Array.from({ length: n }, (_, i) => {
+          const f = root.querySelector(`[data-connector="${i}"] > span`) as HTMLElement | null;
+          return f ? parseFloat(f.style.width) : null;
+        }),
+      5,
+    );
+    for (let i = 0; i < 5; i++) {
+      const expected = i < m.stageIndex ? 100 : i === m.stageIndex ? m.progressToNext * 100 : 0;
+      expect(Math.abs((fills[i] ?? -1) - expected)).toBeLessThan(0.6);
+    }
+  });
+
+  test('unlocking a stage by saving celebrates it once; the stage badge follows the server', async ({
+    page,
+  }) => {
+    await openTab(page, 'Knowledge');
+    await page
+      .getByLabel('Brand description')
+      .fill(
+        'UrbanNest sells handmade ceramic vases, planters and table lamps designed for small Dhaka apartments.',
+      );
+    await page
+      .getByLabel('Target audience')
+      .fill('Young Dhaka professionals who rent small apartments and want warm, simple decor');
+    await page
+      .getByLabel('Brand positioning')
+      .fill('Affordable handmade decor that makes small spaces feel calm and personal');
+    await page
+      .getByLabel('Unique selling proposition')
+      .fill('Every piece is handmade in Dhaka and ships within two working days');
+    await page.getByLabel('Website URL').fill('https://urbannest.example.com');
+    await openTab(page, 'Summary');
+    await expect(summary(page).getByTestId('maturity-stage')).toHaveText('BORN');
+    await summary(page).getByRole('button', { name: 'Save Changes' }).click();
+    await expect(page.getByText('Brain saved.')).toBeVisible();
+    await expect(summary(page).getByTestId('maturity-stage')).not.toHaveText('BORN');
+    await expect(summary(page).getByText('Unlocked')).toBeVisible();
+    await expect(page.getByTestId('header-stage')).not.toHaveText(/BORN/);
   });
 
   test('the hero fits a phone without horizontal scroll', async ({ page }) => {
