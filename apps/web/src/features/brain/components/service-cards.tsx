@@ -14,8 +14,8 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
+import Image from 'next/image';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { cn } from '@/lib/utils';
 
 /**
  * Shipping providers and payment methods are lists of names a store tells its Brain it offers. There is no courier or
@@ -27,14 +27,48 @@ export interface CatalogEntry {
   name: string;
   category: string;
   icon?: LucideIcon;
-  /** Path to an official logo asset, when one has been supplied. */
-  logo?: string;
+  /** An official logo asset stored in /public/brands, with its natural size. Never hotlinked, never redrawn or cropped. */
+  logo?: Logo;
+}
+export interface Logo {
+  src: string;
+  alt: string;
+  width: number;
+  height: number;
+  /**
+   * Some supplied artwork sits in a lot of empty margin (a square canvas around a wide logo). The file is untouched; this
+   * only magnifies it inside the logo box (which clips the margin, never the artwork) so the mark is legible.
+   */
+  zoom?: number;
 }
 
 export const SHIPPING_CATALOG: CatalogEntry[] = [
-  { name: 'Pathao', category: 'Courier service' },
-  { name: 'Steadfast', category: 'Courier service' },
-  { name: 'RedX', category: 'Courier service' },
+  {
+    name: 'Pathao',
+    category: 'Courier service',
+    logo: {
+      src: '/brands/pathao-courier.png',
+      alt: 'Pathao Courier logo',
+      width: 1200,
+      height: 1200,
+      zoom: 2.2,
+    },
+  },
+  {
+    name: 'Steadfast',
+    category: 'Courier service',
+    logo: {
+      src: '/brands/steadfast-courier.png',
+      alt: 'Steadfast Courier logo',
+      width: 640,
+      height: 256,
+    },
+  },
+  {
+    name: 'RedX',
+    category: 'Courier service',
+    logo: { src: '/brands/redx.png', alt: 'REDX logo', width: 1024, height: 500 },
+  },
   { name: 'eCourier', category: 'Courier service' },
   { name: 'Paperfly', category: 'Courier service' },
   { name: 'Sundarban', category: 'Courier service' },
@@ -58,30 +92,49 @@ const monogram = (name: string) =>
     .join('')
     .toUpperCase() || '?';
 
-function Tile({ entry, className }: { entry: CatalogEntry; className?: string }) {
+/**
+ * The brand slot. A real logo keeps its own aspect ratio (object-contain on white, 48px high, never stretched or recoloured);
+ * an entry without a supplied logo shows a monogram or a Lucide icon in a square of the same height.
+ */
+function Tile({ entry, small }: { entry: CatalogEntry; small?: boolean }) {
   const Icon = entry.icon;
-  const [broken, setBroken] = useState(false);
+  const logo = entry.logo;
+  const h = small ? 40 : 48;
+  if (logo) {
+    // Width follows the artwork (bounded), so wide logos are not forced into a square.
+    const box = Math.max(
+      h,
+      Math.min(small ? 96 : 128, Math.round(((h - 12) * logo.width) / logo.height) + 16),
+    );
+    return (
+      <span
+        className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-line bg-white"
+        style={{ height: h, width: logo.zoom ? h * 2 : box }}
+      >
+        <Image
+          src={logo.src}
+          alt={logo.alt}
+          width={logo.width}
+          height={logo.height}
+          sizes="128px"
+          className="object-contain"
+          style={{
+            height: h - 12,
+            width: 'auto',
+            maxWidth: '100%',
+            transform: logo.zoom ? `scale(${logo.zoom})` : undefined,
+          }}
+        />
+      </span>
+    );
+  }
   return (
     <span
       aria-hidden
-      className={cn(
-        'flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-primary-line bg-primary-soft text-[13px] font-semibold text-primary-hover',
-        className,
-      )}
+      style={{ height: h, width: h }}
+      className="flex shrink-0 items-center justify-center rounded-[10px] border border-primary-line bg-primary-soft text-[13px] font-semibold text-primary-hover"
     >
-      {entry.logo && !broken ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={entry.logo}
-          alt=""
-          className="h-full w-full object-contain p-1.5"
-          onError={() => setBroken(true)}
-        />
-      ) : Icon ? (
-        <Icon size={18} />
-      ) : (
-        monogram(entry.name)
-      )}
+      {Icon ? <Icon size={18} /> : monogram(entry.name)}
     </span>
   );
 }
@@ -252,7 +305,7 @@ function PickerDialog({
                   onClick={() => pick(c.name)}
                   className="flex w-full cursor-pointer items-center gap-3 rounded-xl border-none bg-transparent px-2 py-2 text-left transition-colors duration-150 hover:bg-wash focus-visible:bg-wash focus-visible:outline-none disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent motion-reduce:transition-none"
                 >
-                  <Tile entry={c} />
+                  <Tile entry={c} small />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[13.5px] font-semibold text-ink">
                       {c.name}
@@ -344,22 +397,24 @@ export function ServiceCards({
         )}
         <p className="m-0 basis-full text-[12.5px] text-muted">{description}</p>
       </div>
-      <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-2.5 p-0">
+      <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2.5 p-0">
         {values.map((v) => {
           const e = entryOf(v);
           return (
             <li key={v}>
-              <div className="flex h-full min-h-[76px] items-start gap-3 rounded-[13px] border border-line bg-white p-3 transition-colors duration-150 hover:border-line-input motion-reduce:transition-none">
-                <Tile entry={e} />
-                <div className="min-w-0 flex-1">
+              <div className="flex h-full flex-col gap-2.5 rounded-[13px] border border-line bg-white p-3 transition-colors duration-150 hover:border-line-input motion-reduce:transition-none">
+                <div className="flex items-start justify-between gap-2">
+                  <Tile entry={e} />
+                  <CardMenu name={v} onRemove={() => onChange(values.filter((x) => x !== v))} />
+                </div>
+                <div className="min-w-0">
                   <div className="truncate text-[13.5px] font-semibold text-ink">{v}</div>
                   <div className="text-xs leading-snug text-muted">{e.category}</div>
-                  <div className="mt-1.5 flex items-center gap-1.5 text-[11.5px] text-muted">
-                    <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-primary" />
-                    Listed in Brain
-                  </div>
                 </div>
-                <CardMenu name={v} onRemove={() => onChange(values.filter((x) => x !== v))} />
+                <div className="mt-auto flex items-center gap-1.5 text-[11.5px] text-muted">
+                  <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  Listed in Brain
+                </div>
               </div>
             </li>
           );
@@ -368,7 +423,7 @@ export function ServiceCards({
           <button
             type="button"
             onClick={() => setPicking(true)}
-            className="flex h-full min-h-[76px] w-full cursor-pointer items-center gap-3 rounded-[13px] border border-dashed border-[#C9CBD3] bg-white p-3 text-left transition-colors duration-150 hover:border-primary hover:bg-primary-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-[#C9CBD3] disabled:hover:bg-white motion-reduce:transition-none"
+            className="flex h-full min-h-[108px] w-full cursor-pointer flex-col items-start justify-between gap-3 rounded-[13px] border border-dashed border-[#C9CBD3] bg-white p-3 text-left transition-colors duration-150 hover:border-primary hover:bg-primary-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-[#C9CBD3] disabled:hover:bg-white motion-reduce:transition-none"
           >
             <span
               aria-hidden

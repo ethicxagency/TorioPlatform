@@ -338,6 +338,47 @@ test.describe('brain (admin)', () => {
     await expect(page.getByRole('button', { name: 'Pathao', exact: true })).toHaveCount(0);
   });
 
+  test('supplied courier logos are real local images with their own aspect ratio, and say nothing about connection', async ({
+    page,
+  }) => {
+    const ship = page.getByRole('region', { name: 'Shipping Providers' });
+    for (const n of ['Steadfast', 'RedX']) {
+      await ship.getByRole('button', { name: /Add Shipping Provider/ }).click();
+      await page
+        .getByRole('dialog')
+        .getByRole('button', { name: new RegExp(n) })
+        .click();
+    }
+    const logos = [
+      ['Pathao Courier logo', 1200 / 1200],
+      ['Steadfast Courier logo', 640 / 256],
+      ['REDX logo', 1024 / 500],
+    ] as const;
+    for (const [alt, ratio] of logos) {
+      const img = ship.getByRole('img', { name: alt });
+      await expect(img).toBeVisible();
+      const info = await img.evaluate((el: HTMLImageElement) => ({
+        ok: el.complete && el.naturalWidth > 0,
+        src: el.currentSrc,
+        w: el.naturalWidth,
+        h: el.naturalHeight,
+        fit: getComputedStyle(el).objectFit,
+      }));
+      expect(info.ok).toBe(true);
+      expect(new URL(info.src).origin).toBe(new URL(page.url()).origin); // local asset, no hotlink
+      expect(info.fit).toBe('contain');
+      expect(Math.abs(info.w / info.h - ratio)).toBeLessThan(0.02); // original proportions
+    }
+    // other couriers have no supplied artwork, so they show a neutral monogram, never an invented logo
+    await ship.getByRole('button', { name: /Add Shipping Provider/ }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: /Sundarban/ })
+      .click();
+    await expect(ship.getByRole('img', { name: /Sundarban/ })).toHaveCount(0);
+    await expect(ship.getByText(/Connected/i)).toHaveCount(0);
+  });
+
   test('add a provider from the picker: search, select, saved with the Brain', async ({ page }) => {
     const ship = page.getByRole('region', { name: 'Shipping Providers' });
     await ship.getByRole('button', { name: /Add Shipping Provider/ }).click();
