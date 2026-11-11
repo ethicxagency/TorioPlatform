@@ -12,6 +12,7 @@ import {
   TextField,
   Toggle,
 } from './bits';
+import { PAYMENT_CATALOG, SHIPPING_CATALOG, ServiceCards } from './service-cards';
 import type { SectionProps } from './types';
 import { CURRENCY_DEFS, DEFAULT_CURRENCY } from '@torio/contracts';
 
@@ -30,8 +31,6 @@ const CATEGORIES = [
 ];
 const LANGS = ['Bengali', 'English', 'Hindi', 'Arabic'];
 const CURRENCIES = ['BDT (৳)', 'USD ($)', 'INR (₹)', 'EUR (€)', 'GBP (£)'];
-const PROVIDERS = ['Pathao', 'Steadfast', 'RedX', 'eCourier', 'Paperfly', 'Sundarban'];
-const PAYMENTS = ['bKash', 'Nagad', 'Rocket', 'Card', 'Bank transfer'];
 const COVERAGE = ['Nationwide', 'Inside Dhaka only', 'Major cities', 'Selected areas'];
 const DISCOUNTS = ['None', 'Up to 5%', 'Up to 10%', 'Up to 15%', 'Up to 20%'];
 const APPROVAL = [
@@ -183,10 +182,18 @@ export function PoliciesSection({ d, mut }: SectionProps) {
         description="Orders, delivery and payments. AI quotes these exactly; it never guesses fees or times."
         status={status(d, 'shipping')}
       >
-        <Chips
-          label="Shipping providers"
+        <ServiceCards
+          title="Shipping Providers"
+          description="Manage the courier services available to your store."
+          addTitle="Add Shipping Provider"
+          addHint="Connect a courier or shipping service."
+          pickerTitle="Add shipping provider"
+          customLabel="Add as a custom provider"
+          emptyTitle="No shipping providers yet."
+          emptyText="Add the couriers you deliver with so AI can name them."
+          catalog={SHIPPING_CATALOG}
+          customCategory="Custom provider"
           values={s.providers}
-          options={PROVIDERS}
           onChange={(v) =>
             mut((c) => {
               c.shipping.providers = v;
@@ -258,10 +265,18 @@ export function PoliciesSection({ d, mut }: SectionProps) {
             className="max-w-xs"
           />
         )}
-        <Chips
-          label="Payment methods"
+        <ServiceCards
+          title="Payment Methods"
+          description="Manage how your customers can pay for their orders."
+          addTitle="Add Payment Method"
+          addHint="Offer another way to pay."
+          pickerTitle="Add payment method"
+          customLabel="Add as a custom method"
+          emptyTitle="No payment methods yet."
+          emptyText="Add the ways customers can pay so AI can tell them."
+          catalog={PAYMENT_CATALOG}
+          customCategory="Custom payment method"
           values={s.payments}
-          options={PAYMENTS}
           onChange={(v) =>
             mut((c) => {
               c.shipping.payments = v;

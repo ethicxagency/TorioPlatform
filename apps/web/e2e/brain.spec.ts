@@ -311,6 +311,110 @@ test.describe('brain (admin)', () => {
     await expect(hero.getByText('Configuration valid')).toHaveCount(0);
   });
 
+  test('shipping providers and payment methods are cards, with honest status and no connection claims', async ({
+    page,
+  }) => {
+    const ship = page.getByRole('region', { name: 'Shipping Providers' });
+    await expect(
+      ship.getByText('Manage the courier services available to your store.'),
+    ).toBeVisible();
+    await expect(ship.getByText('1 added')).toBeVisible();
+    const pathao = ship.getByRole('listitem').filter({ hasText: 'Pathao' });
+    await expect(pathao).toContainText('Courier service');
+    await expect(pathao).toContainText('Listed in Brain');
+    await expect(ship.getByRole('button', { name: /Add Shipping Provider/ })).toBeVisible();
+    const pay = page.getByRole('region', { name: 'Payment Methods' });
+    await expect(
+      pay.getByText('Manage how your customers can pay for their orders.'),
+    ).toBeVisible();
+    await expect(pay.getByRole('listitem').filter({ hasText: 'bKash' })).toContainText(
+      'Mobile financial service',
+    );
+    await expect(pay.getByRole('button', { name: /Add Payment Method/ })).toBeVisible();
+    // there is no courier or gateway connection behind these lists, so nothing may claim one
+    for (const r of [ship, pay])
+      await expect(r.getByText(/Connected|Test connection|credential|API key/i)).toHaveCount(0);
+    // the old pill toggles are gone
+    await expect(page.getByRole('button', { name: 'Pathao', exact: true })).toHaveCount(0);
+  });
+
+  test('add a provider from the picker: search, select, saved with the Brain', async ({ page }) => {
+    const ship = page.getByRole('region', { name: 'Shipping Providers' });
+    await ship.getByRole('button', { name: /Add Shipping Provider/ }).click();
+    const dlg = page.getByRole('dialog', { name: 'Add shipping provider' });
+    await expect(dlg.getByRole('button', { name: /Pathao/ })).toBeDisabled(); // already added
+    await expect(dlg.getByText('Added')).toBeVisible();
+    await dlg.getByLabel('Search').fill('red');
+    await expect(dlg.getByRole('button', { name: /Steadfast/ })).toHaveCount(0);
+    await dlg.getByRole('button', { name: /RedX/ }).click();
+    await expect(dlg).toHaveCount(0);
+    await expect(ship.getByRole('listitem').filter({ hasText: 'RedX' })).toBeVisible();
+    await page.getByRole('button', { name: 'Save Changes' }).click();
+    await expect(page.getByText('Brain saved.')).toBeVisible();
+    const put = brainState.puts.at(-1) as { config: { shipping: { providers: string[] } } };
+    expect(put.config.shipping.providers).toEqual(['Pathao', 'RedX']);
+  });
+
+  test('duplicates are prevented, including a custom name in another case', async ({ page }) => {
+    const ship = page.getByRole('region', { name: 'Shipping Providers' });
+    await ship.getByRole('button', { name: /Add Shipping Provider/ }).click();
+    let dlg = page.getByRole('dialog', { name: 'Add shipping provider' });
+    await dlg.getByLabel('Search').fill('Local Rider');
+    await dlg.getByRole('button', { name: /Add “Local Rider”/ }).click();
+    await expect(ship.getByRole('listitem').filter({ hasText: 'Local Rider' })).toContainText(
+      'Custom provider',
+    );
+    await ship.getByRole('button', { name: /Add Shipping Provider/ }).click();
+    dlg = page.getByRole('dialog', { name: 'Add shipping provider' });
+    await dlg.getByLabel('Search').fill('local rider');
+    await dlg.getByRole('button', { name: /Add “local rider”/ }).click();
+    await expect(dlg.getByRole('alert')).toContainText('already added');
+    await dlg.getByLabel('Search').press('Escape');
+    await expect(dlg).toHaveCount(0);
+    await expect(ship.getByRole('listitem').filter({ hasText: /Local Rider/i })).toHaveCount(1);
+  });
+
+  test('the card menu is keyboard accessible and removes only that entry', async ({ page }) => {
+    const pay = page.getByRole('region', { name: 'Payment Methods' });
+    await pay.getByRole('button', { name: 'Add Payment Method' }).click();
+    await page
+      .getByRole('dialog', { name: 'Add payment method' })
+      .getByRole('button', { name: /Nagad/ })
+      .click();
+    const trigger = pay.getByRole('button', { name: 'Actions for bKash' });
+    await trigger.focus();
+    await page.keyboard.press('ArrowDown');
+    const item = page.getByRole('menuitem', { name: 'Remove' });
+    await expect(item).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(item).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    await trigger.click();
+    await page.getByRole('menuitem', { name: 'Remove' }).click();
+    await expect(pay.getByRole('listitem').filter({ hasText: 'bKash' })).toHaveCount(0);
+    await expect(pay.getByRole('listitem').filter({ hasText: 'Nagad' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Unsaved changes/ })).toBeVisible();
+  });
+
+  test('an empty list shows an empty state with the Add card; cards stay in one column on a phone', async ({
+    page,
+  }) => {
+    const pay = page.getByRole('region', { name: 'Payment Methods' });
+    await pay.getByRole('button', { name: 'Actions for bKash' }).click();
+    await page.getByRole('menuitem', { name: 'Remove' }).click();
+    await expect(pay.getByText('No payment methods yet.')).toBeVisible();
+    await expect(pay.getByRole('button', { name: /Add Payment Method/ })).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 844 });
+    const ship = page.getByRole('region', { name: 'Shipping Providers' });
+    await ship.scrollIntoViewIfNeeded();
+    const a = (await ship.getByRole('listitem').first().boundingBox())!;
+    const b = (await ship.getByRole('button', { name: /Add Shipping Provider/ }).boundingBox())!;
+    expect(Math.abs(a.x - b.x)).toBeLessThan(2); // stacked, not side by side
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
+    ).toBe(false);
+  });
+
   test('the hero fits a phone without horizontal scroll', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/brain');
