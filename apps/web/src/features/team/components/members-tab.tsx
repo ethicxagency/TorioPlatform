@@ -1,10 +1,11 @@
 'use client';
 
 import { CONTROL } from '@/components/ui/input';
-import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { fmtAgo, initialsOf } from '@/features/inbox/format';
+import { Pagination } from '@/components/ui/pagination';
 import { cn } from '@/lib/utils';
 import { ROLE_INFO, type Member, type MemberFilters, type TeamItem } from '../types';
 import { RoleBadge, StatusBadge } from './role-badge';
@@ -39,9 +40,6 @@ const selectCls = CONTROL;
 const th = 'px-3 py-2.5 text-left text-[12px] font-semibold text-muted whitespace-nowrap';
 
 export function MembersTab(p: Props) {
-  const from = p.total === 0 ? 0 : (p.page - 1) * p.pageSize + 1;
-  const to = Math.min(p.total, p.page * p.pageSize);
-  const pages = Math.max(1, Math.ceil(p.total / p.pageSize));
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -282,34 +280,7 @@ export function MembersTab(p: Props) {
               </li>
             ))}
           </ul>
-          <div className="flex items-center justify-between gap-3 border-t border-line-subtle bg-[#FBFBFC] px-4 py-2.5 text-xs text-muted">
-            <span aria-live="polite">
-              {from}–{to} of {p.total}
-            </span>
-            <div className="flex items-center gap-1.5">
-              <span>
-                Page {p.page} of {pages}
-              </span>
-              <button
-                type="button"
-                aria-label="Previous page"
-                disabled={p.page <= 1}
-                onClick={() => p.onPage(p.page - 1)}
-                className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border border-line bg-white disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <ChevronLeft size={14} />
-              </button>
-              <button
-                type="button"
-                aria-label="Next page"
-                disabled={p.page >= pages}
-                onClick={() => p.onPage(p.page + 1)}
-                className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border border-line bg-white disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <ChevronRight size={14} />
-              </button>
-            </div>
-          </div>
+          <Pagination page={p.page} total={p.total} pageSize={p.pageSize} onPage={p.onPage} />
         </div>
       )}
     </div>

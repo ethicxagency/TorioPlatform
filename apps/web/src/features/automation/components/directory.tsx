@@ -1,9 +1,9 @@
 'use client';
 
+import { Pagination } from '@/components/ui/pagination';
 import {
   Copy,
   History,
-  MoreHorizontal,
   Pencil,
   Pause,
   Play,
@@ -16,13 +16,11 @@ import {
 } from 'lucide-react';
 import { triggerOf, TRIGGERS } from '@torio/contracts';
 import Link from 'next/link';
-import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { FilterMenu } from '@/features/inbox/components/filter-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fmtAgo } from '@/features/inbox/format';
-import { useDismiss } from '@/features/inbox/use-dismiss';
-import { cn } from '@/lib/utils';
+import { ActionMenu } from '@/components/ui/menu';
 import type { AutomationItem, DirectoryFilters } from '../types';
 import { StatusBadge } from './bits';
 
@@ -58,104 +56,35 @@ const SORTS = [
 ];
 
 function RowMenu({ a, p }: { a: AutomationItem; p: Props }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useDismiss(ref, open, () => setOpen(false));
-  const item =
-    'flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 text-left text-[13px] no-underline hover:bg-wash hover:no-underline disabled:cursor-not-allowed disabled:opacity-50';
-  const run = (fn: () => void) => () => {
-    setOpen(false);
-    fn();
-  };
   return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        aria-label={`Actions for ${a.name}`}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-wash-2"
-      >
-        <MoreHorizontal size={16} />
-      </button>
-      {open && (
-        <div
-          role="menu"
-          className="absolute right-0 top-9 z-20 w-[210px] animate-panel-in rounded-xl border border-line glass-menu p-1.5 shadow-popover"
-        >
-          <Link role="menuitem" href={`/automation/${a.id}`} className={item}>
-            <Workflow size={14} className="text-muted" />
-            Open editor
-          </Link>
-          {p.canActivate && (
-            <button
-              role="menuitem"
-              type="button"
-              className={item}
-              disabled={p.busyId === a.id}
-              onClick={run(() => p.onToggle(a))}
-            >
-              {a.status === 'ACTIVE' ? (
-                <Pause size={14} className="text-muted" />
-              ) : (
-                <Play size={14} className="text-muted" />
-              )}
-              {a.status === 'ACTIVE' ? 'Disable' : 'Enable'}
-            </button>
-          )}
-          <button
-            role="menuitem"
-            type="button"
-            className={item}
-            onClick={run(() => p.onHistory(a))}
-          >
-            <History size={14} className="text-muted" />
-            Run history
-          </button>
-          {p.canWrite && (
-            <>
-              <button
-                role="menuitem"
-                type="button"
-                className={item}
-                onClick={run(() => p.onRename(a))}
-              >
-                <Pencil size={14} className="text-muted" />
-                Rename
-              </button>
-              <button
-                role="menuitem"
-                type="button"
-                className={item}
-                onClick={run(() => p.onDuplicate(a))}
-              >
-                <Copy size={14} className="text-muted" />
-                Duplicate
-              </button>
-            </>
-          )}
-          {p.canActivate && (
-            <button
-              role="menuitem"
-              type="button"
-              className={cn(item, 'text-danger')}
-              disabled={a.status === 'ACTIVE'}
-              title={a.status === 'ACTIVE' ? 'Disable it before deleting' : undefined}
-              onClick={run(() => p.onDelete(a))}
-            >
-              <Trash2 size={14} />
-              Delete
-            </button>
-          )}
-        </div>
-      )}
-    </div>
+    <ActionMenu
+      label={`Actions for ${a.name}`}
+      width={210}
+      items={[
+        { label: 'Open editor', icon: Workflow, href: `/automation/${a.id}` },
+        p.canActivate && {
+          label: a.status === 'ACTIVE' ? 'Disable' : 'Enable',
+          icon: a.status === 'ACTIVE' ? Pause : Play,
+          disabled: p.busyId === a.id,
+          onSelect: () => p.onToggle(a),
+        },
+        { label: 'Run history', icon: History, onSelect: () => p.onHistory(a) },
+        p.canWrite && { label: 'Rename', icon: Pencil, onSelect: () => p.onRename(a) },
+        p.canWrite && { label: 'Duplicate', icon: Copy, onSelect: () => p.onDuplicate(a) },
+        p.canActivate && {
+          label: 'Delete',
+          icon: Trash2,
+          danger: true,
+          disabled: a.status === 'ACTIVE',
+          title: a.status === 'ACTIVE' ? 'Disable it before deleting' : undefined,
+          onSelect: () => p.onDelete(a),
+        },
+      ]}
+    />
   );
 }
 
 export function Directory(p: Props) {
-  const pages = Math.max(1, Math.ceil(p.total / p.pageSize));
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -300,28 +229,13 @@ export function Directory(p: Props) {
               </li>
             ))}
           </ul>
-          <div className="flex items-center justify-between border-t border-line-subtle bg-[#FBFBFC] px-4 py-2.5 text-xs text-muted">
-            <span aria-live="polite">{p.total} automations</span>
-            <span className="flex items-center gap-2">
-              Page {p.page} of {pages}
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={p.page <= 1}
-                onClick={() => p.onPage(p.page - 1)}
-              >
-                Previous
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={p.page >= pages}
-                onClick={() => p.onPage(p.page + 1)}
-              >
-                Next
-              </Button>
-            </span>
-          </div>
+          <Pagination
+            page={p.page}
+            total={p.total}
+            pageSize={p.pageSize}
+            noun="automations"
+            onPage={p.onPage}
+          />
         </div>
       )}
     </div>

@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { controlCls } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTimeZone } from '@/features/settings/queries';
+import { Pagination } from '@/components/ui/pagination';
 import { cn } from '@/lib/utils';
 import {
   downloadInvoicePdf,
@@ -430,34 +431,14 @@ export function InvoicesSection({ ws, canManage }: { ws: string; canManage: bool
               ))}
             </ul>
 
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line-subtle px-4 py-3 text-xs text-muted sm:px-5">
-              <span aria-live="polite">
-                {meta && meta.total > 0
-                  ? `Showing ${(meta.page - 1) * meta.pageSize + 1}–${Math.min(meta.page * meta.pageSize, meta.total)} of ${meta.total}`
-                  : ''}
-              </span>
-              {(meta?.totalPages ?? 1) > 1 && (
-                <span className="flex items-center gap-2">
-                  Page {meta?.page} of {meta?.totalPages}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => p - 1)}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={page >= (meta?.totalPages ?? 1)}
-                    onClick={() => setPage((p) => p + 1)}
-                  >
-                    Next
-                  </Button>
-                </span>
-              )}
-            </div>
+            {meta && meta.total > 0 && (
+              <Pagination
+                page={meta.page}
+                total={meta.total}
+                pageSize={meta.pageSize}
+                onPage={setPage}
+              />
+            )}
           </>
         )}
       </section>

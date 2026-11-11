@@ -9,13 +9,12 @@ import {
   Receipt,
   UserRound,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { fmtAgo, initialsOf } from '@/features/inbox/format';
 import { useTimeZone } from '@/features/settings/queries';
 import { fmtDateTime } from '@/lib/datetime';
 import { ActionMenu } from '@/components/ui/menu';
 import { Pagination } from '@/components/ui/pagination';
+import { TableEmpty, TableError, TableLoading } from '@/components/ui/table-states';
 import { cn } from '@/lib/utils';
 import { CHANNEL_LABEL } from '../constants';
 import { formatMoney } from '../money';
@@ -124,58 +123,18 @@ export function OrdersTable(p: Props) {
   );
 
   if (p.state === 'error')
-    return (
-      <div role="alert" className="rounded-card border border-line bg-white px-6 py-14 text-center">
-        <div className="text-sm font-semibold">Couldn&apos;t load orders</div>
-        <div className="mb-3.5 mt-1 text-[13px] text-muted">{p.errorMessage}</div>
-        <Button variant="outline" size="sm" onClick={p.onRetry}>
-          Try again
-        </Button>
-      </div>
-    );
-  if (p.state === 'loading')
-    return (
-      <div
-        className="overflow-hidden rounded-card border border-line bg-white"
-        aria-busy="true"
-        aria-label="Loading orders"
-      >
-        {[0, 1, 2, 3, 4, 5].map((i) => (
-          <div
-            key={i}
-            className="flex items-center gap-3 border-b border-line-subtle px-4 py-3.5 last:border-0"
-          >
-            <Skeleton className="h-3.5 w-16" />
-            <Skeleton className="h-3.5 w-1/5 bg-wash-2" />
-            <Skeleton className="h-3.5 w-1/6" />
-            <Skeleton className="ml-auto h-5 w-16" />
-          </div>
-        ))}
-      </div>
-    );
+    return <TableError noun="orders" message={p.errorMessage} onRetry={p.onRetry} />;
+  if (p.state === 'loading') return <TableLoading noun="orders" avatar={false} />;
   if (p.orders.length === 0)
     return (
-      <div className="rounded-card border border-line bg-white px-6 py-14 text-center">
-        <div className="text-[14.5px] font-semibold">
-          {p.filtered ? 'No orders match your filters' : 'No orders yet'}
-        </div>
-        <div className="mx-auto mb-3.5 mt-1 max-w-[360px] text-[13px] text-muted">
-          {p.filtered
-            ? 'Try a different search or clear your filters.'
-            : 'Create an order for a customer to start tracking payments and fulfillment.'}
-        </div>
-        {p.filtered ? (
-          <Button variant="outline" size="sm" onClick={p.onClearFilters}>
-            Clear filters
-          </Button>
-        ) : (
-          p.canWrite && (
-            <Button size="sm" onClick={p.onCreate}>
-              Create order
-            </Button>
-          )
-        )}
-      </div>
+      <TableEmpty
+        noun="orders"
+        filtered={p.filtered}
+        hint="Create an order for a customer to start tracking payments and fulfillment."
+        maxWidth={360}
+        onClearFilters={p.onClearFilters}
+        action={p.canWrite ? { label: 'Create order', onClick: p.onCreate } : null}
+      />
     );
 
   return (

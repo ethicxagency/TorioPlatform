@@ -1,6 +1,7 @@
 'use client';
 
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { Pagination } from '@/components/ui/pagination';
+import { Search } from 'lucide-react';
 import { useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDebounced } from '@/features/leads/use-debounced';
@@ -72,30 +73,13 @@ export function AuditPage() {
               ))}
             </ul>
           )}
-          <div className="flex items-center justify-between border-t border-line-subtle bg-[#FBFBFC] px-4 py-2.5 text-xs text-muted">
-            <span aria-live="polite">{meta?.total ?? 0} entries</span>
-            <span className="flex items-center gap-1.5">
-              Page {meta?.page ?? 1} of {meta?.totalPages ?? 1}
-              <button
-                type="button"
-                aria-label="Previous page"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
-                className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border border-line bg-white disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <ChevronLeft size={14} />
-              </button>
-              <button
-                type="button"
-                aria-label="Next page"
-                disabled={page >= (meta?.totalPages ?? 1)}
-                onClick={() => setPage((p) => p + 1)}
-                className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border border-line bg-white disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <ChevronRight size={14} />
-              </button>
-            </span>
-          </div>
+          <Pagination
+            page={meta?.page ?? 1}
+            total={meta?.total ?? 0}
+            pageSize={meta?.pageSize ?? 1}
+            noun="entries"
+            onPage={setPage}
+          />
         </div>
       )}
     </div>

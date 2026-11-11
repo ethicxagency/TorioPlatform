@@ -1,11 +1,10 @@
 'use client';
 
 import { ArrowDown, ArrowUp, Check, MessageSquare, Pencil, Trash2, UserRound } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { fmtAgo, initialsOf } from '@/features/inbox/format';
 import { ActionMenu } from '@/components/ui/menu';
 import { Pagination } from '@/components/ui/pagination';
+import { TableEmpty, TableError, TableLoading } from '@/components/ui/table-states';
 import { cn } from '@/lib/utils';
 import { DEFAULT_CURRENCY, formatCurrencyMajor } from '@torio/contracts';
 import type { Lead, LeadSortField } from '../types';
@@ -145,60 +144,18 @@ export function LeadsTable(p: Props) {
   );
 
   if (p.state === 'error')
-    return (
-      <div role="alert" className="rounded-card border border-line bg-white px-6 py-14 text-center">
-        <div className="text-sm font-semibold">Couldn&apos;t load leads</div>
-        <div className="mb-3.5 mt-1 text-[13px] text-muted">{p.errorMessage}</div>
-        <Button variant="outline" size="sm" onClick={p.onRetry}>
-          Try again
-        </Button>
-      </div>
-    );
-
-  if (p.state === 'loading')
-    return (
-      <div
-        className="overflow-hidden rounded-card border border-line bg-white"
-        aria-busy="true"
-        aria-label="Loading leads"
-      >
-        {[0, 1, 2, 3, 4, 5].map((i) => (
-          <div
-            key={i}
-            className="flex items-center gap-3 border-b border-line-subtle px-4 py-3.5 last:border-0"
-          >
-            <Skeleton className="h-8 w-8 rounded-full" />
-            <Skeleton className="h-3.5 w-1/4" />
-            <Skeleton className="h-3.5 w-1/5 bg-wash-2" />
-            <Skeleton className="ml-auto h-5 w-16" />
-          </div>
-        ))}
-      </div>
-    );
-
+    return <TableError noun="leads" message={p.errorMessage} onRetry={p.onRetry} />;
+  if (p.state === 'loading') return <TableLoading noun="leads" avatar={true} />;
   if (p.leads.length === 0)
     return (
-      <div className="rounded-card border border-line bg-white px-6 py-14 text-center">
-        <div className="text-[14.5px] font-semibold">
-          {p.filtered ? 'No leads match your filters' : 'No leads yet'}
-        </div>
-        <div className="mx-auto mb-3.5 mt-1 max-w-[320px] text-[13px] text-muted">
-          {p.filtered
-            ? 'Try a different search or clear your filters.'
-            : 'Add your first lead, or import a CSV to get started.'}
-        </div>
-        {p.filtered ? (
-          <Button variant="outline" size="sm" onClick={p.onClearFilters}>
-            Clear filters
-          </Button>
-        ) : (
-          p.canWrite && (
-            <Button size="sm" onClick={p.onAdd}>
-              Add lead
-            </Button>
-          )
-        )}
-      </div>
+      <TableEmpty
+        noun="leads"
+        filtered={p.filtered}
+        hint="Add your first lead, or import a CSV to get started."
+        maxWidth={320}
+        onClearFilters={p.onClearFilters}
+        action={p.canWrite ? { label: 'Add lead', onClick: p.onAdd } : null}
+      />
     );
 
   return (

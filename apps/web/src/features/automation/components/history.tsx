@@ -1,5 +1,6 @@
 'use client';
 
+import { Pagination } from '@/components/ui/pagination';
 import { X } from 'lucide-react';
 import { triggerOf } from '@torio/contracts';
 import { useEffect, useRef } from 'react';
@@ -32,7 +33,6 @@ interface Props {
 }
 
 export function HistoryView(p: Props) {
-  const pages = Math.max(1, Math.ceil(p.total / p.pageSize));
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap gap-2">
@@ -111,28 +111,13 @@ export function HistoryView(p: Props) {
               </li>
             ))}
           </ul>
-          <div className="flex items-center justify-between border-t border-line-subtle bg-[#FBFBFC] px-4 py-2.5 text-xs text-muted">
-            <span aria-live="polite">{p.total} runs</span>
-            <span className="flex items-center gap-2">
-              Page {p.page} of {pages}
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={p.page <= 1}
-                onClick={() => p.onPage(p.page - 1)}
-              >
-                Previous
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={p.page >= pages}
-                onClick={() => p.onPage(p.page + 1)}
-              >
-                Next
-              </Button>
-            </span>
-          </div>
+          <Pagination
+            page={p.page}
+            total={p.total}
+            pageSize={p.pageSize}
+            noun="runs"
+            onPage={p.onPage}
+          />
         </div>
       )}
     </div>

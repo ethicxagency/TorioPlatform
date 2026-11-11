@@ -5,7 +5,6 @@ import {
   Check,
   CreditCard,
   Landmark,
-  MoreHorizontal,
   Plus,
   Search,
   Smartphone,
@@ -16,6 +15,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { ActionMenu } from '@/components/ui/menu';
 
 /**
  * Shipping providers and payment methods are lists of names a store tells its Brain it offers. There is no courier or
@@ -140,73 +140,12 @@ function Tile({ entry, small }: { entry: CatalogEntry; small?: boolean }) {
 }
 
 function CardMenu({ name, onRemove }: { name: string; onRemove: () => void }) {
-  const [open, setOpen] = useState(false);
-  const wrap = useRef<HTMLDivElement>(null);
-  const btn = useRef<HTMLButtonElement>(null);
-  const item = useRef<HTMLButtonElement>(null);
-  const id = useId();
-  useEffect(() => {
-    if (!open) return;
-    item.current?.focus();
-    const away = (e: MouseEvent) => {
-      if (!wrap.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', away);
-    return () => document.removeEventListener('mousedown', away);
-  }, [open]);
-  const close = () => {
-    setOpen(false);
-    btn.current?.focus();
-  };
   return (
-    <div ref={wrap} className="relative">
-      <button
-        ref={btn}
-        type="button"
-        aria-label={`Actions for ${name}`}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-controls={open ? id : undefined}
-        onClick={() => setOpen((v) => !v)}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowDown' && !open) {
-            e.preventDefault();
-            setOpen(true);
-          }
-        }}
-        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-muted transition-colors duration-150 hover:bg-wash hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
-      >
-        <MoreHorizontal size={16} aria-hidden />
-      </button>
-      {open && (
-        <div
-          id={id}
-          role="menu"
-          aria-label={`${name} actions`}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              e.stopPropagation();
-              close();
-            }
-          }}
-          className="absolute right-0 top-9 z-30 w-40 animate-panel-in rounded-xl border border-line bg-white p-1 shadow-popover motion-reduce:animate-none"
-        >
-          <button
-            ref={item}
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              onRemove();
-            }}
-            className="flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg border-none bg-transparent px-2.5 text-left text-[13px] font-medium text-danger transition-colors duration-150 hover:bg-danger-soft focus-visible:bg-danger-soft focus-visible:outline-none motion-reduce:transition-none"
-          >
-            <Trash2 size={14} aria-hidden />
-            Remove
-          </button>
-        </div>
-      )}
-    </div>
+    <ActionMenu
+      label={`Actions for ${name}`}
+      width={160}
+      items={[{ label: 'Remove', icon: Trash2, danger: true, onSelect: onRemove }]}
+    />
   );
 }
 

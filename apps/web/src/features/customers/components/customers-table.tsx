@@ -1,12 +1,11 @@
 'use client';
 
 import { ArrowDown, ArrowUp, Check, MessageSquare, Pencil, Trash2, UserRound } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { fmtAgo, initialsOf } from '@/features/inbox/format';
 import { SourceBadge } from '@/features/leads/components/badges';
 import { ActionMenu } from '@/components/ui/menu';
 import { Pagination } from '@/components/ui/pagination';
+import { TableEmpty, TableError, TableLoading } from '@/components/ui/table-states';
 import { cn } from '@/lib/utils';
 import type { CustomerItem, CustomerSort } from '../types';
 import { CustomerStatusBadge } from './status-badge';
@@ -120,58 +119,18 @@ export function CustomersTable(p: Props) {
   );
 
   if (p.state === 'error')
-    return (
-      <div role="alert" className="rounded-card border border-line bg-white px-6 py-14 text-center">
-        <div className="text-sm font-semibold">Couldn&apos;t load customers</div>
-        <div className="mb-3.5 mt-1 text-[13px] text-muted">{p.errorMessage}</div>
-        <Button variant="outline" size="sm" onClick={p.onRetry}>
-          Try again
-        </Button>
-      </div>
-    );
-  if (p.state === 'loading')
-    return (
-      <div
-        className="overflow-hidden rounded-card border border-line bg-white"
-        aria-busy="true"
-        aria-label="Loading customers"
-      >
-        {[0, 1, 2, 3, 4, 5].map((i) => (
-          <div
-            key={i}
-            className="flex items-center gap-3 border-b border-line-subtle px-4 py-3.5 last:border-0"
-          >
-            <Skeleton className="h-8 w-8 rounded-full" />
-            <Skeleton className="h-3.5 w-1/4" />
-            <Skeleton className="h-3.5 w-1/5 bg-wash-2" />
-            <Skeleton className="ml-auto h-5 w-16" />
-          </div>
-        ))}
-      </div>
-    );
+    return <TableError noun="customers" message={p.errorMessage} onRetry={p.onRetry} />;
+  if (p.state === 'loading') return <TableLoading noun="customers" avatar={true} />;
   if (p.customers.length === 0)
     return (
-      <div className="rounded-card border border-line bg-white px-6 py-14 text-center">
-        <div className="text-[14.5px] font-semibold">
-          {p.filtered ? 'No customers match your filters' : 'No customers yet'}
-        </div>
-        <div className="mx-auto mb-3.5 mt-1 max-w-[340px] text-[13px] text-muted">
-          {p.filtered
-            ? 'Try a different search or clear your filters.'
-            : 'Customers appear here when people message you, or you can add them manually or import a CSV.'}
-        </div>
-        {p.filtered ? (
-          <Button variant="outline" size="sm" onClick={p.onClearFilters}>
-            Clear filters
-          </Button>
-        ) : (
-          p.canWrite && (
-            <Button size="sm" onClick={p.onAdd}>
-              Add customer
-            </Button>
-          )
-        )}
-      </div>
+      <TableEmpty
+        noun="customers"
+        filtered={p.filtered}
+        hint="Customers appear here when people message you, or you can add them manually or import a CSV."
+        maxWidth={340}
+        onClearFilters={p.onClearFilters}
+        action={p.canWrite ? { label: 'Add customer', onClick: p.onAdd } : null}
+      />
     );
 
   return (
