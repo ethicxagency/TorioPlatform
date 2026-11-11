@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { META_CALLBACK_PATH, META_WEBHOOK_PATH } from '@torio/contracts';
 import { Prisma } from '@torio/database';
 import { PrismaService } from '../../database/prisma.service';
@@ -31,6 +31,7 @@ const RESOLUTION: Record<number, string> = {
 /** Real server-side checks against Meta, plus operational health. Secrets never appear in any result. */
 @Injectable()
 export class MetaDiagnosticsService {
+  private readonly log = new Logger('MetaConfigDiagnostics');
   constructor(
     private readonly prisma: PrismaService,
     private readonly cfg: MetaConfigService,
@@ -96,8 +97,16 @@ export class MetaDiagnosticsService {
     const rt = await this.cfg.load(true);
     if (!rt.appId) throw new BadRequestException('Save the App ID first.');
     try {
-      await this.graph.get().appInfo(rt.appId, secret);
+      const info = await this.graph.get().appInfo(rt.appId, secret);
+      if (info.id && info.id !== rt.appId)
+        throw new GraphError(`Meta answered for app ${info.id}`, 400);
+      this.log.log(
+        `Torio Platform (app ${rt.appId}, from ${rt.sources.appId}): new App Secret accepted by Meta`,
+      );
     } catch (e) {
+      this.log.warn(
+        `Torio Platform (app ${rt.appId}, from ${rt.sources.appId}): new App Secret ${e instanceof GraphError ? 'rejected by Meta' : 'could not be checked'}`,
+      );
       throw new BadRequestException(
         e instanceof GraphError
           ? `Meta did not accept this App Secret for app ${rt.appId}. The saved secret was not changed.`

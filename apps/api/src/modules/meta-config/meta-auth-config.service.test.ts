@@ -22,14 +22,28 @@ const svc = (over: Partial<AppConfig> = {}, biz: string | null = '38505458184184
   );
 
 describe('Torio Auth app configuration', () => {
-  it('uses the environment pair (the previous setup) until its own secret is saved', () => {
-    const s = svc({ FACEBOOK_APP_ID: '1533990358131449', FACEBOOK_APP_SECRET: 'env-secret-value' });
+  it('uses a current environment pair until its own secret is saved', () => {
+    const s = svc({ FACEBOOK_APP_ID: '2321020315413901', FACEBOOK_APP_SECRET: 'env-secret-value' });
     expect(s.current).toMatchObject({
-      appId: '1533990358131449',
+      appId: '2321020315413901',
       appSecret: 'env-secret-value',
       credentialsFrom: 'environment',
     });
     expect(s.ready).toBe(true);
+  });
+
+  it('never resolves the retired legacy App ID, nor the secret tied to it', () => {
+    const s = svc({
+      FACEBOOK_APP_ID: '1533990358131449',
+      FACEBOOK_APP_SECRET: 'legacy-secret-value',
+    });
+    expect(s.current).toMatchObject({
+      appId: '2321020315413901',
+      appSecret: null,
+      credentialsFrom: 'none',
+      ignoredRetiredAppIds: ['1533990358131449'],
+    });
+    expect(s.ready).toBe(false);
   });
 
   it('suggests the Torio Auth app id when nothing is configured and is not ready without a secret', () => {

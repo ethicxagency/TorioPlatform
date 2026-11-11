@@ -50,8 +50,7 @@ describe.skipIf(!url)('account deletion (real PostgreSQL, fake email provider)',
     };
   };
   const admin = (m: 'get' | 'post', p: string, body: object = {}) =>
-    http()
-      [m](`/api/v1/admin/account-deletions${p}`)
+    http()[m](`/api/v1/admin/account-deletions${p}`)
       .set('Cookie', cookie)
       .set('X-Torio-Admin', '1')
       .send(body);

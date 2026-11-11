@@ -57,7 +57,11 @@ export const metaConfigPatchSchema = z
       z
         .string()
         .trim()
-        .regex(/^\d{6,20}$/, 'The App ID is the numeric id from Meta (App settings → Basic)'),
+        .regex(/^\d{6,20}$/, 'The App ID is the numeric id from Meta (App settings → Basic)')
+        .refine(
+          (v) => !isRetiredMetaAppId(v),
+          'This App ID belonged to the old shared Meta configuration and can’t be used. Use this app’s own App ID.',
+        ),
     ),
     apiVersion: nul(
       z
@@ -250,14 +254,40 @@ export const metaActivityListSchema = z.object({
 });
 
 /** The two Meta apps Torio uses, kept completely apart. */
-export const META_APP_IDS = { BUSINESS_MESSAGING: '3850545818418490', AUTH: '2321020315413901' } as const;
+export const META_APP_IDS = {
+  BUSINESS_MESSAGING: '3850545818418490',
+  AUTH: '2321020315413901',
+} as const;
+
+/**
+ * App IDs that belonged to an earlier, shared Meta configuration and are no longer either of Torio's two apps.
+ * They are never resolved, validated against or used as a fallback; a stored or environment value that matches one is ignored.
+ */
+export const RETIRED_META_APP_IDS: readonly string[] = ['1533990358131449'];
+
+export const isRetiredMetaAppId = (id: string | null | undefined): boolean =>
+  !!id && RETIRED_META_APP_IDS.includes(id.trim());
 
 /** Customer Authentication app ("Torio Auth"): Facebook Login for customers only. Non-secret settings; `null` clears a value. */
 export const metaAuthPatchSchema = z
   .object({
     appName: nul(z.string().trim().min(1).max(80)),
-    appId: nul(z.string().trim().regex(/^\d{6,20}$/, 'The App ID is the numeric id from Meta (App settings → Basic)')),
-    apiVersion: nul(z.string().trim().regex(/^v\d+\.\d+$/, 'Use a version like v27.0')),
+    appId: nul(
+      z
+        .string()
+        .trim()
+        .regex(/^\d{6,20}$/, 'The App ID is the numeric id from Meta (App settings → Basic)')
+        .refine(
+          (v) => !isRetiredMetaAppId(v),
+          'This App ID belonged to the old shared Meta configuration and can’t be used. Use this app’s own App ID.',
+        ),
+    ),
+    apiVersion: nul(
+      z
+        .string()
+        .trim()
+        .regex(/^v\d+\.\d+$/, 'Use a version like v27.0'),
+    ),
     appMode: nul(z.enum(['DEVELOPMENT', 'LIVE'])),
     appDomain: nul(hostname),
     websiteUrl: nul(url),

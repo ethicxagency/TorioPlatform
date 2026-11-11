@@ -74,7 +74,11 @@ describe.skipIf(!url)('two Meta apps (real PostgreSQL, fake Graph API)', () => {
       const json = (b: object, status = 200) => new Response(JSON.stringify(b), { status });
       if (graph === 'badSecret')
         return json({ error: { message: 'Error validating client secret.', code: 190 } }, 400);
-      return json({ id: AUTH_ID, name: 'Torio Auth' });
+      // Like Meta: the response is for the app that was asked about.
+      return json({
+        id: t.pathname.split('/').filter(Boolean).pop() ?? AUTH_ID,
+        name: 'Torio Auth',
+      });
     }) as typeof fetch);
     const admin = await db.platformAdmin.create({
       data: {

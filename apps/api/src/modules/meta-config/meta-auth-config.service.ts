@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common'
 import {
   checkRedirectUri,
   FACEBOOK_LOGIN_CALLBACK_PATH,
+  isRetiredMetaAppId,
   META_APP_IDS,
   metaAuthPatchSchema,
   type MetaAuthPatch,
@@ -28,6 +29,8 @@ type Source = 'database' | 'environment' | 'default' | 'unset';
 export interface AuthRuntime {
   appName: string | null;
   appId: string | null;
+  /** Retired App IDs found in saved or environment settings and skipped (their secrets are never used either). */
+  ignoredRetiredAppIds: string[];
   appSecret: string | null;
   apiVersion: string;
   appMode: 'DEVELOPMENT' | 'LIVE' | null;
@@ -131,20 +134,25 @@ export class MetaAuthConfigService {
       return null;
     };
     const dbSecret = this.decryptOpt(row?.appSecretCiphertext);
-    const dbId = row?.appId ?? null;
+    // A retired App ID (from the old shared configuration) is never resolved: skipped, never a silent fallback.
+    const ignoredRetiredAppIds = [row?.appId, env.FACEBOOK_APP_ID].filter((v): v is string =>
+      isRetiredMetaAppId(v),
+    );
+    const dbId = isRetiredMetaAppId(row?.appId) ? null : (row?.appId ?? null);
+    const envId = isRetiredMetaAppId(env.FACEBOOK_APP_ID) ? null : (env.FACEBOOK_APP_ID ?? null);
     // The App ID and Secret are one pair from one source: a saved secret brings the saved (or suggested) ID with it;
-    // without a saved secret the environment pair (the previous configuration) keeps working untouched.
+    // an environment secret is only used with its own, non-retired environment ID.
     let appId: string | null;
     let appSecret: string | null;
     let credentialsFrom: AuthRuntime['credentialsFrom'];
     if (dbSecret) {
-      appId = dbId ?? env.FACEBOOK_APP_ID ?? META_APP_IDS.AUTH;
+      appId = dbId ?? envId ?? META_APP_IDS.AUTH;
       appSecret = dbSecret;
       credentialsFrom = 'database';
-      src.appId = dbId ? 'database' : env.FACEBOOK_APP_ID ? 'environment' : 'default';
+      src.appId = dbId ? 'database' : envId ? 'environment' : 'default';
       src.appSecret = 'database';
-    } else if (env.FACEBOOK_APP_ID && env.FACEBOOK_APP_SECRET) {
-      appId = env.FACEBOOK_APP_ID;
+    } else if (envId && env.FACEBOOK_APP_SECRET) {
+      appId = envId;
       appSecret = env.FACEBOOK_APP_SECRET;
       credentialsFrom = 'environment';
       src.appId = 'environment';
@@ -159,6 +167,7 @@ export class MetaAuthConfigService {
     return {
       appName: pick('appName', row?.appName, null),
       appId,
+      ignoredRetiredAppIds,
       appSecret,
       apiVersion: pick('apiVersion', row?.apiVersion, env.META_GRAPH_VERSION)!,
       appMode: pick('appMode', row?.appMode as 'DEVELOPMENT' | 'LIVE' | null, null),
@@ -248,6 +257,12 @@ export class MetaAuthConfigService {
     const add = (field: string, message: string, severity: Problem['severity'] = 'error') =>
       out.push({ field, message, severity });
     if (!rt.appId) add('appId', 'App ID is required.');
+    if (rt.ignoredRetiredAppIds.length)
+      add(
+        'appId',
+        'A retired App ID from the old shared configuration was found and is being ignored, along with any secret tied to it. Torio Auth uses its own App ID.',
+        'warning',
+      );
     if (!rt.appSecret)
       add('appSecret', 'App Secret is required for customers to sign in with Facebook.');
     if (rt.appId && this.business.current.appId && rt.appId === this.business.current.appId)
@@ -421,8 +436,16 @@ export class MetaAuthConfigService {
     const rt = await this.load(true);
     if (!rt.appId) throw new BadRequestException('Save the App ID first.');
     try {
-      await this.graph.get().appInfo(rt.appId, value);
+      const info = await this.graph.get().appInfo(rt.appId, value);
+      if (info.id && info.id !== rt.appId)
+        throw new GraphError(`Meta answered for app ${info.id}`, 400);
+      this.log.log(
+        `Torio Auth (app ${rt.appId}, from ${rt.sources.appId}): new App Secret accepted by Meta`,
+      );
     } catch (e) {
+      this.log.warn(
+        `Torio Auth (app ${rt.appId}, from ${rt.sources.appId}): new App Secret ${e instanceof GraphError ? 'rejected by Meta' : 'could not be checked'}`,
+      );
       await this.audit.log({
         admin,
         action: 'meta.auth.secret.replace',

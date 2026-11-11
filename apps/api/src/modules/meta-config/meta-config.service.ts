@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Inject, Injectable, Logger } from '@nestjs/common';
 import {
   checkRedirectUri,
+  isRetiredMetaAppId,
   META_APP_IDS,
   META_CALLBACK_PATH,
   META_WEBHOOK_PATH,
@@ -20,6 +21,8 @@ import { ChannelCryptoService } from '../whatsapp/channel-crypto.service';
 export interface MetaRuntime {
   appName: string | null;
   appId: string | null;
+  /** Retired App IDs found in saved or environment settings and skipped. */
+  ignoredRetiredAppIds: string[];
   appSecret: string | null;
   apiVersion: string;
   businessId: string | null;
@@ -178,6 +181,12 @@ export class MetaConfigService {
       src[field] = 'unset';
       return null;
     };
+    // A retired App ID (from the old shared configuration) is never resolved: it is skipped, not used as a fallback.
+    const ignoredRetiredAppIds = [row?.appId, env.META_APP_ID].filter((v): v is string =>
+      isRetiredMetaAppId(v),
+    );
+    const savedId = isRetiredMetaAppId(row?.appId) ? null : (row?.appId ?? null);
+    const envId = isRetiredMetaAppId(env.META_APP_ID) ? null : (env.META_APP_ID ?? null);
     const secret = this.decryptOpt(row?.appSecretCiphertext);
     const verify = this.decryptOpt(row?.verifyTokenCiphertext);
     const appSecret = pick('appSecret', secret, env.META_APP_SECRET ?? null);
@@ -185,7 +194,8 @@ export class MetaConfigService {
     return {
       appName: pick('appName', row?.appName, null),
       // Torio Platform is the suggested Business Messaging app when nothing else is configured.
-      appId: pick('appId', row?.appId, env.META_APP_ID ?? null, META_APP_IDS.BUSINESS_MESSAGING),
+      appId: pick('appId', savedId, envId, META_APP_IDS.BUSINESS_MESSAGING),
+      ignoredRetiredAppIds,
       appSecret,
       apiVersion: pick('apiVersion', row?.apiVersion, env.META_GRAPH_VERSION)!,
       businessId: pick('businessId', row?.businessId, null),
@@ -261,6 +271,12 @@ export class MetaConfigService {
     const add = (field: string, message: string, severity: Problem['severity'] = 'error') =>
       out.push({ field, message, severity });
     if (!rt.appId) add('appId', 'App ID is required to connect Meta accounts.');
+    if (rt.ignoredRetiredAppIds.length)
+      add(
+        'appId',
+        'A retired App ID from the old shared configuration was found and is being ignored. Torio Platform uses its own App ID.',
+        'warning',
+      );
     if (opts.requireSecrets !== false) {
       if (!rt.appSecret)
         add('appSecret', 'App Secret is required to verify webhooks and exchange login codes.');
