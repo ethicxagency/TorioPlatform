@@ -3,6 +3,7 @@ import {
   checkRedirectUri,
   FACEBOOK_LOGIN_CALLBACK_PATH,
   isRetiredMetaAppId,
+  normalizeAppDomain,
   META_APP_IDS,
   metaAuthPatchSchema,
   type MetaAuthPatch,
@@ -171,7 +172,7 @@ export class MetaAuthConfigService {
       appSecret,
       apiVersion: pick('apiVersion', row?.apiVersion, env.META_GRAPH_VERSION)!,
       appMode: pick('appMode', row?.appMode as 'DEVELOPMENT' | 'LIVE' | null, null),
-      appDomain: pick('appDomain', row?.appDomain, null),
+      appDomain: pick('appDomain', row?.appDomain ? normalizeAppDomain(row.appDomain) : null, null),
       websiteUrl: pick('websiteUrl', row?.websiteUrl, null),
       redirectUri: pick(
         'customerAuthRedirectUri',

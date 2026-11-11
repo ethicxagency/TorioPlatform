@@ -7,6 +7,18 @@ export const FACEBOOK_LOGIN_CALLBACK_PATH = '/api/v1/auth/oauth/facebook/callbac
 export const META_WEBHOOK_PATH = '/api/v1/webhooks/meta';
 export const WHATSAPP_WEBHOOK_PATH = '/api/v1/webhooks/whatsapp';
 
+/** An App Domain is only a hostname: a pasted URL is reduced to its host (no protocol, path, query, port or trailing dot). */
+export const normalizeAppDomain = (v: string): string => {
+  let t = v.trim().toLowerCase();
+  if (!t) return t;
+  try {
+    t = new URL(/^[a-z][a-z0-9+.-]*:\/\//.test(t) ? t : `https://${t}`).hostname;
+  } catch {
+    return v.trim().toLowerCase();
+  }
+  return t.replace(/\.$/, '');
+};
+
 const hostname = z
   .string()
   .trim()
@@ -15,6 +27,7 @@ const hostname = z
     /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$|^localhost$/,
     'Enter a domain like app.example.com',
   );
+const appDomain = z.string().transform(normalizeAppDomain).pipe(hostname);
 const url = z.string().trim().max(500).url('Enter a full URL, e.g. https://app.example.com');
 const nul = <T extends z.ZodType>(s: T) => s.nullable().optional();
 
@@ -76,7 +89,7 @@ export const metaConfigPatchSchema = z
         .regex(/^\d{5,25}$/, 'Numeric Business Portfolio ID'),
     ),
     appMode: nul(z.enum(['DEVELOPMENT', 'LIVE'])),
-    appDomain: nul(hostname),
+    appDomain: nul(appDomain),
     websiteUrl: nul(url),
     oauthRedirectUri: nul(url),
     allowedRedirectUris: z.array(url).max(10).optional(),
@@ -289,7 +302,7 @@ export const metaAuthPatchSchema = z
         .regex(/^v\d+\.\d+$/, 'Use a version like v27.0'),
     ),
     appMode: nul(z.enum(['DEVELOPMENT', 'LIVE'])),
-    appDomain: nul(hostname),
+    appDomain: nul(appDomain),
     websiteUrl: nul(url),
     customerAuthRedirectUri: nul(url),
     customerAuthAllowedRedirectUris: z.array(url).max(10).optional(),

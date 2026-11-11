@@ -288,4 +288,46 @@ describe.skipIf(!url)('two Meta apps (real PostgreSQL, fake Graph API)', () => {
     expect((await http().get('/api/v1/auth/config')).body.facebook).toBe(false);
     await send('delete', '/secrets/app-secret', { confirm: true }).expect(400); // nothing left to clear
   });
+
+  it('validates each secret against its own App ID, never the legacy one, even if one is stored', async () => {
+    const LEGACY = '1533990358131449';
+    // an old row still carrying the legacy id, as production did
+    await db.metaConfiguration.updateMany({
+      where: { id: { in: ['default', 'auth'] } },
+      data: { appId: LEGACY },
+    });
+    const authBefore = await db.metaConfiguration.findUniqueOrThrow({ where: { id: 'auth' } });
+    graph = 'ok';
+    graphCalls.length = 0;
+    await send('put', '/secrets/app-secret', { value: AUTH_SECRET }).expect(200);
+    expect(graphCalls.some((c) => c.includes(`/${AUTH_ID}?`) || c.includes(`/${AUTH_ID}`))).toBe(
+      true,
+    );
+    expect(graphCalls.join(' ')).not.toContain(LEGACY);
+    graphCalls.length = 0;
+    await bsend('put', '/secrets/app-secret', { value: BUSINESS_SECRET, confirm: true }).expect(
+      200,
+    );
+    expect(graphCalls.join(' ')).toContain(BUSINESS_ID);
+    expect(graphCalls.join(' ')).not.toContain(LEGACY);
+    expect(graphCalls.join(' ')).not.toContain(AUTH_ID);
+    // the effective ids shown are the apps' own, and the secrets are never in a response
+    const a = (await get('/config')).body;
+    expect(a.values.appId).toBe(AUTH_ID);
+    expect(JSON.stringify(a)).not.toContain(AUTH_SECRET);
+    expect(authBefore.id).toBe('auth');
+  });
+
+  it('keeps only the hostname in App Domain, for both apps', async () => {
+    const r = await save({ appDomain: 'https://Torio.Example.Test/' }).expect(200);
+    expect(r.body.values.appDomain).toBe('torio.example.test');
+    expect(
+      (await db.metaConfiguration.findUniqueOrThrow({ where: { id: 'auth' } })).appDomain,
+    ).toBe('torio.example.test');
+    const b = await bsend('put', '/config', {
+      patch: { appDomain: 'http://torio.example.test/app?x=1' },
+    }).expect(200);
+    expect(b.body.values.appDomain).toBe('torio.example.test');
+    await save({ appDomain: 'not a domain' }).expect(400);
+  });
 });

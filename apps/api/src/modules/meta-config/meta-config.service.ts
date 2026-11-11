@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Inject, Injectable, Logger } fr
 import {
   checkRedirectUri,
   isRetiredMetaAppId,
+  normalizeAppDomain,
   META_APP_IDS,
   META_CALLBACK_PATH,
   META_WEBHOOK_PATH,
@@ -200,7 +201,7 @@ export class MetaConfigService {
       apiVersion: pick('apiVersion', row?.apiVersion, env.META_GRAPH_VERSION)!,
       businessId: pick('businessId', row?.businessId, null),
       appMode: pick('appMode', row?.appMode as 'DEVELOPMENT' | 'LIVE' | null, null),
-      appDomain: pick('appDomain', row?.appDomain, null),
+      appDomain: pick('appDomain', row?.appDomain ? normalizeAppDomain(row.appDomain) : null, null),
       websiteUrl: pick('websiteUrl', row?.websiteUrl, null),
       oauthRedirectUri: pick(
         'oauthRedirectUri',

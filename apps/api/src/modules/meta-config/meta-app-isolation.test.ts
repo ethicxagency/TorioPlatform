@@ -95,3 +95,15 @@ describe('Meta app isolation', () => {
     );
   });
 });
+
+describe('App Domain normalization', () => {
+  it('reduces a pasted URL to its hostname', async () => {
+    const { normalizeAppDomain } = await import('@torio/contracts');
+    expect(normalizeAppDomain('https://torio.nextupglobal.net')).toBe('torio.nextupglobal.net');
+    expect(normalizeAppDomain('https://Torio.Nextupglobal.net/path?x=1')).toBe(
+      'torio.nextupglobal.net',
+    );
+    expect(normalizeAppDomain('torio.nextupglobal.net:8080/')).toBe('torio.nextupglobal.net');
+    expect(normalizeAppDomain('torio.nextupglobal.net')).toBe('torio.nextupglobal.net');
+  });
+});
