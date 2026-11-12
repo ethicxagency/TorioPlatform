@@ -100,3 +100,11 @@ To ship a schema change: edit `prisma/schema.prisma`, run `pnpm db:migrate` loca
 then run `pnpm db:deploy` against production as part of that release. If the schema did not change there is no migration to
 create and nothing to run. Never edit or delete a migration that has been applied, never use `prisma migrate reset` or
 `prisma db push` against production, and never mark a migration applied without checking the real schema.
+
+## Demo data (local only)
+
+`pnpm db:seed:demo [store-slug]` (default `torio-qa`) fills one existing store with clearly labelled sample data:
+conversations and customers, leads, orders, a filled-in Brain (6 products, 8 FAQs), and a complimentary demo subscription with
+four `DEMO-000N` invoices. It refuses to run with `NODE_ENV=production` or against a database that is not on this machine, and
+each part is skipped when the store already has that kind of data, so running it twice changes nothing. `pnpm db:seed` still
+creates the separate `urbannest-demo` store with its three users.
