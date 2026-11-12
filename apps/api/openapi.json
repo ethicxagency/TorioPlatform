@@ -5635,6 +5635,149 @@
         ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/brain/imports/products": {
+      "get": {
+        "operationId": "ImportsController_productReview",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductReviewDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "brain"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/brain/imports/products/resolve": {
+      "post": {
+        "operationId": "ImportsController_resolveProduct",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveProductDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "brain"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/brain/imports/products/approve-clear": {
+      "post": {
+        "operationId": "ImportsController_approveClear",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkResultDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "brain"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/brain/imports/products/import": {
+      "post": {
+        "operationId": "ImportsController_importProducts",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResultDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "brain"
+        ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/brain/imports/jobs/{jobId}": {
       "get": {
         "operationId": "ImportsController_job",
@@ -19876,19 +20019,7 @@
             "additionalProperties": {
               "type": "string",
               "maxLength": 80
-            },
-            "required": [
-              "externalId",
-              "name",
-              "description",
-              "price",
-              "category",
-              "stock",
-              "colors",
-              "sizes",
-              "url",
-              "image"
-            ]
+            }
           },
           "currency": {
             "type": "string",
@@ -20025,19 +20156,7 @@
             "additionalProperties": {
               "type": "string",
               "maxLength": 80
-            },
-            "required": [
-              "externalId",
-              "name",
-              "description",
-              "price",
-              "category",
-              "stock",
-              "colors",
-              "sizes",
-              "url",
-              "image"
-            ]
+            }
           },
           "currency": {
             "type": "string",
@@ -20235,6 +20354,304 @@
           "name"
         ]
       },
+      "ProductReviewDto": {
+        "type": "object",
+        "properties": {
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "inBrain": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "candidates": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "jobId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "source": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "WEBSITE",
+                              "XML_FEED",
+                              "META_CATALOG",
+                              "GOOGLE_MERCHANT",
+                              "MANUAL"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "name"
+                        ]
+                      },
+                      "confidence": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "PENDING",
+                          "APPROVED"
+                        ]
+                      },
+                      "change": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "new",
+                              "changed"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "data": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      },
+                      "warnings": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "jobId",
+                      "source",
+                      "confidence",
+                      "status",
+                      "change",
+                      "data",
+                      "warnings",
+                      "createdAt"
+                    ]
+                  }
+                },
+                "conflicts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "field": {
+                        "type": "string"
+                      },
+                      "values": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "from": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "value": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "from",
+                            "label",
+                            "value"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "field",
+                      "values"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "key",
+                "name",
+                "inBrain",
+                "candidates",
+                "conflicts"
+              ]
+            }
+          },
+          "totals": {
+            "type": "object",
+            "properties": {
+              "groups": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "candidates": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "approved": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "conflicts": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "inBrain": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "groups",
+              "candidates",
+              "approved",
+              "conflicts",
+              "inBrain"
+            ]
+          }
+        },
+        "required": [
+          "groups",
+          "totals"
+        ]
+      },
+      "ResolveProductDto": {
+        "type": "object",
+        "properties": {
+          "recordIds": {
+            "minItems": 1,
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          "winnerId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fields": {
+            "default": {},
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "enum": [
+                "price",
+                "currency",
+                "description",
+                "category",
+                "stock",
+                "colors",
+                "sizes"
+              ]
+            },
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 40
+            }
+          },
+          "updateBrain": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "recordIds",
+          "winnerId"
+        ]
+      },
+      "ImportResultDto": {
+        "type": "object",
+        "properties": {
+          "imported": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "skippedDuplicates": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "imported",
+          "skippedDuplicates",
+          "notes"
+        ]
+      },
       "ImportRecordListDto": {
         "type": "object",
         "properties": {
@@ -20379,32 +20796,6 @@
             }
           }
         }
-      },
-      "ImportResultDto": {
-        "type": "object",
-        "properties": {
-          "imported": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991
-          },
-          "skippedDuplicates": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991
-          },
-          "notes": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        "required": [
-          "imported",
-          "skippedDuplicates",
-          "notes"
-        ]
       },
       "ReviewRecordDto": {
         "type": "object",

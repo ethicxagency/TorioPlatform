@@ -114,7 +114,7 @@ export type ImportResult = z.infer<typeof importResultSchema>;
 // ---------- XML product feed ----------
 
 export const FEED_FIELDS = ['externalId', 'name', 'description', 'price', 'category', 'stock', 'colors', 'sizes', 'url', 'image'] as const;
-export const feedMappingSchema = z.record(z.enum(FEED_FIELDS), z.string().max(80));
+export const feedMappingSchema = z.partialRecord(z.enum(FEED_FIELDS), z.string().max(80));
 export const FEED_FREQUENCIES = ['manual', 'daily', 'weekly'] as const;
 
 export const feedPreviewRequestSchema = z.object({
@@ -174,3 +174,58 @@ export const metaCatalogSelectSchema = z.object({
 export const metaConnectUrlSchema = z.object({ url: z.string() });
 export type MetaCatalogStatus = z.infer<typeof metaCatalogStatusSchema>;
 export type MetaCatalogList = z.infer<typeof metaCatalogListSchema>;
+
+// ---------- product review across sources ----------
+
+export const REVIEW_FIELDS = ['price', 'currency', 'description', 'category', 'stock', 'colors', 'sizes'] as const;
+
+export const productCandidateSchema = z.object({
+  id: z.uuid(),
+  jobId: z.uuid(),
+  /** Where it came from: the kind of source and its name (a website's host, a feed's name, a catalog). */
+  source: z.object({ kind: importSourceKindSchema, name: z.string() }),
+  confidence: z.number().int(),
+  status: z.enum(['PENDING', 'APPROVED']),
+  change: z.enum(['new', 'changed']).nullable(),
+  data: z.record(z.string(), z.string()),
+  warnings: z.array(z.string()),
+  createdAt: iso,
+});
+export const productGroupSchema = z.object({
+  /** The normalised product name; the same product found by several sources shares it. */
+  key: z.string(),
+  name: z.string(),
+  /** The matching product already in Brain, if any. */
+  inBrain: z.record(z.string(), z.string()).nullable(),
+  candidates: z.array(productCandidateSchema),
+  /** Fields where the sources (or Brain) disagree, with each side's value. */
+  conflicts: z.array(
+    z.object({
+      field: z.string(),
+      values: z.array(z.object({ from: z.string(), label: z.string(), value: z.string() })),
+    }),
+  ),
+});
+export const productReviewSchema = z.object({
+  groups: z.array(productGroupSchema),
+  totals: z.object({
+    groups: z.number().int(),
+    candidates: z.number().int(),
+    approved: z.number().int(),
+    conflicts: z.number().int(),
+    inBrain: z.number().int(),
+  }),
+});
+export const resolveProductSchema = z.object({
+  /** Every candidate of the group being resolved. */
+  recordIds: z.array(z.uuid()).min(1).max(50),
+  /** The version to keep. Null keeps Brain's version and rejects them all. */
+  winnerId: z.uuid().nullable(),
+  /** Per field, whose value to use: a candidate's id, or "brain" to leave Brain's value as it is. */
+  fields: z.partialRecord(z.enum(REVIEW_FIELDS), z.string().max(40)).default({}),
+  /** When Brain already has this product: update it with the chosen values instead of leaving it alone. */
+  updateBrain: z.boolean().default(false),
+});
+export type ProductReview = z.infer<typeof productReviewSchema>;
+export type ProductGroup = z.infer<typeof productGroupSchema>;
+export type ProductCandidate = z.infer<typeof productCandidateSchema>;

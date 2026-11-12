@@ -16,7 +16,8 @@ operator must do, and the safety rules the scan follows.
   for review. Same review, change-only re-sync and disconnect rules as XML feeds. Manual sync only.
 - **Google Merchant Center**: connect Google (Merchant API scope), choose a Merchant Center account, preview, import its
   products for review, with the same change-only re-sync and disconnect rules.
-- **Not built yet**: the shared product review across sources (conflict resolution between feeds and catalogs). The Intelligence page shows them as not connected
+- **Product review across sources**: one queue for products from the website scan, XML feeds, Meta Catalog and Google
+  Merchant Center. See below. The Intelligence page shows them as not connected
   and says why.
 
 ## Operator steps (nothing runs automatically)
@@ -93,3 +94,18 @@ console). `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and the channel encryption 
   channels is one product (by offer ID).
 - Not verified against Google's live API: the HTTP calls are unit-tested with a fake client only, so check the field names
   and quotas with a real account before relying on it.
+
+## Product review across sources
+
+Intelligence shows one **Product review** queue (only when products are waiting). The same product found by several sources is
+matched by its normalised name, shown once, and compared with the matching product already in Brain. Each version shows its
+source, confidence and warnings; fields where the versions (or Brain) disagree are listed with every value.
+
+- **Resolve** keeps one version, optionally taking each conflicting field from a chosen source (or "leave Brain's value"),
+  and rejects the others. "Keep what is in my Brain" rejects them all. Originals stay visible on each entry.
+- A product that already exists in Brain is **never changed unless the person ticks "Update my existing Brain product"**;
+  otherwise the import skips it and says so.
+- **Approve all without conflicts** approves products found once and not already in Brain. **Import approved** adds every
+  approved product, from any source, in a single Brain save (300-product limit reported, not exceeded).
+- Matching is by name only: sources rarely share product IDs. Two different products with the same name would be grouped, which
+  is why every merge is a decision the person makes.

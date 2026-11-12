@@ -1700,6 +1700,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/brain/imports/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ImportsController_productReview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/brain/imports/products/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ImportsController_resolveProduct"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/brain/imports/products/approve-clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ImportsController_approveClear"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/brain/imports/products/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ImportsController_importProducts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/brain/imports/jobs/{jobId}": {
         parameters: {
             query?: never;
@@ -4937,6 +5001,66 @@ export interface components {
             catalogId: string;
             name: string;
         };
+        ProductReviewDto: {
+            groups: {
+                key: string;
+                name: string;
+                inBrain: {
+                    [key: string]: string;
+                } | null;
+                candidates: {
+                    /** Format: uuid */
+                    id: string;
+                    /** Format: uuid */
+                    jobId: string;
+                    source: {
+                        /** @enum {string} */
+                        kind: "WEBSITE" | "XML_FEED" | "META_CATALOG" | "GOOGLE_MERCHANT" | "MANUAL";
+                        name: string;
+                    };
+                    confidence: number;
+                    /** @enum {string} */
+                    status: "PENDING" | "APPROVED";
+                    change: ("new" | "changed") | null;
+                    data: {
+                        [key: string]: string;
+                    };
+                    warnings: string[];
+                    /** Format: date-time */
+                    createdAt: string;
+                }[];
+                conflicts: {
+                    field: string;
+                    values: {
+                        from: string;
+                        label: string;
+                        value: string;
+                    }[];
+                }[];
+            }[];
+            totals: {
+                groups: number;
+                candidates: number;
+                approved: number;
+                conflicts: number;
+                inBrain: number;
+            };
+        };
+        ResolveProductDto: {
+            recordIds: string[];
+            winnerId: string | null;
+            /** @default {} */
+            fields: {
+                [key: string]: string;
+            };
+            /** @default false */
+            updateBrain: boolean;
+        };
+        ImportResultDto: {
+            imported: number;
+            skippedDuplicates: number;
+            notes: string[];
+        };
         ImportRecordListDto: {
             data: {
                 /** Format: uuid */
@@ -4967,11 +5091,6 @@ export interface components {
         };
         ImportApproveDto: {
             categories?: ("business" | "product" | "faq" | "policy")[];
-        };
-        ImportResultDto: {
-            imported: number;
-            skippedDuplicates: number;
-            notes: string[];
         };
         ReviewRecordDto: {
             /** @enum {string} */
@@ -9610,6 +9729,92 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    ImportsController_productReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductReviewDto"];
+                };
+            };
+        };
+    };
+    ImportsController_resolveProduct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveProductDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ImportsController_approveClear: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkResultDto"];
+                };
+            };
+        };
+    };
+    ImportsController_importProducts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportResultDto"];
+                };
             };
         };
     };

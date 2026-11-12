@@ -11,6 +11,7 @@ import { ImportsService } from './imports.service';
 import { FeedService } from './imports/feed.service';
 import { GoogleMerchantClient } from './imports/google-merchant.client';
 import { GoogleMerchantService } from './imports/google-merchant.service';
+import { ProductReviewService } from './imports/product-review.service';
 import { MetaCatalogService } from './imports/meta-catalog.service';
 import { ScanService } from './imports/scan.service';
 
@@ -29,6 +30,7 @@ import { ScanService } from './imports/scan.service';
     FeedService,
     MetaCatalogService,
     GoogleMerchantService,
+    ProductReviewService,
     { provide: GoogleMerchantClient, useFactory: () => new GoogleMerchantClient() },
   ],
 })

@@ -30,6 +30,8 @@ import {
   importRecordListSchema,
   importRecordViewSchema,
   importResultSchema,
+  productReviewSchema,
+  resolveProductSchema,
   reviewRecordSchema,
   websiteScanSchema,
 } from '@torio/contracts';
@@ -46,6 +48,7 @@ import { ImportsService } from './imports.service';
 import { FeedService } from './imports/feed.service';
 import { GoogleMerchantService } from './imports/google-merchant.service';
 import { MetaCatalogService } from './imports/meta-catalog.service';
+import { ProductReviewService } from './imports/product-review.service';
 import { ScanService } from './imports/scan.service';
 
 class ImportOverviewDto extends createZodDto(importOverviewSchema) {}
@@ -64,6 +67,8 @@ class MetaCatalogStatusDto extends createZodDto(metaCatalogStatusSchema) {}
 class MetaCatalogListDto extends createZodDto(metaCatalogListSchema) {}
 class MetaCatalogSelectDto extends createZodDto(metaCatalogSelectSchema) {}
 class MetaCatalogUrlDto extends createZodDto(metaConnectUrlSchema) {}
+class ProductReviewDto extends createZodDto(productReviewSchema) {}
+class ResolveProductDto extends createZodDto(resolveProductSchema) {}
 class BulkResultDto extends createZodDto(z.object({ updated: z.number().int() })) {}
 
 const BASE = 'workspaces/:workspaceId/brain/imports';
@@ -79,6 +84,7 @@ export class ImportsController {
     private readonly feeds: FeedService,
     private readonly metaCatalog: MetaCatalogService,
     private readonly google: GoogleMerchantService,
+    private readonly products: ProductReviewService,
   ) {}
 
   @Get()
@@ -250,6 +256,36 @@ export class ImportsController {
   @RequirePermission('brain:write')
   googleDisconnect(@Param('workspaceId', ParseUUIDPipe) ws: string) {
     return this.google.disconnect(ws);
+  }
+
+  @Get('products')
+  @RequirePermission('brain:read')
+  @ApiOkResponse({ type: ProductReviewDto })
+  productReview(@Param('workspaceId', ParseUUIDPipe) ws: string) {
+    return this.products.list(ws);
+  }
+
+  @Post('products/resolve')
+  @HttpCode(200)
+  @RequirePermission('brain:write')
+  resolveProduct(@Param('workspaceId', ParseUUIDPipe) ws: string, @Body() body: ResolveProductDto) {
+    return this.products.resolve(ws, body);
+  }
+
+  @Post('products/approve-clear')
+  @HttpCode(200)
+  @RequirePermission('brain:write')
+  @ApiOkResponse({ type: BulkResultDto })
+  approveClear(@Param('workspaceId', ParseUUIDPipe) ws: string) {
+    return this.products.approveClear(ws);
+  }
+
+  @Post('products/import')
+  @HttpCode(200)
+  @RequirePermission('brain:write')
+  @ApiOkResponse({ type: ImportResultDto })
+  importProducts(@Param('workspaceId', ParseUUIDPipe) ws: string, @CurrentUser() u: AuthUser) {
+    return this.products.importApproved(ws, u.id);
   }
 
   @Get('jobs/:jobId')

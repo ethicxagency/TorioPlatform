@@ -12,6 +12,7 @@ import type {
   ImportResult,
   MetaCatalogList,
   MetaCatalogStatus,
+  ProductReview,
   WebsiteScanInput,
 } from '@torio/contracts';
 import { api } from '@/lib/api';
@@ -393,5 +394,95 @@ export function useCatalogDisconnect(ws: string, p: CatalogProvider) {
       void qc.invalidateQueries({ queryKey: metaKey(ws, p) });
       void qc.invalidateQueries({ queryKey: scanKey(ws) });
     },
+  });
+}
+
+// ---------- product review across sources ----------
+
+const reviewKey = (ws: string) => ['brain-product-review', ws] as const;
+
+export function useProductReview(ws: string | null) {
+  return useQuery({
+    queryKey: reviewKey(ws ?? ''),
+    enabled: !!ws,
+    queryFn: async (): Promise<ProductReview> => {
+      const { data, error, response } = await api.GET(`${I}/products`, {
+        params: { path: { workspaceId: ws! } },
+      });
+      if (!data) throw fail(error, 'Could not load products waiting for review', response.status);
+      return data as unknown as ProductReview;
+    },
+  });
+}
+
+function useReviewInvalidate(ws: string) {
+  const qc = useQueryClient();
+  return () => {
+    void qc.invalidateQueries({ queryKey: reviewKey(ws) });
+    void qc.invalidateQueries({ queryKey: scanKey(ws) });
+    void qc.invalidateQueries({ queryKey: ['brain-import-records', ws] });
+  };
+}
+
+export function useProductStatus(ws: string) {
+  const done = useReviewInvalidate(ws);
+  return useMutation({
+    mutationFn: async (v: { id: string; status: 'PENDING' | 'APPROVED' | 'REJECTED' }) => {
+      const { data, error, response } = await api.PATCH(`${I}/records/{recordId}`, {
+        params: { path: { workspaceId: ws, recordId: v.id } },
+        body: { status: v.status },
+      });
+      if (!data) throw fail(error, 'Could not update the product', response.status);
+      return data;
+    },
+    onSuccess: done,
+  });
+}
+
+export function useResolveProduct(ws: string) {
+  const done = useReviewInvalidate(ws);
+  return useMutation({
+    mutationFn: async (b: {
+      recordIds: string[];
+      winnerId: string | null;
+      fields: Record<string, string>;
+      updateBrain: boolean;
+    }) => {
+      const { data, error, response } = await api.POST(`${I}/products/resolve`, {
+        params: { path: { workspaceId: ws } },
+        body: b as never,
+      });
+      if (!data) throw fail(error, 'Could not settle that product', response.status);
+      return data;
+    },
+    onSuccess: done,
+  });
+}
+
+export function useApproveClear(ws: string) {
+  const done = useReviewInvalidate(ws);
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error, response } = await api.POST(`${I}/products/approve-clear`, {
+        params: { path: { workspaceId: ws } },
+      });
+      if (!data) throw fail(error, 'Could not approve', response.status);
+      return data as unknown as { updated: number };
+    },
+    onSuccess: done,
+  });
+}
+
+export function useImportProducts(ws: string) {
+  const done = useReviewInvalidate(ws);
+  return useMutation({
+    mutationFn: async (): Promise<ImportResult> => {
+      const { data, error, response } = await api.POST(`${I}/products/import`, {
+        params: { path: { workspaceId: ws } },
+      });
+      if (!data) throw fail(error, 'Could not import', response.status);
+      return data as unknown as ImportResult;
+    },
+    onSuccess: done,
   });
 }

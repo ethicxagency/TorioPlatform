@@ -135,6 +135,43 @@ export const metaState = {
   selected: [] as string[],
   syncs: 0,
 };
+const cand = (
+  id: string,
+  kind: string,
+  name: string,
+  data: Record<string, string>,
+  confidence: number,
+) => ({
+  id,
+  jobId: '9d0f0000-0000-4000-8000-0000000000f0',
+  source: { kind, name },
+  confidence,
+  status: 'PENDING',
+  change: null,
+  data,
+  warnings: [],
+  createdAt: '2026-11-12T10:00:00.000Z',
+});
+export const reviewState = {
+  on: false,
+  resolved: [] as unknown[],
+  cleared: 0,
+  imported: 0,
+  approved: 0,
+};
+export const REVIEW_IDS = [
+  '9d0f0000-0000-4000-8000-0000000000f1',
+  '9d0f0000-0000-4000-8000-0000000000f2',
+  '9d0f0000-0000-4000-8000-0000000000f3',
+  '9d0f0000-0000-4000-8000-0000000000f4',
+];
+export function resetReview() {
+  reviewState.on = false;
+  reviewState.resolved = [];
+  reviewState.cleared = 0;
+  reviewState.imported = 0;
+  reviewState.approved = 0;
+}
 export const googleState = {
   available: false,
   connected: false,
@@ -159,6 +196,7 @@ export function resetMeta() {
 }
 export function resetScan() {
   resetMeta();
+  resetReview();
   scanState.started = false;
   scanState.kind = 'WEBSITE';
   scanState.feedBody = null;
@@ -1794,6 +1832,108 @@ export async function mockApi(
           catalog: metaState.catalog,
           lastSyncedAt: null,
         });
+      if (sub === '/products') {
+        if (!reviewState.on)
+          return reply({
+            groups: [],
+            totals: { groups: 0, candidates: 0, approved: 0, conflicts: 0, inBrain: 0 },
+          });
+        const [a, b, c, d] = REVIEW_IDS;
+        return reply({
+          groups: [
+            {
+              key: 'nordic vase',
+              name: 'Nordic Vase',
+              inBrain: {
+                price: '1400',
+                currency: 'BDT',
+                description: 'Mine',
+                category: '',
+                stock: 'In stock',
+                colors: '',
+                sizes: '',
+              },
+              candidates: [
+                cand(
+                  a!,
+                  'WEBSITE',
+                  'shop.test',
+                  { name: 'Nordic Vase', price: '1500', currency: 'BDT' },
+                  70,
+                ),
+                cand(
+                  b!,
+                  'XML_FEED',
+                  'Main feed',
+                  { name: 'Nordic Vase', price: '1600', currency: 'BDT', category: 'Home' },
+                  85,
+                ),
+              ],
+              conflicts: [
+                {
+                  field: 'price',
+                  values: [
+                    { from: 'brain', label: 'Your Brain', value: '1400' },
+                    { from: a!, label: 'Website scan: shop.test', value: '1500' },
+                    { from: b!, label: 'XML feed: Main feed', value: '1600' },
+                  ],
+                },
+              ],
+            },
+            {
+              key: 'lamp',
+              name: 'Lamp',
+              inBrain: null,
+              candidates: [
+                cand(
+                  c!,
+                  'META_CATALOG',
+                  'Meta Catalog: Main',
+                  { name: 'Lamp', price: '2500', currency: 'BDT' },
+                  85,
+                ),
+              ],
+              conflicts: [],
+            },
+            {
+              key: 'mug',
+              name: 'Mug',
+              inBrain: null,
+              candidates: [
+                cand(
+                  d!,
+                  'GOOGLE_MERCHANT',
+                  'UrbanNest Merchant',
+                  { name: 'Mug', price: '250', currency: 'BDT' },
+                  85,
+                ),
+              ],
+              conflicts: [],
+            },
+          ],
+          totals: {
+            groups: 3,
+            candidates: 4,
+            approved: reviewState.approved,
+            conflicts: 1,
+            inBrain: 1,
+          },
+        });
+      }
+      if (sub === '/products/resolve') {
+        reviewState.resolved.push(req.postDataJSON());
+        reviewState.approved += 1;
+        return reply({ resolved: 2 });
+      }
+      if (sub === '/products/approve-clear') {
+        reviewState.cleared++;
+        reviewState.approved += 2;
+        return reply({ updated: 2 });
+      }
+      if (sub === '/products/import') {
+        reviewState.imported++;
+        return reply({ imported: reviewState.approved, skippedDuplicates: 0, notes: [] });
+      }
       if (sub === '/google')
         return reply({
           available: googleState.available,

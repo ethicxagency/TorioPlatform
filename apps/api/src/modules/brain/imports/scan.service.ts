@@ -653,15 +653,15 @@ export class ScanService {
   async importApproved(
     workspaceId: string,
     userId: string,
-    jobId: string,
+    jobId: string | null,
     categories?: ImportCategory[],
   ) {
     const db = this.prisma.client;
-    await this.load(workspaceId, jobId);
+    if (jobId) await this.load(workspaceId, jobId);
     const rows = await db.importRecord.findMany({
       where: {
         workspaceId,
-        jobId,
+        ...(jobId && { jobId }),
         status: 'APPROVED',
         ...(categories?.length && { category: { in: categories } }),
       },
@@ -714,8 +714,9 @@ export class ScanService {
         const existing = cfg.products.find((p) => norm(p.name) === key);
         if (d['change'] === 'changed' && existing) {
           // A changed product from a feed: the approval is the permission to update the matching product.
-          const price = [d['price'], d['currency']].filter(Boolean).join(' ').slice(0, 20);
-          if (price) existing.price = price;
+          // A currency on its own never changes the price: only a given price does.
+          if (d['price'])
+            existing.price = [d['price'], d['currency']].filter(Boolean).join(' ').slice(0, 20);
           if (d['description']) existing.description = d['description'].slice(0, 1000);
           if (d['category']) existing.category = d['category'].slice(0, 60);
           if (d['colors']) existing.colors = d['colors'].slice(0, 300);
@@ -790,23 +791,30 @@ export class ScanService {
       },
       data: { status: 'IMPORTED' },
     });
-    const left = await db.importRecord.count({
-      where: { jobId, status: { in: ['PENDING', 'APPROVED'] } },
+    // A job is finished once nothing in it is waiting for review any more.
+    const open = await db.importJob.findMany({
+      where: { workspaceId, status: 'NEEDS_REVIEW' },
+      select: { id: true },
     });
-    if (left === 0)
-      await db.importJob.updateMany({
-        where: { id: jobId, status: 'NEEDS_REVIEW' },
-        data: { status: 'COMPLETED' },
+    for (const jid of new Set([...rows.map((r) => r.jobId), ...open.map((j) => j.id)])) {
+      const left = await db.importRecord.count({
+        where: { jobId: jid, status: { in: ['PENDING', 'APPROVED'] } },
       });
+      if (left === 0)
+        await db.importJob.updateMany({
+          where: { id: jid, status: 'NEEDS_REVIEW' },
+          data: { status: 'COMPLETED' },
+        });
+    }
     await db.auditLog.create({
       data: {
         workspaceId,
         actorId: userId,
         action: 'brain.import',
         entityType: 'import_job',
-        entityId: jobId,
+        entityId: jobId ?? rows[0]!.jobId,
         metadata: {
-          description: `Imported ${done.length} approved ${done.length === 1 ? 'entry' : 'entries'} from a website scan`,
+          description: `Imported ${done.length} approved ${done.length === 1 ? 'entry' : 'entries'}${jobId ? '' : ' from the product review'}`,
         },
       },
     });

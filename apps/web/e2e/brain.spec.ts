@@ -7,7 +7,16 @@ import {
   STAGE_MIN,
   type BrainConfig,
 } from '@torio/contracts';
-import { brainState, googleState, metaState, mockApi, resetScan, scanState } from './mocks';
+import {
+  brainState,
+  googleState,
+  metaState,
+  mockApi,
+  resetScan,
+  REVIEW_IDS,
+  reviewState,
+  scanState,
+} from './mocks';
 
 const openTab = (page: Page, name: string) => page.getByRole('tab', { name }).click();
 const summary = (page: Page) => page.getByRole('tabpanel', { name: 'Summary' });
@@ -564,6 +573,90 @@ test.describe('brain (admin)', () => {
       hub.getByText('Google authorization expired or was revoked. Reconnect to continue.'),
     ).toBeVisible();
     await expect(hub.getByRole('button', { name: 'Reconnect Google' })).toBeVisible();
+  });
+
+  test('Product review: appears only when products wait, shows one product once with every source and the disagreement', async ({
+    page,
+  }) => {
+    await openTab(page, 'Intelligence');
+    await expect(intelligence(page).getByRole('region', { name: 'Product review' })).toHaveCount(0);
+    reviewState.on = true;
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openTab(page, 'Intelligence');
+    const rv = intelligence(page).getByRole('region', { name: 'Product review' });
+    await expect(rv).toContainText('3 products from 4 sources');
+    await expect(rv).toContainText('1 with conflicting details');
+    const vase = rv
+      .getByRole('listitem')
+      .filter({ has: page.getByRole('heading', { name: 'Nordic Vase' }) });
+    await expect(vase).toContainText('2 sources');
+    await expect(vase).toContainText('Sources disagree: Price');
+    await expect(vase).toContainText('Already in your Brain');
+    await expect(vase).toContainText('Website scan');
+    await expect(vase).toContainText('XML feed');
+    await expect(vase.getByRole('button', { name: /^Approve/ })).toHaveCount(0); // decided through Resolve
+    await rv.getByRole('button', { name: 'Needs a decision' }).click();
+    await expect(rv.getByRole('heading', { name: 'Lamp' })).toHaveCount(0);
+    await rv.getByRole('button', { name: 'Already in Brain' }).click();
+    await expect(rv.getByRole('heading', { name: 'Nordic Vase' })).toBeVisible();
+  });
+
+  test('Product review: resolve takes chosen fields from chosen sources, and Brain is only updated on request', async ({
+    page,
+  }) => {
+    reviewState.on = true;
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openTab(page, 'Intelligence');
+    const rv = intelligence(page).getByRole('region', { name: 'Product review' });
+    await rv.getByRole('button', { name: 'Resolve' }).click();
+    const dlg = page.getByRole('dialog', { name: 'Resolve: Nordic Vase' });
+    // keep the feed version (highest confidence) but use the website's price, and update the existing Brain product
+    await dlg.getByLabel(/Website scan: shop.test 1500/).check();
+    await dlg.getByLabel(/Update my existing Brain product/).check();
+    await dlg.getByRole('button', { name: 'Keep this version' }).click();
+    await expect.poll(() => reviewState.resolved.length).toBe(1);
+    expect(reviewState.resolved[0]).toMatchObject({
+      winnerId: REVIEW_IDS[1],
+      fields: { price: REVIEW_IDS[0] },
+      updateBrain: true,
+      recordIds: [REVIEW_IDS[0], REVIEW_IDS[1]],
+    });
+  });
+
+  test('Product review: keeping Brain’s version rejects every candidate', async ({ page }) => {
+    reviewState.on = true;
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openTab(page, 'Intelligence');
+    await intelligence(page).getByRole('button', { name: 'Resolve' }).click();
+    const dlg = page.getByRole('dialog', { name: 'Resolve: Nordic Vase' });
+    await dlg.getByLabel(/Keep what is in my Brain/).check();
+    await dlg.getByRole('button', { name: 'Keep my Brain version' }).click();
+    await expect.poll(() => reviewState.resolved.length).toBe(1);
+    expect(reviewState.resolved[0]).toMatchObject({
+      winnerId: null,
+      updateBrain: false,
+      fields: {},
+    });
+  });
+
+  test('Product review: approve everything without conflicts, then import approved products from every source', async ({
+    page,
+  }) => {
+    reviewState.on = true;
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openTab(page, 'Intelligence');
+    const rv = intelligence(page).getByRole('region', { name: 'Product review' });
+    await expect(rv.getByRole('button', { name: /^Import 0 approved/ })).toBeDisabled();
+    await rv.getByRole('button', { name: 'Approve all without conflicts' }).click();
+    await expect.poll(() => reviewState.cleared).toBe(1);
+    await expect(rv.getByRole('button', { name: /^Import 2 approved/ })).toBeEnabled();
+    await rv.getByRole('button', { name: /^Import 2 approved/ }).click();
+    await expect(rv.getByText('Imported 2 products into Brain.')).toBeVisible();
+    expect(reviewState.imported).toBe(1);
   });
 
   test('Summary has all eight sections, in order', async ({ page }) => {

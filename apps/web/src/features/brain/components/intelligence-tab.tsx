@@ -24,6 +24,7 @@ import { useImports, useSourceAction, type ImportOverview } from '../queries';
 import { fmtAgoIso } from './bits';
 import { FeedDialog, FeedPanel } from './feed-import';
 import { CatalogSourceCard } from './meta-catalog';
+import { ProductReview } from './product-review';
 import { WebsiteScan } from './website-scan';
 
 type Source = ImportOverview['sources'][number];
@@ -418,6 +419,7 @@ export function IntelligenceTab({
             onJob={setFeedChoice}
           />
         )}
+        {workspaceId && <ProductReview ws={workspaceId} onImported={onImported} />}
         <p className="m-0 flex flex-wrap items-center gap-x-2 text-[12.5px] text-muted">
           <PenLine size={13} aria-hidden className="text-faint" />
           Prefer to write it yourself? Add products and FAQs by hand under{' '}
