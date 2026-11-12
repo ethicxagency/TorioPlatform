@@ -24,7 +24,7 @@ import {
   updateAiSettingsSchema,
 } from '@torio/contracts';
 import { createZodDto } from 'nestjs-zod';
-import { CurrentUser, RequirePermission } from '../../common/decorators';
+import { CurrentUser, Public, RequirePermission } from '../../common/decorators';
 import { WorkspaceAccessGuard } from '../../common/guards/workspace-access.guard';
 import type { AuthUser } from '../../common/types';
 import { AdminGuard, CurrentAdmin, type AdminContext } from '../admin/admin-auth';
@@ -39,8 +39,12 @@ class LogQueryDto extends createZodDto(aiLogQuerySchema) {}
 class OverviewQueryDto extends createZodDto(aiOverviewQuerySchema) {}
 class DraftInputDto extends createZodDto(aiDraftInputSchema) {}
 
-/** Super Admin AI management. Authorised by the admin session; customer tokens do not work here. */
+/**
+ * Super Admin AI management. `@Public()` only opts out of the customer JWT guard; AdminGuard (a server-side admin session) protects
+ * every route, and customer tokens do not work here.
+ */
 @ApiExcludeController()
+@Public()
 @UseGuards(AdminGuard)
 @Controller('admin/ai')
 export class AdminAiController {
