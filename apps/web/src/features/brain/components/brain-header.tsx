@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { fmtAgoIso } from './bits';
 import { STAGE_META } from './stage-meta';
+import { BrainVersionBadge } from './version-badge';
 import type { BrainMaturity } from '@torio/contracts';
 
 /**
@@ -123,7 +124,10 @@ export function BrainHeader({
         </span>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="m-0 font-page-title">Brain</h1>
+            <h1 className="m-0 flex items-center gap-2 font-page-title">
+              Brain
+              <BrainVersionBadge />
+            </h1>
             <span
               data-testid="header-stage"
               className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.04em]"

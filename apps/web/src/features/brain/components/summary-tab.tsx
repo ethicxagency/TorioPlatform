@@ -1,6 +1,7 @@
 'use client';
 
 import type { BrainArea, BrainConflict, BrainIssue, BrainMaturity, Stage } from '@torio/contracts';
+import { BrainVersionBadge } from './version-badge';
 import {
   ArrowRight,
   BookOpenText,
@@ -291,7 +292,10 @@ export function SummaryTab({
             <div className="flex items-start gap-4">
               <BrainIllustration size={104} />
               <div className="min-w-0 pt-1">
-                <h2 className="m-0 font-page-title">Brain</h2>
+                <h2 className="m-0 flex items-center gap-2 font-page-title">
+                  Brain
+                  <BrainVersionBadge />
+                </h2>
                 <p className="m-0 text-sm font-medium text-primary-hover">
                   Your business. Your rules. Your AI.
                 </p>

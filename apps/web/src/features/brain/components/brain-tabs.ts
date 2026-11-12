@@ -2,12 +2,13 @@ import { AISparkle } from '@/components/ui/ai';
 import {
   BookOpenText,
   Gauge,
+  Info,
   LayoutDashboard,
   SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react';
 
-export const TAB_IDS = ['summary', 'intelligence', 'knowledge', 'rules', 'test'] as const;
+export const TAB_IDS = ['summary', 'intelligence', 'knowledge', 'rules', 'about', 'test'] as const;
 export type TabId = (typeof TAB_IDS)[number];
 export const DEFAULT_TAB: TabId = 'summary';
 
@@ -16,6 +17,7 @@ export const TABS: { id: TabId; label: string; icon: LucideIcon }[] = [
   { id: 'intelligence', label: 'Intelligence', icon: Gauge },
   { id: 'knowledge', label: 'Knowledge', icon: BookOpenText },
   { id: 'rules', label: 'Rules & Behavior', icon: SlidersHorizontal },
+  { id: 'about', label: 'About', icon: Info },
   { id: 'test', label: 'Test AI', icon: AISparkle },
 ];
 

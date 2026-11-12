@@ -216,3 +216,14 @@ describe('shipping provider and payment method records', () => {
     expect(brainConfigSchema.safeParse(c).success).toBe(false);
   });
 });
+
+describe('Brain version', () => {
+  it('has one version, written as semantic major.minor.patch, and invents no release date or history', async () => {
+    const v = await import('./brain-version');
+    expect(v.brainVersionString()).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(v.BRAIN_RELEASE.version).toBe(v.brainVersionString());
+    expect(v.BRAIN_RELEASE.releasedAt).toBeNull();
+    expect(v.BRAIN_RELEASE_HISTORY).toEqual([]);
+    expect(v.brainVersionString({ major: 2, minor: 3, patch: 4 })).toBe('2.3.4');
+  });
+});

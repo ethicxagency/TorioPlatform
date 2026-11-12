@@ -31,6 +31,7 @@ import {
   type TabId,
 } from './brain-tabs';
 import { IntelligenceTab } from './intelligence-tab';
+import { AboutTab } from './about-tab';
 import { Playground, type PlaygroundHandle } from './playground';
 import { FieldsSection } from './sections-fields';
 import { KbSection, ProductsSection } from './sections-knowledge';
@@ -554,6 +555,15 @@ function BrainEditor({
           <GuardrailsSection {...bundle} />
           <LogicSection {...bundle} remove={remove} onTest={(m) => runTest(m)} />
         </fieldset>
+      </div>
+      <div
+        role="tabpanel"
+        id="brain-panel-about"
+        aria-labelledby="brain-tab-about"
+        hidden={tab !== 'about'}
+        className="min-w-0"
+      >
+        <AboutTab onNavigate={selectTab} />
       </div>
       <div
         role="tabpanel"

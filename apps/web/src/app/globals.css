@@ -800,3 +800,57 @@ select:not([multiple]):not([size]):disabled {
     opacity: 0.55;
   }
 }
+
+/* Torio Brain illustration (About). Slow and soft; every animation is off for reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .brain-float {
+    animation: brain-float 8s ease-in-out infinite;
+  }
+  .brain-glow {
+    animation: brain-glow 6s ease-in-out infinite;
+    transform-origin: 280px 236px;
+  }
+  .brain-flow {
+    stroke-dasharray: 3 7;
+    animation: brain-flow 7s linear infinite;
+  }
+  .brain-node {
+    animation: brain-node 4.5s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  @keyframes brain-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-9px);
+    }
+  }
+  @keyframes brain-glow {
+    0%,
+    100% {
+      opacity: 0.22;
+      transform: scale(0.96);
+    }
+    50% {
+      opacity: 0.4;
+      transform: scale(1.06);
+    }
+  }
+  @keyframes brain-flow {
+    to {
+      stroke-dashoffset: -40;
+    }
+  }
+  @keyframes brain-node {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.22);
+    }
+  }
+}

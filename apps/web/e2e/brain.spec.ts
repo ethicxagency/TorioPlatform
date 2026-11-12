@@ -38,7 +38,7 @@ test.describe('brain (admin)', () => {
     await page.waitForLoadState('networkidle'); // hydrated: tab clicks are not lost
   });
 
-  test('shows the compact header, the five tabs, and the Summary by default', async ({ page }) => {
+  test('shows the compact header, the six tabs, and the Summary by default', async ({ page }) => {
     await expect(page.getByText('Your business. Your rules. Your AI.').first()).toBeVisible();
     const tabs = page.getByRole('tablist', { name: 'Brain' }).getByRole('tab');
     await expect(tabs).toHaveText([
@@ -46,6 +46,7 @@ test.describe('brain (admin)', () => {
       'Intelligence',
       'Knowledge',
       'Rules & Behavior',
+      'About',
       'Test AI',
     ]);
     await expect(page.getByRole('tab', { name: 'Summary' })).toHaveAttribute(
@@ -1463,8 +1464,69 @@ test.describe('brain (admin)', () => {
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
       ).toBe(false);
-      for (const t of ['Summary', 'Intelligence', 'Knowledge', 'Rules & Behavior', 'Test AI'])
+      for (const t of [
+        'Summary',
+        'Intelligence',
+        'Knowledge',
+        'Rules & Behavior',
+        'About',
+        'Test AI',
+      ])
         await expect(page.getByRole('tab', { name: t })).toBeAttached();
+    }
+  });
+
+  test('the Brain version comes from one place: header, Summary and About all show it', async ({
+    page,
+  }) => {
+    const { BRAIN_RELEASE } = await import('@torio/contracts');
+    const v = `v${BRAIN_RELEASE.version}`;
+    await expect(page.getByTestId('brain-version').first()).toHaveText(v);
+    await expect(page.getByTestId('brain-version').first()).toHaveAttribute(
+      'title',
+      'Torio Brain version',
+    );
+    await openTab(page, 'About');
+    await expect(page).toHaveURL(/tab=about/);
+    const about = page.getByRole('tabpanel', { name: 'About' });
+    await expect(about.getByRole('heading', { name: 'Meet Torio Brain' })).toBeVisible();
+    await expect(about.getByTestId('about-version')).toHaveText(BRAIN_RELEASE.version);
+    await expect(about.getByText('Torio Intelligence Engine')).toBeVisible();
+    await expect(about.getByRole('img', { name: /illustration of Torio Brain/ })).toBeVisible();
+    // only configured facts: no release date or history is shown when none is configured
+    await expect(about.getByText('Release date')).toHaveCount(0);
+    await expect(about.getByText(/Release notes|Version history/)).toHaveCount(0);
+    for (const c of [
+      'Business Understanding',
+      'Product Knowledge',
+      'Brand Voice',
+      'Knowledge Intelligence',
+      'Rules & Behavior',
+      'AI Personalization',
+    ])
+      await expect(about.getByRole('button', { name: new RegExp(c) })).toBeVisible();
+    await about.getByRole('button', { name: /Brand Voice/ }).click();
+    await expect(page).toHaveURL(/tab=rules/);
+  });
+
+  test('the About illustration is animated normally and still with reduced motion; phones have no horizontal scroll', async ({
+    page,
+  }) => {
+    await openTab(page, 'About');
+    const art = page
+      .getByRole('tabpanel', { name: 'About' })
+      .getByRole('img', { name: /illustration of Torio Brain/ });
+    await expect(art.locator('.brain-float')).toHaveCount(1);
+    expect(await art.locator('animateMotion').count()).toBeGreaterThan(0);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await expect(art.locator('.brain-float')).toHaveCount(0);
+    await expect(art.locator('animateMotion')).toHaveCount(0);
+    for (const width of [820, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
+      ).toBe(false);
+      await expect(art).toBeVisible();
     }
   });
 
