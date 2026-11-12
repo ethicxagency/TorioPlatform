@@ -10,7 +10,6 @@ import {
   Hourglass,
   ListChecks,
   PenLine,
-  Search,
   Shirt,
   type LucideIcon,
 } from 'lucide-react';
@@ -20,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { useWorkspace } from '@/lib/workspace';
 import { useImports, type ImportOverview } from '../queries';
 import { fmtAgoIso } from './bits';
+import { WebsiteScan } from './website-scan';
 
 type Source = ImportOverview['sources'][number];
 
@@ -218,10 +218,13 @@ export function IntelligenceTab({
   config,
   maturity: m,
   onGoTo,
+  onImported,
 }: {
   config: BrainConfig;
   maturity: BrainMaturity;
   onGoTo: (section: SectionKey) => void;
+  /** Called after approved entries were added to Brain, so the page can load the new version. */
+  onImported: () => void;
 }) {
   const { workspaceId } = useWorkspace();
   const imports = useImports(workspaceId);
@@ -233,6 +236,10 @@ export function IntelligenceTab({
     .filter((x): x is string => !!x)
     .sort()
     .at(-1);
+  // a website scan that is running or waiting for review carries on after a refresh
+  const resumable = jobs.find(
+    (j) => j.kind === 'WEBSITE' && ['QUEUED', 'RUNNING', 'NEEDS_REVIEW'].includes(j.status),
+  );
   const review = jobs.filter((j) => j.status === 'NEEDS_REVIEW').length;
   const failed = jobs.filter((j) => j.status === 'FAILED').length;
 
@@ -251,37 +258,32 @@ export function IntelligenceTab({
       </header>
 
       <Panel title="Discover your business">
-        <div className="flex flex-wrap items-start gap-4 rounded-card border border-line bg-white p-4 sm:p-5">
-          <Tile>
-            <Globe size={18} className="text-primary" />
-          </Tile>
-          <div className="min-w-0 flex-1 basis-72">
-            <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-3 rounded-card border border-line bg-white p-4 sm:p-5">
+          <div className="flex items-start gap-3">
+            <Tile>
+              <Globe size={18} className="text-primary" />
+            </Tile>
+            <div className="min-w-0 flex-1">
               <h3 className="m-0 text-[14.5px] font-semibold">Scan your website</h3>
-              <span className="rounded-full bg-wash-2 px-2 py-0.5 text-[11px] font-medium text-muted">
-                Not available yet
-              </span>
-            </div>
-            <p className="m-0 mt-1 text-[13px] text-muted">
-              Torio will read your public pages and propose your business profile, products,
-              policies, FAQs and brand voice for you to review. Only what is on your site is
-              proposed, and nothing becomes active until you approve it.
-            </p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <div className="flex h-9 min-w-[220px] flex-1 items-center gap-2 rounded-[var(--radius-control)] border border-line bg-wash px-2.5 text-[13px] text-faint">
-                <Search size={14} aria-hidden />
-                {config.identity.website || 'https://your-website.com'}
-              </div>
-              <button
-                type="button"
-                disabled
-                title="Website scanning is not available yet"
-                className="h-9 cursor-not-allowed rounded-[var(--radius-control)] border-none bg-primary/40 px-4 text-[13px] font-semibold text-white"
-              >
-                Scan website
-              </button>
+              <p className="m-0 mt-1 text-[13px] text-muted">
+                Torio reads your public pages and proposes your business profile, products, policies
+                and FAQs for you to review. Only what is on your site is proposed, and nothing
+                becomes active until you approve it.
+              </p>
             </div>
           </div>
+          {workspaceId && (
+            <WebsiteScan
+              ws={workspaceId}
+              initialJobId={resumable?.id ?? null}
+              defaults={{
+                url: config.identity.website,
+                country: config.identity.country,
+                category: config.identity.category,
+              }}
+              onImported={onImported}
+            />
+          )}
         </div>
       </Panel>
 

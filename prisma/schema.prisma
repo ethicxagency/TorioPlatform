@@ -299,6 +299,7 @@ model Workspace {
   brainConfig          BrainConfig?
   importSources        ImportSource[]
   importJobs           ImportJob[]
+  importRecords        ImportRecord[]
   automations          Automation[]
   automationVersions   AutomationVersion[]
   automationExecutions AutomationExecution[]
@@ -1434,6 +1435,8 @@ model ImportJob {
   sourceId    String?          @db.Uuid
   kind        ImportSourceKind
   status      ImportJobStatus  @default(QUEUED)
+  /// Crawl progress while the job runs (queue, visited pages, warnings). Internal; cleared of page text when the job ends.
+  state       Json?
   /// Counts such as { discovered, valid, imported, failed }; null until the job reports.
   stats       Json?
   error       String?
@@ -1442,10 +1445,45 @@ model ImportJob {
   createdById String?          @db.Uuid
   createdAt   DateTime         @default(now())
 
-  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  source    ImportSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  source    ImportSource?  @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  records   ImportRecord[]
 
   @@index([workspaceId, createdAt])
   @@index([sourceId])
   @@map("import_jobs")
+}
+
+enum ImportRecordStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  IMPORTED
+}
+
+/// One piece of knowledge proposed by an import (a product, an FAQ, a policy, a business detail). It is only a proposal:
+/// nothing here is Brain knowledge until a person approves it and imports it. `original` keeps exactly what was found,
+/// so edits are visible against the source, and `sourceUrl` says where it came from.
+model ImportRecord {
+  id          String             @id @default(uuid(7)) @db.Uuid
+  workspaceId String             @db.Uuid
+  jobId       String             @db.Uuid
+  category    String
+  title       String
+  data        Json
+  original    Json
+  sourceUrl   String?
+  /// 0-100, from how much evidence supports the entry (structured data scores higher than inferred text).
+  confidence  Int                @default(50)
+  warnings    Json?
+  status      ImportRecordStatus @default(PENDING)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  job       ImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([workspaceId, status])
+  @@map("import_records")
 }

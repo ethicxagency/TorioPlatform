@@ -484,7 +484,16 @@ function BrainEditor({
         aria-labelledby="brain-tab-intelligence"
         hidden={tab !== 'intelligence'}
       >
-        <IntelligenceTab config={saved.config} maturity={saved.maturity} onGoTo={goToSection} />
+        <IntelligenceTab
+          config={saved.config}
+          maturity={saved.maturity}
+          onGoTo={goToSection}
+          onImported={() => {
+            // Imports add to the saved Brain on the server. Load it, unless there are unsaved edits to protect.
+            if (dirty) setConflict(true);
+            else void reloadLatest();
+          }}
+        />
       </div>
       <div
         role="tabpanel"

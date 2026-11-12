@@ -4,7 +4,9 @@ import { PrismaService } from '../../database/prisma.service';
 
 /** Prisma: "table does not exist" (P2021) or "column does not exist" (P2022), i.e. the migration has not been applied yet. */
 const notMigrated = (e: unknown) =>
-  typeof e === 'object' && e !== null && ['P2021', 'P2022'].includes((e as { code?: string }).code ?? '');
+  typeof e === 'object' &&
+  e !== null &&
+  ['P2021', 'P2022'].includes((e as { code?: string }).code ?? '');
 
 /**
  * Import sources and their recent jobs for one store. The tables arrive with a migration the operator applies on their own

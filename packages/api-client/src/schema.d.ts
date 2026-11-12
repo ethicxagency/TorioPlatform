@@ -1387,7 +1387,167 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["BrainController_importOverview"];
+        get: operations["ImportsController_overview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/brain/imports/website": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ImportsController_start"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/brain/imports/jobs/{jobId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ImportsController_job"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/brain/imports/jobs/{jobId}/step": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ImportsController_step"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/brain/imports/jobs/{jobId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ImportsController_cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/brain/imports/jobs/{jobId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ImportsController_retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/brain/imports/jobs/{jobId}/records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ImportsController_records"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/brain/imports/jobs/{jobId}/records/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ImportsController_bulk"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/brain/imports/jobs/{jobId}/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ImportsController_import"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/brain/imports/records/{recordId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["ImportsController_review"];
+        trace?: never;
+    };
+    "/api/v1/internal/imports/tick": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ImportsTickController_tick"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4179,38 +4339,6 @@ export interface components {
                 };
             };
         };
-        ImportOverviewDto: {
-            ready: boolean;
-            sources: {
-                /** Format: uuid */
-                id: string;
-                /** @enum {string} */
-                kind: "WEBSITE" | "XML_FEED" | "META_CATALOG" | "GOOGLE_MERCHANT" | "MANUAL";
-                name: string;
-                url: string | null;
-                /** @enum {string} */
-                status: "ACTIVE" | "PAUSED" | "ERROR" | "DISCONNECTED";
-                lastSyncedAt: string | null;
-                lastError: string | null;
-            }[];
-            jobs: {
-                /** Format: uuid */
-                id: string;
-                sourceId: string | null;
-                /** @enum {string} */
-                kind: "WEBSITE" | "XML_FEED" | "META_CATALOG" | "GOOGLE_MERCHANT" | "MANUAL";
-                /** @enum {string} */
-                status: "QUEUED" | "RUNNING" | "NEEDS_REVIEW" | "COMPLETED" | "FAILED" | "CANCELLED";
-                stats: {
-                    [key: string]: number;
-                } | null;
-                error: string | null;
-                startedAt: string | null;
-                finishedAt: string | null;
-                /** Format: date-time */
-                createdAt: string;
-            }[];
-        };
         SaveBrainDto: {
             config: {
                 identity: {
@@ -4388,6 +4516,133 @@ export interface components {
                 }[];
             };
             baseVersion: number;
+        };
+        ImportOverviewDto: {
+            ready: boolean;
+            sources: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                kind: "WEBSITE" | "XML_FEED" | "META_CATALOG" | "GOOGLE_MERCHANT" | "MANUAL";
+                name: string;
+                url: string | null;
+                /** @enum {string} */
+                status: "ACTIVE" | "PAUSED" | "ERROR" | "DISCONNECTED";
+                lastSyncedAt: string | null;
+                lastError: string | null;
+            }[];
+            jobs: {
+                /** Format: uuid */
+                id: string;
+                sourceId: string | null;
+                /** @enum {string} */
+                kind: "WEBSITE" | "XML_FEED" | "META_CATALOG" | "GOOGLE_MERCHANT" | "MANUAL";
+                /** @enum {string} */
+                status: "QUEUED" | "RUNNING" | "NEEDS_REVIEW" | "COMPLETED" | "FAILED" | "CANCELLED";
+                stats: {
+                    [key: string]: number;
+                } | null;
+                error: string | null;
+                startedAt: string | null;
+                finishedAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
+        };
+        WebsiteScanDto: {
+            url: string;
+            country?: string;
+            category?: string;
+            instructions?: string;
+        };
+        ImportJobDetailDto: {
+            job: {
+                /** Format: uuid */
+                id: string;
+                sourceId: string | null;
+                /** @enum {string} */
+                kind: "WEBSITE" | "XML_FEED" | "META_CATALOG" | "GOOGLE_MERCHANT" | "MANUAL";
+                /** @enum {string} */
+                status: "QUEUED" | "RUNNING" | "NEEDS_REVIEW" | "COMPLETED" | "FAILED" | "CANCELLED";
+                stats: {
+                    [key: string]: number;
+                } | null;
+                error: string | null;
+                startedAt: string | null;
+                finishedAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+            };
+            progress: {
+                pages: number;
+                maxPages: number;
+            };
+            warnings: string[];
+            url: string[];
+        };
+        ImportRecordListDto: {
+            data: {
+                /** Format: uuid */
+                id: string;
+                /** Format: uuid */
+                jobId: string;
+                /** @enum {string} */
+                category: "business" | "product" | "faq" | "policy";
+                title: string;
+                data: {
+                    [key: string]: string;
+                };
+                original: {
+                    [key: string]: string;
+                };
+                edited: boolean;
+                sourceUrl: string | null;
+                confidence: number;
+                warnings: string[];
+                /** @enum {string} */
+                status: "PENDING" | "APPROVED" | "REJECTED" | "IMPORTED";
+            }[];
+        };
+        BulkReviewDto: {
+            /** @enum {string} */
+            status: "PENDING" | "APPROVED" | "REJECTED";
+            categories?: ("business" | "product" | "faq" | "policy")[];
+        };
+        ImportApproveDto: {
+            categories?: ("business" | "product" | "faq" | "policy")[];
+        };
+        ImportResultDto: {
+            imported: number;
+            skippedDuplicates: number;
+            notes: string[];
+        };
+        ReviewRecordDto: {
+            /** @enum {string} */
+            status?: "PENDING" | "APPROVED" | "REJECTED";
+            data?: {
+                [key: string]: string;
+            };
+        };
+        ImportRecordDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            jobId: string;
+            /** @enum {string} */
+            category: "business" | "product" | "faq" | "policy";
+            title: string;
+            data: {
+                [key: string]: string;
+            };
+            original: {
+                [key: string]: string;
+            };
+            edited: boolean;
+            sourceUrl: string[];
+            confidence: number;
+            warnings: string[];
+            /** @enum {string} */
+            status: "PENDING" | "APPROVED" | "REJECTED" | "IMPORTED";
         };
         OrderListDto: {
             data: {
@@ -8565,7 +8820,7 @@ export interface operations {
             };
         };
     };
-    BrainController_importOverview: {
+    ImportsController_overview: {
         parameters: {
             query?: never;
             header?: never;
@@ -8583,6 +8838,238 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ImportOverviewDto"];
                 };
+            };
+        };
+    };
+    ImportsController_start: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebsiteScanDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportJobDetailDto"];
+                };
+            };
+        };
+    };
+    ImportsController_job: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportJobDetailDto"];
+                };
+            };
+        };
+    };
+    ImportsController_step: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportJobDetailDto"];
+                };
+            };
+        };
+    };
+    ImportsController_cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportJobDetailDto"];
+                };
+            };
+        };
+    };
+    ImportsController_retry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportJobDetailDto"];
+                };
+            };
+        };
+    };
+    ImportsController_records: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRecordListDto"];
+                };
+            };
+        };
+    };
+    ImportsController_bulk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkReviewDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkResultDto"];
+                };
+            };
+        };
+    };
+    ImportsController_import: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportApproveDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportResultDto"];
+                };
+            };
+        };
+    };
+    ImportsController_review: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewRecordDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRecordDto"];
+                };
+            };
+        };
+    };
+    ImportsTickController_tick: {
+        parameters: {
+            query?: never;
+            header: {
+                authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

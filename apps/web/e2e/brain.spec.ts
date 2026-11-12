@@ -7,7 +7,7 @@ import {
   STAGE_MIN,
   type BrainConfig,
 } from '@torio/contracts';
-import { brainState, mockApi } from './mocks';
+import { brainState, mockApi, resetScan, scanState } from './mocks';
 
 const openTab = (page: Page, name: string) => page.getByRole('tab', { name }).click();
 const summary = (page: Page) => page.getByRole('tabpanel', { name: 'Summary' });
@@ -16,6 +16,7 @@ const intelligence = (page: Page) => page.getByRole('tabpanel', { name: 'Intelli
 test.describe('brain (admin)', () => {
   test.use({ viewport: { width: 1600, height: 900 } });
   test.beforeEach(async ({ page }) => {
+    resetScan();
     brainState.version = 3;
     brainState.puts.length = 0;
     brainState.config = null;
@@ -303,7 +304,10 @@ test.describe('brain (admin)', () => {
       hub.getByText('Connect your business data and let Torio learn automatically.'),
     ).toBeVisible();
     await expect(hub.getByRole('heading', { name: 'Scan your website' })).toBeVisible();
-    await expect(hub.getByRole('button', { name: 'Scan website' })).toBeDisabled();
+    const scan = hub.getByRole('button', { name: 'Scan website' });
+    await expect(scan).toBeDisabled(); // no address yet
+    await hub.getByLabel('Website address').fill('shop.test');
+    await expect(scan).toBeEnabled();
     for (const t of ['XML product feed', 'Meta Catalog', 'Google Merchant Center'])
       await expect(hub.getByRole('heading', { name: t })).toBeVisible();
     // nothing is shown as connected, and the reason each cannot connect is stated
@@ -314,6 +318,47 @@ test.describe('brain (admin)', () => {
     // the score, dimensions and journey belong to Summary
     for (const gone of ['Intelligence score', 'Growth journey', 'Your Brain’s Growth Journey'])
       await expect(hub.getByText(gone)).toHaveCount(0);
+  });
+
+  test('website scan: scan, review, edit, approve, and only approved entries are imported', async ({
+    page,
+  }) => {
+    await openTab(page, 'Intelligence');
+    const hub = intelligence(page);
+    await hub.getByLabel('Website address').fill('shop.test');
+    await hub.getByRole('button', { name: 'Add details (optional)' }).click();
+    await hub.getByLabel('Business country').fill('Bangladesh');
+    await hub.getByRole('button', { name: 'Scan website' }).click();
+    await expect
+      .poll(() => scanState.body)
+      .toMatchObject({ url: 'shop.test', country: 'Bangladesh' });
+    // the scan finishes after a step; findings are proposals with source, confidence and warnings
+    await expect(hub.getByRole('tab', { name: /All/ })).toBeVisible();
+    await expect(hub.getByText('AI structuring is not configured', { exact: false })).toBeHidden();
+    await hub.getByText(/note.? about this scan/).click();
+    await expect(hub.getByText('AI structuring is not configured', { exact: false })).toBeVisible();
+    const vase = hub.getByRole('listitem').filter({ hasText: 'Nordic Vase' });
+    await expect(vase).toContainText('High confidence');
+    await expect(vase).toContainText('Availability was not published');
+    await expect(hub.getByRole('listitem').filter({ hasText: 'Do you deliver?' })).toContainText(
+      'Low confidence',
+    );
+    await expect(hub.getByRole('button', { name: /^Import 0 approved/ })).toBeDisabled();
+    // edit keeps the original visible
+    await hub.getByRole('button', { name: 'Edit Nordic Vase' }).click();
+    const dlg = page.getByRole('dialog');
+    await dlg.getByLabel('Price').fill('1800');
+    await expect(dlg.getByText('Found on the site: 1500')).toBeVisible();
+    await dlg.getByRole('button', { name: 'Save changes' }).click();
+    await expect(vase).toContainText('Edited');
+    // approve one, reject another, import
+    await hub.getByRole('button', { name: 'Approve Nordic Vase' }).click();
+    await hub.getByRole('button', { name: 'Reject Do you deliver?' }).click();
+    await expect(hub.getByRole('button', { name: /^Import 1 approved/ })).toBeEnabled();
+    await hub.getByRole('button', { name: /^Import 1 approved/ }).click();
+    await expect(hub.getByText('Imported 1 entry into Brain.')).toBeVisible();
+    expect(scanState.imported).toEqual(['9d0f0000-0000-4000-8000-0000000000a2']);
+    await expect(vase).toContainText('Imported');
   });
 
   test('Summary has all eight sections, in order', async ({ page }) => {

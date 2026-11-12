@@ -4,7 +4,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   BrainConfig,
   BrainMaturity,
+  ImportJobDetail,
   ImportOverview as ImportOverviewT,
+  ImportRecordView,
+  ImportResult,
+  WebsiteScanInput,
 } from '@torio/contracts';
 import { api } from '@/lib/api';
 import { ApiRequestError } from '@/features/leads/queries';
@@ -77,6 +81,147 @@ export function useImports(ws: string | null) {
       });
       if (!data) throw fail(error, 'Could not load imports', response.status);
       return data as unknown as ImportOverviewT;
+    },
+  });
+}
+
+// ---------- website scan ----------
+
+const I = `${P}/imports`;
+const scanKey = (ws: string) => ['brain-imports', ws] as const;
+
+export function useStartScan(ws: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (b: WebsiteScanInput): Promise<ImportJobDetail> => {
+      const { data, error, response } = await api.POST(`${I}/website`, {
+        params: { path: { workspaceId: ws } },
+        body: b,
+      });
+      if (!data) throw fail(error, 'Could not start the scan', response.status);
+      return data as unknown as ImportJobDetail;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: scanKey(ws) }),
+  });
+}
+
+export function useScanJob(ws: string, jobId: string | null) {
+  return useQuery({
+    queryKey: ['brain-import-job', ws, jobId] as const,
+    enabled: !!jobId,
+    queryFn: async (): Promise<ImportJobDetail> => {
+      const { data, error, response } = await api.GET(`${I}/jobs/{jobId}`, {
+        params: { path: { workspaceId: ws, jobId: jobId! } },
+      });
+      if (!data) throw fail(error, 'Could not load the scan', response.status);
+      return data as unknown as ImportJobDetail;
+    },
+  });
+}
+
+/** One time-boxed step of an active scan; the page calls it in a loop until the scan is no longer active. */
+export function useScanStep(ws: string, jobId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<ImportJobDetail> => {
+      const { data, error, response } = await api.POST(`${I}/jobs/{jobId}/step`, {
+        params: { path: { workspaceId: ws, jobId: jobId! } },
+      });
+      if (!data) throw fail(error, 'The scan could not continue', response.status);
+      return data as unknown as ImportJobDetail;
+    },
+    onSuccess: (d) => {
+      qc.setQueryData(['brain-import-job', ws, jobId], d);
+      if (d.job.status !== 'RUNNING' && d.job.status !== 'QUEUED') {
+        void qc.invalidateQueries({ queryKey: scanKey(ws) });
+        void qc.invalidateQueries({ queryKey: ['brain-import-records', ws, jobId] });
+      }
+    },
+  });
+}
+
+function useJobAction(ws: string, jobId: string | null, action: 'cancel' | 'retry') {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<ImportJobDetail> => {
+      const { data, error, response } = await api.POST(`${I}/jobs/{jobId}/${action}`, {
+        params: { path: { workspaceId: ws, jobId: jobId! } },
+      });
+      if (!data) throw fail(error, `Could not ${action} the scan`, response.status);
+      return data as unknown as ImportJobDetail;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: scanKey(ws) }),
+  });
+}
+export const useCancelScan = (ws: string, jobId: string | null) =>
+  useJobAction(ws, jobId, 'cancel');
+export const useRetryScan = (ws: string, jobId: string | null) => useJobAction(ws, jobId, 'retry');
+
+export function useScanRecords(ws: string, jobId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ['brain-import-records', ws, jobId] as const,
+    enabled: !!jobId && enabled,
+    queryFn: async (): Promise<ImportRecordView[]> => {
+      const { data, error, response } = await api.GET(`${I}/jobs/{jobId}/records`, {
+        params: { path: { workspaceId: ws, jobId: jobId! } },
+      });
+      if (!data) throw fail(error, 'Could not load what the scan found', response.status);
+      return (data as unknown as { data: ImportRecordView[] }).data;
+    },
+  });
+}
+
+export function useReviewRecord(ws: string, jobId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (v: {
+      id: string;
+      status?: 'PENDING' | 'APPROVED' | 'REJECTED';
+      data?: Record<string, string>;
+    }) => {
+      const { data, error, response } = await api.PATCH(`${I}/records/{recordId}`, {
+        params: { path: { workspaceId: ws, recordId: v.id } },
+        body: { status: v.status, data: v.data },
+      });
+      if (!data) throw fail(error, 'Could not update the entry', response.status);
+      return data as unknown as ImportRecordView;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['brain-import-records', ws, jobId] }),
+  });
+}
+
+export function useBulkReview(ws: string, jobId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (v: {
+      status: 'PENDING' | 'APPROVED' | 'REJECTED';
+      categories?: ('business' | 'product' | 'faq' | 'policy')[];
+    }) => {
+      const { data, error, response } = await api.POST(`${I}/jobs/{jobId}/records/review`, {
+        params: { path: { workspaceId: ws, jobId: jobId! } },
+        body: v,
+      });
+      if (!data) throw fail(error, 'Could not update the entries', response.status);
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['brain-import-records', ws, jobId] }),
+  });
+}
+
+export function useImportApproved(ws: string, jobId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<ImportResult> => {
+      const { data, error, response } = await api.POST(`${I}/jobs/{jobId}/import`, {
+        params: { path: { workspaceId: ws, jobId: jobId! } },
+        body: {},
+      });
+      if (!data) throw fail(error, 'Could not import', response.status);
+      return data as unknown as ImportResult;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['brain-import-records', ws, jobId] });
+      void qc.invalidateQueries({ queryKey: scanKey(ws) });
     },
   });
 }

@@ -94,6 +94,68 @@ export const CUSTOMERS = [
 ];
 export const customerRequests: string[] = [];
 
+/** Website scan mock state (Brain → Intelligence). */
+export const SCAN_JOB = '9d0f0000-0000-4000-8000-000000000001';
+const rec = (
+  id: string,
+  category: string,
+  title: string,
+  data: Record<string, string>,
+  confidence: number,
+  warnings: string[] = [],
+) => ({
+  id,
+  jobId: SCAN_JOB,
+  category,
+  title,
+  data,
+  original: { ...data },
+  edited: false,
+  sourceUrl: `https://shop.test/${category}`,
+  confidence,
+  warnings,
+  status: 'PENDING',
+});
+export const scanState = {
+  started: false,
+  status: 'QUEUED',
+  body: null as unknown,
+  patches: [] as unknown[],
+  imported: [] as string[],
+  records: [] as ReturnType<typeof rec>[],
+};
+export function resetScan() {
+  scanState.started = false;
+  scanState.status = 'QUEUED';
+  scanState.body = null;
+  scanState.patches = [];
+  scanState.imported = [];
+  scanState.records = [
+    rec(
+      '9d0f0000-0000-4000-8000-0000000000a1',
+      'business',
+      'UrbanNest',
+      { name: 'UrbanNest', description: 'Home decor.', email: 'hi@shop.test' },
+      85,
+    ),
+    rec(
+      '9d0f0000-0000-4000-8000-0000000000a2',
+      'product',
+      'Nordic Vase',
+      { name: 'Nordic Vase', price: '1500', currency: 'BDT' },
+      95,
+      ['Availability was not published; it imports as In stock, so check it.'],
+    ),
+    rec(
+      '9d0f0000-0000-4000-8000-0000000000a3',
+      'faq',
+      'Do you deliver?',
+      { q: 'Do you deliver?', a: 'Yes, nationwide.' },
+      55,
+    ),
+  ];
+}
+
 export const MEMBERS = [
   {
     id: 'eeeeeeee-0000-4000-8000-000000000001',
@@ -1645,8 +1707,68 @@ export async function mockApi(
         });
       return reply(oneCust);
     }
-    if (p === `/workspaces/${WS}/brain/imports`)
-      return reply({ ready: true, sources: [], jobs: [] });
+    if (p.startsWith(`/workspaces/${WS}/brain/imports`)) {
+      const sub = p.slice(`/workspaces/${WS}/brain/imports`.length);
+      const job = (status: string) => ({
+        job: {
+          id: SCAN_JOB,
+          sourceId: null,
+          kind: 'WEBSITE',
+          status,
+          stats: status === 'NEEDS_REVIEW' ? { pages: 3, business: 1, products: 1, faqs: 1 } : null,
+          error: null,
+          startedAt: iso(0),
+          finishedAt: null,
+          createdAt: iso(0),
+        },
+        progress: { pages: status === 'NEEDS_REVIEW' ? 3 : 1, maxPages: 15 },
+        warnings:
+          status === 'NEEDS_REVIEW'
+            ? [
+                'AI structuring is not configured, so only structured data and clearly marked pages were read.',
+              ]
+            : [],
+        url: 'https://shop.test/',
+      });
+      if (sub === '')
+        return reply({
+          ready: true,
+          sources: [],
+          jobs: scanState.started ? [job(scanState.status).job] : [],
+        });
+      if (sub === '/website') {
+        scanState.started = true;
+        scanState.status = 'QUEUED';
+        scanState.body = req.postDataJSON();
+        return reply(job('QUEUED'));
+      }
+      if (sub.endsWith('/step')) {
+        scanState.status = 'NEEDS_REVIEW';
+        return reply(job('NEEDS_REVIEW'));
+      }
+      if (sub.endsWith('/records/review')) return reply({ updated: 0 });
+      if (sub.endsWith('/records')) return reply({ data: scanState.records });
+      if (sub.includes('/records/') && req.method() === 'PATCH') {
+        const id = sub.split('/').pop()!;
+        const body = req.postDataJSON() as { status?: string; data?: Record<string, string> };
+        const r = scanState.records.find((x) => x.id === id)!;
+        if (body.status) r.status = body.status;
+        if (body.data) {
+          r.data = body.data;
+          r.edited = true;
+        }
+        scanState.patches.push({ id, ...body });
+        return reply(r);
+      }
+      if (sub.endsWith('/import')) {
+        scanState.imported = scanState.records
+          .filter((x) => x.status === 'APPROVED')
+          .map((x) => x.id);
+        scanState.records.forEach((x) => x.status === 'APPROVED' && (x.status = 'IMPORTED'));
+        return reply({ imported: scanState.imported.length, skippedDuplicates: 0, notes: [] });
+      }
+      if (sub.startsWith('/jobs/')) return reply(job(scanState.status));
+    }
     if (p === `/workspaces/${WS}/brain`) {
       if (req.method() === 'PUT') {
         const b = req.postDataJSON() as { config: unknown; baseVersion: number };

@@ -84,6 +84,11 @@ export const envSchema = z
       .string()
       .min(32, 'must be at least 32 characters')
       .optional(),
+    /** Optional. With it, website scans also ask Claude to structure what the pages say; without it, only rule-based extraction runs. */
+    ANTHROPIC_API_KEY: z.string().min(20).optional(),
+    ANTHROPIC_MODEL: z.string().min(3).default('claude-sonnet-5-5'),
+    /** Optional. Lets a scheduler (Vercel Cron) call /internal/imports/tick to resume scans; without it scans advance while someone has the page open. */
+    CRON_SECRET: z.string().min(16).optional(),
     /** JSON: { "starter": { "month": "price_…", "year": "price_…" }, … } */
     BILLING_PRICE_IDS: z
       .string()
