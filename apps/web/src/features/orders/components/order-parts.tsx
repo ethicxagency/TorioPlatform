@@ -1,6 +1,15 @@
+'use client';
+
 import {
   Banknote,
   Check,
+  Circle,
+  Copy,
+  History,
+  Pencil,
+  Plus,
+  RefreshCw,
+  StickyNote,
   CreditCard,
   Landmark,
   Package,
@@ -13,6 +22,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { SHIPPING_CATALOG } from '@/features/brain/components/service-cards';
+import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { FULFILLMENT_INFO, METHOD_LABEL, STATUS_INFO } from '../constants';
 import { formatMoney } from '../money';
@@ -359,5 +369,139 @@ export function CourierMark({ name }: { name: string }) {
         <Truck size={16} aria-hidden className="text-muted" />
       )}
     </span>
+  );
+}
+
+const EVENT_STYLE: Record<string, { label: string; icon: LucideIcon; tile: string }> = {
+  created: { label: 'Order', icon: Plus, tile: 'bg-primary-soft text-primary' },
+  status: { label: 'Status', icon: RefreshCw, tile: 'bg-[#EFF6FF] text-[#2563EB]' },
+  payment: { label: 'Payment', icon: CreditCard, tile: 'bg-success-soft text-success' },
+  fulfillment: { label: 'Fulfillment', icon: Truck, tile: 'bg-[#F3EEFF] text-[#7C3AED]' },
+  note: { label: 'Note', icon: StickyNote, tile: 'bg-[#FFF5E4] text-[#92560A]' },
+  updated: { label: 'Update', icon: Pencil, tile: 'bg-wash-2 text-muted' },
+};
+const EVENT_PREVIEW = 5;
+const WEEK = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * The order's real activity, newest first: a connected feed with a tinted icon per kind of event. The latest entry is
+ * emphasised, older ones are quieter. Recent events show a relative time with the exact time on hover; older ones show the date.
+ */
+export function TimelineFeed({
+  events,
+  fmtFull,
+  fmtAgo,
+}: {
+  events: OrderDetail['events'];
+  fmtFull: (iso: string) => string;
+  fmtAgo: (iso: string) => string;
+}) {
+  const [all, setAll] = useState(false);
+  const [now] = useState(() => Date.now());
+  const shown = all ? events : events.slice(0, EVENT_PREVIEW);
+  if (events.length === 0)
+    return (
+      <div className="flex flex-col items-center gap-1.5 rounded-xl border border-dashed border-line px-4 py-6 text-center">
+        <History size={18} aria-hidden className="text-faint" />
+        <div className="text-[13px] font-medium text-ink">No activity yet</div>
+        <div className="text-xs text-muted">Changes to this order will show up here.</div>
+      </div>
+    );
+  return (
+    <>
+      <ol className="m-0 list-none p-0">
+        {shown.map((e, i) => {
+          const st = EVENT_STYLE[e.type];
+          const Icon = st?.icon ?? Circle;
+          const recent = now - new Date(e.createdAt).getTime() < WEEK;
+          const latest = i === 0;
+          return (
+            <li
+              key={e.id}
+              className="group relative -mx-2 flex gap-3 rounded-lg px-2 py-2 transition-colors duration-150 hover:bg-wash/70 motion-reduce:transition-none"
+            >
+              {i < shown.length - 1 && (
+                <span
+                  aria-hidden
+                  className="absolute bottom-[-8px] left-[23px] top-10 w-px bg-line"
+                />
+              )}
+              <span
+                aria-hidden
+                className={cn(
+                  'relative z-[1] mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg',
+                  st?.tile ?? 'bg-wash-2 text-muted',
+                  !latest && 'opacity-80',
+                )}
+              >
+                <Icon size={14} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+                    {st?.label ?? 'Activity'}
+                  </span>
+                  <time
+                    dateTime={e.createdAt}
+                    title={fmtFull(e.createdAt)}
+                    className="text-xs tabular-nums text-muted"
+                  >
+                    {recent ? fmtAgo(e.createdAt) : fmtFull(e.createdAt)}
+                  </time>
+                </div>
+                <div
+                  className={cn(
+                    'break-words text-[13.5px] leading-snug',
+                    latest ? 'font-medium text-ink' : 'text-muted',
+                  )}
+                >
+                  {e.description}
+                </div>
+                <div className="text-xs text-faint">{e.actor?.name ?? 'System'}</div>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+      {events.length > EVENT_PREVIEW && (
+        <button
+          type="button"
+          aria-expanded={all}
+          onClick={() => setAll((v) => !v)}
+          className="mt-2 cursor-pointer rounded border-none bg-transparent p-0 text-[13px] font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          {all ? 'Show less' : `Show all ${events.length} events`}
+        </button>
+      )}
+    </>
+  );
+}
+
+/** A small copy-to-clipboard button that confirms with a check for a moment. Nothing is shown if the browser blocks copying. */
+export function CopyButton({ value, label }: { value: string; label: string }) {
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    if (!done) return;
+    const t = setTimeout(() => setDone(false), 1500);
+    return () => clearTimeout(t);
+  }, [done]);
+  return (
+    <button
+      type="button"
+      aria-label={done ? `${label} copied` : `Copy ${label}`}
+      title={done ? 'Copied' : `Copy ${label}`}
+      onClick={() => {
+        void navigator.clipboard
+          ?.writeText(value)
+          .then(() => setDone(true))
+          .catch(() => undefined);
+      }}
+      className={cn(
+        'flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors duration-150 hover:bg-wash focus-visible:outline-2 focus-visible:outline-primary motion-reduce:transition-none',
+        done ? 'text-success' : 'text-faint hover:text-ink',
+      )}
+    >
+      {done ? <Check size={13} strokeWidth={3} /> : <Copy size={13} />}
+    </button>
   );
 }

@@ -15,11 +15,8 @@ import {
   MapPin,
   Phone,
   Check,
-  Circle,
   Pencil,
-  Plus,
   Printer,
-  RefreshCw,
   StickyNote,
   Trash2,
   Truck,
@@ -69,7 +66,14 @@ import {
   TotalsSummary,
   validateLines,
 } from './order-fields';
-import { CourierMark, ItemsTable, OrderProgress, PaymentRow } from './order-parts';
+import {
+  CopyButton,
+  CourierMark,
+  ItemsTable,
+  OrderProgress,
+  PaymentRow,
+  TimelineFeed,
+} from './order-parts';
 import { UnsavedActionDialog } from './unsaved-action-dialog';
 import { CLEAN, dirtyOf, draftFromOrder, type Draft } from '../order-draft';
 import { useUnsavedGuard } from '../use-unsaved-guard';
@@ -170,25 +174,6 @@ function SaveState({ saving, dirty, saved }: { saving: boolean; dirty: boolean; 
   return null;
 }
 
-const EVENT_TITLE: Record<string, string> = {
-  created: 'Order created',
-  payment: 'Payment recorded',
-  status: 'Status changed',
-  fulfillment: 'Fulfillment updated',
-  note: 'Note added',
-  updated: 'Order updated',
-};
-const EVENT_PREVIEW = 6;
-
-const EVENT_ICON: Record<string, typeof Circle> = {
-  created: Plus,
-  payment: CreditCard,
-  status: RefreshCw,
-  fulfillment: Truck,
-  note: StickyNote,
-  updated: Pencil,
-};
-
 /** Full-page order details (Shopify-style): main column for items, payments and history, context column for totals. */
 export function OrderDetailsPage({ orderId }: { orderId: string }) {
   const router = useRouter();
@@ -208,6 +193,7 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
   const [dialog, setDialog] = useState<'pay' | 'ship' | null>(null);
   const [confirm, setConfirm] = useState<'cancel' | null>(null);
   const [note, setNote] = useState('');
+  const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ id: string; body: string } | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [touched, setTouched] = useState(false);
@@ -330,8 +316,10 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
 
   const primaryIsPay =
     !!canPayments && !payBlock && !!o && o.outstandingMinor > 0 && !(canWrite && next);
-  const [allEvents, setAllEvents] = useState(false);
-  const shownEvents = o ? (allEvents ? o.events : o.events.slice(0, EVENT_PREVIEW)) : [];
+  const lastActivity = o?.events.reduce<string | null>(
+    (m, e) => (!m || e.createdAt > m ? e.createdAt : m),
+    null,
+  );
   const hasShipment = !!(
     o &&
     (o.shippingMethod ||
@@ -344,7 +332,16 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
   const submitNote = () => {
     const body = note.trim();
     if (!o || !body || m.addNote.isPending) return;
-    m.addNote.mutate({ id: o.id, body }, { onSuccess: () => setNote(''), onError: err });
+    m.addNote.mutate(
+      { id: o.id, body },
+      {
+        onSuccess: () => {
+          setNote('');
+          toast('Note added');
+        },
+        onError: err,
+      },
+    );
   };
 
   const setStatus = (status: OrderStatusTarget, ok: string) =>
@@ -859,71 +856,10 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                     as="h2"
                     icon={<History size={16} />}
                     title="Timeline"
-                    description={
-                      o.events.length
-                        ? `${o.events.length} event${o.events.length === 1 ? '' : 's'}`
-                        : undefined
-                    }
-                    className="mb-4"
+                    description={`${o.events.length} event${o.events.length === 1 ? '' : 's'}`}
+                    className="mb-3"
                   />
-                  {o.events.length === 0 ? (
-                    <p className="m-0 text-[13px] text-muted">
-                      Order activity will appear here as it happens.
-                    </p>
-                  ) : (
-                    <>
-                      <ol className="m-0 list-none p-0">
-                        {shownEvents.map((e, idx) => {
-                          const Icon = EVENT_ICON[e.type] ?? Circle;
-                          return (
-                            <li key={e.id} className="relative flex gap-3 pb-4 last:pb-0">
-                              {idx < shownEvents.length - 1 && (
-                                <span
-                                  aria-hidden
-                                  className="absolute bottom-0 left-[13px] top-7 w-px bg-line"
-                                />
-                              )}
-                              <span
-                                aria-hidden
-                                className="z-[1] flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-line bg-white text-muted"
-                              >
-                                <Icon size={13} />
-                              </span>
-                              <div className="min-w-0 flex-1 pt-0.5">
-                                <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                                  <span className="text-[11.5px] font-medium uppercase tracking-wide text-faint">
-                                    {EVENT_TITLE[e.type] ?? 'Activity'}
-                                  </span>
-                                  <time
-                                    dateTime={e.createdAt}
-                                    className="text-xs tabular-nums text-faint"
-                                  >
-                                    {fmtFull(e.createdAt)}
-                                  </time>
-                                </div>
-                                {e.description.trim().toLowerCase() !==
-                                  (EVENT_TITLE[e.type] ?? '').toLowerCase() && (
-                                  <div className="text-[13.5px] text-ink">{e.description}</div>
-                                )}
-                                <div className="text-xs text-muted">
-                                  {e.actor?.name ?? 'System'}
-                                </div>
-                              </div>
-                            </li>
-                          );
-                        })}
-                      </ol>
-                      {o.events.length > EVENT_PREVIEW && (
-                        <button
-                          type="button"
-                          onClick={() => setAllEvents((v) => !v)}
-                          className="mt-3 cursor-pointer rounded border-none bg-transparent p-0 text-[13px] font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                        >
-                          {allEvents ? 'Show fewer' : `Show all ${o.events.length} events`}
-                        </button>
-                      )}
-                    </>
-                  )}
+                  <TimelineFeed events={o.events} fmtFull={fmtFull} fmtAgo={fmtAgo} />
                 </Card>
 
                 <Card as="section" aria-label="Internal notes">
@@ -931,7 +867,7 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                     as="h2"
                     icon={<StickyNote size={16} />}
                     title="Internal notes"
-                    description="Only your team can see these notes."
+                    description="Private notes for your team."
                     action={
                       <span className="inline-flex items-center gap-1 rounded-md bg-[#FFF5E4] px-1.5 py-0.5 text-[11px] font-medium text-[#92560A]">
                         <Lock size={10} aria-hidden />
@@ -960,113 +896,140 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                             submitNote();
                           }
                         }}
-                        placeholder="Write an internal note..."
+                        placeholder="Add a note for your team..."
                         className={AREA}
                       />
                       <div className="flex items-center justify-between gap-3">
                         <span className="hidden text-xs text-faint sm:block">
-                          {note.length > 0 ? `${note.length}/2000 · ` : ''}Ctrl or ⌘ + Enter to add
+                          {note.length > 0 ? `${note.length}/2000 · ` : ''}⌘/Ctrl + Enter to add
                         </span>
                         <Button
+                          type="submit"
                           size="md"
                           className="max-sm:w-full sm:ml-auto"
-                          disabled={!note.trim() || m.addNote.isPending}
+                          loading={m.addNote.isPending}
+                          disabled={!note.trim()}
                         >
-                          {m.addNote.isPending ? 'Adding…' : 'Add note'}
+                          Add note
                         </Button>
                       </div>
                     </form>
                   )}
-                  <ul className="m-0 flex list-none flex-col divide-y divide-line-subtle p-0">
-                    {o.notes.map((n) => {
-                      const mine = n.author?.id === user?.id;
-                      return (
-                        <li key={n.id} className="py-3 text-[14px] first:pt-0 last:pb-0">
-                          {editing?.id === n.id ? (
-                            <form
-                              className="flex gap-2"
-                              onSubmit={(e) => {
-                                e.preventDefault();
-                                if (!editing.body.trim()) return;
-                                m.updateNote.mutate(
-                                  { id: o.id, noteId: n.id, body: editing.body.trim() },
-                                  { onSuccess: () => setEditing(null), onError: err },
-                                );
-                              }}
-                            >
-                              <input
-                                aria-label="Edit note"
-                                value={editing.body}
-                                maxLength={2000}
-                                onChange={(e) => setEditing({ id: n.id, body: e.target.value })}
-                                className={`${CONTROL} min-w-0 flex-1`}
-                              />
-                              <Button size="sm">Save</Button>
-                              <Button size="sm" variant="outline" onClick={() => setEditing(null)}>
-                                Cancel
-                              </Button>
-                            </form>
-                          ) : (
-                            <div className="flex gap-3">
-                              <span
-                                aria-hidden
-                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-[11.5px] font-semibold text-primary"
+                  {o.notes.length === 0 ? (
+                    <div className="flex items-center gap-2.5 rounded-xl border border-dashed border-line px-3 py-3 text-[13px] text-muted">
+                      <StickyNote size={15} aria-hidden className="shrink-0 text-faint" />
+                      No notes yet.
+                    </div>
+                  ) : (
+                    <ul className="m-0 flex list-none flex-col divide-y divide-line-subtle p-0">
+                      {o.notes.map((n) => {
+                        const mine = n.author?.id === user?.id;
+                        return (
+                          <li key={n.id} className="py-3 text-[14px] first:pt-0 last:pb-0">
+                            {editing?.id === n.id ? (
+                              <form
+                                className="flex flex-col gap-2"
+                                onSubmit={(e) => {
+                                  e.preventDefault();
+                                  if (!editing.body.trim() || m.updateNote.isPending) return;
+                                  m.updateNote.mutate(
+                                    { id: o.id, noteId: n.id, body: editing.body.trim() },
+                                    {
+                                      onSuccess: () => {
+                                        setEditing(null);
+                                        toast('Note updated');
+                                      },
+                                      onError: err,
+                                    },
+                                  );
+                                }}
                               >
-                                {initialsOf(n.author?.name ?? 'Someone')}
-                              </span>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex flex-wrap items-center gap-x-2 text-[12.5px]">
-                                  <b className="font-semibold text-ink">
-                                    {n.author?.name ?? 'Someone'}
-                                  </b>
-                                  <span className="text-muted">{fmtAgo(n.createdAt)}</span>
-                                  <span className="ml-auto flex items-center gap-1">
-                                    {canWrite && mine && (
-                                      <button
-                                        type="button"
-                                        aria-label="Edit note"
-                                        title="Edit note"
-                                        onClick={() => setEditing({ id: n.id, body: n.body })}
-                                        className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-muted hover:bg-wash hover:text-ink focus-visible:outline-2 focus-visible:outline-primary"
-                                      >
-                                        <Pencil size={12} />
-                                      </button>
-                                    )}
-                                    {canWrite && (mine || canPayments) && (
-                                      <button
-                                        type="button"
-                                        aria-label="Delete note"
-                                        title="Delete note"
-                                        onClick={() =>
-                                          m.removeNote.mutate(
-                                            { id: o.id, noteId: n.id },
-                                            {
-                                              onSuccess: () => toast('Note deleted'),
-                                              onError: err,
-                                            },
-                                          )
-                                        }
-                                        className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-muted hover:bg-danger-soft hover:text-danger focus-visible:outline-2 focus-visible:outline-primary"
-                                      >
-                                        <Trash2 size={12} />
-                                      </button>
-                                    )}
-                                  </span>
+                                <textarea
+                                  aria-label="Edit note"
+                                  value={editing.body}
+                                  rows={3}
+                                  maxLength={2000}
+                                  autoFocus
+                                  onChange={(e) => setEditing({ id: n.id, body: e.target.value })}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Escape') setEditing(null);
+                                  }}
+                                  className={AREA}
+                                />
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    type="button"
+                                    onClick={() => setEditing(null)}
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    type="submit"
+                                    size="sm"
+                                    loading={m.updateNote.isPending}
+                                    disabled={!editing.body.trim()}
+                                  >
+                                    Save
+                                  </Button>
                                 </div>
-                                <div className="mt-1 whitespace-pre-wrap break-words rounded-xl rounded-tl-sm bg-wash px-3 py-2 text-[13.5px] leading-snug text-ink">
-                                  {n.body}
+                              </form>
+                            ) : (
+                              <div className="flex gap-3">
+                                <span
+                                  aria-hidden
+                                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-[11.5px] font-semibold text-primary"
+                                >
+                                  {initialsOf(n.author?.name ?? 'Someone')}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-x-2 text-[12.5px]">
+                                    <b className="font-semibold text-ink">
+                                      {n.author?.name ?? 'Someone'}
+                                    </b>
+                                    <time
+                                      dateTime={n.createdAt}
+                                      title={fmtFull(n.createdAt)}
+                                      className="text-muted"
+                                    >
+                                      {fmtAgo(n.createdAt)}
+                                    </time>
+                                    <span className="ml-auto flex items-center gap-1">
+                                      {canWrite && mine && (
+                                        <button
+                                          type="button"
+                                          aria-label="Edit note"
+                                          title="Edit note"
+                                          onClick={() => setEditing({ id: n.id, body: n.body })}
+                                          className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-muted transition-colors duration-150 hover:bg-wash hover:text-ink focus-visible:outline-2 focus-visible:outline-primary motion-reduce:transition-none"
+                                        >
+                                          <Pencil size={12} />
+                                        </button>
+                                      )}
+                                      {canWrite && (mine || canPayments) && (
+                                        <button
+                                          type="button"
+                                          aria-label="Delete note"
+                                          title="Delete note"
+                                          onClick={() => setNoteToDelete(n.id)}
+                                          className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-muted transition-colors duration-150 hover:bg-danger-soft hover:text-danger focus-visible:outline-2 focus-visible:outline-primary motion-reduce:transition-none"
+                                        >
+                                          <Trash2 size={12} />
+                                        </button>
+                                      )}
+                                    </span>
+                                  </div>
+                                  <div className="mt-1 whitespace-pre-wrap break-words rounded-xl rounded-tl-sm bg-wash px-3 py-2 text-[13.5px] leading-snug text-ink">
+                                    {n.body}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  {o.notes.length === 0 && (
-                    <p className="m-0 text-[13px] text-muted">
-                      No notes yet. Notes you add are visible to your team only.
-                    </p>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
                   )}
                 </Card>
               </div>
@@ -1157,27 +1120,29 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                   {o.customer.email || o.customer.phone ? (
                     <ul className="m-0 mt-3 flex list-none flex-col gap-1 p-0 text-[13px]">
                       {o.customer.email && (
-                        <li className="flex items-center gap-2.5 px-1 py-1">
+                        <li className="group flex items-center gap-2.5 px-1 py-1">
                           <Mail size={14} aria-hidden className="shrink-0 text-faint" />
                           <a
                             href={`mailto:${o.customer.email}`}
                             title="Send an email"
-                            className="min-w-0 break-all text-ink no-underline hover:text-primary"
+                            className="min-w-0 flex-1 break-all text-ink no-underline hover:text-primary"
                           >
                             {o.customer.email}
                           </a>
+                          <CopyButton value={o.customer.email} label="email" />
                         </li>
                       )}
                       {o.customer.phone && (
-                        <li className="flex items-center gap-2.5 px-1 py-1">
+                        <li className="group flex items-center gap-2.5 px-1 py-1">
                           <Phone size={14} aria-hidden className="shrink-0 text-faint" />
                           <a
                             href={`tel:${o.customer.phone}`}
                             title="Call"
-                            className="tabular-nums text-ink no-underline hover:text-primary"
+                            className="min-w-0 flex-1 tabular-nums text-ink no-underline hover:text-primary"
                           >
                             {o.customer.phone}
                           </a>
+                          <CopyButton value={o.customer.phone} label="phone number" />
                         </li>
                       )}
                     </ul>
@@ -1186,40 +1151,93 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                       No contact details on the customer profile yet.
                     </p>
                   )}
-                  {o.customerConversations.length > 0 && (
+                  {
                     <div className="mt-3 border-t border-line-subtle pt-3">
                       <div className="mb-1 text-[11.5px] font-medium uppercase tracking-wide text-faint">
                         Conversations
                       </div>
-                      <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
-                        {o.customerConversations.map((c) => (
-                          <li key={c.id}>
-                            <button
-                              type="button"
-                              onClick={() => openConversation(c.id)}
-                              className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg border-none bg-transparent px-2 py-2 text-left transition-colors duration-150 hover:bg-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
-                            >
-                              <ChannelIcon channel={c.provider} size={18} />
-                              <span className="min-w-0 flex-1">
-                                <span className="block text-[12.5px] font-medium text-ink">
-                                  {CHANNEL_LABEL[c.provider]}
-                                  {c.id === o.conversation?.id && (
-                                    <span className="font-normal text-faint"> · linked</span>
-                                  )}
+                      {o.customerConversations.length === 0 ? (
+                        <p className="m-0 text-[13px] text-muted">No conversations yet.</p>
+                      ) : (
+                        <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
+                          {o.customerConversations.map((c) => (
+                            <li key={c.id}>
+                              <button
+                                type="button"
+                                onClick={() => openConversation(c.id)}
+                                className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg border-none bg-transparent px-2 py-2 text-left transition-colors duration-150 hover:bg-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+                              >
+                                <ChannelIcon channel={c.provider} size={18} />
+                                <span className="min-w-0 flex-1">
+                                  <span className="block text-[12.5px] font-medium text-ink">
+                                    {CHANNEL_LABEL[c.provider]}
+                                    {c.id === o.conversation?.id && (
+                                      <span className="font-normal text-faint"> · linked</span>
+                                    )}
+                                  </span>
+                                  <span className="block truncate text-xs text-muted">
+                                    {c.preview || 'Conversation'}
+                                  </span>
                                 </span>
-                                <span className="block truncate text-xs text-muted">
-                                  {c.preview || 'Conversation'}
+                                <span className="shrink-0 text-xs text-faint">
+                                  {fmtAgo(c.lastMessageAt)}
                                 </span>
-                              </span>
-                              <span className="shrink-0 text-xs text-faint">
-                                {fmtAgo(c.lastMessageAt)}
-                              </span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
-                  )}
+                  }
+                </Card>
+                <Card as="section" aria-label="Details">
+                  <CardHeader as="h2" title="Details" className="mb-3" />
+                  <dl className="m-0 flex flex-col gap-4 text-[13px]">
+                    <div className="flex flex-col gap-1.5">
+                      <dt className="text-[11px] font-semibold uppercase tracking-wide text-faint">
+                        Order information
+                      </dt>
+                      <dd className="m-0 flex flex-col gap-1.5">
+                        <div className="flex items-baseline justify-between gap-4">
+                          <span className="text-muted">Channel</span>
+                          <span className="min-w-0 break-words text-right font-medium text-ink">
+                            {CHANNEL_LABEL[o.channel]}
+                          </span>
+                        </div>
+                        <div className="flex items-baseline justify-between gap-4">
+                          <span className="text-muted">Currency</span>
+                          <span className="font-medium tabular-nums text-ink">{o.currency}</span>
+                        </div>
+                      </dd>
+                    </div>
+                    <div className="flex flex-col gap-1.5 border-t border-line-subtle pt-4">
+                      <dt className="text-[11px] font-semibold uppercase tracking-wide text-faint">
+                        Activity
+                      </dt>
+                      <dd className="m-0 flex flex-col gap-1.5">
+                        <div className="flex items-baseline justify-between gap-4">
+                          <span className="text-muted">Created</span>
+                          <time
+                            dateTime={o.createdAt}
+                            className="text-right font-medium tabular-nums text-ink"
+                          >
+                            {fmtFull(o.createdAt)}
+                          </time>
+                        </div>
+                        {lastActivity && (
+                          <div className="flex items-baseline justify-between gap-4">
+                            <span className="text-muted">Last activity</span>
+                            <time
+                              dateTime={lastActivity}
+                              className="text-right font-medium tabular-nums text-ink"
+                            >
+                              {fmtFull(lastActivity)}
+                            </time>
+                          </div>
+                        )}
+                      </dd>
+                    </div>
+                  </dl>
                 </Card>
               </div>
             </div>
@@ -1270,6 +1288,30 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                 onError: (e) => {
                   err(e);
                   setConfirm(null);
+                },
+              },
+            )
+          }
+        />
+      )}
+      {o && noteToDelete && (
+        <ConfirmDialog
+          title="Delete this note?"
+          body="The note is removed for everyone on your team. This can’t be undone."
+          confirmLabel="Delete note"
+          busy={m.removeNote.isPending}
+          onCancel={() => setNoteToDelete(null)}
+          onConfirm={() =>
+            m.removeNote.mutate(
+              { id: o.id, noteId: noteToDelete },
+              {
+                onSuccess: () => {
+                  toast('Note deleted');
+                  setNoteToDelete(null);
+                },
+                onError: (e) => {
+                  err(e);
+                  setNoteToDelete(null);
                 },
               },
             )

@@ -198,6 +198,91 @@ test.describe('orders (owner)', () => {
     await expect(c.getByRole('link', { name: 'View profile' })).toBeVisible();
   });
 
+  test('timeline shows real events newest first, with exact time on hover and show more/less', async ({
+    page,
+  }) => {
+    const o = orderState.list[0] as unknown as { events: unknown[] };
+    for (let i = 1; i <= 6; i++)
+      o.events.unshift({
+        id: `abababab-abab-4bab-8bab-0000000001${i}`,
+        type: i % 2 ? 'payment' : 'status',
+        description: i % 2 ? `Payment recorded ${i}` : `Status changed ${i}`,
+        actor: { id: 'u1', name: 'Nadia' },
+        createdAt: new Date(Date.now() - (7 - i) * 60_000).toISOString(),
+      });
+    await page.getByRole('row', { name: /#1001/ }).click();
+    const tl = page.getByRole('main').getByRole('region', { name: 'Timeline' });
+    await expect(tl.getByText('7 events', { exact: true })).toBeVisible();
+    const items = tl.getByRole('listitem');
+    await expect(items).toHaveCount(5);
+    await expect(items.first()).toContainText('Status changed 6'); // newest first
+    const t = items.first().locator('time');
+    await expect(t).toHaveAttribute('title', /\d{4}/); // the exact time is on hover
+    await tl.getByRole('button', { name: 'Show all 7 events' }).click();
+    await expect(items).toHaveCount(7);
+    await tl.getByRole('button', { name: 'Show less' }).click();
+    await expect(items).toHaveCount(5);
+  });
+
+  test('internal notes: add, keep the text when saving fails, confirm before delete', async ({
+    page,
+  }) => {
+    await page.getByRole('row', { name: /#1001/ }).click();
+    const notes = page.getByRole('main').getByRole('region', { name: 'Internal notes' });
+    await expect(notes.getByText('Private notes for your team.')).toBeVisible();
+    await expect(notes.getByText('No notes yet.')).toBeVisible();
+    const box = notes.getByPlaceholder('Add a note for your team...');
+    const add = notes.getByRole('button', { name: 'Add note' });
+    await expect(add).toBeDisabled();
+    orderState.noteFail = true;
+    await box.fill('Call before delivery');
+    await add.click();
+    await expect.poll(() => orderState.noteCalls.length).toBe(1);
+    await expect(add).toBeEnabled(); // the request ended; nothing was added
+    await expect(box).toHaveValue('Call before delivery'); // kept after the failure
+    orderState.noteFail = false;
+    await add.click();
+    await expect(
+      notes.getByRole('listitem').filter({ hasText: 'Call before delivery' }),
+    ).toBeVisible();
+    await expect(box).toHaveValue('');
+    await expect(page.getByText('Note added')).toBeVisible();
+    await notes.getByRole('button', { name: 'Delete note' }).click();
+    const dlg = page.getByRole('alertdialog', { name: 'Delete this note?' });
+    await dlg.getByRole('button', { name: 'Cancel' }).click();
+    await expect(
+      notes.getByRole('listitem').filter({ hasText: 'Call before delivery' }),
+    ).toBeVisible();
+    await notes.getByRole('button', { name: 'Delete note' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Delete note' }).click();
+    await expect(
+      notes.getByRole('listitem').filter({ hasText: 'Call before delivery' }),
+    ).toHaveCount(0);
+  });
+
+  test('customer contact can be copied; conversations and details are grouped', async ({
+    page,
+    context,
+  }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.getByRole('row', { name: /#1001/ }).click();
+    const c = page.getByRole('main').getByRole('region', { name: 'Customer' });
+    await c.getByRole('button', { name: 'Copy email' }).click();
+    await expect(c.getByRole('button', { name: 'email copied' })).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/@example\.test$/);
+    await expect(c.getByText('No conversations yet.')).toBeVisible();
+    const d = page.getByRole('main').getByRole('region', { name: 'Details' });
+    for (const g of [
+      'Order information',
+      'Activity',
+      'Channel',
+      'Currency',
+      'Created',
+      'Last activity',
+    ])
+      await expect(d.getByText(g, { exact: true })).toBeVisible();
+  });
+
   test('a cancelled order shows its end state in the progress', async ({ page }) => {
     const o = orderState.list[0] as unknown as Record<string, unknown>;
     Object.assign(o, { status: 'CANCELLED', cancelledAt: new Date().toISOString() });

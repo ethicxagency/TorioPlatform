@@ -540,10 +540,14 @@ export const orderState = {
   failUpdate: false,
   invoiceRequests: [] as string[],
   invoiceError: '',
+  noteCalls: [] as string[],
+  noteFail: false,
 };
 export const resetOrders = () => {
   orderState.invoiceRequests = [];
   orderState.invoiceError = '';
+  orderState.noteCalls = [];
+  orderState.noteFail = false;
   orderState.list = [
     order(1, 'Tanvir Hasan', { status: 'CONFIRMED' }),
     order(2, 'Tanvir Hasan', { isSample: true }, [
@@ -2579,7 +2583,7 @@ export async function mockApi(
           meta: { page: 1, pageSize: 25, total: rows.length, totalPages: 1 },
         });
       }
-      const [, id, action] = rest.split('/');
+      const [, id, action, noteId] = rest.split('/');
       const o = orderState.list.find((x) => x.id === id);
       if (!o)
         return reply(
@@ -2645,6 +2649,30 @@ export async function mockApi(
           actor: { id: USER.id, name: USER.name },
           createdAt: iso(0),
         });
+        return reply(o);
+      }
+      if (action === 'notes') {
+        orderState.noteCalls.push(`${req.method()} ${noteId ?? ''}`.trim());
+        if (orderState.noteFail)
+          return reply(
+            { error: { code: 'ERR', message: 'Could not save the note', statusCode: 500 } },
+            500,
+          );
+        const notes = o.notes as { id: string; body: string }[];
+        if (req.method() === 'POST') {
+          const b = req.postDataJSON() as { body: string };
+          notes.unshift({
+            id: `5a5a5a5a-5a5a-4a5a-8a5a-${String(notes.length + 1).padStart(12, '0')}`,
+            body: b.body,
+            author: { id: USER.id, name: USER.name },
+            createdAt: iso(0),
+            updatedAt: iso(0),
+          } as never);
+        } else if (req.method() === 'PATCH') {
+          const b = req.postDataJSON() as { body: string };
+          const n = notes.find((x) => x.id === noteId);
+          if (n) n.body = b.body;
+        } else if (req.method() === 'DELETE') o.notes = notes.filter((x) => x.id !== noteId);
         return reply(o);
       }
       if (action === 'payments') {
