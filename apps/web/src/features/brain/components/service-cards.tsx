@@ -48,7 +48,7 @@ export const SHIPPING_CATALOG: CatalogEntry[] = [
     name: 'Pathao',
     category: 'Courier service',
     logo: {
-      src: '/brands/pathao-courier.png',
+      src: '/brands/pathao-courier-logo.png',
       alt: 'Pathao Courier logo',
       width: 912,
       height: 325,
