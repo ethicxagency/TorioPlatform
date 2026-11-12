@@ -6,6 +6,7 @@ import {
   BookOpenText,
   CircleAlert,
   FileCode2,
+  FileSpreadsheet,
   Globe,
   Hourglass,
   ListChecks,
@@ -28,6 +29,7 @@ import {
   type ImportOverview,
 } from '../queries';
 import { fmtAgoIso } from './bits';
+import { CsvDialog } from './csv-import';
 import { FeedDialog, FeedPanel } from './feed-import';
 import { CatalogSourceCard } from './meta-catalog';
 import { ProductReview } from './product-review';
@@ -91,6 +93,13 @@ const PROVIDERS: Provider[] = [
     unavailable:
       'Needs a Google OAuth app approved for Merchant Center, which is not configured on this server.',
   },
+  {
+    kind: 'MANUAL',
+    title: 'CSV file',
+    blurb: 'Import products or FAQs from a spreadsheet you export or fill in yourself.',
+    icon: <FileSpreadsheet size={18} className="text-[#7C3AED]" />,
+    unavailable: '',
+  },
 ];
 
 const KIND_LABEL: Record<ImportSourceKind, string> = {
@@ -98,7 +107,7 @@ const KIND_LABEL: Record<ImportSourceKind, string> = {
   XML_FEED: 'XML feed',
   META_CATALOG: 'Meta Catalog',
   GOOGLE_MERCHANT: 'Google Merchant Center',
-  MANUAL: 'Manual',
+  MANUAL: 'CSV import',
 };
 
 function Panel({
@@ -179,7 +188,7 @@ function SourceCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="m-0 text-[14px] font-semibold">{p.title}</h3>
-            {mine.length === 0 && (
+            {mine.length === 0 && p.kind !== 'MANUAL' && (
               <span className="rounded-full bg-wash-2 px-2 py-0.5 text-[11px] font-medium text-muted">
                 Not connected
               </span>
@@ -325,6 +334,7 @@ export function IntelligenceTab({
   const { workspaceId } = useWorkspace();
   const imports = useImports(workspaceId);
   const [feedDialog, setFeedDialog] = useState(false);
+  const [csvDialog, setCsvDialog] = useState(false);
   const [feedChoice, setFeedChoice] = useState<string | null | undefined>(undefined);
   const [feedError, setFeedError] = useState('');
   const params = useSearchParams();
@@ -400,14 +410,18 @@ export function IntelligenceTab({
         {imports.isPending ? (
           <Skeleton className="h-40 w-full" />
         ) : (
-          <ul className="m-0 grid list-none grid-cols-1 gap-3 p-0 md:grid-cols-3">
+          <ul className="m-0 grid list-none grid-cols-1 gap-3 p-0 md:grid-cols-2 xl:grid-cols-4">
             {PROVIDERS.map((p) => (
               <SourceCard
                 key={p.kind}
                 p={p}
                 sources={sources}
                 custom={
-                  (p.kind === 'META_CATALOG' || p.kind === 'GOOGLE_MERCHANT') && workspaceId ? (
+                  p.kind === 'MANUAL' ? (
+                    <Button size="sm" className="self-start" onClick={() => setCsvDialog(true)}>
+                      Import a CSV
+                    </Button>
+                  ) : (p.kind === 'META_CATALOG' || p.kind === 'GOOGLE_MERCHANT') && workspaceId ? (
                     <CatalogSourceCard
                       ws={workspaceId}
                       provider={p.kind === 'META_CATALOG' ? 'meta' : 'google'}
@@ -467,6 +481,16 @@ export function IntelligenceTab({
         </p>
       </Panel>
 
+      {csvDialog && workspaceId && (
+        <CsvDialog
+          ws={workspaceId}
+          onClose={() => setCsvDialog(false)}
+          onStarted={(id) => {
+            setCsvDialog(false);
+            setFeedChoice(id);
+          }}
+        />
+      )}
       {feedDialog && workspaceId && (
         <FeedDialog
           ws={workspaceId}

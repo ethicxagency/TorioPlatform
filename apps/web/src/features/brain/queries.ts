@@ -505,3 +505,44 @@ export function useProvenance(ws: string | null) {
     },
   });
 }
+
+// ---------- CSV file import ----------
+
+export function useCsvPreview(ws: string) {
+  return useMutation({
+    mutationFn: async (b: {
+      type: 'products' | 'faqs';
+      csv: string;
+      mapping?: Record<string, string>;
+      currency?: string;
+    }): Promise<FeedPreview> => {
+      const { data, error, response } = await api.POST(`${I}/csv/preview`, {
+        params: { path: { workspaceId: ws } },
+        body: b as never,
+      });
+      if (!data) throw fail(error, 'Could not read the file', response.status);
+      return data as unknown as FeedPreview;
+    },
+  });
+}
+
+export function useCsvCreate(ws: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (b: {
+      type: 'products' | 'faqs';
+      csv: string;
+      name: string;
+      mapping?: Record<string, string>;
+      currency?: string;
+    }): Promise<ImportJobDetail> => {
+      const { data, error, response } = await api.POST(`${I}/csv`, {
+        params: { path: { workspaceId: ws } },
+        body: b as never,
+      });
+      if (!data) throw fail(error, 'Could not import the file', response.status);
+      return data as unknown as ImportJobDetail;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: scanKey(ws) }),
+  });
+}

@@ -46,6 +46,18 @@ one active scan per store, `TorioBot` user agent.
 - Page text is untrusted. It never becomes an instruction: the AI answer must match a schema and be grounded in the page.
 - Every query is scoped to the workspace; another store's job or entry is reported as not found.
 
+## CSV files (products and FAQs)
+
+Intelligence → **CSV file** reads a spreadsheet export in the request (no network): up to 2.5 MB and 5,000 rows, comma,
+semicolon or tab separated, quoted fields and a BOM handled. The first row must be the column names.
+
+- **Products**: columns are matched from common names (Product Name, SKU, Price, Category, Stock, Image URL …) and can be
+  changed; prices like `1,500 BDT`, `1.500,00 EUR` and `19,99` are read; a currency override fills only a missing currency.
+- **FAQs**: Question and Answer columns (and an optional Category that must be one of Brain's FAQ categories, else General).
+  Rows missing either, and duplicate questions, are skipped and counted.
+- The file is checked first (nothing stored), then its rows become proposals in the same review queue as every other
+  source. Uploading a file of the same name again proposes only what changed. Imported entries are labelled "CSV import".
+
 ## Overview and activity
 
 - **Summary → Knowledge sources** shows what imports have contributed (products and entries imported, entries pending review,

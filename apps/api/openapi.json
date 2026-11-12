@@ -5635,6 +5635,96 @@
         ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/brain/imports/csv/preview": {
+      "post": {
+        "operationId": "ImportsController_previewCsv",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CsvPreviewRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedPreviewDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "brain"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/brain/imports/csv": {
+      "post": {
+        "operationId": "ImportsController_createCsv",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CsvCreateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportJobDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "brain"
+        ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/brain/imports/provenance": {
       "get": {
         "operationId": "ImportsController_provenance",
@@ -20418,6 +20508,86 @@
         },
         "required": [
           "catalogId",
+          "name"
+        ]
+      },
+      "CsvPreviewRequestDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "products",
+              "faqs"
+            ]
+          },
+          "csv": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 2500000
+          },
+          "mapping": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "maxLength": 30
+            },
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3
+          }
+        },
+        "required": [
+          "type",
+          "csv"
+        ]
+      },
+      "CsvCreateDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "products",
+              "faqs"
+            ]
+          },
+          "csv": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 2500000
+          },
+          "mapping": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "maxLength": 30
+            },
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          }
+        },
+        "required": [
+          "type",
+          "csv",
           "name"
         ]
       },

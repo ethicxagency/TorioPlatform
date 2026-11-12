@@ -9,6 +9,7 @@ import {
 } from '@torio/contracts';
 import {
   brainState,
+  csvState,
   googleState,
   metaState,
   mockApi,
@@ -802,6 +803,70 @@ test.describe('brain (admin)', () => {
     await expect(
       kn.getByRole('listitem').filter({ hasText: 'Do you offer COD?' }),
     ).not.toContainText('Imported from');
+  });
+
+  test('CSV import: choose a file, see the mapping and counts, adjust a column, import for review, approve, import', async ({
+    page,
+  }) => {
+    await openTab(page, 'Intelligence');
+    const hub = intelligence(page);
+    await hub.getByRole('button', { name: 'Import a CSV' }).click();
+    const dlg = page.getByRole('dialog', { name: 'Import from a CSV file' });
+    await expect(dlg.getByRole('button', { name: 'Choose a file' })).toBeDisabled();
+    // a file with no data rows is explained
+    await dlg
+      .getByLabel('CSV file')
+      .setInputFiles({
+        name: 'empty.csv',
+        mimeType: 'text/csv',
+        buffer: Buffer.from('Name,Price'),
+      });
+    await expect(dlg.getByRole('alert')).toContainText('No rows were found');
+    await dlg
+      .getByLabel('CSV file')
+      .setInputFiles({
+        name: 'products.csv',
+        mimeType: 'text/csv',
+        buffer: Buffer.from('Product Name,SKU,Price,Cost\nNordic Vase,A1,1500,900\n'),
+      });
+    const pv = dlg.getByRole('region', { name: 'File preview' });
+    await expect(pv).toContainText('1 row has no name and was skipped.');
+    await expect(pv.getByRole('combobox', { name: 'Name column' })).toContainText('product_name');
+    await pv.getByRole('combobox', { name: 'Price column' }).click();
+    await page.getByRole('option', { name: 'cost' }).click();
+    await expect
+      .poll(
+        () => (csvState.previews.at(-1) as { mapping?: Record<string, string> }).mapping?.['price'],
+      )
+      .toBe('cost');
+    await dlg.getByRole('button', { name: 'Import 5 products for review' }).click();
+    await expect
+      .poll(() => csvState.created)
+      .toMatchObject({ type: 'products', name: 'products.csv', mapping: { price: 'cost' } });
+    const panel = hub.getByRole('region', { name: 'Feed import' });
+    await panel.getByRole('button', { name: 'Approve Nordic Vase' }).click();
+    await panel.getByRole('button', { name: /^Import 1 approved/ }).click();
+    await expect(panel.getByText('Imported 1 entry into Brain.')).toBeVisible();
+  });
+
+  test('CSV import: FAQs use question and answer columns', async ({ page }) => {
+    await openTab(page, 'Intelligence');
+    await intelligence(page).getByRole('button', { name: 'Import a CSV' }).click();
+    const dlg = page.getByRole('dialog', { name: 'Import from a CSV file' });
+    await dlg.getByRole('combobox', { name: 'File contents' }).click();
+    await page.getByRole('option', { name: 'FAQs' }).click();
+    await dlg
+      .getByLabel('CSV file')
+      .setInputFiles({
+        name: 'faq.csv',
+        mimeType: 'text/csv',
+        buffer: Buffer.from('question,reply,topic\nDo you deliver?,Yes.,Delivery\n'),
+      });
+    const pv = dlg.getByRole('region', { name: 'File preview' });
+    await expect(pv.getByRole('combobox', { name: 'Question column' })).toContainText('question');
+    await expect(pv.getByRole('combobox', { name: 'Answer column' })).toContainText('reply');
+    await expect(pv).not.toContainText('Currency');
+    await expect(dlg.getByRole('button', { name: 'Import 5 FAQs for review' })).toBeEnabled();
   });
 
   test('Summary has all eight sections, in order', async ({ page }) => {

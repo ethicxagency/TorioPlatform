@@ -105,6 +105,9 @@ describe('values', () => {
   it('parses prices in common shapes and rejects unreadable ones', () => {
     expect(parsePrice('1,500.00 BDT')).toEqual({ amount: '1500', currency: 'BDT' });
     expect(parsePrice('1.500,50 EUR')).toEqual({ amount: '1500.5', currency: 'EUR' });
+    expect(parsePrice('1,500 BDT')).toEqual({ amount: '1500', currency: 'BDT' });
+    expect(parsePrice('1,234,567')).toEqual({ amount: '1234567', currency: '' });
+    expect(parsePrice('19,99 EUR')).toEqual({ amount: '19.99', currency: 'EUR' });
     expect(parsePrice('USD 19.99')).toEqual({ amount: '19.99', currency: 'USD' });
     expect(parsePrice('call us').amount).toBe('');
   });

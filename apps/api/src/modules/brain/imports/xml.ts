@@ -40,15 +40,15 @@ export const FIELD_LABEL: Record<TorioField, string> = {
 /** Source tags tried, in order, for each Torio field when no mapping is given. */
 const DEFAULTS: Record<TorioField, string[]> = {
   externalId: ['id', 'sku', 'mpn', 'gtin', 'item_group_id'],
-  name: ['title', 'name', 'product_name'],
+  name: ['title', 'name', 'product_name', 'product_title', 'item_name'],
   description: ['description', 'summary', 'content'],
-  price: ['price', 'sale_price', 'amount'],
+  price: ['price', 'sale_price', 'amount', 'unit_price', 'regular_price'],
   category: ['product_type', 'category', 'google_product_category', 'type'],
-  stock: ['availability', 'stock', 'stock_status'],
+  stock: ['availability', 'stock', 'stock_status', 'in_stock'],
   colors: ['color', 'colour'],
   sizes: ['size'],
-  url: ['link', 'url', 'product_url'],
-  image: ['image_link', 'image', 'picture', 'thumbnail'],
+  url: ['link', 'url', 'product_url', 'product_link'],
+  image: ['image_link', 'image', 'image_url', 'picture', 'thumbnail'],
 };
 
 export type RawItem = Record<string, string>;
@@ -187,9 +187,10 @@ export function parsePrice(raw: string): { amount: string; currency: string } {
   let n = num.replace(/\s/g, '');
   const lastDot = n.lastIndexOf('.');
   const lastComma = n.lastIndexOf(',');
-  if (lastComma > lastDot)
-    n = n.replace(/\./g, '').replace(',', '.'); // 1.500,00
-  else n = n.replace(/,/g, ''); // 1,500.00
+  // "1.500,00" (comma decimal), "1,500.00" (comma thousands) and "1,500" (groups of three digits: thousands, not 1.5)
+  if (lastComma > lastDot && !(lastDot === -1 && /^\d{1,3}(,\d{3})+$/.test(n)))
+    n = n.replace(/\./g, '').replace(',', '.');
+  else n = n.replace(/,/g, '');
   const v = Number(n);
   if (!Number.isFinite(v) || v < 0) return { amount: '', currency: cur };
   return {

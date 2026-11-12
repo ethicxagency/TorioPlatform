@@ -119,7 +119,7 @@ export class ImportsService {
         XML_FEED: 'XML feed',
         META_CATALOG: 'Meta Catalog',
         GOOGLE_MERCHANT: 'Google Merchant Center',
-        MANUAL: 'Manual',
+        MANUAL: 'CSV import',
       };
       const info = new Map(
         jobs.map(

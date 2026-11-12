@@ -199,6 +199,11 @@ export const provenanceState = {
 export function resetProvenance() {
   provenanceState.data = { products: {}, faqs: {} };
 }
+export const csvState = { previews: [] as unknown[], created: null as unknown };
+export function resetCsv() {
+  csvState.previews = [];
+  csvState.created = null;
+}
 export const googleState = {
   available: false,
   connected: false,
@@ -222,6 +227,7 @@ export function resetMeta() {
   metaState.syncs = 0;
 }
 export function resetScan() {
+  resetCsv();
   resetProvenance();
   resetOverview();
   resetMeta();
@@ -1866,6 +1872,63 @@ export async function mockApi(
           catalog: metaState.catalog,
           lastSyncedAt: null,
         });
+      if (sub === '/csv/preview') {
+        const b = req.postDataJSON() as {
+          type: string;
+          csv: string;
+          mapping?: Record<string, string>;
+        };
+        csvState.previews.push(b);
+        if (b.csv.trim().split('\n').length < 2)
+          return reply(
+            {
+              error: {
+                message:
+                  'No rows were found. The first line must be the column names, followed by at least one row.',
+              },
+            },
+            400,
+          );
+        const faq = b.type === 'faqs';
+        return reply({
+          format: faq ? 'csv-faqs' : 'csv-products',
+          totalItems: 6,
+          valid: 5,
+          invalid: 1,
+          duplicates: 0,
+          missingPrice: 0,
+          truncated: false,
+          tags: faq ? ['question', 'reply', 'topic'] : ['product_name', 'sku', 'price', 'cost'],
+          mapping: faq
+            ? { question: 'question', answer: 'reply' }
+            : { name: 'product_name', externalId: 'sku', price: b.mapping?.['price'] ?? 'price' },
+          issues: ['1 row has no name and was skipped.'],
+          sample: [
+            {
+              data: faq
+                ? { q: 'Do you deliver?', a: 'Yes.', cat: 'General' }
+                : { name: 'Nordic Vase', price: '1500', currency: 'BDT' },
+              warnings: [],
+            },
+          ],
+        });
+      }
+      if (sub === '/csv') {
+        csvState.created = req.postDataJSON();
+        scanState.started = true;
+        scanState.kind = 'MANUAL';
+        scanState.status = 'NEEDS_REVIEW';
+        scanState.records = [
+          rec(
+            '9d0f0000-0000-4000-8000-0000000000f9',
+            'product',
+            'Nordic Vase',
+            { name: 'Nordic Vase', price: '1500', currency: 'BDT', change: 'new' },
+            85,
+          ),
+        ];
+        return reply(job('NEEDS_REVIEW'));
+      }
       if (sub === '/provenance') return reply(provenanceState.data);
       if (sub === '/products') {
         if (!reviewState.on)

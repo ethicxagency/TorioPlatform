@@ -17,6 +17,8 @@ import {
 import { ApiBearerAuth, ApiExcludeController, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import {
   bulkReviewSchema,
+  csvCreateSchema,
+  csvPreviewRequestSchema,
   feedCreateSchema,
   feedPreviewRequestSchema,
   feedPreviewSchema,
@@ -46,6 +48,7 @@ import { CurrentUser, Public, RequirePermission } from '../../common/decorators'
 import { WorkspaceAccessGuard } from '../../common/guards/workspace-access.guard';
 import type { AuthUser } from '../../common/types';
 import { ImportsService } from './imports.service';
+import { CsvImportService } from './imports/csv-import.service';
 import { FeedService } from './imports/feed.service';
 import { GoogleMerchantService } from './imports/google-merchant.service';
 import { MetaCatalogService } from './imports/meta-catalog.service';
@@ -71,6 +74,8 @@ class MetaCatalogUrlDto extends createZodDto(metaConnectUrlSchema) {}
 class ProductReviewDto extends createZodDto(productReviewSchema) {}
 class ResolveProductDto extends createZodDto(resolveProductSchema) {}
 class ProvenanceDto extends createZodDto(provenanceSchema) {}
+class CsvPreviewRequestDto extends createZodDto(csvPreviewRequestSchema) {}
+class CsvCreateDto extends createZodDto(csvCreateSchema) {}
 class BulkResultDto extends createZodDto(z.object({ updated: z.number().int() })) {}
 
 const BASE = 'workspaces/:workspaceId/brain/imports';
@@ -87,6 +92,7 @@ export class ImportsController {
     private readonly metaCatalog: MetaCatalogService,
     private readonly google: GoogleMerchantService,
     private readonly products: ProductReviewService,
+    private readonly csv: CsvImportService,
   ) {}
 
   @Get()
@@ -258,6 +264,25 @@ export class ImportsController {
   @RequirePermission('brain:write')
   googleDisconnect(@Param('workspaceId', ParseUUIDPipe) ws: string) {
     return this.google.disconnect(ws);
+  }
+
+  @Post('csv/preview')
+  @HttpCode(200)
+  @RequirePermission('brain:write')
+  @ApiOkResponse({ type: FeedPreviewDto })
+  previewCsv(@Param('workspaceId', ParseUUIDPipe) _ws: string, @Body() body: CsvPreviewRequestDto) {
+    return this.csv.preview(body);
+  }
+
+  @Post('csv')
+  @RequirePermission('brain:write')
+  @ApiOkResponse({ type: ImportJobDetailDto })
+  async createCsv(
+    @Param('workspaceId', ParseUUIDPipe) ws: string,
+    @CurrentUser() u: AuthUser,
+    @Body() body: CsvCreateDto,
+  ) {
+    return this.scans.detail(ws, await this.csv.create(ws, u.id, body));
   }
 
   @Get('provenance')

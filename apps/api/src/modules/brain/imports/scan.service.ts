@@ -9,6 +9,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import {
+  FAQ_CATS,
   STOCK_STATES,
   type BrainConfig,
   type ImportCategory,
@@ -212,7 +213,7 @@ export class ScanService {
     return {
       job: this.view(j),
       progress:
-        j.kind === 'XML_FEED' || j.kind === 'META_CATALOG' || j.kind === 'GOOGLE_MERCHANT'
+        j.kind !== 'WEBSITE'
           ? {
               pages: (j.stats as { items?: number } | null)?.items ?? 0,
               maxPages: (j.stats as { items?: number } | null)?.items ?? 0,
@@ -586,6 +587,10 @@ export class ScanService {
     const j = await this.load(workspaceId, jobId);
     if (j.status !== 'FAILED' && j.status !== 'CANCELLED')
       throw new ConflictException('Only a failed or cancelled scan can be retried.');
+    if (j.kind === 'MANUAL')
+      throw new ConflictException(
+        'A file import cannot be repeated from here. Upload the file again.',
+      );
     if (j.kind === 'GOOGLE_MERCHANT')
       return this.detail(workspaceId, await this.google.startJob(workspaceId, userId));
     if (j.kind === 'META_CATALOG')
@@ -760,7 +765,12 @@ export class ScanService {
           id: uid(),
           q: q.slice(0, 300),
           a: a.slice(0, 2000),
-          cat: r.category === 'faq' ? 'General' : (FAQ_CAT[d['kind'] ?? ''] ?? 'General'),
+          cat:
+            r.category === 'faq'
+              ? (FAQ_CATS as readonly string[]).includes(d['cat'] ?? '')
+                ? (d['cat'] as BrainConfig['faqs'][number]['cat'])
+                : 'General'
+              : (FAQ_CAT[d['kind'] ?? ''] ?? 'General'),
           active: true,
         });
         done.push(r.id);

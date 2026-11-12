@@ -254,3 +254,20 @@ export const provenanceSchema = z.object({
 });
 export type Provenance = z.infer<typeof provenanceSchema>;
 export type ProvenanceEntry = z.infer<typeof provenanceEntrySchema>;
+
+// ---------- CSV file import ----------
+
+export const CSV_TYPES = ['products', 'faqs'] as const;
+export const csvPreviewRequestSchema = z.object({
+  type: z.enum(CSV_TYPES),
+  /** The file's text. Up to about 2.5 MB and 5,000 rows. */
+  csv: z.string().min(3).max(2_500_000),
+  /** Which column feeds which field; omitted fields are matched from the header names. */
+  mapping: z.record(z.string().max(30), z.string().max(80)).optional(),
+  currency: z.string().trim().length(3).optional(),
+});
+export const csvCreateSchema = csvPreviewRequestSchema.extend({
+  /** The file name, to tell uploads apart in the activity list. */
+  name: z.string().trim().min(1).max(80),
+});
+export type CsvCreateInput = z.infer<typeof csvCreateSchema>;
