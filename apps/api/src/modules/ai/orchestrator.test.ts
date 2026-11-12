@@ -627,3 +627,83 @@ describe('plan allowances and budgets', () => {
     expect(prompt).not.toContain('message 0 ');
   });
 });
+
+describe('Brain test chat', () => {
+  const lines = [{ from: 'customer' as const, text: 'How much is the teak shelf?' }];
+  const brain = () => {
+    const b = emptyBrainConfig();
+    b.voice.language = 'English';
+    b.products = [
+      {
+        id: 'p',
+        name: 'Teak shelf',
+        category: '',
+        description: '',
+        price: '9,500',
+        variants: '',
+        sizes: '',
+        colors: '',
+        stock: 'In stock',
+        benefits: '',
+        usage: '',
+        limitations: '',
+        faqs: '',
+      } as never,
+    ];
+    return b;
+  };
+  it('answers from the Brain it is given (unsaved edits), reads no conversation or saved Brain, and logs usage without text', async () => {
+    let prompt = '';
+    const t = setup({
+      adapters: {
+        openai: async (i) => ((prompt = i.prompt), { text: 'The teak shelf is Tk 9,500.' }),
+        gemini: ok('x'),
+      },
+    });
+    (t.o as any).brain = {
+      get: async () => {
+        throw new Error('the saved Brain must not be read');
+      },
+    };
+    const r = await t.o.testDraft(
+      WS,
+      'u1',
+      { requestId: rid(50), mode: 'openai' },
+      { brain: brain(), lines, channel: 'WHATSAPP' },
+    );
+    expect(prompt).toContain('Teak shelf | price: 9,500');
+    expect(r.draft).toBe('The teak shelf is Tk 9,500.');
+    expect(r.needsReview).toBe(false);
+    expect(t.requests[0]).toMatchObject({
+      workspaceId: WS,
+      conversationId: null,
+      status: 'succeeded',
+    });
+    expect(JSON.stringify([t.requests, t.calls])).not.toMatch(/teak|9,500/i);
+  });
+  it('is held to the plan: refused when AI is not included, and needs a customer message', async () => {
+    const off = setup({
+      limit: { included: false },
+      blocked: 'AI Assist is not included in your plan.',
+      adapters: { openai: ok(GOOD), gemini: ok(GOOD) },
+    });
+    await expect(
+      off.o.testDraft(
+        WS,
+        'u1',
+        { requestId: rid(51), mode: 'auto' },
+        { brain: brain(), lines, channel: 'WHATSAPP' },
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(off.log).toEqual([]);
+    const t = setup({ adapters: { openai: ok(GOOD), gemini: ok(GOOD) } });
+    await expect(
+      t.o.testDraft(
+        WS,
+        'u1',
+        { requestId: rid(52), mode: 'auto' },
+        { brain: brain(), lines: [{ from: 'agent', text: 'hi' }], channel: 'WHATSAPP' },
+      ),
+    ).rejects.toThrow(/no customer message/i);
+  });
+});

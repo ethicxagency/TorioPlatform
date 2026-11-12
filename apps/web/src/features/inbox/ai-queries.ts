@@ -96,3 +96,14 @@ export const requestDraft = (
   conversationId: string,
   body: { requestId: string; mode: AiMode; refine?: string; previousDraft?: string },
 ) => aiRequest<AiDraft>(ws, `/conversations/${conversationId}/draft`, { method: 'POST', body });
+
+/** Brain "Test AI": asks the real engine about the Brain being edited and the test chat. */
+export const requestBrainTest = (
+  ws: string,
+  body: {
+    requestId: string;
+    mode: AiMode;
+    config: unknown;
+    lines: { from: 'customer' | 'agent'; text: string }[];
+  },
+) => aiRequest<AiDraft>(ws, '/test', { method: 'POST', body });

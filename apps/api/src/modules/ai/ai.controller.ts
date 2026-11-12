@@ -16,6 +16,7 @@ import {
 import { ApiExcludeController, ApiTags } from '@nestjs/swagger';
 import {
   aiDraftInputSchema,
+  aiTestInputSchema,
   aiLogQuerySchema,
   aiOverviewQuerySchema,
   setAiKeySchema,
@@ -38,6 +39,7 @@ class UpdateSettingsDto extends createZodDto(updateAiSettingsSchema) {}
 class LogQueryDto extends createZodDto(aiLogQuerySchema) {}
 class OverviewQueryDto extends createZodDto(aiOverviewQuerySchema) {}
 class DraftInputDto extends createZodDto(aiDraftInputSchema) {}
+class TestInputDto extends createZodDto(aiTestInputSchema) {}
 
 /**
  * Super Admin AI management. `@Public()` only opts out of the customer JWT guard; AdminGuard (a server-side admin session) protects
@@ -143,5 +145,22 @@ export class AiController {
     @Body() b: DraftInputDto,
   ) {
     return this.orchestrator.draft(ws, u.id, conversationId, b);
+  }
+
+  /** Brain "Test AI": drafts from the Brain the person is editing and their test chat. Read access to Brain is enough. */
+  @Post('test')
+  @HttpCode(200)
+  @RequirePermission('brain:read')
+  test(
+    @Param('workspaceId', ParseUUIDPipe) ws: string,
+    @CurrentUser() u: AuthUser,
+    @Body() b: TestInputDto,
+  ) {
+    return this.orchestrator.testDraft(
+      ws,
+      u.id,
+      { requestId: b.requestId, mode: b.mode },
+      { brain: b.config, lines: b.lines, channel: b.channel },
+    );
   }
 }

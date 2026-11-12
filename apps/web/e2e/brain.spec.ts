@@ -8,12 +8,14 @@ import {
   type BrainConfig,
 } from '@torio/contracts';
 import {
+  aiState,
   brainState,
   csvState,
   googleState,
   metaState,
   mockApi,
   overviewState,
+  resetAi,
   provenanceState,
   resetScan,
   REVIEW_IDS,
@@ -29,6 +31,7 @@ test.describe('brain (admin)', () => {
   test.use({ viewport: { width: 1600, height: 900 } });
   test.beforeEach(async ({ page }) => {
     resetScan();
+    resetAi();
     brainState.version = 3;
     brainState.puts.length = 0;
     brainState.config = null;
@@ -260,6 +263,64 @@ test.describe('brain (admin)', () => {
     await expect(reply).toContainText('unsaved edits');
     await page.getByRole('button', { name: 'Why this reply?' }).click();
     await expect(reply).toContainText('Customer Policies: delivery fees');
+  });
+
+  test('Test AI can use the live AI on the Brain being edited, and falls back to the rules preview by default', async ({
+    page,
+  }) => {
+    await openTab(page, 'Test AI');
+    const box = page.getByRole('complementary', { name: 'Test Your AI' });
+    await expect(box.getByText('Rule-based preview')).toBeVisible(); // nothing costs money unless chosen
+    await box.getByRole('button', { name: 'Live AI' }).click();
+    await expect(box.getByText('Live AI', { exact: true }).first()).toBeVisible();
+    await openTab(page, 'Knowledge');
+    await page.getByLabel('Brand name *').fill('Edited Shop'); // an unsaved edit
+    await openTab(page, 'Test AI');
+    await box.getByLabel('Customer message').fill('How much is the sofa?');
+    await box.getByRole('button', { name: 'Send' }).click();
+    await expect(box.getByText(aiState.testText)).toBeVisible();
+    await expect(box.getByText('Live AI reply · unsaved edits')).toBeVisible();
+    expect(aiState.tests).toHaveLength(1);
+    expect(aiState.tests[0]).toMatchObject({
+      mode: 'auto',
+      lines: [{ from: 'customer', text: 'How much is the sofa?' }],
+    });
+    expect(aiState.tests[0].config.identity.name).toBe('Edited Shop'); // the edits, not the saved Brain
+    // a follow-up sends the earlier reply as the agent's turn
+    await box.getByLabel('Customer message').fill('And delivery?');
+    await box.getByRole('button', { name: 'Send' }).click();
+    await expect.poll(() => aiState.tests.length).toBe(2);
+    expect(aiState.tests[1].lines.map((l: { from: string }) => l.from)).toEqual([
+      'customer',
+      'agent',
+      'customer',
+    ]);
+    // a failure is shown in the chat and the test goes on
+    aiState.draftFail = 'The AI service is busy right now. Try again in a moment.';
+    await box.getByLabel('Customer message').fill('Again?');
+    await box.getByRole('button', { name: 'Send' }).click();
+    await expect(box.getByRole('alert')).toContainText('busy right now');
+    await box.getByRole('button', { name: 'Rules preview' }).click();
+    await expect(box.getByText('Rule-based preview')).toBeVisible();
+  });
+
+  test('Live AI is not offered when the platform has not set it up, and says why', async ({
+    page,
+  }) => {
+    aiState.options = {
+      available: false,
+      reason: 'AI Assist is not included in your plan.',
+      usage: null,
+      modes: [],
+      recommended: null,
+    };
+    await page.reload(); // the options are read when the page loads
+    await page.waitForLoadState('networkidle');
+    await openTab(page, 'Test AI');
+    const box = page.getByRole('complementary', { name: 'Test Your AI' });
+    await expect(box.getByRole('button', { name: 'Live AI' })).toBeDisabled();
+    await expect(box.getByText(/not included in your plan/)).toBeVisible();
+    await expect(box.getByText('Rule-based preview')).toBeVisible();
   });
 
   test('the Test AI tab keeps its conversation when you switch away and back', async ({ page }) => {

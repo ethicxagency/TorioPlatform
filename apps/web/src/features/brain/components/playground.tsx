@@ -1,9 +1,18 @@
 'use client';
 
-import { previewReply, type BrainConfig, type PreviewResult } from '@torio/contracts';
+import {
+  AI_MODE_LABEL,
+  previewReply,
+  type AiMode,
+  type BrainConfig,
+  type PreviewResult,
+} from '@torio/contracts';
 import { ChevronDown, Send, Trash2, TriangleAlert } from 'lucide-react';
 import { AIIcon, AIProcessingIndicator } from '@/components/ui/ai';
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { Select } from '@/components/ui/select';
+import { requestBrainTest, useAiOptions, type AiDraft } from '@/features/inbox/ai-queries';
+import { useWorkspace } from '@/lib/workspace';
 import { cn } from '@/lib/utils';
 import { Pill } from './bits';
 
@@ -19,15 +28,25 @@ const SUGGEST = [
 
 type Msg =
   | { role: 'customer'; text: string }
-  | { role: 'ai'; r: PreviewResult; unsaved: boolean; open: boolean };
+  | { role: 'ai'; r: PreviewResult; unsaved: boolean; open: boolean }
+  | { role: 'live'; d: AiDraft; unsaved: boolean }
+  | { role: 'err'; text: string };
+const STRATEGY: Record<string, string> = {
+  single: 'One model',
+  fallback: 'Backup model',
+  synthesis: 'Combined from several models',
+  best_candidate: 'Best of several models',
+  auto_second_opinion: 'Second opinion',
+};
 export interface PlaygroundHandle {
   ask: (q: string) => void;
   focus: () => void;
 }
 
 /**
- * "Test your AI" — a RULE-BASED PREVIEW. It applies your configuration with fixed logic; it does not call a language
- * model, so wording is simplified and it cannot reflect model behaviour. It tests the current (possibly unsaved) edits.
+ * "Test your AI". By default a RULE-BASED PREVIEW: it applies your configuration with fixed logic and calls no language model.
+ * With "Live AI" it asks the same engine Inbox AI Assist uses (server-side, on the current, possibly unsaved, edits), which counts
+ * against the plan allowance. Live AI is only offered when the platform has it set up and the plan includes it.
  */
 export const Playground = forwardRef<
   PlaygroundHandle,
@@ -36,6 +55,13 @@ export const Playground = forwardRef<
   const [chat, setChat] = useState<Msg[]>([]);
   const [draft, setDraft] = useState('');
   const [typing, setTyping] = useState(false);
+  const { workspaceId: ws } = useWorkspace();
+  const opts = useAiOptions(ws, true);
+  const [engine, setEngine] = useState<'rules' | 'ai'>('rules');
+  const [aiMode, setAiMode] = useState<AiMode | null>(null);
+  const liveOk = !!opts.data?.available;
+  const live = engine === 'ai' && liveOk;
+  const chosen = aiMode ?? opts.data?.recommended ?? null;
   const input = useRef<HTMLInputElement>(null);
   const log = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -52,9 +78,38 @@ export const Playground = forwardRef<
   const ask = (q: string) => {
     const text = q.trim();
     if (!text || typing) return;
-    setChat((c) => [...c, { role: 'customer', text }]);
+    const next: Msg[] = [...chat, { role: 'customer', text }];
+    setChat(next);
     setDraft('');
     setTyping(true);
+    if (live && ws && chosen) {
+      const lines: { from: 'customer' | 'agent'; text: string }[] = next
+        .flatMap((m): { from: 'customer' | 'agent'; text: string }[] =>
+          m.role === 'customer'
+            ? [{ from: 'customer' as const, text: m.text }]
+            : m.role === 'live'
+              ? [{ from: 'agent' as const, text: m.d.draft }]
+              : m.role === 'ai'
+                ? [{ from: 'agent' as const, text: m.r.text }]
+                : [],
+        )
+        .slice(-20);
+      requestBrainTest(ws, {
+        requestId: crypto.randomUUID(),
+        mode: chosen,
+        config: cfg.current,
+        lines,
+      })
+        .then((d) => setChat((c) => [...c, { role: 'live', d, unsaved: dirty }]))
+        .catch((e: unknown) =>
+          setChat((c) => [
+            ...c,
+            { role: 'err', text: e instanceof Error ? e.message : 'The live AI could not answer.' },
+          ]),
+        )
+        .finally(() => setTyping(false));
+      return;
+    }
     timer.current = setTimeout(() => {
       setChat((c) => [
         ...c,
@@ -76,9 +131,13 @@ export const Playground = forwardRef<
           <h2 className="m-0 flex-1 text-[15px] font-semibold">Test Your AI</h2>
           <span
             className="rounded-md bg-wash-2 px-2 py-0.5 text-[11px] font-medium text-muted"
-            title="Responses come from fixed rules applied to your configuration, not from a live AI model."
+            title={
+              live
+                ? 'Replies come from a live AI model, using your Brain and rules.'
+                : 'Responses come from fixed rules applied to your configuration, not from a live AI model.'
+            }
           >
-            Rule-based preview
+            {live ? 'Live AI' : 'Rule-based preview'}
           </span>
           {chat.length > 0 && (
             <button
@@ -93,9 +152,63 @@ export const Playground = forwardRef<
           )}
         </div>
         <p className="m-0 mt-1 text-[12.5px] text-muted">
-          Ask as a customer to see how your knowledge and rules apply. This is a simulation — not a
-          live AI model.
+          {live
+            ? 'Ask as a customer to see how a live AI model answers from your knowledge and rules. Each answer counts toward your plan’s AI allowance.'
+            : 'Ask as a customer to see how your knowledge and rules apply. This is a simulation — not a live AI model.'}
         </p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <div
+            role="group"
+            aria-label="Test engine"
+            className="inline-flex rounded-lg border border-line bg-white p-0.5 text-xs"
+          >
+            {(
+              [
+                ['rules', 'Rules preview'],
+                ['ai', 'Live AI'],
+              ] as const
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                aria-pressed={engine === k}
+                disabled={k === 'ai' && !liveOk}
+                title={
+                  k === 'ai' && !liveOk
+                    ? (opts.data?.reason ?? 'Live AI is not available.')
+                    : undefined
+                }
+                onClick={() => setEngine(k)}
+                className={cn(
+                  'h-7 cursor-pointer rounded-md border-none px-2.5 font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none',
+                  engine === k
+                    ? 'bg-primary-soft text-primary-hover'
+                    : 'bg-transparent text-muted hover:bg-wash',
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {live && opts.data && (
+            <Select
+              aria-label="Live AI mode"
+              value={chosen ?? ''}
+              onChange={(v) => setAiMode(v as AiMode)}
+              options={opts.data.modes.map((m) => ({
+                value: m.mode,
+                label: AI_MODE_LABEL[m.mode],
+                description: m.available ? undefined : (m.reason ?? undefined),
+                disabled: !m.available,
+              }))}
+            />
+          )}
+          {!liveOk && !opts.isPending && (
+            <span className="text-[11.5px] text-faint">
+              Live AI: {opts.data?.reason ?? 'unavailable'}
+            </span>
+          )}
+        </div>
       </div>
       {dirty && (
         <div
@@ -131,7 +244,35 @@ export const Playground = forwardRef<
           </div>
         )}
         {chat.map((m, i) =>
-          m.role === 'customer' ? (
+          m.role === 'err' ? (
+            <p
+              key={i}
+              role="alert"
+              className="m-0 max-w-[94%] self-end rounded-lg bg-danger-soft px-3 py-2 text-[12.5px] text-[#8F2424]"
+            >
+              {m.text}
+            </p>
+          ) : m.role === 'live' ? (
+            <div key={i} className="max-w-[94%] self-end">
+              <div className="rounded-[14px_14px_4px_14px] border border-primary bg-primary px-3 py-2 text-[13.5px] text-white [overflow-wrap:anywhere]">
+                <div className="mb-0.5 text-[11px] text-white/70">
+                  Live AI reply{m.unsaved ? ' · unsaved edits' : ''}
+                </div>
+                {m.d.draft}
+              </div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px] text-muted">
+                <span>{STRATEGY[m.d.strategy] ?? m.d.strategy}</span>
+                <span>{m.d.providers.join(' + ')}</span>
+                <span className="tabular-nums">{(m.d.durationMs / 1000).toFixed(1)}s</span>
+                {m.d.needsReview && <Pill tone="warn">Needs review</Pill>}
+              </div>
+              {m.d.warnings.length > 0 && (
+                <p className="m-0 mt-1 rounded-lg border border-[#FBE3B5] bg-warning-soft px-2.5 py-1.5 text-xs text-[#7A4700]">
+                  {m.d.warnings.join(' ')}
+                </p>
+              )}
+            </div>
+          ) : m.role === 'customer' ? (
             <div
               key={i}
               className="max-w-[88%] self-start rounded-[14px_14px_14px_4px] border border-[#E9EAEE] bg-white px-3 py-2 text-[13.5px]"
@@ -216,7 +357,7 @@ export const Playground = forwardRef<
             className="self-end rounded-[14px_14px_4px_14px] bg-primary-soft px-3 py-2"
             aria-label="Generating preview"
           >
-            <AIProcessingIndicator label="Applying your rules…" bar />
+            <AIProcessingIndicator label={live ? 'Asking the AI…' : 'Applying your rules…'} bar />
           </div>
         )}
       </div>

@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@torio/database';
 import {
+  type BrainConfig,
   AI_MODE_LABEL,
   AI_MODES,
   type AiMode,
@@ -159,8 +160,10 @@ export class AiOrchestrator {
   async draft(
     workspaceId: string,
     userId: string,
-    conversationId: string,
+    conversationId: string | null,
     input: { requestId: string; mode: AiMode; refine?: AiRefinementInput; previousDraft?: string },
+    /** When given, the context comes from here (Brain "Test AI") instead of a stored conversation. */
+    source?: { brain: BrainConfig; lines: ChatLine[]; channel: string },
   ): Promise<AiDraftResult> {
     const started = Date.now();
     const db = this.prisma.client;
@@ -209,30 +212,45 @@ export class AiOrchestrator {
         );
 
       // Step 1: understand the request (tenant-scoped reads only).
-      const convo = await db.conversation.findFirst({
-        where: { id: conversationId, workspaceId },
-        select: { channel: { select: { provider: true } }, customer: { select: { name: true } } },
-      });
-      if (!convo) throw new NotFoundException('Conversation not found');
-      const rows = await db.message.findMany({
-        where: { workspaceId, conversationId, kind: { in: ['INBOUND', 'OUTBOUND'] } },
-        orderBy: { createdAt: 'desc' },
-        take: settings.contextMessages,
-        select: { kind: true, body: true },
-      });
-      const lines: ChatLine[] = rows.reverse().map((m) => ({
-        from: m.kind === 'INBOUND' ? ('customer' as const) : ('agent' as const),
-        text: m.body,
-      }));
+      let lines: ChatLine[];
+      let brain: BrainConfig;
+      let channel: string;
+      let firstName: string | null;
+      if (source) {
+        ({ brain, lines, channel } = source);
+        firstName = null;
+      } else {
+        const convo = await db.conversation.findFirst({
+          where: { id: conversationId!, workspaceId },
+          select: { channel: { select: { provider: true } }, customer: { select: { name: true } } },
+        });
+        if (!convo) throw new NotFoundException('Conversation not found');
+        const rows = await db.message.findMany({
+          where: {
+            workspaceId,
+            conversationId: conversationId!,
+            kind: { in: ['INBOUND', 'OUTBOUND'] },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: settings.contextMessages,
+          select: { kind: true, body: true },
+        });
+        lines = rows.reverse().map((m) => ({
+          from: m.kind === 'INBOUND' ? ('customer' as const) : ('agent' as const),
+          text: m.body,
+        }));
+        brain = (await this.brain.get(workspaceId)).config;
+        channel = convo.channel.provider;
+        firstName = convo.customer.name.split(/\s+/)[0] ?? null;
+      }
       if (!lines.some((l) => l.from === 'customer'))
         throw new BadRequestException('There is no customer message to answer yet.');
-      const brain = (await this.brain.get(workspaceId)).config;
       const build = (l: ChatLine[]) =>
         buildPrompt({
           brain,
           lines: l,
-          customerFirstName: convo.customer.name.split(/\s+/)[0] ?? null,
-          channel: convo.channel.provider,
+          customerFirstName: firstName,
+          channel,
           refine: input.refine,
           previousDraft: input.previousDraft,
         });
@@ -259,7 +277,7 @@ export class AiOrchestrator {
         ordered,
         built,
         brain,
-        channel: convo.channel.provider,
+        channel,
       });
 
       const durationMs = Date.now() - started;
@@ -300,6 +318,19 @@ export class AiOrchestrator {
         );
       throw new ServiceUnavailableException('AI Assist could not prepare a draft. Try again.');
     }
+  }
+
+  /**
+   * Brain "Test AI": the same engine, run on the Brain configuration and the test chat the person is looking at, which may hold
+   * unsaved edits. It counts against the plan allowance and budgets like any request, and is logged without any text.
+   */
+  testDraft(
+    workspaceId: string,
+    userId: string,
+    input: { requestId: string; mode: AiMode },
+    source: { brain: BrainConfig; lines: ChatLine[]; channel: string },
+  ) {
+    return this.draft(workspaceId, userId, null, input, source);
   }
 
   // ---------- strategies ----------

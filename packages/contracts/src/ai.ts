@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { brainConfigSchema } from './brain';
 
 /** Adapters Torio ships. Adding a provider means adding an adapter and a key here; the engine itself does not change. */
 export const AI_PROVIDER_KEYS = ['openai', 'gemini'] as const;
@@ -290,4 +291,16 @@ export const aiLogQuerySchema = z.object({
 });
 export const aiOverviewQuerySchema = z.object({
   days: z.coerce.number().int().min(1).max(90).default(30),
+});
+
+/** Brain "Test AI": the current (maybe unsaved) Brain and the test chat. Sizes are capped. */
+export const aiTestInputSchema = z.object({
+  requestId: z.string().uuid(),
+  mode: aiModeSchema,
+  config: brainConfigSchema,
+  lines: z
+    .array(z.object({ from: z.enum(['customer', 'agent']), text: z.string().min(1).max(1000) }))
+    .min(1)
+    .max(20),
+  channel: z.enum(['WHATSAPP', 'INSTAGRAM', 'MESSENGER']).default('WHATSAPP'),
 });

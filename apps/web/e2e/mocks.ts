@@ -941,6 +941,8 @@ export const aiState = {
   /** Customer side (Inbox AI Assist). */
   options: {} as Record<string, any>,
   drafts: [] as Record<string, any>[],
+  tests: [] as Record<string, any>[],
+  testText: 'The Linen sofa is $400.00 and we deliver in 2-3 days.',
   draftFail: '' as string,
   draftText: 'Hello Tanvir, the Linen sofa is $400.00 and we deliver in 2-3 days.',
 };
@@ -948,6 +950,7 @@ export const resetAi = () => {
   aiState.encryptionReady = true;
   aiState.calls = [];
   aiState.drafts = [];
+  aiState.tests = [];
   aiState.draftFail = '';
   const model = (id: string, enabled: boolean, over: Record<string, any> = {}) => ({
     id: `0d0d0d0d-0d0d-4d0d-8d0d-${id.padStart(12, '0').slice(-12)}`,
@@ -2616,6 +2619,29 @@ export async function mockApi(
     if (p.startsWith(`/workspaces/${WS}/ai/`)) {
       const a = p.slice(`/workspaces/${WS}/ai`.length);
       if (a === '/options') return reply(aiState.options);
+      if (a === '/test') {
+        const b = req.postDataJSON() as Record<string, any>;
+        aiState.tests.push(b);
+        if (aiState.draftFail)
+          return reply(
+            {
+              error: { code: 'UNAVAILABLE', message: aiState.draftFail, statusCode: 503 },
+              message: aiState.draftFail,
+            },
+            503,
+          );
+        return reply({
+          requestId: b.requestId,
+          draft: aiState.testText,
+          mode: b.mode,
+          strategy: 'single',
+          providers: ['OpenAI'],
+          durationMs: 1800,
+          needsReview: false,
+          warnings: [],
+          qualityScore: 90,
+        });
+      }
       if (/^\/requests\/[\w-]+\/phase$/.test(a))
         return reply({ phase: 'consulting', status: 'running' });
       if (/^\/conversations\/[\w-]+\/draft$/.test(a)) {
