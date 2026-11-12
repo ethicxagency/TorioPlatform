@@ -1,7 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
 import { formatCurrency } from '@torio/contracts';
 import PDFDocument from 'pdfkit';
+import { INVOICE_FONTS } from './invoice-fonts';
 import type { InvoiceData, InvoicePaymentStatus } from './invoice-types';
 
 // Torio brand.
@@ -23,24 +22,7 @@ const STATUS: Record<InvoicePaymentStatus, { label: string; fg: string; bg: stri
   UNPAID: { label: 'UNPAID', fg: '#991B1B', bg: '#FDEBEB' },
 };
 
-const fontPath = (pkg: string, file: string) =>
-  join(dirname(require.resolve(`${pkg}/package.json`)), 'files', file);
-// Read once. The fonts are embedded in every PDF, so output looks the same in any viewer and on any printer.
-const FONT_FILES = {
-  Inter: fontPath('@fontsource/inter', 'inter-latin-400-normal.woff'),
-  'Inter-Semi': fontPath('@fontsource/inter', 'inter-latin-600-normal.woff'),
-  'Inter-Bold': fontPath('@fontsource/inter', 'inter-latin-700-normal.woff'),
-  Bengali: fontPath('@fontsource/noto-sans-bengali', 'noto-sans-bengali-bengali-400-normal.woff'),
-  'Bengali-Bold': fontPath(
-    '@fontsource/noto-sans-bengali',
-    'noto-sans-bengali-bengali-700-normal.woff',
-  ),
-} as const;
-let fontCache: Record<string, Buffer> | null = null;
-const fonts = () =>
-  (fontCache ??= Object.fromEntries(
-    Object.entries(FONT_FILES).map(([k, p]) => [k, readFileSync(p)]),
-  ));
+const fonts = () => INVOICE_FONTS;
 
 type Weight = 'regular' | 'semi' | 'bold';
 const BENGALI = /[ঀ-৿‌‍]+/g;
@@ -215,6 +197,8 @@ export function renderOrderInvoicePdf(d: InvoiceData): Promise<Buffer> {
       size: 'A4',
       margins: { top: M, bottom: M, left: M, right: M },
       bufferPages: true,
+      // Start from an embedded font: the library's own default (Helvetica) loads data files that a single-file bundle lacks.
+      font: Buffer.from(INVOICE_FONTS.Inter!, 'base64') as unknown as string,
       info: {
         Title: `Invoice ${d.number}`,
         Author: d.seller.name,
@@ -229,7 +213,8 @@ export function renderOrderInvoicePdf(d: InvoiceData): Promise<Buffer> {
     doc.on('error', reject);
     try {
       const f = fonts();
-      for (const [name, buf] of Object.entries(f)) doc.registerFont(name, buf);
+      for (const [name, b64] of Object.entries(f))
+        doc.registerFont(name, Buffer.from(b64, 'base64'));
       draw(doc, new Pen(doc), d);
       doc.end();
     } catch (e) {
