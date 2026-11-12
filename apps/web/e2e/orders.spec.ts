@@ -76,7 +76,7 @@ test.describe('orders (owner)', () => {
     await expect(d.getByText('Linen sofa')).toBeVisible();
     await expect(d.getByText('Outstanding').first()).toBeVisible();
     await expect(d.getByText('No payments recorded yet.')).toBeVisible();
-    await expect(d.getByText(/Refunds aren.t supported/)).toBeVisible();
+    await expect(d.getByText(/Refunds aren.t supported/)).toHaveCount(0); // only shown once money is recorded
     await expect(d.getByText(/Torio isn.t connected to a carrier/)).toBeVisible();
     await expect(d.getByRole('link', { name: /Tanvir Hasan/ })).toHaveAttribute(
       'href',
@@ -157,6 +157,45 @@ test.describe('orders (owner)', () => {
     ).toHaveCount(0);
     await expect(page.getByRole('main').getByText('3 of 4 steps')).toBeVisible();
     await expect(steps.getByText('Fulfillment: unfulfilled')).toBeVisible();
+  });
+
+  test('shipping shows recipient, courier logo and tracking; the dialog offers the store’s couriers', async ({
+    page,
+  }) => {
+    Object.assign(orderState.list[0] as unknown as Record<string, unknown>, {
+      shippingAddress: 'House 4, Road 2, Dhaka',
+      carrier: 'Pathao',
+      trackingNumber: 'PT-1',
+      trackingUrl: 'https://example.com/t/1',
+    });
+    await page.getByRole('row', { name: /#1001/ }).click();
+    const main = page.getByRole('main');
+    const ship = main.getByRole('region', { name: 'Fulfillment' });
+    await expect(ship.getByText('House 4, Road 2, Dhaka')).toBeVisible();
+    await expect(ship.getByText('Tanvir Hasan')).toBeVisible();
+    await expect(ship.getByRole('img', { name: 'Pathao Courier logo' })).toBeVisible();
+    await expect(ship.getByRole('link', { name: /PT-1/ })).toHaveAttribute(
+      'href',
+      'https://example.com/t/1',
+    );
+    await main.getByRole('button', { name: 'More actions' }).click();
+    await page.getByRole('menuitem', { name: 'Update fulfillment' }).click();
+    const dlg = page.getByRole('dialog');
+    await dlg.getByLabel('Carrier (optional)').fill('');
+    await dlg
+      .getByRole('group', { name: 'Your couriers' })
+      .getByRole('button', { name: 'Pathao' })
+      .click();
+    await expect(dlg.getByLabel('Carrier (optional)')).toHaveValue('Pathao');
+  });
+
+  test('the customer card shows only the contact details that exist', async ({ page }) => {
+    (orderState.list[0] as unknown as { customer: { phone: string | null } }).customer.phone = null;
+    await page.getByRole('row', { name: /#1001/ }).click();
+    const c = page.getByRole('main').getByRole('region', { name: 'Customer' });
+    await expect(c.getByRole('link', { name: /@example\.test/ })).toBeVisible();
+    await expect(c.getByText(/No phone|Not provided/)).toHaveCount(0);
+    await expect(c.getByRole('link', { name: 'View profile' })).toBeVisible();
   });
 
   test('a cancelled order shows its end state in the progress', async ({ page }) => {

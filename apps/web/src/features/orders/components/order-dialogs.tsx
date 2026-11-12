@@ -151,10 +151,13 @@ export function PaymentDialog({
 
 export function FulfillmentDialog({
   order,
+  providers = [],
   onClose,
   onSubmit,
 }: {
   order: OrderDetail;
+  /** The store's own enabled shipping providers (from its Brain), offered as one-tap choices for the carrier. */
+  providers?: string[];
   onClose: () => void;
   onSubmit: (body: FulfillmentBody) => Promise<unknown>;
 }) {
@@ -221,6 +224,30 @@ export function FulfillmentDialog({
             className={field}
           />
         </label>
+        {providers.length > 0 && (
+          <div
+            className="flex flex-wrap items-center gap-1.5"
+            role="group"
+            aria-label="Your couriers"
+          >
+            <span className="text-[11.5px] text-faint">Your couriers</span>
+            {providers.map((p) => (
+              <button
+                key={p}
+                type="button"
+                aria-pressed={carrier.trim().toLowerCase() === p.toLowerCase()}
+                onClick={() => setCarrier(p)}
+                className={`h-7 cursor-pointer rounded-full border px-2.5 text-[12px] transition-colors duration-150 motion-reduce:transition-none ${
+                  carrier.trim().toLowerCase() === p.toLowerCase()
+                    ? 'border-primary-line bg-primary-soft font-semibold text-primary-hover'
+                    : 'border-line bg-white text-muted hover:bg-wash'
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <label className="flex flex-col gap-1 text-[11.5px] text-faint">
             Carrier (optional)

@@ -5,11 +5,14 @@ import {
   Landmark,
   Package,
   Route,
+  Truck,
   Smartphone,
   Wallet,
   X,
   type LucideIcon,
 } from 'lucide-react';
+import Image from 'next/image';
+import { SHIPPING_CATALOG } from '@/features/brain/components/service-cards';
 import { cn } from '@/lib/utils';
 import { FULFILLMENT_INFO, METHOD_LABEL, STATUS_INFO } from '../constants';
 import { formatMoney } from '../money';
@@ -243,7 +246,10 @@ export function ItemsTable({ order }: { order: OrderDetail }) {
         </thead>
         <tbody className="divide-y divide-line-subtle">
           {order.items.map((i) => (
-            <tr key={i.id} className="align-top">
+            <tr
+              key={i.id}
+              className="align-top transition-colors duration-150 hover:bg-wash/60 motion-reduce:transition-none"
+            >
               <td className="px-4 py-3 sm:pl-5">
                 <div className="flex items-start gap-3">
                   <span
@@ -326,5 +332,32 @@ export function PaymentRow({
         {formatMoney(payment.amountMinor, currency)}
       </span>
     </li>
+  );
+}
+
+/**
+ * The courier's mark: the official logo when Torio has one for that name (the same assets the Brain uses), otherwise a neutral
+ * truck icon. Never a made-up logo.
+ */
+export function CourierMark({ name }: { name: string }) {
+  const logo = SHIPPING_CATALOG.find(
+    (c) => c.name.toLowerCase() === name.trim().toLowerCase(),
+  )?.logo;
+  return (
+    <span className="flex h-9 min-w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-white px-1.5">
+      {logo ? (
+        <Image
+          src={logo.src}
+          alt={logo.alt}
+          width={logo.width}
+          height={logo.height}
+          sizes="96px"
+          className="object-contain"
+          style={{ width: 'auto', height: 'auto', maxWidth: 72, maxHeight: 22 }}
+        />
+      ) : (
+        <Truck size={16} aria-hidden className="text-muted" />
+      )}
+    </span>
   );
 }

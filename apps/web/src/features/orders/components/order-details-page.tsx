@@ -44,6 +44,7 @@ import { ConfirmDialog } from '@/features/inbox/components/confirm-dialog';
 import { fmtAgo, initialsOf } from '@/features/inbox/format';
 import { useTimeZone } from '@/features/settings/queries';
 import { fmtDateTime } from '@/lib/datetime';
+import { useBrain } from '@/features/brain/queries';
 import { useWorkspace } from '@/lib/workspace';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -68,7 +69,7 @@ import {
   TotalsSummary,
   validateLines,
 } from './order-fields';
-import { ItemsTable, OrderProgress, PaymentRow } from './order-parts';
+import { CourierMark, ItemsTable, OrderProgress, PaymentRow } from './order-parts';
 import { UnsavedActionDialog } from './unsaved-action-dialog';
 import { CLEAN, dirtyOf, draftFromOrder, type Draft } from '../order-draft';
 import { useUnsavedGuard } from '../use-unsaved-guard';
@@ -179,25 +180,6 @@ const EVENT_TITLE: Record<string, string> = {
 };
 const EVENT_PREVIEW = 6;
 
-function Meta({
-  label,
-  muted,
-  children,
-}: {
-  label: string;
-  muted?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <dt className="shrink-0 text-muted">{label}</dt>
-      <dd className={cn('m-0 min-w-0 break-words text-right', muted ? 'text-muted' : 'text-ink')}>
-        {children}
-      </dd>
-    </div>
-  );
-}
-
 const EVENT_ICON: Record<string, typeof Circle> = {
   created: Plus,
   payment: CreditCard,
@@ -219,6 +201,9 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
   const fmtFull = (iso: string) => fmtDateTime(iso, tz);
   const q = useOrder(ws, orderId);
   const m = useOrderMutations(ws);
+  // The store's enabled couriers, offered when adding shipment details. Quietly absent if the user cannot read the Brain.
+  const brain = useBrain(ws);
+  const couriers = brain.data?.config.shipping.providers ?? [];
   const o: OrderDetail | undefined = q.data;
   const [dialog, setDialog] = useState<'pay' | 'ship' | null>(null);
   const [confirm, setConfirm] = useState<'cancel' | null>(null);
@@ -345,11 +330,6 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
 
   const primaryIsPay =
     !!canPayments && !payBlock && !!o && o.outstandingMinor > 0 && !(canWrite && next);
-  const lastActivity = o?.events.reduce<string | null>(
-    (m, e) => (!m || e.createdAt > m ? e.createdAt : m),
-    null,
-  );
-
   const [allEvents, setAllEvents] = useState(false);
   const shownEvents = o ? (allEvents ? o.events : o.events.slice(0, EVENT_PREVIEW)) : [];
   const hasShipment = !!(
@@ -459,7 +439,7 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                   )}
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2 print:hidden lg:max-w-[66%] lg:justify-end">
+              <div className="flex flex-wrap items-center gap-2 print:hidden lg:shrink-0 lg:flex-nowrap lg:justify-end">
                 <Button
                   variant="outline"
                   loading={invoiceBusy}
@@ -714,10 +694,12 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                       ))}
                     </ul>
                   )}
-                  <p className="mb-0 mt-3 flex items-start gap-1.5 rounded-lg bg-wash px-2.5 py-2 text-xs text-muted">
-                    <Info size={13} aria-hidden className="mt-px shrink-0 text-faint" />
-                    Manual records entered by staff, not provider transactions.
-                  </p>
+                  {o.payments.length > 0 && (
+                    <p className="mb-0 mt-3 flex items-center gap-1.5 text-xs text-faint">
+                      <Info size={12} aria-hidden className="shrink-0" />
+                      Recorded manually by staff, not provider transactions.
+                    </p>
+                  )}
                 </Card>
 
                 <Card as="section" aria-label="Fulfillment">
@@ -770,39 +752,46 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                   )}
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="rounded-xl border border-line-subtle bg-wash/50 p-3">
-                      <div className="mb-1.5 flex items-center gap-1.5 text-[11.5px] font-medium uppercase tracking-wide text-muted">
+                      <div className="mb-2 flex items-center gap-1.5 text-[11.5px] font-medium uppercase tracking-wide text-muted">
                         <MapPin size={12} aria-hidden /> Ship to
                       </div>
                       {o.shippingAddress ? (
-                        <div className="whitespace-pre-wrap break-words text-[13.5px] leading-snug text-ink">
-                          {o.shippingAddress}
-                        </div>
+                        <>
+                          <div className="text-[13.5px] font-medium text-ink">
+                            {o.customer.name}
+                          </div>
+                          <div className="mt-0.5 whitespace-pre-wrap break-words text-[13.5px] leading-snug text-muted">
+                            {o.shippingAddress}
+                          </div>
+                          {o.customer.phone && (
+                            <a
+                              href={`tel:${o.customer.phone}`}
+                              className="mt-1.5 inline-flex items-center gap-1.5 text-[13px] tabular-nums text-muted no-underline hover:text-primary"
+                            >
+                              <Phone size={12} aria-hidden />
+                              {o.customer.phone}
+                            </a>
+                          )}
+                        </>
                       ) : (
                         <div className="text-[13px] text-muted">No shipping address added.</div>
                       )}
                     </div>
                     <div className="rounded-xl border border-line-subtle bg-wash/50 p-3">
-                      <div className="mb-1.5 flex items-center gap-1.5 text-[11.5px] font-medium uppercase tracking-wide text-muted">
+                      <div className="mb-2 flex items-center gap-1.5 text-[11.5px] font-medium uppercase tracking-wide text-muted">
                         <Truck size={12} aria-hidden /> Courier
                       </div>
                       {o.shippingMethod || o.carrier || o.trackingNumber ? (
-                        <dl className="m-0 flex flex-col gap-1 text-[13.5px]">
-                          {o.shippingMethod && (
-                            <div className="flex gap-2">
-                              <dt className="w-16 shrink-0 text-muted">Method</dt>
-                              <dd className="m-0 min-w-0 break-words">{o.shippingMethod}</dd>
-                            </div>
-                          )}
-                          {o.carrier && (
-                            <div className="flex gap-2">
-                              <dt className="w-16 shrink-0 text-muted">Carrier</dt>
-                              <dd className="m-0 min-w-0 break-words">{o.carrier}</dd>
-                            </div>
-                          )}
-                          {o.trackingNumber && (
-                            <div className="flex gap-2">
-                              <dt className="w-16 shrink-0 text-muted">Tracking</dt>
-                              <dd className="m-0 min-w-0 break-all">
+                        <div className="flex items-start gap-3">
+                          {o.carrier && <CourierMark name={o.carrier} />}
+                          <dl className="m-0 flex min-w-0 flex-1 flex-col gap-1 text-[13.5px]">
+                            {o.carrier && <div className="font-medium text-ink">{o.carrier}</div>}
+                            {o.shippingMethod && (
+                              <div className="text-muted">{o.shippingMethod}</div>
+                            )}
+                            {o.trackingNumber && (
+                              <div className="break-all">
+                                <span className="text-muted">Tracking </span>
                                 {safeHref(o.trackingUrl) ? (
                                   <a
                                     href={safeHref(o.trackingUrl)!}
@@ -814,12 +803,12 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                                     <ExternalLink size={11} aria-hidden />
                                   </a>
                                 ) : (
-                                  o.trackingNumber
+                                  <span className="tabular-nums text-ink">{o.trackingNumber}</span>
                                 )}
-                              </dd>
-                            </div>
-                          )}
-                        </dl>
+                              </div>
+                            )}
+                          </dl>
+                        </div>
                       ) : (
                         <div className="text-[13px] text-muted">No courier or tracking yet.</div>
                       )}
@@ -1088,9 +1077,21 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                   <CardHeader as="h2" title="Order summary" className="mb-3" />
                   <div className="flex flex-col gap-1.5 text-[13.5px]">
                     <Row label="Subtotal" value={formatMoney(o.subtotalMinor, o.currency)} />
-                    <Row label="Discount" value={formatMoney(-o.discountMinor, o.currency)} />
-                    <Row label="Shipping" value={formatMoney(o.shippingMinor, o.currency)} />
-                    <Row label="Tax" value={formatMoney(o.taxMinor, o.currency)} />
+                    <Row
+                      label="Discount"
+                      faint={o.discountMinor === 0}
+                      value={formatMoney(-o.discountMinor, o.currency)}
+                    />
+                    <Row
+                      label="Shipping"
+                      faint={o.shippingMinor === 0}
+                      value={formatMoney(o.shippingMinor, o.currency)}
+                    />
+                    <Row
+                      label="Tax"
+                      faint={o.taxMinor === 0}
+                      value={formatMoney(o.taxMinor, o.currency)}
+                    />
                     <div className="my-1 border-t border-line-subtle" />
                     <div className="flex items-baseline justify-between gap-3">
                       <span className="text-[14px] font-semibold text-ink">Total</span>
@@ -1119,10 +1120,12 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                       {formatMoney(o.outstandingMinor, o.currency)}
                     </span>
                   </div>
-                  <p className="mb-0 mt-3 flex items-start gap-1.5 text-xs text-faint">
-                    <Info size={13} aria-hidden className="mt-px shrink-0" />
-                    Refunds aren&apos;t supported: Torio has no payment provider.
-                  </p>
+                  {o.paidMinor > 0 && (
+                    <p className="mb-0 mt-3 flex items-start gap-1.5 text-xs text-faint">
+                      <Info size={13} aria-hidden className="mt-px shrink-0" />
+                      Refunds aren&apos;t supported: Torio has no payment provider.
+                    </p>
+                  )}
                 </Card>
 
                 <Card as="section" aria-label="Customer">
@@ -1143,42 +1146,46 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                         <span className="truncate">{o.customer.name}</span>
                         <ExternalLink size={12} aria-hidden className="shrink-0 text-faint" />
                       </Link>
-                      <div className="text-xs text-muted">Customer</div>
+                      <Link
+                        href={`/customers?customer=${o.customer.id}`}
+                        className="mt-0.5 block w-fit text-xs text-primary no-underline hover:underline"
+                      >
+                        View profile
+                      </Link>
                     </div>
                   </div>
-                  <ul className="m-0 mt-3 flex list-none flex-col gap-1 p-0 text-[13px]">
-                    <li className="flex items-center gap-2.5 rounded-lg px-1 py-1">
-                      <Mail size={14} aria-hidden className="shrink-0 text-faint" />
-                      {o.customer.email ? (
-                        <a
-                          href={`mailto:${o.customer.email}`}
-                          title="Send an email"
-                          className="min-w-0 break-all text-ink no-underline hover:text-primary"
-                        >
-                          {o.customer.email}
-                        </a>
-                      ) : (
-                        <span className="text-faint">No email</span>
+                  {o.customer.email || o.customer.phone ? (
+                    <ul className="m-0 mt-3 flex list-none flex-col gap-1 p-0 text-[13px]">
+                      {o.customer.email && (
+                        <li className="flex items-center gap-2.5 px-1 py-1">
+                          <Mail size={14} aria-hidden className="shrink-0 text-faint" />
+                          <a
+                            href={`mailto:${o.customer.email}`}
+                            title="Send an email"
+                            className="min-w-0 break-all text-ink no-underline hover:text-primary"
+                          >
+                            {o.customer.email}
+                          </a>
+                        </li>
                       )}
-                    </li>
-                    <li className="flex items-center gap-2.5 rounded-lg px-1 py-1">
-                      <Phone size={14} aria-hidden className="shrink-0 text-faint" />
-                      {o.customer.phone ? (
-                        <a
-                          href={`tel:${o.customer.phone}`}
-                          title="Call"
-                          className="tabular-nums text-ink no-underline hover:text-primary"
-                        >
-                          {o.customer.phone}
-                        </a>
-                      ) : (
-                        <span className="text-faint">No phone</span>
+                      {o.customer.phone && (
+                        <li className="flex items-center gap-2.5 px-1 py-1">
+                          <Phone size={14} aria-hidden className="shrink-0 text-faint" />
+                          <a
+                            href={`tel:${o.customer.phone}`}
+                            title="Call"
+                            className="tabular-nums text-ink no-underline hover:text-primary"
+                          >
+                            {o.customer.phone}
+                          </a>
+                        </li>
                       )}
-                    </li>
-                  </ul>
-                  <p className="mb-0 mt-2 text-xs text-faint">
-                    Contact details belong to the customer profile, shared by all their orders.
-                  </p>
+                    </ul>
+                  ) : (
+                    <p className="m-0 mt-3 text-[13px] text-muted">
+                      No contact details on the customer profile yet.
+                    </p>
+                  )}
                   {o.customerConversations.length > 0 && (
                     <div className="mt-3 border-t border-line-subtle pt-3">
                       <div className="mb-1 text-[11.5px] font-medium uppercase tracking-wide text-faint">
@@ -1214,28 +1221,6 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                     </div>
                   )}
                 </Card>
-
-                <Card as="section" aria-label="Order information">
-                  <CardHeader as="h2" title="Details" className="mb-3" />
-                  <dl className="m-0 flex flex-col gap-2 text-[13px]">
-                    <Meta label="Channel">{CHANNEL_LABEL[o.channel]}</Meta>
-                    <Meta label="Currency">{o.currency}</Meta>
-                    <div className="my-0.5 border-t border-line-subtle" />
-                    <Meta label="Created" muted>
-                      {fmtFull(o.createdAt)}
-                    </Meta>
-                    {lastActivity && (
-                      <Meta label="Last activity" muted>
-                        {fmtFull(lastActivity)}
-                      </Meta>
-                    )}
-                    {o.createdBy && (
-                      <Meta label="Created by" muted>
-                        {o.createdBy.name}
-                      </Meta>
-                    )}
-                  </dl>
-                </Card>
               </div>
             </div>
           </>
@@ -1255,6 +1240,7 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
       {o && dialog === 'ship' && (
         <FulfillmentDialog
           order={o}
+          providers={couriers}
           onClose={() => setDialog(null)}
           onSubmit={async (body) => {
             await m.setFulfillment.mutateAsync({ id: o.id, body });
