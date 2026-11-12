@@ -1309,27 +1309,40 @@ test.describe('brain (admin)', () => {
     await expect(ship.getByRole('listitem').filter({ hasText: /Local Rider/i })).toHaveCount(1);
   });
 
-  test('the card menu is keyboard accessible and removes only that entry', async ({ page }) => {
+  test('payment methods are selectable logo cards that toggle and save', async ({ page }) => {
     await openTab(page, 'Knowledge');
     const pay = page.getByRole('region', { name: 'Payment Methods' });
-    await pay.getByRole('button', { name: 'Add Payment Method' }).click();
-    await page
-      .getByRole('dialog', { name: 'Add payment method' })
-      .getByRole('button', { name: /Nagad/ })
-      .click();
-    const trigger = pay.getByRole('button', { name: 'Actions for bKash' });
-    await trigger.focus();
-    await page.keyboard.press('ArrowDown');
-    const item = page.getByRole('menuitem', { name: 'Remove' });
-    await expect(item).toBeFocused();
-    await page.keyboard.press('Escape');
-    await expect(item).toHaveCount(0);
-    await expect(trigger).toBeFocused();
-    await trigger.click();
-    await page.getByRole('menuitem', { name: 'Remove' }).click();
-    await expect(pay.getByRole('listitem').filter({ hasText: 'bKash' })).toHaveCount(0);
-    await expect(pay.getByRole('listitem').filter({ hasText: 'Nagad' })).toBeVisible();
+    for (const [alt, ratio] of [
+      ['bKash logo', 738 / 354],
+      ['Nagad logo', 334 / 132],
+      ['Rocket logo', 673 / 430],
+      ['Upay logo', 272 / 397],
+      ['Card payments icon', 1],
+      ['Bank transfer icon', 1],
+    ] as const) {
+      const img = pay.getByRole('img', { name: alt });
+      await img.scrollIntoViewIfNeeded(); // images are lazy-loaded
+      await expect(img).toBeVisible();
+      const i = await img.evaluate((el: HTMLImageElement) => ({
+        ok: el.complete && el.naturalWidth > 0,
+        r: el.naturalWidth / el.naturalHeight,
+        fit: getComputedStyle(el).objectFit,
+      }));
+      expect(i.ok).toBe(true);
+      expect(i.fit).toBe('contain');
+      expect(Math.abs(i.r / ratio - 1)).toBeLessThan(0.02);
+    }
+    await expect(pay.getByRole('button', { name: 'bKash, selected' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await pay.getByRole('button', { name: 'Nagad', exact: true }).click();
+    await pay.getByRole('button', { name: 'bKash, selected' }).click();
     await expect(page.getByRole('button', { name: /Unsaved changes/ })).toBeVisible();
+    await page.getByRole('button', { name: 'Save Changes' }).click();
+    await expect(page.getByText('Brain saved.')).toBeVisible();
+    const put = brainState.puts.at(-1) as { config: { shipping: { payments: string[] } } };
+    expect(put.config.shipping.payments).toEqual(['Nagad']);
   });
 
   test('an empty list shows an empty state with the Add card; the courier grid fits a phone', async ({
@@ -1337,8 +1350,7 @@ test.describe('brain (admin)', () => {
   }) => {
     await openTab(page, 'Knowledge');
     const pay = page.getByRole('region', { name: 'Payment Methods' });
-    await pay.getByRole('button', { name: 'Actions for bKash' }).click();
-    await page.getByRole('menuitem', { name: 'Remove' }).click();
+    await pay.getByRole('button', { name: 'bKash, selected' }).click();
     await expect(pay.getByText('No payment methods yet.')).toBeVisible();
     await expect(pay.getByRole('button', { name: /Add Payment Method/ })).toBeVisible();
     await page.setViewportSize({ width: 390, height: 844 });

@@ -92,11 +92,42 @@ export const SHIPPING_CATALOG: CatalogEntry[] = [
   },
 ];
 export const PAYMENT_CATALOG: CatalogEntry[] = [
-  { name: 'bKash', category: 'Mobile financial service', icon: Smartphone },
-  { name: 'Nagad', category: 'Mobile financial service', icon: Smartphone },
-  { name: 'Rocket', category: 'Mobile financial service', icon: Smartphone },
-  { name: 'Card', category: 'Card payments', icon: CreditCard },
-  { name: 'Bank transfer', category: 'Bank payments', icon: Landmark },
+  {
+    name: 'bKash',
+    category: 'Mobile financial service',
+    icon: Smartphone,
+    logo: { src: '/brands/bkash.png', alt: 'bKash logo', width: 738, height: 354 },
+  },
+  {
+    name: 'Nagad',
+    category: 'Mobile financial service',
+    icon: Smartphone,
+    logo: { src: '/brands/nagad.png', alt: 'Nagad logo', width: 334, height: 132 },
+  },
+  {
+    name: 'Rocket',
+    category: 'Mobile financial service',
+    icon: Smartphone,
+    logo: { src: '/brands/rocket.png', alt: 'Rocket logo', width: 673, height: 430 },
+  },
+  {
+    name: 'Upay',
+    category: 'Mobile financial service',
+    icon: Smartphone,
+    logo: { src: '/brands/upay.png', alt: 'Upay logo', width: 272, height: 397 },
+  },
+  {
+    name: 'Card',
+    category: 'Card payments',
+    icon: CreditCard,
+    logo: { src: '/brands/card-payment.png', alt: 'Card payments icon', width: 512, height: 512 },
+  },
+  {
+    name: 'Bank transfer',
+    category: 'Bank payments',
+    icon: Landmark,
+    logo: { src: '/brands/bank-transfer.png', alt: 'Bank transfer icon', width: 512, height: 512 },
+  },
 ];
 
 const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();

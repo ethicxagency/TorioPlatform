@@ -277,6 +277,7 @@ export function PoliciesSection({ d, mut }: SectionProps) {
           emptyText="Add the ways customers can pay so AI can tell them."
           catalog={PAYMENT_CATALOG}
           customCategory="Custom payment method"
+          selectable
           values={s.payments}
           onChange={(v) =>
             mut((c) => {
