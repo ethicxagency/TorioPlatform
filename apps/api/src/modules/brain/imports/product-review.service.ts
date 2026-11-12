@@ -23,7 +23,6 @@ const SOURCE_LABEL: Record<string, string> = {
   GOOGLE_MERCHANT: 'Google Merchant Center',
   MANUAL: 'Manual',
 };
-const sameValue = (a: string, b: string) => norm(a) === norm(b);
 
 /**
  * One review queue for products from every source. The same product found by several sources (website, feed, Meta, Google)
