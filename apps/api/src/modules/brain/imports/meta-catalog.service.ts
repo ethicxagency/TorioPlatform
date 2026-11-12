@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   ConflictException,
-  HttpException,
   Inject,
   Injectable,
   Logger,
@@ -17,13 +16,9 @@ import { explain, MetaConnectionService } from '../../meta/meta.connection.servi
 import { MetaGraphProvider } from '../../meta/meta.graph-provider';
 import type { MetaCatalogProduct } from '../../meta/meta.graph';
 import { ChannelCryptoService } from '../../whatsapp/channel-crypto.service';
-import { classify, insertProposals, MAX_RECORDS, previousImports } from './propose';
+import { ACTIVE, newCatalogState, stepCatalog } from './catalog-step';
 import { effectiveMapping, mapItems, type FeedMapping, type RawItem } from './xml';
 
-const ACTIVE = ['QUEUED', 'RUNNING'] as const;
-const MAX_ITEMS = 5000;
-const STEP_MS = 30_000;
-const MAX_STEP_PAGES = 12;
 /** The catalog's fields land under these names, so the shared mapping and validation apply unchanged. */
 const MAPPING: FeedMapping = {
   externalId: 'id',
@@ -41,20 +36,6 @@ const MAPPING: FeedMapping = {
 interface CatalogConfig {
   catalogId?: string;
   catalogName?: string;
-}
-interface CatalogState {
-  catalogId: string;
-  cursor: string | null;
-  seen: string[];
-  items: number;
-  proposed: number;
-  newCount: number;
-  changed: number;
-  unchanged: number;
-  invalid: number;
-  duplicates: number;
-  warnings: string[];
-  lockUntil: number;
 }
 interface Secret {
   token: string;
@@ -347,20 +328,7 @@ export class MetaCatalogService {
       select: { id: true },
     });
     if (running) throw new ConflictException('This catalog is already syncing.');
-    const state: CatalogState = {
-      catalogId: cfg.catalogId,
-      cursor: null,
-      seen: [],
-      items: 0,
-      proposed: 0,
-      newCount: 0,
-      changed: 0,
-      unchanged: 0,
-      invalid: 0,
-      duplicates: 0,
-      warnings: [],
-      lockUntil: 0,
-    };
+    const state = newCatalogState(cfg.catalogId);
     const job = await db.importJob.create({
       data: {
         workspaceId,
@@ -387,143 +355,41 @@ export class MetaCatalogService {
 
   /** Reads catalog pages for a bounded time, proposing new or changed products, and carries on from the cursor next call. */
   async step(workspaceId: string, jobId: string) {
-    const db = this.prisma.client;
-    const job = await db.importJob.findFirst({
-      where: { id: jobId, workspaceId, kind: 'META_CATALOG' },
-    });
-    if (!job) throw new NotFoundException('Import not found.');
-    if (!ACTIVE.includes(job.status as 'QUEUED')) return;
-    const s = job.state as unknown as CatalogState;
-    if (s.lockUntil > Date.now()) return;
-    s.lockUntil = Date.now() + STEP_MS + 15_000;
-    await db.importJob.update({
-      where: { id: job.id },
-      data: {
-        status: 'RUNNING',
-        startedAt: job.startedAt ?? new Date(),
-        state: s as unknown as Prisma.InputJsonValue,
-      },
-    });
+    let token = '';
     try {
-      const { token } = await this.token(workspaceId);
-      const g = this.graph.get();
-      const previous = await previousImports(this.prisma, workspaceId, job.sourceId, job.id);
-      const t0 = Date.now();
-      let done = false;
-      for (let page = 0; page < MAX_STEP_PAGES && Date.now() - t0 < STEP_MS; page++) {
-        const fresh = await db.importJob.findUnique({
-          where: { id: job.id },
-          select: { status: true },
-        });
-        if (fresh?.status !== 'RUNNING') return;
-        const r = await g.catalogProducts(token, s.catalogId, s.cursor ?? undefined);
-        const raws = r.products.map(toRaw);
-        s.items += raws.length;
-        const mapped = mapItems(raws, MAPPING);
-        s.invalid += mapped.invalid;
-        const seen = new Set(s.seen);
-        const batch = mapped.products.filter((p) => {
-          const k = p.externalId ? `id:${p.externalId}` : `n:${p.data['name']!.toLowerCase()}`;
-          if (seen.has(k)) {
-            s.duplicates++;
-            return false;
-          }
-          seen.add(k);
-          s.seen.push(k);
-          return true;
-        });
-        const { fresh: proposals, unchanged } = classify(batch, previous);
-        s.unchanged += unchanged;
-        const room = MAX_RECORDS - s.proposed;
-        const kept = proposals.slice(0, Math.max(0, room));
-        await insertProposals(
-          this.prisma,
-          workspaceId,
-          job.id,
-          kept,
-          'https://business.facebook.com',
-        );
-        s.proposed += kept.length;
-        s.newCount += kept.filter((p) => p.change === 'new').length;
-        s.changed += kept.filter((p) => p.change === 'changed').length;
-        s.cursor = r.next;
-        await db.importJob.update({
-          where: { id: job.id },
-          data: { state: s as unknown as Prisma.InputJsonValue },
-        });
-        if (!r.next || s.items >= MAX_ITEMS) {
-          done = true;
-          break;
-        }
-      }
-      if (!done) {
-        s.lockUntil = 0;
-        await db.importJob.update({
-          where: { id: job.id },
-          data: { state: s as unknown as Prisma.InputJsonValue },
-        });
-        return;
-      }
-      const w: string[] = [];
-      if (s.invalid)
-        w.push(`${s.invalid} item${s.invalid === 1 ? ' has' : 's have'} no name and were skipped.`);
-      if (s.duplicates)
-        w.push(`${s.duplicates} duplicate${s.duplicates === 1 ? '' : 's'} ignored.`);
-      if (s.unchanged)
-        w.push(
-          `${s.unchanged} product${s.unchanged === 1 ? ' is' : 's are'} unchanged since the last import and were left out.`,
-        );
-      if (s.items >= MAX_ITEMS) w.push('Only the first 5,000 products of the catalog were read.');
-      if (s.proposed >= MAX_RECORDS)
-        w.push(`Only the first ${MAX_RECORDS} new or changed products are proposed this time.`);
-      s.warnings = w;
-      s.lockUntil = 0;
-      await db.importJob.update({
-        where: { id: job.id },
-        data: {
-          status: s.proposed ? 'NEEDS_REVIEW' : 'COMPLETED',
-          finishedAt: new Date(),
-          stats: {
-            items: s.items,
-            products: s.newCount,
-            changed: s.changed,
-            unchanged: s.unchanged,
-            invalid: s.invalid,
-            duplicates: s.duplicates,
-          },
-          state: s as unknown as Prisma.InputJsonValue,
-        },
-      });
-      if (job.sourceId)
-        await db.importSource.updateMany({
-          where: { id: job.sourceId },
-          data: { lastSyncedAt: new Date(), lastError: null, status: 'ACTIVE' },
-        });
+      token = (await this.token(workspaceId)).token;
     } catch (e) {
-      const msg =
-        e instanceof HttpException
-          ? String((e.getResponse() as { message?: string }).message ?? e.message)
-          : explain(e);
-      if (!(e instanceof HttpException))
-        this.log.warn(`Catalog job ${jobId} failed: ${(e as Error).message}`);
-      s.lockUntil = 0;
-      await db.importJob.update({
-        where: { id: jobId },
-        data: {
-          status: 'FAILED',
-          error: msg,
-          finishedAt: new Date(),
-          state: s as unknown as Prisma.InputJsonValue,
-        },
+      // surface "not connected" etc. as the job's failure through the shared stepper
+      await stepCatalog({
+        prisma: this.prisma,
+        log: this.log,
+        kind: 'META_CATALOG',
+        workspaceId,
+        jobId,
+        fetchPage: () => Promise.reject(e),
+        mapping: MAPPING,
+        fallbackUrl: 'https://business.facebook.com',
+        describe: (x) => ({ message: explain(x), reconnect: false }),
       });
-      if (job.sourceId)
-        await db.importSource.updateMany({
-          where: { id: job.sourceId },
-          data: {
-            lastError: msg,
-            ...((e as { tokenExpired?: boolean }).tokenExpired && { status: 'ERROR' as const }),
-          },
-        });
+      return;
     }
+    const g = this.graph.get();
+    await stepCatalog({
+      prisma: this.prisma,
+      log: this.log,
+      kind: 'META_CATALOG',
+      workspaceId,
+      jobId,
+      mapping: MAPPING,
+      fallbackUrl: 'https://business.facebook.com',
+      fetchPage: async (s) => {
+        const r = await g.catalogProducts(token, s.catalogId, s.cursor ?? undefined);
+        return { items: r.products.map(toRaw), next: r.next };
+      },
+      describe: (e) => ({
+        message: explain(e),
+        reconnect: !!(e as { tokenExpired?: boolean }).tokenExpired,
+      }),
+    });
   }
 }

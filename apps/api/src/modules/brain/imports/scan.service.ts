@@ -19,6 +19,7 @@ import { APP_CONFIG, type AppConfig } from '../../../config/config.module';
 import { PrismaService } from '../../../database/prisma.service';
 import { BrainService } from '../brain.service';
 import { FeedService } from './feed.service';
+import { GoogleMerchantService } from './google-merchant.service';
 import { MetaCatalogService } from './meta-catalog.service';
 import { aiCandidates } from './ai';
 import {
@@ -77,6 +78,7 @@ export class ScanService {
     private readonly brain: BrainService,
     private readonly feeds: FeedService,
     private readonly catalog: MetaCatalogService,
+    private readonly google: GoogleMerchantService,
     @Inject(APP_CONFIG) private readonly cfg: AppConfig,
   ) {}
 
@@ -209,7 +211,7 @@ export class ScanService {
     return {
       job: this.view(j),
       progress:
-        j.kind === 'XML_FEED' || j.kind === 'META_CATALOG'
+        j.kind === 'XML_FEED' || j.kind === 'META_CATALOG' || j.kind === 'GOOGLE_MERCHANT'
           ? {
               pages: (j.stats as { items?: number } | null)?.items ?? 0,
               maxPages: (j.stats as { items?: number } | null)?.items ?? 0,
@@ -260,9 +262,10 @@ export class ScanService {
   async step(workspaceId: string, jobId: string, budgetMs = 9000) {
     const db = this.prisma.client;
     const job = await this.load(workspaceId, jobId);
-    if (job.kind === 'XML_FEED' || job.kind === 'META_CATALOG') {
+    if (job.kind === 'XML_FEED' || job.kind === 'META_CATALOG' || job.kind === 'GOOGLE_MERCHANT') {
       if (job.kind === 'XML_FEED') await this.feeds.step(workspaceId, jobId);
-      else await this.catalog.step(workspaceId, jobId);
+      else if (job.kind === 'META_CATALOG') await this.catalog.step(workspaceId, jobId);
+      else await this.google.step(workspaceId, jobId);
       return this.detail(workspaceId, jobId);
     }
     if (!ACTIVE.includes(job.status as 'QUEUED')) return this.detail(workspaceId, jobId);
@@ -582,6 +585,8 @@ export class ScanService {
     const j = await this.load(workspaceId, jobId);
     if (j.status !== 'FAILED' && j.status !== 'CANCELLED')
       throw new ConflictException('Only a failed or cancelled scan can be retried.');
+    if (j.kind === 'GOOGLE_MERCHANT')
+      return this.detail(workspaceId, await this.google.startJob(workspaceId, userId));
     if (j.kind === 'META_CATALOG')
       return this.detail(workspaceId, await this.catalog.startJob(workspaceId, userId));
     if (j.kind === 'XML_FEED') {

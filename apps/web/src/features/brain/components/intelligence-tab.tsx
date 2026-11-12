@@ -23,7 +23,7 @@ import { useWorkspace } from '@/lib/workspace';
 import { useImports, useSourceAction, type ImportOverview } from '../queries';
 import { fmtAgoIso } from './bits';
 import { FeedDialog, FeedPanel } from './feed-import';
-import { MetaCatalogCard } from './meta-catalog';
+import { CatalogSourceCard } from './meta-catalog';
 import { WebsiteScan } from './website-scan';
 
 type Source = ImportOverview['sources'][number];
@@ -293,7 +293,9 @@ export function IntelligenceTab({
   const [feedDialog, setFeedDialog] = useState(false);
   const [feedChoice, setFeedChoice] = useState<string | null | undefined>(undefined);
   const [feedError, setFeedError] = useState('');
-  const metaReturn = useSearchParams().get('meta_catalog');
+  const params = useSearchParams();
+  const metaReturn = params.get('meta_catalog');
+  const googleReturn = params.get('google_merchant');
   const sync = useSourceAction(workspaceId ?? '', 'sync');
   const disconnect = useSourceAction(workspaceId ?? '', 'disconnect');
   const data = imports.data;
@@ -371,10 +373,11 @@ export function IntelligenceTab({
                 p={p}
                 sources={sources}
                 custom={
-                  p.kind === 'META_CATALOG' && workspaceId ? (
-                    <MetaCatalogCard
+                  (p.kind === 'META_CATALOG' || p.kind === 'GOOGLE_MERCHANT') && workspaceId ? (
+                    <CatalogSourceCard
                       ws={workspaceId}
-                      returned={metaReturn}
+                      provider={p.kind === 'META_CATALOG' ? 'meta' : 'google'}
+                      returned={p.kind === 'META_CATALOG' ? metaReturn : googleReturn}
                       onStarted={setFeedChoice}
                     />
                   ) : undefined

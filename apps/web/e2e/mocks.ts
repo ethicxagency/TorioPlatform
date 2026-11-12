@@ -135,7 +135,21 @@ export const metaState = {
   selected: [] as string[],
   syncs: 0,
 };
+export const googleState = {
+  available: false,
+  connected: false,
+  status: 'ACTIVE' as string,
+  catalog: null as null | { id: string; name: string },
+  selected: [] as string[],
+  syncs: 0,
+};
 export function resetMeta() {
+  googleState.available = false;
+  googleState.connected = false;
+  googleState.status = 'ACTIVE';
+  googleState.catalog = null;
+  googleState.selected = [];
+  googleState.syncs = 0;
   metaState.available = false;
   metaState.connected = false;
   metaState.status = 'ACTIVE';
@@ -1780,6 +1794,82 @@ export async function mockApi(
           catalog: metaState.catalog,
           lastSyncedAt: null,
         });
+      if (sub === '/google')
+        return reply({
+          available: googleState.available,
+          reason: googleState.available
+            ? null
+            : 'Merchant Center import is switched off on this server. It needs a Google OAuth app approved for the Merchant API scope (Google OAuth verification).',
+          connected: googleState.connected,
+          sourceId: googleState.connected ? '9d0f0000-0000-4000-8000-0000000000c2' : null,
+          status: googleState.connected ? googleState.status : null,
+          lastError:
+            googleState.status === 'ERROR'
+              ? 'Google authorization expired or was revoked. Reconnect to continue.'
+              : null,
+          catalog: googleState.catalog,
+          lastSyncedAt: null,
+        });
+      if (sub === '/google/connect')
+        return reply({
+          url: 'https://accounts.google.com/o/oauth2/v2/auth?scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcontent&access_type=offline',
+        });
+      if (sub === '/google/accounts')
+        return reply({
+          data: [{ id: '42', name: 'UrbanNest Merchant', businessName: null, productCount: null }],
+        });
+      if (sub === '/google/account') {
+        const b = req.postDataJSON() as { catalogId: string; name: string };
+        googleState.selected.push(b.catalogId);
+        googleState.catalog = { id: b.catalogId, name: b.name };
+        return reply({
+          available: true,
+          reason: null,
+          connected: true,
+          sourceId: null,
+          status: 'ACTIVE',
+          lastError: null,
+          catalog: googleState.catalog,
+          lastSyncedAt: null,
+        });
+      }
+      if (sub === '/google/preview')
+        return reply({
+          format: 'google-merchant',
+          totalItems: 8,
+          valid: 7,
+          invalid: 0,
+          duplicates: 1,
+          missingPrice: 0,
+          truncated: false,
+          tags: [],
+          mapping: {},
+          issues: [],
+          sample: [
+            { data: { name: 'Linen Cushion', price: '900', currency: 'BDT' }, warnings: [] },
+          ],
+        });
+      if (sub === '/google/sync') {
+        googleState.syncs++;
+        scanState.started = true;
+        scanState.kind = 'GOOGLE_MERCHANT';
+        scanState.status = 'QUEUED';
+        scanState.records = [
+          rec(
+            '9d0f0000-0000-4000-8000-0000000000e1',
+            'product',
+            'Linen Cushion',
+            { name: 'Linen Cushion', price: '900', currency: 'BDT', change: 'new' },
+            85,
+          ),
+        ];
+        return reply(job('QUEUED'));
+      }
+      if (sub === '/google/disconnect') {
+        googleState.connected = false;
+        googleState.status = 'DISCONNECTED';
+        return reply({ ok: true });
+      }
       if (sub === '/meta/connect')
         return reply({
           url: 'https://www.facebook.com/v27.0/dialog/oauth?scope=business_management,catalog_management',

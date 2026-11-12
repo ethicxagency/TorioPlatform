@@ -64,6 +64,7 @@ describe('FeedService', () => {
       feeds,
       {} as never,
       {} as never,
+      {} as never,
     );
   });
 

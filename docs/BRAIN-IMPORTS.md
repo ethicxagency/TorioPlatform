@@ -14,7 +14,9 @@ operator must do, and the safety rules the scan follows.
   Disconnecting a feed stops syncing and never removes anything already imported.
 - **Meta Catalog**: connect Meta (catalog permissions), choose one of the account's catalogs, preview it, import its products
   for review. Same review, change-only re-sync and disconnect rules as XML feeds. Manual sync only.
-- **Not built yet**: Google Merchant Center. The Intelligence page shows them as not connected
+- **Google Merchant Center**: connect Google (Merchant API scope), choose a Merchant Center account, preview, import its
+  products for review, with the same change-only re-sync and disconnect rules.
+- **Not built yet**: the shared product review across sources (conflict resolution between feeds and catalogs). The Intelligence page shows them as not connected
   and says why.
 
 ## Operator steps (nothing runs automatically)
@@ -69,3 +71,25 @@ connect button. Nothing is simulated.
   rate limits are reported in plain words.
 - Products are read 100 at a time, up to 5,000, in bounded steps that continue from a cursor.
 - Not verified against Meta's live API: the Graph calls are unit-tested with a fake client only.
+
+## Google Merchant Center
+
+Uses the Merchant API (`merchantapi.googleapis.com`, accounts/v1 and products/v1; the older Content API for Shopping is
+retired) with the single scope `https://www.googleapis.com/auth/content`. It has its own authorization flow and callback
+(`/api/v1/brain/imports/google/callback`, signed state bound to workspace and user). Sign-in with Google is separate and
+unchanged; only the same OAuth client ID and secret are shared.
+
+**It is off by default.** Turn it on with `GOOGLE_MERCHANT_ENABLED=true` once the Google OAuth app is verified for this
+sensitive scope, and set `GOOGLE_MERCHANT_REDIRECT_URI` to the callback address above (it must also be listed in the Google
+console). `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and the channel encryption key are required.
+
+- Only the refresh token is stored, as ciphertext in `import_source_secrets`; short-lived access tokens are requested when
+  needed and nothing reaches the browser. Disconnecting asks Google to revoke the grant and deletes the token; imported
+  products stay in Brain.
+- Only a Merchant Center account the connected Google account can list can be chosen.
+- A revoked or expired grant (`invalid_grant`) ends the sync with "Reconnect"; 403 (account access or unapproved app) and
+  rate limits are reported in plain words.
+- Products are read 250 at a time, up to 5,000, in bounded steps from a page token. The same offer listed for several
+  channels is one product (by offer ID).
+- Not verified against Google's live API: the HTTP calls are unit-tested with a fake client only, so check the field names
+  and quotas with a real account before relying on it.

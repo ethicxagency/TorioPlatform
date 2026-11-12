@@ -42,6 +42,10 @@ export const envSchema = z
     GOOGLE_CLIENT_SECRET: z.string().min(8).optional(),
     /** Defaults to WEB_URL + /api/v1/auth/oauth/google/callback. Must match the Google console exactly. */
     GOOGLE_REDIRECT_URI: z.url().optional(),
+    /** Opt in to the Google Merchant Center import once the Google OAuth app is approved for the Merchant API scope. Off by default. */
+    GOOGLE_MERCHANT_ENABLED: bool,
+    /** Where Google sends the browser after the Merchant Center authorization: https://<api-host>/api/v1/brain/imports/google/callback. Must be listed in the Google console exactly. Uses GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET. */
+    GOOGLE_MERCHANT_REDIRECT_URI: z.url().optional(),
     FACEBOOK_APP_ID: z
       .string()
       .regex(/^\d{6,}$/, 'must be the numeric Facebook app id')

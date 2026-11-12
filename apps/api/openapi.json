@@ -5387,6 +5387,254 @@
         ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/brain/imports/google": {
+      "get": {
+        "operationId": "ImportsController_googleStatus",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaCatalogStatusDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "brain"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/brain/imports/google/connect": {
+      "post": {
+        "operationId": "ImportsController_googleConnect",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaCatalogUrlDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "brain"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/brain/imports/google/accounts": {
+      "get": {
+        "operationId": "ImportsController_googleAccounts",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaCatalogListDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "brain"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/brain/imports/google/account": {
+      "post": {
+        "operationId": "ImportsController_googleSelect",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetaCatalogSelectDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaCatalogStatusDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "brain"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/brain/imports/google/preview": {
+      "post": {
+        "operationId": "ImportsController_googlePreview",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedPreviewDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "brain"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/brain/imports/google/sync": {
+      "post": {
+        "operationId": "ImportsController_googleSync",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportJobDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "brain"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/brain/imports/google/disconnect": {
+      "post": {
+        "operationId": "ImportsController_googleDisconnect",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "brain"
+        ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/brain/imports/jobs/{jobId}": {
       "get": {
         "operationId": "ImportsController_job",

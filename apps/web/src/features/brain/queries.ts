@@ -278,108 +278,119 @@ export function useSourceAction(ws: string, action: 'sync' | 'disconnect') {
   });
 }
 
-// ---------- Meta Catalog ----------
+// ---------- Meta Catalog and Google Merchant Center (same shape, different provider) ----------
 
-const M = `${I}/meta`;
-const metaKey = (ws: string) => ['brain-meta-catalog', ws] as const;
+export type CatalogProvider = 'meta' | 'google';
+const ENDPOINT = {
+  meta: { list: 'catalogs', pick: 'catalog' },
+  google: { list: 'accounts', pick: 'account' },
+} as const;
+const at = (p: CatalogProvider, rest = '') => `${I}/${p}${rest}`;
+const metaKey = (ws: string, p: CatalogProvider) => ['brain-catalog-source', p, ws] as const;
 
-export function useMetaCatalog(ws: string | null) {
+export function useCatalogSource(ws: string | null, p: CatalogProvider) {
   return useQuery({
-    queryKey: metaKey(ws ?? ''),
+    queryKey: metaKey(ws ?? '', p),
     enabled: !!ws,
     queryFn: async (): Promise<MetaCatalogStatus> => {
-      const { data, error, response } = await api.GET(M, {
-        params: { path: { workspaceId: ws! } },
-      });
-      if (!data) throw fail(error, 'Could not load the Meta connection', response.status);
+      const { data, error, response } = await api.GET(
+        at(p) as never,
+        { params: { path: { workspaceId: ws! } } } as never,
+      );
+      if (!data) throw fail(error, 'Could not load the connection', response.status);
       return data as unknown as MetaCatalogStatus;
     },
   });
 }
 
-export function useMetaConnect(ws: string) {
+export function useCatalogConnect(ws: string, p: CatalogProvider) {
   return useMutation({
     mutationFn: async (): Promise<{ url: string }> => {
-      const { data, error, response } = await api.POST(`${M}/connect`, {
-        params: { path: { workspaceId: ws } },
-      });
-      if (!data) throw fail(error, 'Could not start the Meta connection', response.status);
+      const { data, error, response } = await api.POST(
+        at(p, '/connect') as never,
+        { params: { path: { workspaceId: ws } } } as never,
+      );
+      if (!data) throw fail(error, 'Could not start the connection', response.status);
       return data as unknown as { url: string };
     },
   });
 }
 
-export function useMetaCatalogs(ws: string, enabled: boolean) {
+export function useCatalogList(ws: string, p: CatalogProvider, enabled: boolean) {
   return useQuery({
-    queryKey: ['brain-meta-catalogs', ws] as const,
+    queryKey: ['brain-catalog-list', p, ws] as const,
     enabled,
     retry: false,
     queryFn: async (): Promise<MetaCatalogList> => {
-      const { data, error, response } = await api.GET(`${M}/catalogs`, {
-        params: { path: { workspaceId: ws } },
-      });
-      if (!data) throw fail(error, 'Could not list your catalogs', response.status);
+      const { data, error, response } = await api.GET(
+        at(p, `/${ENDPOINT[p].list}`) as never,
+        { params: { path: { workspaceId: ws } } } as never,
+      );
+      if (!data) throw fail(error, 'Could not list what this account has', response.status);
       return data as unknown as MetaCatalogList;
     },
   });
 }
 
-export function useMetaSelect(ws: string) {
+export function useCatalogSelect(ws: string, p: CatalogProvider) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (v: { catalogId: string; name: string }) => {
-      const { data, error, response } = await api.POST(`${M}/catalog`, {
-        params: { path: { workspaceId: ws } },
-        body: v,
-      });
-      if (!data) throw fail(error, 'Could not choose that catalog', response.status);
+      const { data, error, response } = await api.POST(
+        at(p, `/${ENDPOINT[p].pick}`) as never,
+        { params: { path: { workspaceId: ws } }, body: v } as never,
+      );
+      if (!data) throw fail(error, 'Could not choose that one', response.status);
       return data as unknown as MetaCatalogStatus;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: metaKey(ws) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: metaKey(ws, p) }),
   });
 }
 
-export function useMetaPreview(ws: string) {
+export function useCatalogPreview(ws: string, p: CatalogProvider) {
   return useMutation({
     mutationFn: async (): Promise<FeedPreview> => {
-      const { data, error, response } = await api.POST(`${M}/preview`, {
-        params: { path: { workspaceId: ws } },
-      });
-      if (!data) throw fail(error, 'Could not read the catalog', response.status);
+      const { data, error, response } = await api.POST(
+        at(p, '/preview') as never,
+        { params: { path: { workspaceId: ws } } } as never,
+      );
+      if (!data) throw fail(error, 'Could not read the products', response.status);
       return data as unknown as FeedPreview;
     },
   });
 }
 
-export function useMetaSync(ws: string) {
+export function useCatalogSync(ws: string, p: CatalogProvider) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (): Promise<ImportJobDetail> => {
-      const { data, error, response } = await api.POST(`${M}/sync`, {
-        params: { path: { workspaceId: ws } },
-      });
+      const { data, error, response } = await api.POST(
+        at(p, '/sync') as never,
+        { params: { path: { workspaceId: ws } } } as never,
+      );
       if (!data) throw fail(error, 'Could not start the sync', response.status);
       return data as unknown as ImportJobDetail;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: scanKey(ws) });
-      void qc.invalidateQueries({ queryKey: metaKey(ws) });
+      void qc.invalidateQueries({ queryKey: metaKey(ws, p) });
     },
   });
 }
 
-export function useMetaDisconnect(ws: string) {
+export function useCatalogDisconnect(ws: string, p: CatalogProvider) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      const { data, error, response } = await api.POST(`${M}/disconnect`, {
-        params: { path: { workspaceId: ws } },
-      });
+      const { data, error, response } = await api.POST(
+        at(p, '/disconnect') as never,
+        { params: { path: { workspaceId: ws } } } as never,
+      );
       if (!data) throw fail(error, 'Could not disconnect', response.status);
       return data;
     },
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: metaKey(ws) });
+      void qc.invalidateQueries({ queryKey: metaKey(ws, p) });
       void qc.invalidateQueries({ queryKey: scanKey(ws) });
     },
   });

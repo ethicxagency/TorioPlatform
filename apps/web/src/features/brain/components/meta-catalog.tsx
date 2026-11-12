@@ -8,17 +8,50 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Modal } from '@/features/leads/components/modal';
 import { cn } from '@/lib/utils';
 import {
-  useMetaCatalog,
-  useMetaCatalogs,
-  useMetaConnect,
-  useMetaDisconnect,
-  useMetaPreview,
-  useMetaSelect,
-  useMetaSync,
+  useCatalogConnect,
+  useCatalogDisconnect,
+  useCatalogList,
+  useCatalogPreview,
+  useCatalogSelect,
+  useCatalogSource,
+  useCatalogSync,
+  type CatalogProvider,
 } from '../queries';
 import { fmtAgoIso } from './bits';
 
+const LABEL = {
+  meta: {
+    brand: 'Meta',
+    connect: 'Connect Meta',
+    reconnect: 'Reconnect Meta',
+    disconnect: 'Disconnect Meta',
+    pick: 'Choose catalog',
+    change: 'Change catalog',
+    thing: 'catalog',
+    dialog: 'Import from a Meta catalog',
+    legend: 'Catalog',
+    preview: 'Catalog preview',
+    opening: 'Opening Meta…',
+  },
+  google: {
+    brand: 'Google',
+    connect: 'Connect Google',
+    reconnect: 'Reconnect Google',
+    disconnect: 'Disconnect Google',
+    pick: 'Choose account',
+    change: 'Change account',
+    thing: 'account',
+    dialog: 'Import from Google Merchant Center',
+    legend: 'Merchant Center account',
+    preview: 'Merchant Center preview',
+    opening: 'Opening Google…',
+  },
+} as const;
+
 const RETURN: Record<string, string> = {
+  invalid_state: 'That sign-in link was not valid or had expired. Start the connection again.',
+  no_refresh_token:
+    'Google did not allow ongoing access. Remove Torio under your Google account’s third-party access, then connect again.',
   denied: 'Meta access was not granted, so nothing was connected.',
   missing_permissions:
     'Meta did not grant catalog access. Approve every permission on the Meta screen, or ask the Torio admin to check the Meta app’s access to catalog_management.',
@@ -29,17 +62,20 @@ const RETURN: Record<string, string> = {
 /** Choose which catalog to import from, see what it contains, then start the sync. Products still go to review. */
 function CatalogDialog({
   ws,
+  provider,
   onClose,
   onStarted,
 }: {
   ws: string;
+  provider: CatalogProvider;
   onClose: () => void;
   onStarted: (jobId: string) => void;
 }) {
-  const list = useMetaCatalogs(ws, true);
-  const select = useMetaSelect(ws);
-  const preview = useMetaPreview(ws);
-  const sync = useMetaSync(ws);
+  const L = LABEL[provider];
+  const list = useCatalogList(ws, provider, true);
+  const select = useCatalogSelect(ws, provider);
+  const preview = useCatalogPreview(ws, provider);
+  const sync = useCatalogSync(ws, provider);
   const [picked, setPicked] = useState('');
   const [pv, setPv] = useState<FeedPreview | null>(null);
   const [error, setError] = useState('');
@@ -58,7 +94,7 @@ function CatalogDialog({
   };
   return (
     <Modal
-      title="Import from a Meta catalog"
+      title={L.dialog}
       onClose={onClose}
       className="max-w-[640px]"
       footer={
@@ -75,11 +111,7 @@ function CatalogDialog({
               })
             }
           >
-            {sync.isPending
-              ? 'Starting…'
-              : pv
-                ? `Import ${pv.valid} products for review`
-                : 'Choose a catalog'}
+            {sync.isPending ? 'Starting…' : pv ? `Import ${pv.valid} products for review` : L.pick}
           </Button>
         </>
       }
@@ -96,12 +128,12 @@ function CatalogDialog({
         )}
         {list.data && list.data.data.length === 0 && (
           <p className="m-0 rounded-xl bg-wash px-3 py-2.5 text-[13px] text-muted">
-            The connected Meta account has no product catalogs.
+            Nothing to import was found for the connected {L.brand} account.
           </p>
         )}
         {list.data && list.data.data.length > 0 && (
           <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-            <legend className="mb-1 text-[12.5px] font-semibold">Catalog</legend>
+            <legend className="mb-1 text-[12.5px] font-semibold">{L.legend}</legend>
             {list.data.data.map((c) => (
               <label
                 key={c.id}
@@ -141,7 +173,7 @@ function CatalogDialog({
           </p>
         )}
         {pv && (
-          <div className="flex flex-col gap-2" role="region" aria-label="Catalog preview">
+          <div className="flex flex-col gap-2" role="region" aria-label={L.preview}>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 text-[12.5px]">
               {[
                 ['Read', pv.totalItems],
@@ -178,23 +210,26 @@ function CatalogDialog({
 }
 
 /**
- * The Meta Catalog source card. Its status is the real one from the server: switched off, not configured, connected, a
+ * The Meta Catalog / Google Merchant Center source card. Its status is the real one from the server: switched off, not configured, connected, a
  * chosen catalog, or needing to reconnect. Connecting only ever goes through Meta's own authorization screen.
  */
-export function MetaCatalogCard({
+export function CatalogSourceCard({
   ws,
+  provider,
   returned,
   onStarted,
 }: {
   ws: string;
+  provider: CatalogProvider;
   /** The `meta_catalog` result Meta's redirect brought back, if any. */
   returned: string | null;
   onStarted: (jobId: string) => void;
 }) {
-  const st = useMetaCatalog(ws);
-  const connect = useMetaConnect(ws);
-  const disconnect = useMetaDisconnect(ws);
-  const sync = useMetaSync(ws);
+  const L = LABEL[provider];
+  const st = useCatalogSource(ws, provider);
+  const connect = useCatalogConnect(ws, provider);
+  const disconnect = useCatalogDisconnect(ws, provider);
+  const sync = useCatalogSync(ws, provider);
   const [open, setOpen] = useState(returned === 'connected');
   const [error, setError] = useState('');
   const d = st.data;
@@ -219,14 +254,14 @@ export function MetaCatalogCard({
       )}
       {d?.available && !d.connected && (
         <Button size="sm" className="self-start" disabled={connect.isPending} onClick={go}>
-          {connect.isPending ? 'Opening Meta…' : 'Connect Meta'}
+          {connect.isPending ? L.opening : L.connect}
         </Button>
       )}
       {d?.available && d.connected && (
         <div className="rounded-lg border border-line-subtle px-2.5 py-2 text-[12.5px]">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium">
-              {d.catalog ? d.catalog.name : 'Connected, no catalog chosen'}
+              {d.catalog ? d.catalog.name : `Connected, no ${L.thing} chosen`}
             </span>
             <span
               className={cn(
@@ -245,7 +280,7 @@ export function MetaCatalogCard({
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {reconnect ? (
               <Button size="sm" onClick={go}>
-                Reconnect Meta
+                {L.reconnect}
               </Button>
             ) : (
               <>
@@ -265,14 +300,14 @@ export function MetaCatalogCard({
                   </Button>
                 )}
                 <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
-                  {d.catalog ? 'Change catalog' : 'Choose catalog'}
+                  {d.catalog ? L.change : L.pick}
                 </Button>
               </>
             )}
             <Button
               size="sm"
               variant="outline"
-              aria-label="Disconnect Meta"
+              aria-label={L.disconnect}
               disabled={disconnect.isPending}
               onClick={() => disconnect.mutate(undefined, { onError: (e) => setError(e.message) })}
             >
@@ -302,6 +337,7 @@ export function MetaCatalogCard({
       {open && (
         <CatalogDialog
           ws={ws}
+          provider={provider}
           onClose={() => setOpen(false)}
           onStarted={(id) => {
             setOpen(false);

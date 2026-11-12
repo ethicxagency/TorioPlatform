@@ -119,7 +119,14 @@ describe('MetaCatalogService', () => {
       get: async () => ({ config: structuredClone(current), version: 1 }),
       save: async (_w: string, _u: string, cfg: BrainConfig) => ((current = cfg), {}),
     };
-    scans = new ScanService(prisma, brain as never, new FeedService(prisma), svc, {} as never);
+    scans = new ScanService(
+      prisma,
+      brain as never,
+      new FeedService(prisma),
+      svc,
+      {} as never,
+      {} as never,
+    );
   });
 
   const connect = async (ws = WS) => handler!({ w: ws, u: USER }, 'auth-code');

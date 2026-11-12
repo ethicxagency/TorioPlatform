@@ -7,7 +7,7 @@ import {
   STAGE_MIN,
   type BrainConfig,
 } from '@torio/contracts';
-import { brainState, metaState, mockApi, resetScan, scanState } from './mocks';
+import { brainState, googleState, metaState, mockApi, resetScan, scanState } from './mocks';
 
 const openTab = (page: Page, name: string) => page.getByRole('tab', { name }).click();
 const summary = (page: Page) => page.getByRole('tabpanel', { name: 'Summary' });
@@ -313,7 +313,7 @@ test.describe('brain (admin)', () => {
     // nothing is shown as connected, and the reason each cannot connect is stated
     await expect(hub.getByText('Not connected')).toHaveCount(3);
     await expect(hub.getByText('Connected', { exact: true })).toHaveCount(0);
-    await expect(hub.getByText(/not configured/i).first()).toBeVisible();
+    await expect(hub.getByText(/switched off|not configured/i).first()).toBeVisible();
     await expect(hub.getByText('Scans and syncs appear here once you run one.')).toBeVisible();
     // the score, dimensions and journey belong to Summary
     for (const gone of ['Intelligence score', 'Growth journey', 'Your Brain’s Growth Journey'])
@@ -456,7 +456,7 @@ test.describe('brain (admin)', () => {
     const hub = intelligence(page);
     await hub.getByRole('button', { name: 'Choose catalog' }).click();
     const dlg = page.getByRole('dialog', { name: 'Import from a Meta catalog' });
-    await expect(dlg.getByRole('button', { name: 'Choose a catalog' })).toBeDisabled();
+    await expect(dlg.getByRole('button', { name: 'Choose catalog' })).toBeDisabled();
     await dlg.getByLabel(/Main catalog/).check();
     const pv = dlg.getByRole('region', { name: 'Catalog preview' });
     await expect(pv).toContainText('Nordic Vase');
@@ -486,6 +486,84 @@ test.describe('brain (admin)', () => {
     ).toBeVisible();
     await expect(hub.getByRole('button', { name: 'Reconnect Meta' })).toBeVisible();
     await expect(hub.getByRole('button', { name: 'Sync now' })).toHaveCount(0);
+  });
+
+  test('Google Merchant Center: unavailable by default with the reason; never shown as connected', async ({
+    page,
+  }) => {
+    await openTab(page, 'Intelligence');
+    const card = intelligence(page)
+      .getByRole('listitem')
+      .filter({ has: page.getByRole('heading', { name: 'Google Merchant Center' }) });
+    await expect(card).toContainText('Not connected');
+    await expect(card).toContainText('Merchant API scope');
+    await expect(card.getByRole('button', { name: 'Connect Google' })).toHaveCount(0);
+  });
+
+  test('Google Merchant Center: connect goes to Google’s own consent screen for the Merchant scope', async ({
+    page,
+  }) => {
+    googleState.available = true;
+    let asked = '';
+    await page.route('https://accounts.google.com/**', (r) => {
+      asked = r.request().url();
+      return r.fulfill({ status: 200, contentType: 'text/html', body: '<title>Google</title>' });
+    });
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openTab(page, 'Intelligence');
+    await intelligence(page).getByRole('button', { name: 'Connect Google' }).click();
+    await expect.poll(() => asked).toContain('auth%2Fcontent');
+  });
+
+  test('Google Merchant Center: a failed authorization is explained when Google sends you back', async ({
+    page,
+  }) => {
+    googleState.available = true;
+    await page.goto('/brain?tab=intelligence&google_merchant=no_refresh_token');
+    await expect(intelligence(page).getByRole('alert')).toContainText(
+      'did not allow ongoing access',
+    );
+  });
+
+  test('Google Merchant Center: choose an account, preview, import for review, approve, import', async ({
+    page,
+  }) => {
+    googleState.available = true;
+    googleState.connected = true;
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openTab(page, 'Intelligence');
+    const hub = intelligence(page);
+    await hub.getByRole('button', { name: 'Choose account' }).click();
+    const dlg = page.getByRole('dialog', { name: 'Import from Google Merchant Center' });
+    await dlg.getByLabel(/UrbanNest Merchant/).check();
+    await expect(dlg.getByRole('region', { name: 'Merchant Center preview' })).toContainText(
+      'Linen Cushion',
+    );
+    expect(googleState.selected).toEqual(['42']);
+    await dlg.getByRole('button', { name: 'Import 7 products for review' }).click();
+    expect(googleState.syncs).toBe(1);
+    const panel = hub.getByRole('region', { name: 'Feed import' });
+    await panel.getByRole('button', { name: 'Approve Linen Cushion' }).click();
+    await panel.getByRole('button', { name: /^Import 1 approved/ }).click();
+    await expect(panel.getByText('Imported 1 entry into Brain.')).toBeVisible();
+    expect(scanState.imported).toEqual(['9d0f0000-0000-4000-8000-0000000000e1']);
+  });
+
+  test('Google Merchant Center: a revoked grant asks to reconnect', async ({ page }) => {
+    googleState.available = true;
+    googleState.connected = true;
+    googleState.status = 'ERROR';
+    googleState.catalog = { id: '42', name: 'UrbanNest Merchant' };
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openTab(page, 'Intelligence');
+    const hub = intelligence(page);
+    await expect(
+      hub.getByText('Google authorization expired or was revoked. Reconnect to continue.'),
+    ).toBeVisible();
+    await expect(hub.getByRole('button', { name: 'Reconnect Google' })).toBeVisible();
   });
 
   test('Summary has all eight sections, in order', async ({ page }) => {

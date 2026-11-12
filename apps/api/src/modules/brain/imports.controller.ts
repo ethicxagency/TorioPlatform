@@ -10,10 +10,11 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   Headers,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiExcludeController, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import {
   bulkReviewSchema,
   feedCreateSchema,
@@ -32,6 +33,8 @@ import {
   reviewRecordSchema,
   websiteScanSchema,
 } from '@torio/contracts';
+import { SkipThrottle } from '@nestjs/throttler';
+import type { Response } from 'express';
 import { timingSafeEqual } from 'node:crypto';
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
@@ -41,6 +44,7 @@ import { WorkspaceAccessGuard } from '../../common/guards/workspace-access.guard
 import type { AuthUser } from '../../common/types';
 import { ImportsService } from './imports.service';
 import { FeedService } from './imports/feed.service';
+import { GoogleMerchantService } from './imports/google-merchant.service';
 import { MetaCatalogService } from './imports/meta-catalog.service';
 import { ScanService } from './imports/scan.service';
 
@@ -74,6 +78,7 @@ export class ImportsController {
     private readonly scans: ScanService,
     private readonly feeds: FeedService,
     private readonly metaCatalog: MetaCatalogService,
+    private readonly google: GoogleMerchantService,
   ) {}
 
   @Get()
@@ -191,6 +196,62 @@ export class ImportsController {
     return this.metaCatalog.disconnect(ws);
   }
 
+  @Get('google')
+  @RequirePermission('brain:read')
+  @ApiOkResponse({ type: MetaCatalogStatusDto })
+  googleStatus(@Param('workspaceId', ParseUUIDPipe) ws: string) {
+    return this.google.status(ws);
+  }
+
+  @Post('google/connect')
+  @HttpCode(200)
+  @RequirePermission('brain:write')
+  @ApiOkResponse({ type: MetaCatalogUrlDto })
+  googleConnect(@Param('workspaceId', ParseUUIDPipe) ws: string, @CurrentUser() u: AuthUser) {
+    return this.google.connect(ws, u.id);
+  }
+
+  @Get('google/accounts')
+  @RequirePermission('brain:write')
+  @ApiOkResponse({ type: MetaCatalogListDto })
+  googleAccounts(@Param('workspaceId', ParseUUIDPipe) ws: string) {
+    return this.google.accounts(ws);
+  }
+
+  @Post('google/account')
+  @HttpCode(200)
+  @RequirePermission('brain:write')
+  @ApiOkResponse({ type: MetaCatalogStatusDto })
+  googleSelect(
+    @Param('workspaceId', ParseUUIDPipe) ws: string,
+    @Body() body: MetaCatalogSelectDto,
+  ) {
+    return this.google.select(ws, body.catalogId);
+  }
+
+  @Post('google/preview')
+  @HttpCode(200)
+  @RequirePermission('brain:write')
+  @ApiOkResponse({ type: FeedPreviewDto })
+  googlePreview(@Param('workspaceId', ParseUUIDPipe) ws: string) {
+    return this.google.preview(ws);
+  }
+
+  @Post('google/sync')
+  @HttpCode(200)
+  @RequirePermission('brain:write')
+  @ApiOkResponse({ type: ImportJobDetailDto })
+  async googleSync(@Param('workspaceId', ParseUUIDPipe) ws: string, @CurrentUser() u: AuthUser) {
+    return this.scans.detail(ws, await this.google.startJob(ws, u.id));
+  }
+
+  @Post('google/disconnect')
+  @HttpCode(200)
+  @RequirePermission('brain:write')
+  googleDisconnect(@Param('workspaceId', ParseUUIDPipe) ws: string) {
+    return this.google.disconnect(ws);
+  }
+
   @Get('jobs/:jobId')
   @RequirePermission('brain:read')
   @ApiOkResponse({ type: ImportJobDetailDto })
@@ -300,5 +361,24 @@ export class ImportsTickController {
     const a = await this.scans.tick();
     const b = await this.feeds.tickDue();
     return { ...a, ...b };
+  }
+}
+
+/** Browser redirect target for the Merchant Center authorization. Public by necessity; trusted only through the signed state. */
+@ApiExcludeController()
+@Controller('brain/imports/google')
+export class GoogleMerchantCallbackController {
+  constructor(private readonly google: GoogleMerchantService) {}
+
+  @Public()
+  @SkipThrottle()
+  @Get('callback')
+  async callback(
+    @Query('code') code: string | undefined,
+    @Query('state') state: string | undefined,
+    @Query('error') error: string | undefined,
+    @Res() res: Response,
+  ) {
+    res.redirect(302, await this.google.callback({ code, state, error }));
   }
 }
