@@ -269,7 +269,7 @@ test.describe('brain (admin)', () => {
     await expect(page.getByLabel('Customer message')).toBeVisible();
   });
 
-  test('Summary shows the real maturity: BORN for a sparse Brain, with its score and dimensions; Intelligence has the journey', async ({
+  test('Summary shows the real maturity: BORN for a sparse Brain, with its score and dimensions; the journey is there too', async ({
     page,
   }) => {
     const hero = summary(page);
@@ -288,15 +288,32 @@ test.describe('brain (admin)', () => {
     ])
       await expect(dims.filter({ hasText: n }).getByText(/\/100/)).toBeVisible();
     await expect(hero.getByText('Next:')).toContainText('Baby');
-    // journey (Intelligence tab): six stages, Born is current, the rest locked
-    await openTab(page, 'Intelligence');
-    const steps = intelligence(page)
-      .getByRole('list', { name: 'Growth journey' })
-      .getByRole('listitem');
+    // journey (Summary): six stages, Born is current, the rest locked
+    const steps = summary(page).getByRole('list', { name: 'Growth journey' }).getByRole('listitem');
     await expect(steps).toHaveCount(6);
     await expect(steps.first()).toHaveAttribute('data-state', 'current');
     await expect(steps.nth(1)).toHaveAttribute('data-state', 'locked');
-    await expect(intelligence(page).getByText('Next:')).toContainText('Baby');
+    await expect(summary(page).getByText('Next:').first()).toContainText('Baby');
+  });
+
+  test('Intelligence is the import hub: honest sources, no duplicated scores', async ({ page }) => {
+    await openTab(page, 'Intelligence');
+    const hub = intelligence(page);
+    await expect(
+      hub.getByText('Connect your business data and let Torio learn automatically.'),
+    ).toBeVisible();
+    await expect(hub.getByRole('heading', { name: 'Scan your website' })).toBeVisible();
+    await expect(hub.getByRole('button', { name: 'Scan website' })).toBeDisabled();
+    for (const t of ['XML product feed', 'Meta Catalog', 'Google Merchant Center'])
+      await expect(hub.getByRole('heading', { name: t })).toBeVisible();
+    // nothing is shown as connected, and the reason each cannot connect is stated
+    await expect(hub.getByText('Not connected')).toHaveCount(3);
+    await expect(hub.getByText('Connected', { exact: true })).toHaveCount(0);
+    await expect(hub.getByText(/not configured/i).first()).toBeVisible();
+    await expect(hub.getByText('Scans and syncs appear here once you run one.')).toBeVisible();
+    // the score, dimensions and journey belong to Summary
+    for (const gone of ['Intelligence score', 'Growth journey', 'Your Brain’s Growth Journey'])
+      await expect(hub.getByText(gone)).toHaveCount(0);
   });
 
   test('Summary has all eight sections, in order', async ({ page }) => {
@@ -498,10 +515,7 @@ test.describe('brain (admin)', () => {
     await expect(
       hero.getByRole('img', { name: new RegExp(`score ${expected.score} out of 100`) }),
     ).toBeVisible();
-    await openTab(page, 'Intelligence');
-    const steps = intelligence(page)
-      .getByRole('list', { name: 'Growth journey' })
-      .getByRole('listitem');
+    const steps = summary(page).getByRole('list', { name: 'Growth journey' }).getByRole('listitem');
     for (let i = 0; i < 6; i++)
       await expect(steps.nth(i)).toHaveAttribute(
         'data-state',
@@ -510,7 +524,7 @@ test.describe('brain (admin)', () => {
     // the dimension numbers on screen are the engine's
     for (const x of expected.dimensions)
       await expect(
-        intelligence(page).getByRole('progressbar', { name: x.label, exact: true }),
+        summary(page).getByRole('progressbar', { name: x.label, exact: true }).first(),
       ).toHaveAttribute('aria-valuenow', String(x.score));
   });
 

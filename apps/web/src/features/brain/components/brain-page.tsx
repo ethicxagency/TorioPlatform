@@ -484,14 +484,7 @@ function BrainEditor({
         aria-labelledby="brain-tab-intelligence"
         hidden={tab !== 'intelligence'}
       >
-        <IntelligenceTab
-          maturity={saved.maturity}
-          dirty={dirty}
-          savedAt={saved.updatedAt}
-          savedBy={saved.updatedBy?.name ?? null}
-          celebrate={celebrate}
-          onGoTo={goToSection}
-        />
+        <IntelligenceTab config={saved.config} maturity={saved.maturity} onGoTo={goToSection} />
       </div>
       <div
         role="tabpanel"

@@ -1380,6 +1380,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/brain/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["BrainController_importOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/orders": {
         parameters: {
             query?: never;
@@ -4162,6 +4178,38 @@ export interface components {
                     duplicates: number;
                 };
             };
+        };
+        ImportOverviewDto: {
+            ready: boolean;
+            sources: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                kind: "WEBSITE" | "XML_FEED" | "META_CATALOG" | "GOOGLE_MERCHANT" | "MANUAL";
+                name: string;
+                url: string | null;
+                /** @enum {string} */
+                status: "ACTIVE" | "PAUSED" | "ERROR" | "DISCONNECTED";
+                lastSyncedAt: string | null;
+                lastError: string | null;
+            }[];
+            jobs: {
+                /** Format: uuid */
+                id: string;
+                sourceId: string | null;
+                /** @enum {string} */
+                kind: "WEBSITE" | "XML_FEED" | "META_CATALOG" | "GOOGLE_MERCHANT" | "MANUAL";
+                /** @enum {string} */
+                status: "QUEUED" | "RUNNING" | "NEEDS_REVIEW" | "COMPLETED" | "FAILED" | "CANCELLED";
+                stats: {
+                    [key: string]: number;
+                } | null;
+                error: string | null;
+                startedAt: string | null;
+                finishedAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
         };
         SaveBrainDto: {
             config: {
@@ -8513,6 +8561,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BrainDocumentDto"];
+                };
+            };
+        };
+    };
+    BrainController_importOverview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportOverviewDto"];
                 };
             };
         };

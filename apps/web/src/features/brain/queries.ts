@@ -1,7 +1,11 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { BrainConfig, BrainMaturity } from '@torio/contracts';
+import type {
+  BrainConfig,
+  BrainMaturity,
+  ImportOverview as ImportOverviewT,
+} from '@torio/contracts';
 import { api } from '@/lib/api';
 import { ApiRequestError } from '@/features/leads/queries';
 
@@ -57,5 +61,22 @@ export function useSaveBrain(ws: string | null) {
       return data as unknown as BrainDoc;
     },
     onSuccess: (doc) => qc.setQueryData(brainKey(ws ?? ''), doc),
+  });
+}
+
+export type ImportOverview = ImportOverviewT;
+
+/** Import sources and recent jobs for the store. `ready` is false until the database has the import tables. */
+export function useImports(ws: string | null) {
+  return useQuery({
+    queryKey: ['brain-imports', ws ?? ''] as const,
+    enabled: !!ws,
+    queryFn: async (): Promise<ImportOverviewT> => {
+      const { data, error, response } = await api.GET(`${P}/imports`, {
+        params: { path: { workspaceId: ws! } },
+      });
+      if (!data) throw fail(error, 'Could not load imports', response.status);
+      return data as unknown as ImportOverviewT;
+    },
   });
 }

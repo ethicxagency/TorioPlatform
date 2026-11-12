@@ -1645,6 +1645,8 @@ export async function mockApi(
         });
       return reply(oneCust);
     }
+    if (p === `/workspaces/${WS}/brain/imports`)
+      return reply({ ready: true, sources: [], jobs: [] });
     if (p === `/workspaces/${WS}/brain`) {
       if (req.method() === 'PUT') {
         const b = req.postDataJSON() as { config: unknown; baseVersion: number };

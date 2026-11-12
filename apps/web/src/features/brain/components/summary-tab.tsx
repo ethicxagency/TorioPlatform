@@ -20,7 +20,9 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useAudit } from '@/features/settings/queries';
 import { cn } from '@/lib/utils';
+import { useWorkspace } from '@/lib/workspace';
 import { fmtAgoIso } from './bits';
 import {
   BrainIllustration,
@@ -159,6 +161,9 @@ export function SummaryTab({
   onGoTo: (section: string, focus?: boolean) => void;
 }) {
   const [showAllFixes, setShowAllFixes] = useState(false);
+  const { workspaceId, can } = useWorkspace();
+  const activity = useAudit(can('audit:read') ? workspaceId : null, { page: 1, q: 'brain' });
+  const recent = (activity.data?.data ?? []).filter((e) => e.action === 'brain.update').slice(0, 4);
   const recs = areaList
     .filter((a) => a.rec)
     .map((a) => ({ a, p: priorityOf(a) }))
@@ -521,6 +526,24 @@ export function SummaryTab({
           </ul>
         )}
       </section>
+
+      {/* 7. Recent activity: moved here from Intelligence, which is now about importing knowledge */}
+      {recent.length > 0 && (
+        <section aria-label="Recent activity" className="flex flex-col gap-2">
+          <Heading>Recent activity</Heading>
+          <ul className="m-0 flex list-none flex-col gap-1.5 rounded-xl border border-line bg-white px-3.5 py-3 text-[13px]">
+            {recent.map((e) => (
+              <li key={e.id} className="flex flex-wrap items-baseline justify-between gap-x-3">
+                <span className="text-ink">{e.description}</span>
+                <span className="text-xs text-faint">
+                  {e.actor ? `${e.actor.name} · ` : ''}
+                  {fmtAgoIso(e.createdAt)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

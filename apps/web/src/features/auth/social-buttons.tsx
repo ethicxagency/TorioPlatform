@@ -20,7 +20,7 @@ export function useAuthConfig() {
 }
 
 /** Official Google "G" (four-colour mark, unmodified). */
-const GoogleG = () => (
+export const GoogleG = () => (
   <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
     <path
       fill="#EA4335"

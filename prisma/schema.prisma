@@ -297,6 +297,8 @@ model Workspace {
   invitations          Invitation[]
   teams                Team[]
   brainConfig          BrainConfig?
+  importSources        ImportSource[]
+  importJobs           ImportJob[]
   automations          Automation[]
   automationVersions   AutomationVersion[]
   automationExecutions AutomationExecution[]
@@ -1373,4 +1375,77 @@ model MetaConfiguration {
   updatedAt                       DateTime  @updatedAt
 
   @@map("meta_configuration")
+}
+
+enum ImportSourceKind {
+  WEBSITE
+  XML_FEED
+  META_CATALOG
+  GOOGLE_MERCHANT
+  MANUAL
+}
+
+enum ImportSourceStatus {
+  ACTIVE
+  PAUSED
+  ERROR
+  DISCONNECTED
+}
+
+enum ImportJobStatus {
+  QUEUED
+  RUNNING
+  NEEDS_REVIEW
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+/// A place business knowledge can be imported from (a website, a product feed, a catalog). One workspace may have several
+/// of a kind. Credentials never live here: provider tokens belong in the encrypted secrets store. Imported data does not
+/// become Brain knowledge until a person approves it.
+model ImportSource {
+  id           String             @id @default(uuid(7)) @db.Uuid
+  workspaceId  String             @db.Uuid
+  kind         ImportSourceKind
+  name         String
+  url          String?
+  /// Kind-specific settings: field mapping, import frequency, currency override. Never secrets.
+  config       Json               @default("{}")
+  status       ImportSourceStatus @default(ACTIVE)
+  lastSyncedAt DateTime?
+  lastError    String?
+  createdById  String?            @db.Uuid
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  workspace Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  jobs      ImportJob[]
+
+  @@index([workspaceId, kind])
+  @@map("import_sources")
+}
+
+/// One run of an import: a website scan, a feed sync or a catalog pull. Jobs are processed in small steps by a background
+/// worker, never inside a normal request, and keep their counts and errors so history stays reviewable.
+model ImportJob {
+  id          String           @id @default(uuid(7)) @db.Uuid
+  workspaceId String           @db.Uuid
+  sourceId    String?          @db.Uuid
+  kind        ImportSourceKind
+  status      ImportJobStatus  @default(QUEUED)
+  /// Counts such as { discovered, valid, imported, failed }; null until the job reports.
+  stats       Json?
+  error       String?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdById String?          @db.Uuid
+  createdAt   DateTime         @default(now())
+
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  source    ImportSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([sourceId])
+  @@map("import_jobs")
 }
