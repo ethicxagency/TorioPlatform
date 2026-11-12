@@ -538,8 +538,12 @@ export const orderState = {
   bulks: [] as unknown[],
   updates: [] as unknown[],
   failUpdate: false,
+  invoiceRequests: [] as string[],
+  invoiceError: '',
 };
 export const resetOrders = () => {
+  orderState.invoiceRequests = [];
+  orderState.invoiceError = '';
   orderState.list = [
     order(1, 'Tanvir Hasan', { status: 'CONFIRMED' }),
     order(2, 'Tanvir Hasan', { isSample: true }, [
@@ -2486,6 +2490,24 @@ export async function mockApi(
       const rest = p.slice(`/workspaces/${WS}/orders`.length);
       const url = new URL(req.url());
       const get = (k: string) => url.searchParams.get(k);
+      if (/^\/[0-9a-f-]+\/invoice$/.test(rest)) {
+        // A real (tiny) PDF stands in for the server-rendered invoice; the tests check how the page asks for and handles it.
+        orderState.invoiceRequests.push(rest);
+        if (orderState.invoiceError)
+          return reply({ message: orderState.invoiceError, statusCode: 503 }, 503);
+        const pdf =
+          '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF';
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/pdf',
+          headers: {
+            ...cors,
+            'access-control-expose-headers': 'Content-Disposition',
+            'content-disposition': `${get('download') === '1' ? 'attachment' : 'inline'}; filename="TORIO-INV-00001.pdf"`,
+          },
+          body: pdf,
+        });
+      }
       if (rest === '/summary') {
         const live = orderState.list.filter((o) => o.status !== 'CANCELLED');
         return reply({

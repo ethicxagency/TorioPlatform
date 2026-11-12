@@ -12,6 +12,8 @@
     "openapi": "nest build && node dist/openapi.js"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/noto-sans-bengali": "^5.3.0",
     "@nestjs/common": "^11.2.8",
     "@nestjs/core": "^11.2.8",
     "@nestjs/jwt": "^11.0.2",
@@ -28,6 +30,7 @@
     "ioredis": "^5.6.1",
     "nestjs-pino": "^4.4.0",
     "nestjs-zod": "^5.5.0",
+    "pdfkit": "^0.20.2",
     "pino": "^9.7.0",
     "pino-http": "^10.5.0",
     "reflect-metadata": "^0.2.2",
@@ -46,6 +49,7 @@
     "@types/cookie-parser": "^1.4.9",
     "@types/express": "^5.0.3",
     "@types/node": "^22.16.0",
+    "@types/pdfkit": "^0.17.7",
     "@types/supertest": "^6.0.3",
     "eslint": "^9.30.0",
     "socket.io-client": "^4.8.1",

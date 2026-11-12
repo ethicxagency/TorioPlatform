@@ -6,6 +6,7 @@ import {
   CreditCard,
   Download,
   ExternalLink,
+  FileText,
   History,
   Info,
   Loader2,
@@ -48,7 +49,9 @@ import { cn } from '@/lib/utils';
 import { CHANNEL_LABEL, METHOD_LABEL, NEXT_STATUS } from '../constants';
 import { formatMoney } from '../money';
 import {
+  downloadInvoice,
   downloadOrdersCsv,
+  printInvoice,
   useOrder,
   useOrderMutations,
   type OrderStatusTarget,
@@ -389,6 +392,23 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
       toast.error(e instanceof Error ? e.message : 'Something went wrong');
     }
   };
+  const [invoiceBusy, setInvoiceBusy] = useState(false);
+  /** The invoice is rendered by the server from this order; only that document is printed or saved. */
+  const invoiceAction = async (kind: 'print' | 'download') => {
+    if (!ws || invoiceBusy) return;
+    setInvoiceBusy(true);
+    try {
+      if (kind === 'print') await printInvoice(ws, orderId);
+      else {
+        await downloadInvoice(ws, orderId);
+        toast('Invoice downloaded');
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not create the invoice');
+    } finally {
+      setInvoiceBusy(false);
+    }
+  };
   /** Back to the list as the user left it: the list restores its own search, filters and page. */
   const back = () => guard.attempt(() => router.push('/orders'));
 
@@ -505,6 +525,14 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 print:hidden max-sm:w-full">
+                <Button
+                  variant="outline"
+                  loading={invoiceBusy}
+                  onClick={() => void invoiceAction('print')}
+                >
+                  <Printer size={14} />
+                  Print invoice
+                </Button>
                 {canPayments && !primaryIsPay && (
                   <Button
                     variant="outline"
@@ -582,9 +610,9 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                     <Download size={14} />
                     Export
                   </MenuItem>
-                  <MenuItem onClick={() => window.print()}>
-                    <Printer size={14} />
-                    Print
+                  <MenuItem onClick={() => void invoiceAction('download')}>
+                    <FileText size={14} />
+                    Download invoice (PDF)
                   </MenuItem>
                   {canWrite && (
                     <MenuItem

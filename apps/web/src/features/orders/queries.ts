@@ -273,3 +273,73 @@ export async function downloadOrdersCsv(ws: string, filters: OrderFilters, ids?:
   a.click();
   URL.revokeObjectURL(a.href);
 }
+
+/** The order's invoice PDF, rendered by the server from the live order. Named by the server (TORIO-INV-00001.pdf). */
+export async function fetchInvoicePdf(
+  ws: string,
+  orderId: string,
+  download = false,
+): Promise<{ blob: Blob; filename: string }> {
+  const url = `${env.NEXT_PUBLIC_API_URL}/api/v1/workspaces/${ws}/orders/${orderId}/invoice${download ? '?download=1' : ''}`;
+  const go = (t: string | null) =>
+    fetch(url, { credentials: 'include', headers: t ? { Authorization: `Bearer ${t}` } : {} });
+  let res = await go(getAccessToken());
+  if (res.status === 401) res = await go((await refreshSession())?.accessToken ?? null);
+  if (!res.ok) {
+    let msg = '';
+    try {
+      msg =
+        ((await res.json()) as { message?: string; error?: { message?: string } }).message ?? '';
+    } catch {
+      /* not JSON */
+    }
+    throw new Error(
+      res.status === 403
+        ? 'You do not have permission to print invoices'
+        : res.status === 404
+          ? 'This order was not found'
+          : msg || 'Could not create the invoice',
+    );
+  }
+  const name = /filename="?([^";]+)"?/.exec(res.headers.get('content-disposition') ?? '')?.[1];
+  return { blob: await res.blob(), filename: name ?? 'TORIO-invoice.pdf' };
+}
+
+/** Saves the invoice PDF through the browser. */
+export async function downloadInvoice(ws: string, orderId: string) {
+  const { blob, filename } = await fetchInvoicePdf(ws, orderId, true);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+}
+
+/**
+ * Opens the browser's print dialog for the invoice only (never the order screen). The PDF loads in a hidden frame; if the
+ * browser will not print from a frame it opens in a new tab instead, where its PDF viewer can print and save.
+ */
+export async function printInvoice(ws: string, orderId: string) {
+  const { blob } = await fetchInvoicePdf(ws, orderId);
+  const href = URL.createObjectURL(blob);
+  const frame = document.createElement('iframe');
+  frame.setAttribute('aria-hidden', 'true');
+  frame.style.cssText =
+    'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+  const cleanup = () => {
+    frame.remove();
+    URL.revokeObjectURL(href);
+  };
+  frame.onload = () => {
+    try {
+      frame.contentWindow?.focus();
+      frame.contentWindow?.print();
+      setTimeout(cleanup, 120_000);
+    } catch {
+      window.open(href, '_blank', 'noopener');
+      setTimeout(cleanup, 120_000);
+    }
+  };
+  frame.src = href;
+  document.body.appendChild(frame);
+}

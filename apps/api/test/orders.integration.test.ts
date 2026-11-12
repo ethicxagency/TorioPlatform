@@ -409,4 +409,46 @@ describe.skipIf(!url)('orders (real PostgreSQL)', () => {
       ).status,
     ).toBe(404);
   });
+
+  it('invoice: a PDF from the real order, one stable number per order, never across stores', async () => {
+    const h = await auth(ids.agent!);
+    const url = (id: string) => `${base()}/${id}/invoice`;
+    const first = await http()
+      .get(url(ids.o1!))
+      .set(h)
+      .buffer(true)
+      .parse((res, cb) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (c: Buffer) => chunks.push(c));
+        res.on('end', () => cb(null, Buffer.concat(chunks)));
+      });
+    expect(first.status).toBe(200);
+    expect(first.headers['content-type']).toContain('application/pdf');
+    expect(first.headers['content-disposition']).toMatch(/inline; filename="TORIO-INV-\d{5}\.pdf"/);
+    expect((first.body as Buffer).subarray(0, 5).toString()).toBe('%PDF-');
+    const inv = await db.orderInvoice.findUnique({ where: { orderId: ids.o1! } });
+    expect(inv?.number).toBe(1);
+    // reprint and download keep the identity
+    const dl = await http()
+      .get(`${url(ids.o1!)}?download=1`)
+      .set(h);
+    expect(dl.headers['content-disposition']).toMatch(
+      /attachment; filename="TORIO-INV-00001\.pdf"/,
+    );
+    expect(await db.orderInvoice.count({ where: { workspaceId: ids.wsA! } })).toBe(1);
+    // concurrent first requests for a second order produce one invoice and one number
+    await Promise.all([1, 2, 3].map(() => http().get(url(ids.o2!)).set(h).expect(200)));
+    const second = await db.orderInvoice.findMany({ where: { orderId: ids.o2! } });
+    expect(second).toHaveLength(1);
+    expect(second[0]!.number).toBe(2);
+    // another store cannot reach it, and no number is issued for the refusal
+    const outsider = await auth(ids.outsider!);
+    await http().get(url(ids.o1!)).set(outsider).expect(404);
+    await http()
+      .get(`/api/v1/workspaces/${ids.wsB}/orders/${ids.o1}/invoice`)
+      .set(outsider)
+      .expect(404);
+    expect(await db.orderInvoice.count({ where: { workspaceId: ids.wsB! } })).toBe(0);
+    await http().get(url(ids.o1!)).expect(401);
+  });
 });

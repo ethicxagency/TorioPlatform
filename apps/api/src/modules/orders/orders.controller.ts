@@ -11,6 +11,8 @@ import {
   Post,
   Put,
   Query,
+  Res,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiProduces, ApiTags } from '@nestjs/swagger';
@@ -30,11 +32,13 @@ import {
   setOrderStatusSchema,
   updateOrderSchema,
 } from '@torio/contracts';
+import type { Response } from 'express';
 import { createZodDto } from 'nestjs-zod';
 import { CurrentUser, RequirePermission } from '../../common/decorators';
 import { WorkspaceAccessGuard } from '../../common/guards/workspace-access.guard';
 import type { AuthUser } from '../../common/types';
 import { AuthorizationService } from '../authorization/authorization.service';
+import { InvoiceService } from './invoice/invoice.service';
 import { OrdersService } from './orders.service';
 
 class OrderQueryDto extends createZodDto(orderQuerySchema) {}
@@ -59,6 +63,7 @@ class OrderBulkResultDto extends createZodDto(orderBulkResultSchema) {}
 export class OrdersController {
   constructor(
     private readonly orders: OrdersService,
+    private readonly invoices: InvoiceService,
     private readonly authz: AuthorizationService,
   ) {}
 
@@ -116,6 +121,28 @@ export class OrdersController {
     @Param('orderId', ParseUUIDPipe) id: string,
   ) {
     return this.orders.get(ws, id);
+  }
+
+  /** The order's customer invoice as a PDF, rendered from the live order. `?download=1` asks the browser to save it. */
+  @Get(':orderId/invoice')
+  @RequirePermission('orders:read')
+  @ApiProduces('application/pdf')
+  async invoice(
+    @Param('workspaceId', ParseUUIDPipe) ws: string,
+    @Param('orderId', ParseUUIDPipe) id: string,
+    @CurrentUser() u: AuthUser,
+    @Query('download') download: string | undefined,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { buffer, filename } = await this.invoices.pdf(ws, id, u.id);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `${download === '1' ? 'attachment' : 'inline'}; filename="${filename}"`,
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
+      'Access-Control-Expose-Headers': 'Content-Disposition',
+    });
+    return new StreamableFile(buffer);
   }
 
   @Patch(':orderId')

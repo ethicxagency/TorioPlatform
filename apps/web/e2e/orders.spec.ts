@@ -86,6 +86,36 @@ test.describe('orders (owner)', () => {
     await expect(page).toHaveURL(/\/orders$/);
   });
 
+  test('Print invoice asks the server for this order only, and says so when it cannot', async ({
+    page,
+  }) => {
+    await page.getByRole('row', { name: /#1001/ }).click();
+    await expect(page.getByRole('heading', { name: /Order #1001/ })).toBeVisible();
+    // the print dialog belongs to the browser; the page must not print itself, only request the invoice document
+    await page.evaluate(() => {
+      (window as unknown as { printed: number }).printed = 0;
+      window.print = () => ((window as unknown as { printed: number }).printed += 1);
+    });
+    await page.getByRole('button', { name: 'Print invoice' }).click();
+    await expect.poll(() => orderState.invoiceRequests.length).toBe(1);
+    expect(orderState.invoiceRequests[0]).toMatch(/^\/[0-9a-f-]+\/invoice$/);
+    expect(await page.evaluate(() => (window as unknown as { printed: number }).printed)).toBe(0);
+    // a server that cannot create the invoice is reported, not hidden
+    orderState.invoiceError = 'Invoices are not available yet.';
+    await page.getByRole('button', { name: 'Print invoice' }).click();
+    await expect(page.getByText('Invoices are not available yet.')).toBeVisible();
+  });
+
+  test('Download invoice (PDF) saves the server-named file', async ({ page }) => {
+    await page.getByRole('row', { name: /#1001/ }).click();
+    await expect(page.getByRole('heading', { name: /Order #1001/ })).toBeVisible();
+    await page.getByRole('button', { name: /More/ }).click();
+    const dl = page.waitForEvent('download');
+    await page.getByRole('menuitem', { name: 'Download invoice (PDF)' }).click();
+    expect((await dl).suggestedFilename()).toBe('TORIO-INV-00001.pdf');
+    await expect(page.getByText('Invoice downloaded')).toBeVisible();
+  });
+
   test('back keeps the search, and a direct or invalid link behaves', async ({ page }) => {
     await page.goto('/orders');
     await page.getByLabel('Search orders').fill('1001');
