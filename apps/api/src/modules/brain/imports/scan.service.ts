@@ -680,6 +680,8 @@ export class ScanService {
     let skipped = 0;
     let updated = 0;
     let capped = 0;
+    let kept = 0;
+    let replaced = 0;
     const done: string[] = [];
     const prodNames = new Set(cfg.products.map((p) => norm(p.name)));
     const faqQs = new Set(cfg.faqs.map((f) => norm(f.q)));
@@ -694,18 +696,28 @@ export class ScanService {
     for (const r of rows) {
       const d = r.data as Record<string, string>;
       if (r.category === 'business') {
-        const fill = (
+        // Blank fields are filled. A field that already has a value is only replaced when the person chose to replace it.
+        const replace = new Set((d['replace'] ?? '').split(',').map((x) => x.trim()));
+        const apply = (
           k: 'name' | 'description' | 'category' | 'country' | 'website',
           max: number,
-          from = k,
         ) => {
-          if (d[from] && !cfg.identity[k].trim()) cfg.identity[k] = d[from]!.slice(0, max);
+          const v = (d[k] ?? '').trim();
+          if (!v) return;
+          const cur = cfg.identity[k].trim();
+          if (!cur) cfg.identity[k] = v.slice(0, max);
+          else if (norm(cur) !== norm(v)) {
+            if (replace.has(k)) {
+              cfg.identity[k] = v.slice(0, max);
+              replaced++;
+            } else kept++;
+          }
         };
-        fill('name', 120);
-        fill('description', 1000);
-        fill('category', 80);
-        fill('country', 80);
-        fill('website', 200);
+        apply('name', 120);
+        apply('description', 1000);
+        apply('category', 80);
+        apply('country', 80);
+        apply('website', 200);
         done.push(r.id);
       } else if (r.category === 'product') {
         const key = norm(d['name'] ?? '');
@@ -825,6 +837,14 @@ export class ScanService {
     if (updated)
       notes.push(`${updated} existing product${updated === 1 ? ' was' : 's were'} updated.`);
     if (capped) notes.push(`${capped} not added: Brain holds up to 300 products.`);
+    if (replaced)
+      notes.push(
+        `${replaced} business detail${replaced === 1 ? ' was' : 's were'} replaced as you chose.`,
+      );
+    if (kept)
+      notes.push(
+        `${kept} business detail${kept === 1 ? ' differs' : 's differ'} from what is in your Brain and ${kept === 1 ? 'was' : 'were'} kept.`,
+      );
     return { imported: done.length, skippedDuplicates: skipped, notes };
   }
 

@@ -814,21 +814,17 @@ test.describe('brain (admin)', () => {
     const dlg = page.getByRole('dialog', { name: 'Import from a CSV file' });
     await expect(dlg.getByRole('button', { name: 'Choose a file' })).toBeDisabled();
     // a file with no data rows is explained
-    await dlg
-      .getByLabel('CSV file')
-      .setInputFiles({
-        name: 'empty.csv',
-        mimeType: 'text/csv',
-        buffer: Buffer.from('Name,Price'),
-      });
+    await dlg.getByLabel('CSV file').setInputFiles({
+      name: 'empty.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from('Name,Price'),
+    });
     await expect(dlg.getByRole('alert')).toContainText('No rows were found');
-    await dlg
-      .getByLabel('CSV file')
-      .setInputFiles({
-        name: 'products.csv',
-        mimeType: 'text/csv',
-        buffer: Buffer.from('Product Name,SKU,Price,Cost\nNordic Vase,A1,1500,900\n'),
-      });
+    await dlg.getByLabel('CSV file').setInputFiles({
+      name: 'products.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from('Product Name,SKU,Price,Cost\nNordic Vase,A1,1500,900\n'),
+    });
     const pv = dlg.getByRole('region', { name: 'File preview' });
     await expect(pv).toContainText('1 row has no name and was skipped.');
     await expect(pv.getByRole('combobox', { name: 'Name column' })).toContainText('product_name');
@@ -855,18 +851,49 @@ test.describe('brain (admin)', () => {
     const dlg = page.getByRole('dialog', { name: 'Import from a CSV file' });
     await dlg.getByRole('combobox', { name: 'File contents' }).click();
     await page.getByRole('option', { name: 'FAQs' }).click();
-    await dlg
-      .getByLabel('CSV file')
-      .setInputFiles({
-        name: 'faq.csv',
-        mimeType: 'text/csv',
-        buffer: Buffer.from('question,reply,topic\nDo you deliver?,Yes.,Delivery\n'),
-      });
+    await dlg.getByLabel('CSV file').setInputFiles({
+      name: 'faq.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from('question,reply,topic\nDo you deliver?,Yes.,Delivery\n'),
+    });
     const pv = dlg.getByRole('region', { name: 'File preview' });
     await expect(pv.getByRole('combobox', { name: 'Question column' })).toContainText('question');
     await expect(pv.getByRole('combobox', { name: 'Answer column' })).toContainText('reply');
     await expect(pv).not.toContainText('Currency');
     await expect(dlg.getByRole('button', { name: 'Import 5 FAQs for review' })).toBeEnabled();
+  });
+
+  test('Website scan: business details that differ from Brain are shown side by side and only replaced when ticked', async ({
+    page,
+  }) => {
+    await openTab(page, 'Intelligence');
+    const hub = intelligence(page);
+    await hub.getByLabel('Website address').fill('shop.test');
+    await hub.getByRole('button', { name: 'Scan website' }).click();
+    const biz = hub
+      .getByRole('listitem')
+      .filter({ has: page.getByRole('heading', { name: 'UrbanNest', exact: true }) });
+    const diff = biz.getByRole('group', { name: 'Differs from what is in your Brain' });
+    await expect(diff).toContainText('Yours: UrbanNest (test)');
+    await expect(diff).toContainText('Found: UrbanNest');
+    await expect(diff).toContainText('left as they are');
+    const box = diff.getByRole('checkbox', { name: /Name/ });
+    await expect(box).not.toBeChecked();
+    await box.click();
+    await expect
+      .poll(() =>
+        scanState.patches.some(
+          (p) => (p as { data?: { replace?: string } }).data?.replace === 'name',
+        ),
+      )
+      .toBe(true);
+    await expect(box).toBeChecked();
+    await box.click();
+    await expect
+      .poll(() =>
+        scanState.patches.some((p) => (p as { data?: { replace?: string } }).data?.replace === ''),
+      )
+      .toBe(true);
   });
 
   test('Summary has all eight sections, in order', async ({ page }) => {

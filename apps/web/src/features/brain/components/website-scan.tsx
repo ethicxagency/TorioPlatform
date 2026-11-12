@@ -18,6 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Modal } from '@/features/leads/components/modal';
 import { cn } from '@/lib/utils';
 import {
+  useBrain,
   useBulkReview,
   useCancelScan,
   useImportApproved,
@@ -66,6 +67,8 @@ const level = (c: number) =>
     : c >= 60
       ? { label: 'Medium', cls: 'bg-warning-soft text-warning' }
       : { label: 'Low', cls: 'bg-danger-soft text-danger' };
+
+const short = (v: string, n = 160) => (v.length > n ? `${v.slice(0, n)}…` : v);
 
 function host(u: string | null) {
   try {
@@ -136,15 +139,32 @@ function EditDialog({
   );
 }
 
+const IDENTITY_FIELDS = ['name', 'description', 'category', 'country', 'website'] as const;
+
 function Row({
   r,
+  identity,
   onStatus,
   onEdit,
+  onReplace,
 }: {
   r: ImportRecordView;
+  /** Brain's current business details, to show where the proposal differs from what you already have. */
+  identity: Partial<Record<(typeof IDENTITY_FIELDS)[number], string>> | null;
   onStatus: (s: 'PENDING' | 'APPROVED' | 'REJECTED') => void;
   onEdit: () => void;
+  onReplace: (fields: string[]) => void;
 }) {
+  const replacing = new Set((r.data['replace'] ?? '').split(',').filter(Boolean));
+  const differs =
+    r.category === 'business' && identity && r.status !== 'IMPORTED'
+      ? IDENTITY_FIELDS.filter(
+          (f) =>
+            (r.data[f] ?? '').trim() &&
+            identity[f]?.trim() &&
+            r.data[f]!.trim().toLowerCase() !== identity[f]!.trim().toLowerCase(),
+        )
+      : [];
   const lv = level(r.confidence);
   const imported = r.status === 'IMPORTED';
   const shown = Object.entries(r.data).filter(([k]) => !['name', 'q'].includes(k));
@@ -187,6 +207,41 @@ function Row({
               </div>
             ))}
           </dl>
+          {differs.length > 0 && (
+            <fieldset className="m-0 mt-2 rounded-lg border border-line-subtle bg-white p-2.5">
+              <legend className="px-1 text-xs font-semibold text-muted">
+                Differs from what is in your Brain
+              </legend>
+              <div className="flex flex-col gap-1.5">
+                {differs.map((f) => (
+                  <label key={f} className="flex items-start gap-2 text-[12.5px]">
+                    <input
+                      type="checkbox"
+                      checked={replacing.has(f)}
+                      onChange={() => {
+                        const next = new Set(replacing);
+                        if (next.has(f)) next.delete(f);
+                        else next.add(f);
+                        onReplace([...next]);
+                      }}
+                      className="mt-0.5"
+                    />
+                    <span className="min-w-0">
+                      <span className="text-faint">{FIELD_LABEL[f] ?? f}: </span>
+                      <span className="break-words">Yours: {short(identity![f]!)}</span>
+                      <span className="block break-words text-muted">
+                        Found: {short(r.data[f]!)}
+                      </span>
+                      <span className="text-xs text-faint">Replace mine with the found value</span>
+                    </span>
+                  </label>
+                ))}
+                <p className="m-0 text-xs text-faint">
+                  Unticked details are left as they are in your Brain.
+                </p>
+              </div>
+            </fieldset>
+          )}
           {r.warnings.length > 0 && (
             <ul className="m-0 mt-1.5 flex list-none flex-col gap-0.5 p-0 text-xs text-warning">
               {r.warnings.map((w) => (
@@ -248,6 +303,7 @@ export function Review({
   onImported: () => void;
 }) {
   const recs = useScanRecords(ws, jobId, true);
+  const brain = useBrain(ws);
   const review = useReviewRecord(ws, jobId);
   const bulk = useBulkReview(ws, jobId);
   const imp = useImportApproved(ws, jobId);
@@ -335,8 +391,15 @@ export function Review({
           <Row
             key={r.id}
             r={r}
+            identity={brain.data?.config.identity ?? null}
             onEdit={() => setEditing(r)}
             onStatus={(s) => review.mutate({ id: r.id, status: s }, { onError: fail })}
+            onReplace={(fields) =>
+              review.mutate(
+                { id: r.id, data: { ...r.data, replace: fields.join(',') } },
+                { onError: fail },
+              )
+            }
           />
         ))}
       </ul>

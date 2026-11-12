@@ -46,6 +46,12 @@ one active scan per store, `TorioBot` user agent.
 - Page text is untrusted. It never becomes an instruction: the AI answer must match a schema and be grounded in the page.
 - Every query is scoped to the workspace; another store's job or entry is reported as not found.
 
+## Business details that differ
+
+A scanned business profile only **fills blank** fields in Brain. Where a detail already has a value and the site says something
+different, the review row shows both ("Yours" and "Found") with a tick "Replace mine with the found value" per field. Unticked
+details are left alone, and the import reports how many differed and were kept or replaced.
+
 ## CSV files (products and FAQs)
 
 Intelligence → **CSV file** reads a spreadsheet export in the request (no network): up to 2.5 MB and 5,000 rows, comma,

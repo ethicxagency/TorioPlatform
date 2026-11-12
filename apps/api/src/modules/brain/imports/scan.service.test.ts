@@ -220,6 +220,36 @@ describe('ScanService', () => {
     );
   });
 
+  it('business details that differ from Brain are kept unless the person chose to replace them, and the import says so', async () => {
+    seed();
+    current = {
+      ...emptyBrainConfig(),
+      identity: {
+        ...emptyBrainConfig().identity,
+        name: 'My Own Name',
+        description: 'My description',
+      },
+    };
+    const d = await svc.start(WS, USER, { url: 'https://shop.test' });
+    await svc.step(WS, d.job.id, 60_000);
+    const biz = (await svc.records(WS, d.job.id)).data.find((r) => r.category === 'business')!;
+    await svc.review(WS, biz.id, { status: 'APPROVED' });
+    let res = await svc.importApproved(WS, USER, d.job.id);
+    expect(saved!.cfg.identity.name).toBe('My Own Name');
+    expect(res.notes.join(' ')).toMatch(
+      /1 business detail differs from what is in your Brain and was kept/,
+    );
+    // choosing to replace the name overwrites only that field
+    const d2 = await svc.start(WS, USER, { url: 'https://shop.test' });
+    await svc.step(WS, d2.job.id, 60_000);
+    const biz2 = (await svc.records(WS, d2.job.id)).data.find((r) => r.category === 'business')!;
+    await svc.review(WS, biz2.id, { status: 'APPROVED', data: { ...biz2.data, replace: 'name' } });
+    res = await svc.importApproved(WS, USER, d2.job.id);
+    expect(saved!.cfg.identity.name).toBe('UrbanNest');
+    expect(saved!.cfg.identity.description).toBe('My description');
+    expect(res.notes.join(' ')).toMatch(/1 business detail was replaced as you chose/);
+  });
+
   it('edits keep the original value visible', async () => {
     seed();
     const d = await svc.start(WS, USER, { url: 'https://shop.test' });
