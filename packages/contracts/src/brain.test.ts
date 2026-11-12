@@ -195,7 +195,7 @@ describe('previewReply (rule-based simulation, not AI)', () => {
 
 describe('shipping provider and payment method records', () => {
   it('a Brain saved before disable and notes existed still parses, with empty defaults', () => {
-    const old = structuredClone(emptyBrainConfig()) as Record<string, any>;
+    const old = structuredClone(emptyBrainConfig()) as { shipping: Record<string, unknown> };
     for (const k of ['providersOff', 'providerNotes', 'paymentsOff', 'paymentNotes'])
       delete old.shipping[k];
     old.shipping.providers = ['Pathao'];
