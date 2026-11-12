@@ -18,7 +18,13 @@ export const AI_MODE_LABEL: Record<AiMode, string> = {
 };
 
 /** Safe, high-level phases shown while a draft is prepared. No reasoning is exposed. */
-export const AI_PHASES = ['understanding', 'consulting', 'evaluating', 'preparing', 'done'] as const;
+export const AI_PHASES = [
+  'understanding',
+  'consulting',
+  'evaluating',
+  'preparing',
+  'done',
+] as const;
 export type AiPhase = (typeof AI_PHASES)[number];
 export const AI_PHASE_LABEL: Record<AiPhase, string> = {
   understanding: 'Understanding message',
@@ -159,7 +165,13 @@ export const aiTestResultSchema = z.object({
 });
 
 // ---------- Inbox ----------
-export const AI_REFINEMENTS = ['shorter', 'detailed', 'tone', 'translate_en', 'translate_bn'] as const;
+export const AI_REFINEMENTS = [
+  'shorter',
+  'detailed',
+  'tone',
+  'translate_en',
+  'translate_bn',
+] as const;
 export const aiRefinementSchema = z.enum(AI_REFINEMENTS);
 
 export const aiDraftInputSchema = z.object({
@@ -187,7 +199,12 @@ export const aiOptionsSchema = z.object({
   available: z.boolean(),
   reason: z.string().nullable(),
   modes: z.array(
-    z.object({ mode: aiModeSchema, label: z.string(), available: z.boolean(), reason: z.string().nullable() }),
+    z.object({
+      mode: aiModeSchema,
+      label: z.string(),
+      available: z.boolean(),
+      reason: z.string().nullable(),
+    }),
   ),
   recommended: aiModeSchema.nullable(),
 });
@@ -207,4 +224,6 @@ export const aiLogQuerySchema = z.object({
   to: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
 });
-export const aiOverviewQuerySchema = z.object({ days: z.coerce.number().int().min(1).max(90).default(30) });
+export const aiOverviewQuerySchema = z.object({
+  days: z.coerce.number().int().min(1).max(90).default(30),
+});
