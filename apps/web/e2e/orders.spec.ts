@@ -107,7 +107,7 @@ test.describe('orders (owner)', () => {
     });
     await page.getByRole('row', { name: /#1001/ }).click();
     const main = page.getByRole('main');
-    const steps = main.getByRole('list', { name: 'Order progress' });
+    const steps = main.getByRole('list', { name: 'Order steps' });
     await expect(steps.getByRole('listitem').filter({ hasText: 'Processing' })).toHaveAttribute(
       'aria-current',
       'step',
@@ -134,11 +134,36 @@ test.describe('orders (owner)', () => {
     await expect(sum.getByText('$310.00')).toBeVisible();
   });
 
+  test('steps get their times from the order history, and a missing one shows none', async ({
+    page,
+  }) => {
+    const o = orderState.list[0] as unknown as { events: unknown[]; status: string };
+    o.status = 'PROCESSING';
+    o.events.push({
+      id: 'abababab-abab-4bab-8bab-000000000099',
+      type: 'status',
+      description: 'Status changed from Pending to Confirmed',
+      actor: null,
+      createdAt: new Date('2026-11-10T11:00:00Z').toISOString(),
+    });
+    await page.getByRole('row', { name: /#1001/ }).click();
+    const steps = page.getByRole('main').getByRole('list', { name: 'Order steps' });
+    await expect(
+      steps.getByRole('listitem').filter({ hasText: 'Confirmed' }).locator('time'),
+    ).toHaveCount(1);
+    // no history entry for Processing, so no time is shown for it
+    await expect(
+      steps.getByRole('listitem').filter({ hasText: 'Processing' }).locator('time'),
+    ).toHaveCount(0);
+    await expect(page.getByRole('main').getByText('3 of 4 steps')).toBeVisible();
+    await expect(steps.getByText('Fulfillment: unfulfilled')).toBeVisible();
+  });
+
   test('a cancelled order shows its end state in the progress', async ({ page }) => {
     const o = orderState.list[0] as unknown as Record<string, unknown>;
     Object.assign(o, { status: 'CANCELLED', cancelledAt: new Date().toISOString() });
     await page.getByRole('row', { name: /#1001/ }).click();
-    const steps = page.getByRole('main').getByRole('list', { name: 'Order progress' });
+    const steps = page.getByRole('main').getByRole('list', { name: 'Order steps' });
     await expect(steps.getByRole('listitem').filter({ hasText: 'Cancelled' })).toBeVisible();
     await expect(steps.getByRole('listitem').filter({ hasText: 'Confirmed' })).not.toHaveAttribute(
       'aria-current',

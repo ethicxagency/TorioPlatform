@@ -4,125 +4,218 @@ import {
   CreditCard,
   Landmark,
   Package,
+  Route,
   Smartphone,
   Wallet,
   X,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { METHOD_LABEL, STATUS_INFO } from '../constants';
+import { FULFILLMENT_INFO, METHOD_LABEL, STATUS_INFO } from '../constants';
 import { formatMoney } from '../money';
 import type { OrderDetail, OrderStatus } from '../types';
+import { OrderStatusBadge } from './badges';
 
 const STEPS = ['PENDING', 'CONFIRMED', 'PROCESSING', 'COMPLETED'] as const;
+type StepKey = (typeof STEPS)[number];
+type NodeState = 'done' | 'current' | 'todo' | 'cancelled';
 
 /**
- * The order's lifecycle as a stepper. Only moments the order really stores are timestamped: when it was created, completed or
- * cancelled. The in-between steps carry no time because the order does not record one, and none is invented.
+ * When each status was really reached. The order stores three moments itself (created, completed, cancelled). The in-between
+ * steps come from the order's own history: the server writes "Status changed from X to Y" for every change, and the latest
+ * such entry per target status is its time. A step with no record has no time; nothing is estimated.
+ */
+export function statusTimes(
+  order: Pick<OrderDetail, 'createdAt' | 'completedAt' | 'cancelledAt' | 'events'>,
+): Partial<Record<OrderStatus, string>> {
+  const t: Partial<Record<OrderStatus, string>> = { PENDING: order.createdAt };
+  for (const e of order.events) {
+    const m =
+      /^Status changed from .+? to (Pending|Confirmed|Processing|Completed|Cancelled)\b/.exec(
+        e.description,
+      );
+    if (!m) continue;
+    const key = m[1]!.toUpperCase() as OrderStatus;
+    if (!t[key] || e.createdAt > t[key]!) t[key] = e.createdAt;
+  }
+  if (order.completedAt) t.COMPLETED = order.completedAt;
+  if (order.cancelledAt) t.CANCELLED = order.cancelledAt;
+  return t;
+}
+
+const CONTEXT: Record<StepKey, (o: Pick<OrderDetail, 'fulfillmentStatus'>) => string | null> = {
+  PENDING: () => 'Awaiting confirmation',
+  CONFIRMED: () => 'Ready to be processed',
+  PROCESSING: (o) => `Fulfillment: ${FULFILLMENT_INFO[o.fulfillmentStatus].label.toLowerCase()}`,
+  COMPLETED: () => null,
+};
+
+/**
+ * The order journey, drawn from the order's real status. A completed order has every step done; a cancelled one keeps the steps
+ * it did reach, leaves the rest muted and ends in a red Cancelled step (it is never shown as completed). Horizontal from the
+ * small breakpoint up, a vertical timeline on phones.
  */
 export function OrderProgress({
   order,
   fmt,
 }: {
-  order: Pick<OrderDetail, 'status' | 'createdAt' | 'completedAt' | 'cancelledAt'>;
+  order: Pick<
+    OrderDetail,
+    'status' | 'createdAt' | 'completedAt' | 'cancelledAt' | 'events' | 'fulfillmentStatus'
+  >;
   fmt: (iso: string) => string;
 }) {
   const cancelled = order.status === 'CANCELLED';
-  const at = STEPS.indexOf(order.status as (typeof STEPS)[number]);
-  const stamp = (s: OrderStatus): string | null =>
-    s === 'PENDING' ? order.createdAt : s === 'COMPLETED' ? order.completedAt : null;
-  const items: {
+  const times = statusTimes(order);
+  const at = STEPS.indexOf(order.status as StepKey);
+  const nodes: {
     key: string;
     label: string;
-    state: 'done' | 'current' | 'todo' | 'cancelled';
+    state: NodeState;
     time: string | null;
-  }[] = STEPS.map((s, i) => ({
-    key: s,
-    label: STATUS_INFO[s].label,
-    state: cancelled
-      ? i === 0
+    note: string | null;
+  }[] = STEPS.map((s, i) => {
+    const reached = cancelled ? i === 0 || !!times[s] : i <= at;
+    const state: NodeState = cancelled
+      ? reached
         ? 'done'
         : 'todo'
-      : i < at
+      : i < at || (i === at && s === 'COMPLETED')
         ? 'done'
         : i === at
-          ? s === 'COMPLETED'
-            ? 'done'
-            : 'current'
-          : 'todo',
-    time: cancelled && i > 0 ? null : stamp(s),
-  }));
+          ? 'current'
+          : 'todo';
+    return {
+      key: s,
+      label: STATUS_INFO[s].label,
+      state,
+      time: reached ? (times[s] ?? null) : null,
+      note: state === 'current' ? CONTEXT[s](order) : null,
+    };
+  });
   if (cancelled)
-    items.push({
+    nodes.push({
       key: 'CANCELLED',
       label: 'Cancelled',
       state: 'cancelled',
-      time: order.cancelledAt,
+      time: times.CANCELLED ?? null,
+      note: null,
     });
+  const last = nodes.length - 1;
+  const doneCount = nodes.filter((n) => n.state === 'done').length;
+  const currentIdx = nodes.findIndex((n) => n.state === 'current');
+  // The filled part of the track runs to the current step, or to the last completed one.
+  const reachedIdx = cancelled
+    ? Math.max(0, nodes.map((n) => n.state).lastIndexOf('done'))
+    : currentIdx >= 0
+      ? currentIdx
+      : doneCount - 1;
+  const pct = last > 0 ? (reachedIdx / last) * 100 : 0;
+  const stepText = cancelled
+    ? `${doneCount} of ${STEPS.length} steps reached`
+    : `${order.status === 'COMPLETED' ? STEPS.length : at + 1} of ${STEPS.length} steps`;
+
   return (
-    <ol
+    <section
       aria-label="Order progress"
-      className="m-0 flex list-none items-start rounded-card border border-line bg-white p-0 px-3 py-3.5 sm:px-5"
+      className="rounded-card border border-line bg-white px-4 py-3.5 sm:px-5"
     >
-      {items.map((s, i) => (
-        <li
-          key={s.key}
-          aria-current={s.state === 'current' ? 'step' : undefined}
-          className="relative flex min-w-0 flex-1 flex-col items-center text-center"
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+        <h2 className="m-0 flex items-center gap-2 font-card-title text-ink">
+          <Route size={16} aria-hidden className="text-muted" />
+          Order progress
+        </h2>
+        <div className="flex items-center gap-2.5 text-[12.5px] text-muted">
+          <OrderStatusBadge status={order.status} />
+          <span className="tabular-nums" aria-live="polite">
+            {stepText}
+          </span>
+        </div>
+      </div>
+      <ol
+        aria-label="Order steps"
+        className="relative m-0 flex list-none flex-col gap-0 p-0 sm:grid sm:grid-flow-col sm:auto-cols-fr"
+      >
+        {/* Horizontal track: a neutral rail with a filled part that grows as the order moves on. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute top-[15px] hidden h-1 -translate-y-1/2 rounded-full bg-line sm:block"
+          style={{ left: `${50 / nodes.length}%`, right: `${50 / nodes.length}%` }}
         >
-          {i > 0 && (
+          <span
+            className="block h-full rounded-full bg-success transition-[width] duration-[250ms] ease-out motion-reduce:transition-none"
+            style={{ width: `${pct}%` }}
+          />
+        </span>
+        {nodes.map((n, i) => (
+          <li
+            key={n.key}
+            aria-current={n.state === 'current' ? 'step' : undefined}
+            className="group relative flex min-w-0 gap-3 pb-4 last:pb-0 sm:flex-col sm:items-center sm:gap-0 sm:pb-0 sm:text-center"
+          >
+            {/* Vertical connector (phones): one segment from this node down to the next. */}
+            {i < last && (
+              <span
+                aria-hidden
+                className={cn(
+                  'absolute left-[13px] top-8 -bottom-0 w-0.5 rounded-full transition-colors duration-[250ms] motion-reduce:transition-none sm:hidden',
+                  n.state === 'done' && nodes[i + 1]!.state !== 'todo' ? 'bg-success' : 'bg-line',
+                )}
+              />
+            )}
             <span
               aria-hidden
               className={cn(
-                'absolute right-1/2 top-[13px] h-0.5 w-full',
-                s.state === 'done' || s.state === 'current'
-                  ? 'bg-primary'
-                  : s.state === 'cancelled'
-                    ? 'bg-[#F1B5B5]'
-                    : 'bg-line',
+                'relative z-[1] flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full border-2 text-[11.5px] font-semibold transition-[transform,background-color,border-color,color] duration-[200ms] ease-out group-hover:scale-110 motion-reduce:transition-none motion-reduce:group-hover:scale-100',
+                n.state === 'done' && 'border-success bg-success text-white',
+                n.state === 'current' &&
+                  'animate-ring-pulse border-primary bg-primary text-white motion-reduce:animate-none',
+                n.state === 'todo' && 'border-line bg-white text-faint',
+                n.state === 'cancelled' && 'border-danger bg-danger text-white',
               )}
-            />
-          )}
-          <span
-            aria-hidden
-            className={cn(
-              'relative z-[1] flex h-7 w-7 items-center justify-center rounded-full border-2 text-[11px] font-semibold',
-              s.state === 'done' && 'border-primary bg-primary text-white',
-              s.state === 'current' &&
-                'border-primary bg-white text-primary ring-4 ring-primary/15',
-              s.state === 'todo' && 'border-line bg-white text-faint',
-              s.state === 'cancelled' && 'border-danger bg-danger text-white',
-            )}
-          >
-            {s.state === 'done' ? (
-              <Check size={14} strokeWidth={3} />
-            ) : s.state === 'cancelled' ? (
-              <X size={14} strokeWidth={3} />
-            ) : (
-              i + 1
-            )}
-          </span>
-          <span
-            className={cn(
-              'mt-1.5 text-[12.5px] leading-tight',
-              s.state === 'current' || s.state === 'cancelled'
-                ? 'font-semibold text-ink'
-                : s.state === 'done'
-                  ? 'font-medium text-ink'
-                  : 'text-faint',
-              s.state === 'cancelled' && 'text-danger',
-            )}
-          >
-            {s.label}
-          </span>
-          {s.time && (
-            <time dateTime={s.time} className="mt-0.5 hidden text-[11px] text-muted sm:block">
-              {fmt(s.time)}
-            </time>
-          )}
-        </li>
-      ))}
-    </ol>
+            >
+              {n.state === 'done' ? (
+                <Check
+                  size={15}
+                  strokeWidth={3}
+                  className="animate-badge-in motion-reduce:animate-none"
+                />
+              ) : n.state === 'cancelled' ? (
+                <X
+                  size={15}
+                  strokeWidth={3}
+                  className="animate-badge-in motion-reduce:animate-none"
+                />
+              ) : (
+                i + 1
+              )}
+            </span>
+            <span className="min-w-0 sm:mt-2">
+              <span
+                className={cn(
+                  'block text-[13px] leading-tight',
+                  n.state === 'current' && 'font-semibold text-primary',
+                  n.state === 'done' && 'font-medium text-ink',
+                  n.state === 'todo' && 'text-faint',
+                  n.state === 'cancelled' && 'font-semibold text-danger',
+                )}
+              >
+                {n.label}
+              </span>
+              {n.time && (
+                <time
+                  dateTime={n.time}
+                  className="mt-0.5 block text-[11.5px] tabular-nums text-muted"
+                >
+                  {fmt(n.time)}
+                </time>
+              )}
+              {n.note && <span className="mt-0.5 block text-[11.5px] text-muted">{n.note}</span>}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 

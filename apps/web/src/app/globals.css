@@ -76,6 +76,8 @@
   --animate-drawer-in: drawer-in var(--duration-smooth) var(--ease-standard);
   --animate-pulse-soft: pulse-soft 1.2s ease-in-out infinite;
   --animate-badge-in: badge-in 0.18s ease-out;
+  /* A soft ring around the current step: three gentle pulses, then still. */
+  --animate-ring-pulse: ring-pulse 2.2s ease-out 3;
 
   @keyframes panel-in {
     from {
@@ -186,6 +188,15 @@
       opacity: 1;
     }
   }
+  @keyframes ring-pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgb(91 92 226 / 0.35);
+    }
+    100% {
+      box-shadow: 0 0 0 9px rgb(91 92 226 / 0);
+    }
+  }
+
   @keyframes badge-in {
     from {
       opacity: 0;
