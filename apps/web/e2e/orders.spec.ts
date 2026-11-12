@@ -86,6 +86,66 @@ test.describe('orders (owner)', () => {
     await expect(page).toHaveURL(/\/orders$/);
   });
 
+  test('progress, items table and payment summary reflect the real order', async ({ page }) => {
+    const o = orderState.list[0] as unknown as Record<string, unknown>;
+    Object.assign(o, {
+      status: 'PROCESSING',
+      paymentStatus: 'PARTIALLY_PAID',
+      paidMinor: 10_000,
+      outstandingMinor: 31_000,
+      payments: [
+        {
+          id: '88888888-8888-4888-8888-000000000001',
+          amountMinor: 10_000,
+          method: 'MOBILE_WALLET',
+          reference: 'TRX-1',
+          note: null,
+          paidAt: new Date().toISOString(),
+          recordedBy: null,
+        },
+      ],
+    });
+    await page.getByRole('row', { name: /#1001/ }).click();
+    const main = page.getByRole('main');
+    const steps = main.getByRole('list', { name: 'Order progress' });
+    await expect(steps.getByRole('listitem').filter({ hasText: 'Processing' })).toHaveAttribute(
+      'aria-current',
+      'step',
+    );
+    await expect(steps.getByRole('listitem').filter({ hasText: 'Completed' })).not.toHaveAttribute(
+      'aria-current',
+      'step',
+    );
+    const items = main.getByRole('table');
+    for (const h of ['Product', 'Qty', 'Unit price', 'Total'])
+      await expect(items.getByRole('columnheader', { name: h })).toBeVisible();
+    await expect(items.getByRole('cell', { name: /Linen sofa/ })).toBeVisible();
+    const pay = main.getByRole('region', { name: 'Payments' });
+    await expect(pay.getByText('Mobile wallet')).toBeVisible();
+    await expect(pay.getByText('Received')).toBeVisible();
+    await expect(pay.getByText('Ref TRX-1')).toBeVisible();
+    await expect(pay.getByRole('progressbar', { name: 'Amount paid' })).toHaveAttribute(
+      'aria-valuenow',
+      '10000',
+    );
+    // the totals shown are the server's figures: total, paid and outstanding
+    const sum = main.getByRole('region', { name: 'Summary' });
+    await expect(sum.getByText('$410.00')).toBeVisible();
+    await expect(sum.getByText('$310.00')).toBeVisible();
+  });
+
+  test('a cancelled order shows its end state in the progress', async ({ page }) => {
+    const o = orderState.list[0] as unknown as Record<string, unknown>;
+    Object.assign(o, { status: 'CANCELLED', cancelledAt: new Date().toISOString() });
+    await page.getByRole('row', { name: /#1001/ }).click();
+    const steps = page.getByRole('main').getByRole('list', { name: 'Order progress' });
+    await expect(steps.getByRole('listitem').filter({ hasText: 'Cancelled' })).toBeVisible();
+    await expect(steps.getByRole('listitem').filter({ hasText: 'Confirmed' })).not.toHaveAttribute(
+      'aria-current',
+      'step',
+    );
+  });
+
   test('Print invoice asks the server for this order only, and says so when it cannot', async ({
     page,
   }) => {
@@ -229,7 +289,7 @@ test.describe('orders (owner)', () => {
     const main = page.getByRole('main');
     await expect(main.getByRole('heading', { name: /Order #1002/ })).toBeVisible();
     const save = main.getByRole('button', { name: 'Save changes' });
-    await expect(save).toBeDisabled();
+    await expect(save).toHaveCount(0); // Save appears once editing starts
     await main.getByRole('button', { name: 'Edit', exact: true }).first().click();
     const qty = main.getByLabel('Item 1 quantity');
     await qty.focus();
@@ -250,10 +310,12 @@ test.describe('orders (owner)', () => {
       shippingAddress: 'House 4, Road 2',
     });
     await expect(page.getByRole('status').filter({ hasText: 'Order changes saved' })).toBeVisible();
-    await expect(save).toBeDisabled();
+    await expect(save).toHaveCount(0); // saved: editing is over
     await page.reload();
     await expect(main.getByText('House 4, Road 2')).toBeVisible();
-    await expect(main.getByText('$285.00').first()).toBeVisible(); // 3 x 95 - 10 + 10 shipping
+    await expect(
+      main.getByRole('region', { name: 'Summary' }).getByText('$285.00').first(),
+    ).toBeVisible(); // 3 x 95 - 10 + 10 shipping
   });
 
   test('a failed save keeps the edits and the save button', async ({ page }) => {
@@ -310,7 +372,7 @@ test.describe('orders (owner)', () => {
     await main.getByRole('button', { name: 'Edit', exact: true }).first().click();
     await main.getByLabel('Item 1 quantity').fill('5');
     await main.getByRole('button', { name: 'Discard' }).click();
-    await expect(main.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+    await expect(main.getByRole('button', { name: 'Save changes' })).toHaveCount(0);
     await main.getByRole('button', { name: 'Back to Orders' }).click();
     await expect(page).toHaveURL(/\/orders$/);
   });

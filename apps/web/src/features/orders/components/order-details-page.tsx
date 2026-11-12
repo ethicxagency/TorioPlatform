@@ -11,8 +11,9 @@ import {
   Info,
   Loader2,
   Lock,
-  Package,
-  MoreHorizontal,
+  Mail,
+  MapPin,
+  Phone,
   Check,
   Circle,
   Pencil,
@@ -31,22 +32,22 @@ import {
 } from '@torio/contracts';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChannelIcon } from '@/components/channel-icon';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { AREA, CONTROL } from '@/components/ui/input';
+import { ActionMenu } from '@/components/ui/menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useShell } from '@/components/shell/shell-context';
 import { ConfirmDialog } from '@/features/inbox/components/confirm-dialog';
 import { fmtAgo, initialsOf } from '@/features/inbox/format';
-import { useDismiss } from '@/features/inbox/use-dismiss';
 import { useTimeZone } from '@/features/settings/queries';
 import { fmtDateTime } from '@/lib/datetime';
 import { useWorkspace } from '@/lib/workspace';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
-import { CHANNEL_LABEL, METHOD_LABEL, NEXT_STATUS } from '../constants';
+import { CHANNEL_LABEL, NEXT_STATUS } from '../constants';
 import { formatMoney } from '../money';
 import {
   downloadInvoice,
@@ -67,6 +68,7 @@ import {
   TotalsSummary,
   validateLines,
 } from './order-fields';
+import { ItemsTable, OrderProgress, PaymentRow } from './order-parts';
 import { UnsavedActionDialog } from './unsaved-action-dialog';
 import { CLEAN, dirtyOf, draftFromOrder, type Draft } from '../order-draft';
 import { useUnsavedGuard } from '../use-unsaved-guard';
@@ -204,89 +206,6 @@ const EVENT_ICON: Record<string, typeof Circle> = {
   note: StickyNote,
   updated: Pencil,
 };
-
-function Figure({
-  label,
-  value,
-  big,
-  tone,
-}: {
-  label: string;
-  value: string;
-  big?: boolean;
-  tone?: 'ok' | 'warn';
-}) {
-  return (
-    <div
-      className={cn(
-        'flex min-h-[84px] flex-col justify-between rounded-card border px-4 py-3.5',
-        tone === 'warn'
-          ? 'border-[#F5D9A0] bg-[#FFFBEB]'
-          : tone === 'ok'
-            ? 'border-line bg-white'
-            : 'border-line bg-white',
-      )}
-    >
-      <div className="text-[12.5px] text-muted">{label}</div>
-      <div
-        className={cn(
-          'mt-1 text-[24px] font-semibold leading-none tabular-nums',
-          big && 'text-ink',
-          tone === 'ok' && 'text-success',
-          tone === 'warn' && 'text-[#92580A]',
-          !tone && !big && 'text-ink',
-        )}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function MoreMenu({ children }: { children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useDismiss(ref, open, () => setOpen(false));
-  return (
-    <div ref={ref} className="relative">
-      <Button
-        variant="outline"
-        aria-label="More actions"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <MoreHorizontal size={16} />
-      </Button>
-      {open && (
-        <div
-          role="menu"
-          onClick={() => setOpen(false)}
-          className="absolute right-0 top-full z-30 mt-1 flex min-w-[200px] animate-panel-in flex-col rounded-xl border border-line bg-white p-1 shadow-[0_8px_24px_rgba(23,24,28,0.12)] max-sm:left-0 max-sm:right-auto"
-        >
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MenuItem({
-  danger,
-  ...p
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { danger?: boolean }) {
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      {...p}
-      className={cn(
-        'flex w-full cursor-pointer items-center gap-2 rounded-lg border-none bg-transparent px-2.5 py-2 text-left text-[13px] hover:bg-wash disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary',
-        danger ? 'text-danger' : 'text-ink',
-      )}
-    />
-  );
-}
 
 /** Full-page order details (Shopify-style): main column for items, payments and history, context column for totals. */
 export function OrderDetailsPage({ orderId }: { orderId: string }) {
@@ -507,24 +426,40 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
 
         {o && (
           <>
-            <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+            <header className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
               <div className="min-w-0">
                 <h1 className="m-0 flex flex-wrap items-center gap-2.5 font-page-title">
                   Order #{o.number}
                   {o.isSample && <SampleTag />}
                 </h1>
-                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+                <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">
                   <OrderStatusBadge status={o.status} />
-                  <PaymentBadge status={o.paymentStatus} />
-                  <FulfillmentBadge status={o.fulfillmentStatus} />
+                  <span className="inline-flex items-center gap-1.5 text-[11.5px] text-faint">
+                    Payment <PaymentBadge status={o.paymentStatus} />
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-[11.5px] text-faint">
+                    Fulfillment <FulfillmentBadge status={o.fulfillmentStatus} />
+                  </span>
                   <SaveState saving={saving} dirty={dirty} saved={justSaved} />
                 </div>
-                <p className="mb-0 mt-2 text-[13px] text-muted">
-                  {fmtFull(o.createdAt)} · {o.customer.name}
-                  {o.createdBy && <> · created by {o.createdBy.name}</>}
+                <p className="mb-0 mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-muted">
+                  <time dateTime={o.createdAt}>{fmtFull(o.createdAt)}</time>
+                  <span aria-hidden>·</span>
+                  <span>{o.customer.name}</span>
+                  <span aria-hidden>·</span>
+                  <span className="inline-flex items-center gap-1">
+                    <ChannelIcon channel={o.channel} size={13} />
+                    {CHANNEL_LABEL[o.channel]}
+                  </span>
+                  {o.createdBy && (
+                    <>
+                      <span aria-hidden>·</span>
+                      <span>created by {o.createdBy.name}</span>
+                    </>
+                  )}
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2 print:hidden max-sm:w-full">
+              <div className="flex flex-wrap items-center gap-2 print:hidden lg:max-w-[66%] lg:justify-end">
                 <Button
                   variant="outline"
                   loading={invoiceBusy}
@@ -559,7 +494,7 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                     {draft ? 'Editing' : 'Edit'}
                   </Button>
                 )}
-                {canWrite && !editBlock && (
+                {canWrite && !editBlock && draft && (
                   <>
                     {dirty && (
                       <Button variant="ghost" disabled={saving} onClick={stopEditing}>
@@ -595,39 +530,40 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                     </Button>
                   )
                 )}
-                <MoreMenu>
-                  {canWrite && (
-                    <MenuItem
-                      disabled={!!shipBlock}
-                      title={shipBlock ?? undefined}
-                      onClick={() => act('Updating fulfillment', () => setDialog('ship'))}
-                    >
-                      <Truck size={14} />
-                      Update fulfillment
-                    </MenuItem>
-                  )}
-                  <MenuItem onClick={() => void exportOrder()}>
-                    <Download size={14} />
-                    Export
-                  </MenuItem>
-                  <MenuItem onClick={() => void invoiceAction('download')}>
-                    <FileText size={14} />
-                    Download invoice (PDF)
-                  </MenuItem>
-                  {canWrite && (
-                    <MenuItem
-                      danger
-                      disabled={!!cancelBlock}
-                      title={cancelBlock ?? undefined}
-                      onClick={() => act('Cancelling', () => setConfirm('cancel'))}
-                    >
-                      <Ban size={14} />
-                      Cancel order
-                    </MenuItem>
-                  )}
-                </MoreMenu>
+                <ActionMenu
+                  label="More actions"
+                  width={220}
+                  items={[
+                    canWrite && {
+                      label: 'Update fulfillment',
+                      icon: Truck,
+                      disabled: !!shipBlock,
+                      title: shipBlock ?? undefined,
+                      onSelect: () => act('Updating fulfillment', () => setDialog('ship')),
+                    },
+                    {
+                      label: 'Download invoice (PDF)',
+                      icon: FileText,
+                      onSelect: () => void invoiceAction('download'),
+                    },
+                    {
+                      label: 'Export order (CSV)',
+                      icon: Download,
+                      onSelect: () => void exportOrder(),
+                    },
+                    canWrite && {
+                      label: 'Cancel order',
+                      icon: Ban,
+                      danger: true,
+                      disabled: !!cancelBlock,
+                      title: cancelBlock ?? undefined,
+                      onSelect: () => act('Cancelling', () => setConfirm('cancel')),
+                    },
+                  ]}
+                />
               </div>
             </header>
+            <OrderProgress order={o} fmt={fmtFull} />
             {saveError && (
               <div
                 role="alert"
@@ -645,25 +581,40 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
             <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,68fr)_minmax(0,32fr)]">
               {/* Main column */}
               <div className="flex min-w-0 flex-col gap-5">
-                <section aria-label="Financial overview" className="grid gap-3 sm:grid-cols-3">
-                  <Figure label="Order total" value={formatMoney(o.totalMinor, o.currency)} big />
-                  <Figure
-                    label="Paid"
-                    value={formatMoney(o.paidMinor, o.currency)}
-                    tone={o.paidMinor > 0 ? 'ok' : undefined}
-                  />
-                  <Figure
-                    label="Outstanding"
-                    value={formatMoney(o.outstandingMinor, o.currency)}
-                    tone={o.outstandingMinor > 0 && o.status !== 'CANCELLED' ? 'warn' : undefined}
-                  />
+                <section
+                  aria-label="Financial overview"
+                  className="grid grid-cols-3 divide-x divide-line-subtle rounded-card border border-line bg-white lg:hidden"
+                >
+                  {(
+                    [
+                      ['Total', o.totalMinor, ''],
+                      ['Paid', o.paidMinor, o.paidMinor > 0 ? 'text-success' : ''],
+                      [
+                        'Due',
+                        o.outstandingMinor,
+                        o.outstandingMinor > 0 && o.status !== 'CANCELLED' ? 'text-[#92580A]' : '',
+                      ],
+                    ] as const
+                  ).map(([label, v, tone]) => (
+                    <div key={label} className="min-w-0 px-3 py-2.5">
+                      <div className="text-[11.5px] text-muted">{label}</div>
+                      <div
+                        className={cn(
+                          'truncate text-[15px] font-semibold tabular-nums text-ink',
+                          tone,
+                        )}
+                      >
+                        {formatMoney(v, o.currency)}
+                      </div>
+                    </div>
+                  ))}
                 </section>
 
                 <Card as="section" aria-label="Items">
                   <CardHeader
                     as="h2"
                     title="Items"
-                    description={`${o.items.length} line${o.items.length === 1 ? '' : 's'}`}
+                    description={`${o.items.length} line${o.items.length === 1 ? '' : 's'} · ${o.items.reduce((n, i) => n + i.quantity, 0)} unit${o.items.reduce((n, i) => n + i.quantity, 0) === 1 ? '' : 's'}`}
                     action={
                       <SectionAction
                         dirty={d.items || d.pricing}
@@ -700,60 +651,50 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                   ) : o.items.length === 0 ? (
                     <p className="m-0 text-[13px] text-muted">This order has no items.</p>
                   ) : (
-                    <div>
-                      <div
-                        aria-hidden
-                        className="hidden grid-cols-[1fr_72px_110px_110px] gap-3 border-b border-line-subtle pb-2 text-[11.5px] font-medium uppercase tracking-wide text-faint sm:grid"
-                      >
-                        <span>Product</span>
-                        <span className="text-right">Qty</span>
-                        <span className="text-right">Unit price</span>
-                        <span className="text-right">Total</span>
-                      </div>
-                      <ul className="m-0 list-none divide-y divide-line-subtle p-0">
-                        {o.items.map((i) => (
-                          <li
-                            key={i.id}
-                            className="grid grid-cols-[40px_1fr_auto] items-center gap-x-3 gap-y-0.5 py-3 text-[14px] last:pb-0 sm:grid-cols-[40px_1fr_72px_110px_110px]"
-                          >
-                            <span
-                              aria-hidden
-                              className="row-span-2 flex h-10 w-10 items-center justify-center rounded-lg border border-line-subtle bg-wash text-faint sm:row-span-1"
-                            >
-                              <Package size={18} />
-                            </span>
-                            <span className="min-w-0">
-                              <span className="block font-medium text-ink">{i.name}</span>
-                              <span className="block text-[12.5px] text-muted">
-                                {i.sku ? `SKU ${i.sku}` : 'No SKU'}
-                              </span>
-                            </span>
-                            <span className="text-right font-medium tabular-nums text-ink sm:order-last sm:w-auto">
-                              {formatMoney(i.lineTotalMinor, o.currency)}
-                            </span>
-                            <span className="col-start-2 text-[12.5px] tabular-nums text-muted sm:col-start-auto sm:text-right sm:text-[14px] sm:text-ink">
-                              <span className="sm:hidden">
-                                {formatMoney(i.unitPriceMinor, o.currency)} ×{' '}
-                              </span>
-                              {i.quantity}
-                            </span>
-                            <span className="hidden text-right tabular-nums text-muted sm:block">
-                              {formatMoney(i.unitPriceMinor, o.currency)}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                    <ItemsTable order={o} />
                   )}
                 </Card>
 
                 <Card as="section" aria-label="Payments">
                   <CardHeader
                     as="h2"
+                    icon={<CreditCard size={16} />}
                     title="Payments"
                     action={<PaymentBadge status={o.paymentStatus} />}
                     className="mb-3"
                   />
+                  {o.status !== 'CANCELLED' && o.totalMinor > 0 && (
+                    <div className="mb-4">
+                      <div className="mb-1.5 flex items-baseline justify-between gap-3 text-[12.5px] text-muted">
+                        <span>
+                          <b className="font-semibold tabular-nums text-ink">
+                            {formatMoney(o.paidMinor, o.currency)}
+                          </b>{' '}
+                          paid of {formatMoney(o.totalMinor, o.currency)}
+                        </span>
+                        {o.outstandingMinor > 0 && (
+                          <span className="tabular-nums text-[#92580A]">
+                            {formatMoney(o.outstandingMinor, o.currency)} due
+                          </span>
+                        )}
+                      </div>
+                      <div
+                        role="progressbar"
+                        aria-label="Amount paid"
+                        aria-valuemin={0}
+                        aria-valuemax={o.totalMinor}
+                        aria-valuenow={Math.min(o.paidMinor, o.totalMinor)}
+                        className="h-1.5 overflow-hidden rounded-full bg-wash-2"
+                      >
+                        <div
+                          className="h-full rounded-full bg-success transition-[width] duration-300 motion-reduce:transition-none"
+                          style={{
+                            width: `${Math.min(100, (o.paidMinor / o.totalMinor) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                   {o.payments.length === 0 ? (
                     <p className="m-0 text-[13px] text-muted">
                       No payments recorded yet.
@@ -764,28 +705,12 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                   ) : (
                     <ul className="m-0 list-none divide-y divide-line-subtle p-0">
                       {o.payments.map((p) => (
-                        <li
+                        <PaymentRow
                           key={p.id}
-                          className="flex justify-between gap-3 py-2.5 text-[14px] first:pt-0 last:pb-0"
-                        >
-                          <span className="min-w-0">
-                            <span className="block font-medium text-ink">
-                              {METHOD_LABEL[p.method]}
-                            </span>
-                            <span className="block text-[12.5px] text-muted">
-                              {fmtFull(p.paidAt)}
-                              {p.recordedBy ? ` · by ${p.recordedBy.name}` : ''}
-                            </span>
-                            {p.reference && (
-                              <span className="block break-all text-[12.5px] text-muted">
-                                Ref {p.reference}
-                              </span>
-                            )}
-                          </span>
-                          <span className="shrink-0 tabular-nums text-ink">
-                            {formatMoney(p.amountMinor, o.currency)}
-                          </span>
-                        </li>
+                          payment={p}
+                          currency={o.currency}
+                          when={fmtFull(p.paidAt)}
+                        />
                       ))}
                     </ul>
                   )}
@@ -799,7 +724,7 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                   <CardHeader
                     as="h2"
                     icon={<Truck size={16} />}
-                    title="Fulfillment and shipping"
+                    title="Shipping & delivery"
                     action={
                       <span className="flex items-center gap-2">
                         {d.ship && <UnsavedTag />}
@@ -843,78 +768,97 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                       </p>
                     </fieldset>
                   )}
-                  {hasShipment ? (
-                    <dl className="m-0 grid grid-cols-[110px_1fr] gap-x-3 gap-y-2 text-[13.5px]">
-                      {o.shippingMethod && (
-                        <>
-                          <dt className="text-muted">Method</dt>
-                          <dd className="m-0">{o.shippingMethod}</dd>
-                        </>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-line-subtle bg-wash/50 p-3">
+                      <div className="mb-1.5 flex items-center gap-1.5 text-[11.5px] font-medium uppercase tracking-wide text-muted">
+                        <MapPin size={12} aria-hidden /> Ship to
+                      </div>
+                      {o.shippingAddress ? (
+                        <div className="whitespace-pre-wrap break-words text-[13.5px] leading-snug text-ink">
+                          {o.shippingAddress}
+                        </div>
+                      ) : (
+                        <div className="text-[13px] text-muted">No shipping address added.</div>
                       )}
-                      {o.carrier && (
-                        <>
-                          <dt className="text-muted">Carrier</dt>
-                          <dd className="m-0">{o.carrier}</dd>
-                        </>
+                    </div>
+                    <div className="rounded-xl border border-line-subtle bg-wash/50 p-3">
+                      <div className="mb-1.5 flex items-center gap-1.5 text-[11.5px] font-medium uppercase tracking-wide text-muted">
+                        <Truck size={12} aria-hidden /> Courier
+                      </div>
+                      {o.shippingMethod || o.carrier || o.trackingNumber ? (
+                        <dl className="m-0 flex flex-col gap-1 text-[13.5px]">
+                          {o.shippingMethod && (
+                            <div className="flex gap-2">
+                              <dt className="w-16 shrink-0 text-muted">Method</dt>
+                              <dd className="m-0 min-w-0 break-words">{o.shippingMethod}</dd>
+                            </div>
+                          )}
+                          {o.carrier && (
+                            <div className="flex gap-2">
+                              <dt className="w-16 shrink-0 text-muted">Carrier</dt>
+                              <dd className="m-0 min-w-0 break-words">{o.carrier}</dd>
+                            </div>
+                          )}
+                          {o.trackingNumber && (
+                            <div className="flex gap-2">
+                              <dt className="w-16 shrink-0 text-muted">Tracking</dt>
+                              <dd className="m-0 min-w-0 break-all">
+                                {safeHref(o.trackingUrl) ? (
+                                  <a
+                                    href={safeHref(o.trackingUrl)!}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-primary hover:underline"
+                                  >
+                                    {o.trackingNumber}
+                                    <ExternalLink size={11} aria-hidden />
+                                  </a>
+                                ) : (
+                                  o.trackingNumber
+                                )}
+                              </dd>
+                            </div>
+                          )}
+                        </dl>
+                      ) : (
+                        <div className="text-[13px] text-muted">No courier or tracking yet.</div>
                       )}
-                      {o.trackingNumber && (
-                        <>
-                          <dt className="text-muted">Tracking</dt>
-                          <dd className="m-0 break-all">
-                            {safeHref(o.trackingUrl) ? (
-                              <a
-                                href={safeHref(o.trackingUrl)!}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary hover:underline"
-                              >
-                                {o.trackingNumber}
-                              </a>
-                            ) : (
-                              o.trackingNumber
-                            )}
-                          </dd>
-                        </>
-                      )}
-                      {o.shippingAddress && (
-                        <>
-                          <dt className="text-muted">Ship to</dt>
-                          <dd className="m-0 whitespace-pre-wrap">{o.shippingAddress}</dd>
-                        </>
-                      )}
+                    </div>
+                  </div>
+                  {(o.shippedAt || o.completedAt || o.cancelledAt) && (
+                    <dl className="m-0 mt-3 flex flex-wrap gap-x-6 gap-y-1 text-[12.5px]">
                       {o.shippedAt && (
-                        <>
+                        <div className="flex gap-1.5">
                           <dt className="text-muted">Shipped</dt>
-                          <dd className="m-0">{fmtFull(o.shippedAt)}</dd>
-                        </>
+                          <dd className="m-0 tabular-nums text-ink">{fmtFull(o.shippedAt)}</dd>
+                        </div>
                       )}
                       {o.completedAt && (
-                        <>
+                        <div className="flex gap-1.5">
                           <dt className="text-muted">Completed</dt>
-                          <dd className="m-0">{fmtFull(o.completedAt)}</dd>
-                        </>
+                          <dd className="m-0 tabular-nums text-ink">{fmtFull(o.completedAt)}</dd>
+                        </div>
                       )}
                       {o.cancelledAt && (
-                        <>
+                        <div className="flex gap-1.5">
                           <dt className="text-muted">Cancelled</dt>
-                          <dd className="m-0">{fmtFull(o.cancelledAt)}</dd>
-                        </>
+                          <dd className="m-0 tabular-nums text-ink">{fmtFull(o.cancelledAt)}</dd>
+                        </div>
                       )}
                     </dl>
-                  ) : (
-                    <div className="flex items-start gap-3 rounded-lg border border-dashed border-line px-3 py-3 text-[13px] text-muted">
-                      <Package size={16} aria-hidden className="mt-0.5 shrink-0 text-faint" />
-                      <div>
-                        <div className="font-medium text-ink">No shipment created</div>
-                        Shipment and tracking details will appear here once staff add them.
-                        {o.shippingAddress && (
-                          <div className="mt-2 whitespace-pre-wrap">
-                            <span className="text-xs text-faint">Ship to </span>
-                            {o.shippingAddress}
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                  )}
+                  {canWrite && !hasShipment && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3"
+                      disabled={!!shipBlock}
+                      title={shipBlock ?? undefined}
+                      onClick={() => act('Updating fulfillment', () => setDialog('ship'))}
+                    >
+                      <Truck size={14} />
+                      Add shipment details
+                    </Button>
                   )}
                   <p className="mb-0 mt-3 text-xs text-faint">
                     Entered by staff. Torio isn&apos;t connected to a carrier.
@@ -1000,9 +944,9 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                     title="Internal notes"
                     description="Only your team can see these notes."
                     action={
-                      <span className="inline-flex items-center gap-1 rounded-md bg-wash-2 px-1.5 py-0.5 text-[11px] text-muted">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-[#FFF5E4] px-1.5 py-0.5 text-[11px] font-medium text-[#92560A]">
                         <Lock size={10} aria-hidden />
-                        Internal
+                        Team only
                       </span>
                     }
                     className="mb-3"
@@ -1074,37 +1018,57 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                               </Button>
                             </form>
                           ) : (
-                            <>
-                              <div className="whitespace-pre-wrap">{n.body}</div>
-                              <div className="mt-1 flex items-center gap-2 text-[11.5px] text-faint">
-                                {n.author?.name ?? 'Someone'} · {fmtAgo(n.createdAt)}
-                                {canWrite && mine && (
-                                  <button
-                                    type="button"
-                                    aria-label="Edit note"
-                                    onClick={() => setEditing({ id: n.id, body: n.body })}
-                                    className="cursor-pointer text-muted hover:text-ink"
-                                  >
-                                    <Pencil size={11} />
-                                  </button>
-                                )}
-                                {canWrite && (mine || canPayments) && (
-                                  <button
-                                    type="button"
-                                    aria-label="Delete note"
-                                    onClick={() =>
-                                      m.removeNote.mutate(
-                                        { id: o.id, noteId: n.id },
-                                        { onSuccess: () => toast('Note deleted'), onError: err },
-                                      )
-                                    }
-                                    className="cursor-pointer text-muted hover:text-danger"
-                                  >
-                                    <Trash2 size={11} />
-                                  </button>
-                                )}
+                            <div className="flex gap-3">
+                              <span
+                                aria-hidden
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-[11.5px] font-semibold text-primary"
+                              >
+                                {initialsOf(n.author?.name ?? 'Someone')}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-x-2 text-[12.5px]">
+                                  <b className="font-semibold text-ink">
+                                    {n.author?.name ?? 'Someone'}
+                                  </b>
+                                  <span className="text-muted">{fmtAgo(n.createdAt)}</span>
+                                  <span className="ml-auto flex items-center gap-1">
+                                    {canWrite && mine && (
+                                      <button
+                                        type="button"
+                                        aria-label="Edit note"
+                                        title="Edit note"
+                                        onClick={() => setEditing({ id: n.id, body: n.body })}
+                                        className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-muted hover:bg-wash hover:text-ink focus-visible:outline-2 focus-visible:outline-primary"
+                                      >
+                                        <Pencil size={12} />
+                                      </button>
+                                    )}
+                                    {canWrite && (mine || canPayments) && (
+                                      <button
+                                        type="button"
+                                        aria-label="Delete note"
+                                        title="Delete note"
+                                        onClick={() =>
+                                          m.removeNote.mutate(
+                                            { id: o.id, noteId: n.id },
+                                            {
+                                              onSuccess: () => toast('Note deleted'),
+                                              onError: err,
+                                            },
+                                          )
+                                        }
+                                        className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-muted hover:bg-danger-soft hover:text-danger focus-visible:outline-2 focus-visible:outline-primary"
+                                      >
+                                        <Trash2 size={12} />
+                                      </button>
+                                    )}
+                                  </span>
+                                </div>
+                                <div className="mt-1 whitespace-pre-wrap break-words rounded-xl rounded-tl-sm bg-wash px-3 py-2 text-[13.5px] leading-snug text-ink">
+                                  {n.body}
+                                </div>
                               </div>
-                            </>
+                            </div>
                           )}
                         </li>
                       );
@@ -1121,22 +1085,39 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
               {/* Context column: part of the page, sticky under the fixed 56px header on desktop. */}
               <div className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-[72px]">
                 <Card as="section" aria-label="Summary">
-                  <CardHeader as="h2" title="Summary" className="mb-3" />
+                  <CardHeader as="h2" title="Order summary" className="mb-3" />
                   <div className="flex flex-col gap-1.5 text-[13.5px]">
                     <Row label="Subtotal" value={formatMoney(o.subtotalMinor, o.currency)} />
                     <Row label="Discount" value={formatMoney(-o.discountMinor, o.currency)} />
                     <Row label="Shipping" value={formatMoney(o.shippingMinor, o.currency)} />
                     <Row label="Tax" value={formatMoney(o.taxMinor, o.currency)} />
                     <div className="my-1 border-t border-line-subtle" />
-                    <Row strong label="Total" value={formatMoney(o.totalMinor, o.currency)} />
-                    <Row faint label="Amount paid" value={formatMoney(o.paidMinor, o.currency)} />
-                    <Row faint label="Amount refunded" value={formatMoney(0, o.currency)} />
-                    <Row
-                      strong
-                      warn={o.outstandingMinor > 0 && o.status !== 'CANCELLED'}
-                      label="Outstanding"
-                      value={formatMoney(o.outstandingMinor, o.currency)}
-                    />
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="text-[14px] font-semibold text-ink">Total</span>
+                      <span className="text-[18px] font-semibold tabular-nums text-ink">
+                        {formatMoney(o.totalMinor, o.currency)}
+                      </span>
+                    </div>
+                    <Row label="Amount paid" value={formatMoney(o.paidMinor, o.currency)} />
+                  </div>
+                  <div
+                    className={cn(
+                      'mt-3 flex items-center justify-between gap-3 rounded-xl px-3 py-2.5',
+                      o.outstandingMinor > 0 && o.status !== 'CANCELLED'
+                        ? 'bg-[#FFF5E4] text-[#92560A]'
+                        : 'bg-success-soft text-success',
+                    )}
+                  >
+                    <span className="text-[13px] font-semibold">
+                      {o.outstandingMinor > 0 && o.status !== 'CANCELLED'
+                        ? 'Outstanding'
+                        : o.status === 'CANCELLED'
+                          ? 'Outstanding'
+                          : 'Paid in full'}
+                    </span>
+                    <span className="text-[16px] font-semibold tabular-nums">
+                      {formatMoney(o.outstandingMinor, o.currency)}
+                    </span>
                   </div>
                   <p className="mb-0 mt-3 flex items-start gap-1.5 text-xs text-faint">
                     <Info size={13} aria-hidden className="mt-px shrink-0" />
@@ -1165,34 +1146,36 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                       <div className="text-xs text-muted">Customer</div>
                     </div>
                   </div>
-                  <dl className="m-0 mt-3 grid grid-cols-[56px_1fr] gap-x-3 gap-y-1.5 text-[13px]">
-                    <dt className="text-muted">Email</dt>
-                    <dd className="m-0 min-w-0 break-all">
+                  <ul className="m-0 mt-3 flex list-none flex-col gap-1 p-0 text-[13px]">
+                    <li className="flex items-center gap-2.5 rounded-lg px-1 py-1">
+                      <Mail size={14} aria-hidden className="shrink-0 text-faint" />
                       {o.customer.email ? (
                         <a
                           href={`mailto:${o.customer.email}`}
-                          className="text-ink no-underline hover:text-primary"
+                          title="Send an email"
+                          className="min-w-0 break-all text-ink no-underline hover:text-primary"
                         >
                           {o.customer.email}
                         </a>
                       ) : (
-                        <span className="text-faint">Not provided</span>
+                        <span className="text-faint">No email</span>
                       )}
-                    </dd>
-                    <dt className="text-muted">Phone</dt>
-                    <dd className="m-0 tabular-nums">
+                    </li>
+                    <li className="flex items-center gap-2.5 rounded-lg px-1 py-1">
+                      <Phone size={14} aria-hidden className="shrink-0 text-faint" />
                       {o.customer.phone ? (
                         <a
                           href={`tel:${o.customer.phone}`}
-                          className="text-ink no-underline hover:text-primary"
+                          title="Call"
+                          className="tabular-nums text-ink no-underline hover:text-primary"
                         >
                           {o.customer.phone}
                         </a>
                       ) : (
-                        <span className="text-faint">Not provided</span>
+                        <span className="text-faint">No phone</span>
                       )}
-                    </dd>
-                  </dl>
+                    </li>
+                  </ul>
                   <p className="mb-0 mt-2 text-xs text-faint">
                     Contact details belong to the customer profile, shared by all their orders.
                   </p>
@@ -1233,15 +1216,8 @@ export function OrderDetailsPage({ orderId }: { orderId: string }) {
                 </Card>
 
                 <Card as="section" aria-label="Order information">
-                  <CardHeader as="h2" title="Order information" className="mb-3" />
+                  <CardHeader as="h2" title="Details" className="mb-3" />
                   <dl className="m-0 flex flex-col gap-2 text-[13px]">
-                    <Meta label="Order">#{o.number}</Meta>
-                    <Meta label="Status">
-                      <OrderStatusBadge status={o.status} />
-                    </Meta>
-                    <Meta label="Payment">
-                      <PaymentBadge status={o.paymentStatus} />
-                    </Meta>
                     <Meta label="Channel">{CHANNEL_LABEL[o.channel]}</Meta>
                     <Meta label="Currency">{o.currency}</Meta>
                     <div className="my-0.5 border-t border-line-subtle" />
