@@ -44,6 +44,13 @@ authentication or bad-request errors), an in-memory circuit breaker, a concurren
 outcome category. **Cost is an estimate** from the per-million-token prices entered on the Models tab; no price means no cost is
 shown. Logs hold metadata only, never customer messages or drafts, and are purged after the retention period.
 
+## Brain "Test AI"
+
+The Test AI tab keeps its rules-based preview as the default (free, no model). "Live AI" asks the same engine through
+`POST /workspaces/:id/ai/test` (needs `brain:read`) with the Brain being edited (validated against the Brain schema, so unsaved edits
+are tested) and the test chat (at most 20 lines). It follows the same plan allowance, budgets and logging as Inbox AI Assist, stores no
+text, and is offered only when AI is available for the workspace.
+
 ## Plan allowances and budgets
 
 Nothing is assumed unlimited. AI is **not included** for any plan until **Limits & Budgets** gives it an allowance (a plan with no
