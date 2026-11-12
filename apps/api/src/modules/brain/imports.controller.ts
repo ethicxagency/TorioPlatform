@@ -20,6 +20,10 @@ import {
   feedPreviewRequestSchema,
   feedPreviewSchema,
   importApproveSchema,
+  metaCatalogListSchema,
+  metaCatalogSelectSchema,
+  metaCatalogStatusSchema,
+  metaConnectUrlSchema,
   importJobDetailSchema,
   importOverviewSchema,
   importRecordListSchema,
@@ -37,6 +41,7 @@ import { WorkspaceAccessGuard } from '../../common/guards/workspace-access.guard
 import type { AuthUser } from '../../common/types';
 import { ImportsService } from './imports.service';
 import { FeedService } from './imports/feed.service';
+import { MetaCatalogService } from './imports/meta-catalog.service';
 import { ScanService } from './imports/scan.service';
 
 class ImportOverviewDto extends createZodDto(importOverviewSchema) {}
@@ -51,6 +56,10 @@ class ImportResultDto extends createZodDto(importResultSchema) {}
 class FeedPreviewRequestDto extends createZodDto(feedPreviewRequestSchema) {}
 class FeedPreviewDto extends createZodDto(feedPreviewSchema) {}
 class FeedCreateDto extends createZodDto(feedCreateSchema) {}
+class MetaCatalogStatusDto extends createZodDto(metaCatalogStatusSchema) {}
+class MetaCatalogListDto extends createZodDto(metaCatalogListSchema) {}
+class MetaCatalogSelectDto extends createZodDto(metaCatalogSelectSchema) {}
+class MetaCatalogUrlDto extends createZodDto(metaConnectUrlSchema) {}
 class BulkResultDto extends createZodDto(z.object({ updated: z.number().int() })) {}
 
 const BASE = 'workspaces/:workspaceId/brain/imports';
@@ -64,6 +73,7 @@ export class ImportsController {
     private readonly imports: ImportsService,
     private readonly scans: ScanService,
     private readonly feeds: FeedService,
+    private readonly metaCatalog: MetaCatalogService,
   ) {}
 
   @Get()
@@ -126,6 +136,59 @@ export class ImportsController {
     @Param('sourceId', ParseUUIDPipe) id: string,
   ) {
     return this.feeds.disconnect(ws, id);
+  }
+
+  @Get('meta')
+  @RequirePermission('brain:read')
+  @ApiOkResponse({ type: MetaCatalogStatusDto })
+  metaStatus(@Param('workspaceId', ParseUUIDPipe) ws: string) {
+    return this.metaCatalog.status(ws);
+  }
+
+  @Post('meta/connect')
+  @HttpCode(200)
+  @RequirePermission('brain:write')
+  @ApiOkResponse({ type: MetaCatalogUrlDto })
+  metaConnect(@Param('workspaceId', ParseUUIDPipe) ws: string, @CurrentUser() u: AuthUser) {
+    return this.metaCatalog.connect(ws, u.id);
+  }
+
+  @Get('meta/catalogs')
+  @RequirePermission('brain:write')
+  @ApiOkResponse({ type: MetaCatalogListDto })
+  metaCatalogs(@Param('workspaceId', ParseUUIDPipe) ws: string) {
+    return this.metaCatalog.catalogs(ws);
+  }
+
+  @Post('meta/catalog')
+  @HttpCode(200)
+  @RequirePermission('brain:write')
+  @ApiOkResponse({ type: MetaCatalogStatusDto })
+  metaSelect(@Param('workspaceId', ParseUUIDPipe) ws: string, @Body() body: MetaCatalogSelectDto) {
+    return this.metaCatalog.select(ws, body.catalogId);
+  }
+
+  @Post('meta/preview')
+  @HttpCode(200)
+  @RequirePermission('brain:write')
+  @ApiOkResponse({ type: FeedPreviewDto })
+  metaPreview(@Param('workspaceId', ParseUUIDPipe) ws: string) {
+    return this.metaCatalog.preview(ws);
+  }
+
+  @Post('meta/sync')
+  @HttpCode(200)
+  @RequirePermission('brain:write')
+  @ApiOkResponse({ type: ImportJobDetailDto })
+  async metaSync(@Param('workspaceId', ParseUUIDPipe) ws: string, @CurrentUser() u: AuthUser) {
+    return this.scans.detail(ws, await this.metaCatalog.startJob(ws, u.id));
+  }
+
+  @Post('meta/disconnect')
+  @HttpCode(200)
+  @RequirePermission('brain:write')
+  metaDisconnect(@Param('workspaceId', ParseUUIDPipe) ws: string) {
+    return this.metaCatalog.disconnect(ws);
   }
 
   @Get('jobs/:jobId')

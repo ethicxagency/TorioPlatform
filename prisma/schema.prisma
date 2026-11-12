@@ -1420,8 +1420,9 @@ model ImportSource {
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
 
-  workspace Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   jobs      ImportJob[]
+  secret    ImportSourceSecret?
 
   @@index([workspaceId, kind])
   @@map("import_sources")
@@ -1486,4 +1487,22 @@ model ImportRecord {
   @@index([jobId])
   @@index([workspaceId, status])
   @@map("import_records")
+}
+
+/// The encrypted credential of an import source that needs one (today: the Meta user token for a catalog). Kept apart from
+/// the source so it is never selected with it by accident. Only ever stored as AES-GCM ciphertext under the channel key.
+model ImportSourceSecret {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  sourceId    String    @unique @db.Uuid
+  workspaceId String    @db.Uuid
+  ciphertext  String
+  /// When the credential stops working, if the provider said.
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  source ImportSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("import_source_secrets")
 }

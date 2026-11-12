@@ -171,7 +171,10 @@ export function effectiveMapping(items: RawItem[], given: FeedMapping = {}): Fee
 const STOCK_MAP: [RegExp, (typeof STOCK_STATES)[number]][] = [
   [/^(in[ _-]?stock|available|instock)$/i, 'In stock'],
   [/^(out[ _-]?of[ _-]?stock|sold[ _-]?out|unavailable|outofstock)$/i, 'Out of stock'],
-  [/^(pre[ _-]?order|preorder|backorder|back[ _-]?order)$/i, 'Pre-order'],
+  [
+    /^(pre[ _-]?order|preorder|backorder|back[ _-]?order|available[ _-]?for[ _-]?order)$/i,
+    'Pre-order',
+  ],
   [/^(limited|low[ _-]?stock|limitedavailability)$/i, 'Low stock'],
 ];
 export const stockOf = (v: string) => STOCK_MAP.find(([re]) => re.test(v.trim()))?.[1] ?? '';

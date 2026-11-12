@@ -33,6 +33,7 @@ export const SCOPES: Record<Product, string[]> = {
     'instagram_manage_messages',
   ],
   WHATSAPP: ['business_management', 'whatsapp_business_management', 'whatsapp_business_messaging'],
+  CATALOG: ['business_management', 'catalog_management'],
 };
 /** Plain-language reason for each permission, shown on the connect screen. */
 export const SCOPE_REASONS: Record<string, string> = {
@@ -45,6 +46,7 @@ export const SCOPE_REASONS: Record<string, string> = {
   whatsapp_business_management:
     'Read your WhatsApp Business Accounts and phone numbers, and subscribe to events',
   whatsapp_business_messaging: 'Send and receive WhatsApp messages',
+  catalog_management: 'Read your product catalogs so Torio can propose products for your review',
 };
 const SUBSCRIBED_FIELDS: Record<Provider, string[]> = {
   MESSENGER: ['messages', 'messaging_postbacks', 'message_deliveries', 'message_reads'],
@@ -55,6 +57,7 @@ const PRODUCT_LABEL: Record<Product, string> = {
   MESSENGER: 'Messenger',
   INSTAGRAM: 'Instagram',
   WHATSAPP: 'WhatsApp',
+  CATALOG: 'Product catalog',
 };
 
 /** One discovered asset. Page/Instagram candidates carry a Page token; WhatsApp ones carry the long-lived user token. */
@@ -126,6 +129,38 @@ export class MetaConnectionService {
         return `Couldn’t remove the Page subscription on Meta (${explain(e)}). The Page owner can remove Torio under Business integrations.`;
       }
     });
+  }
+
+  /** Brain's catalog import registers here, so the shared Meta redirect can hand a catalog authorization back to it. */
+  private catalogHandler: ((st: { w: string; u: string }, code: string) => Promise<string>) | null =
+    null;
+  registerCatalogHandler(fn: (st: { w: string; u: string }, code: string) => Promise<string>) {
+    this.catalogHandler = fn;
+  }
+
+  /** Same readiness as the channel flow: the platform's Meta app, redirect and encryption key must be configured. */
+  get catalogOauthReady() {
+    return this.oauthReady;
+  }
+
+  /** The authorization URL for the catalog import: its own scopes, and state bound to this workspace and user. */
+  async startCatalog(workspaceId: string, userId: string) {
+    await this.mc.load();
+    this.requireReady();
+    const c = this.mc.current;
+    const state = signState(
+      { w: workspaceId, u: userId, p: ['CATALOG'] },
+      c.appSecret!,
+      Date.now(),
+      c.stateTtlMs,
+    );
+    const url = new URL(`https://www.facebook.com/${c.apiVersion}/dialog/oauth`);
+    url.searchParams.set('client_id', c.appId!);
+    url.searchParams.set('redirect_uri', c.oauthRedirectUri!);
+    url.searchParams.set('state', state);
+    url.searchParams.set('response_type', 'code');
+    url.searchParams.set('scope', SCOPES.CATALOG.join(','));
+    return { url: url.toString() };
   }
 
   get oauthReady() {
@@ -218,6 +253,17 @@ export class MetaConnectionService {
     if (!this.oauthReady) return web({ meta_error: 'not_configured' });
     const st = q.state ? verifyState(q.state, this.mc.current.appSecret!) : null;
     if (!st) return web({ meta_error: 'invalid_state' });
+    if (st.p.length === 1 && st.p[0] === 'CATALOG') {
+      // A catalog authorization is handled by Brain's import, never by the channel flow below.
+      const base = `${mc.webUrl.replace(/\/$/, '')}/brain?tab=intelligence`;
+      if (q.error || !q.code) return `${base}&meta_catalog=denied`;
+      if (!this.catalogHandler) return `${base}&meta_catalog=not_configured`;
+      try {
+        return await this.catalogHandler(st, q.code);
+      } catch {
+        return `${base}&meta_catalog=exchange_failed`;
+      }
+    }
     if (q.error || !q.code) return web({ meta_error: 'denied' });
     try {
       const g = this.graph.get();

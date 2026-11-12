@@ -13,6 +13,7 @@ import {
   Shirt,
   type LucideIcon,
 } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { GoogleG } from '@/features/auth/social-buttons';
@@ -22,6 +23,7 @@ import { useWorkspace } from '@/lib/workspace';
 import { useImports, useSourceAction, type ImportOverview } from '../queries';
 import { fmtAgoIso } from './bits';
 import { FeedDialog, FeedPanel } from './feed-import';
+import { MetaCatalogCard } from './meta-catalog';
 import { WebsiteScan } from './website-scan';
 
 type Source = ImportOverview['sources'][number];
@@ -122,9 +124,12 @@ function SourceCard({
   p,
   sources,
   actions,
+  custom,
 }: {
   p: Provider;
   sources: Source[];
+  /** Replaces the generic status area (used by Meta, whose state comes from its own endpoint). */
+  custom?: React.ReactNode;
   actions?: {
     connect: () => void;
     sync: (id: string) => void;
@@ -159,7 +164,9 @@ function SourceCard({
           {mine.length ? 'Connect another feed' : 'Connect a feed'}
         </Button>
       )}
-      {mine.length === 0 ? (
+      {custom ? (
+        custom
+      ) : mine.length === 0 ? (
         <p className="m-0 flex items-start gap-1.5 rounded-lg bg-wash px-2.5 py-2 text-xs text-muted">
           <CircleAlert size={13} aria-hidden className="mt-0.5 shrink-0 text-faint" />
           {p.unavailable}
@@ -286,6 +293,7 @@ export function IntelligenceTab({
   const [feedDialog, setFeedDialog] = useState(false);
   const [feedChoice, setFeedChoice] = useState<string | null | undefined>(undefined);
   const [feedError, setFeedError] = useState('');
+  const metaReturn = useSearchParams().get('meta_catalog');
   const sync = useSourceAction(workspaceId ?? '', 'sync');
   const disconnect = useSourceAction(workspaceId ?? '', 'disconnect');
   const data = imports.data;
@@ -362,6 +370,15 @@ export function IntelligenceTab({
                 key={p.kind}
                 p={p}
                 sources={sources}
+                custom={
+                  p.kind === 'META_CATALOG' && workspaceId ? (
+                    <MetaCatalogCard
+                      ws={workspaceId}
+                      returned={metaReturn}
+                      onStarted={setFeedChoice}
+                    />
+                  ) : undefined
+                }
                 actions={
                   p.kind === 'XML_FEED' && workspaceId
                     ? {

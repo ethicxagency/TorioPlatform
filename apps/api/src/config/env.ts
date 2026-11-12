@@ -69,6 +69,8 @@ export const envSchema = z
     META_OAUTH_REDIRECT_URI: z.url().optional(),
     /** Also request WhatsApp permissions in the Facebook authorization and list existing WhatsApp numbers. Needs those permissions approved (App Review) in production. */
     META_DISCOVER_WHATSAPP: bool,
+    /** Opt in to the Meta Catalog import once the Meta app has Advanced access to catalog_management. Off by default: without that approval Meta does not grant the permission to ordinary users. */
+    META_CATALOG_ENABLED: bool,
     /** WhatsApp Embedded Signup configuration id (Facebook Login for Business). Optional: without it only the manual token flow is offered. */
     META_WA_CONFIG_ID: z.string().min(4).optional(),
     META_APP_SECRET: z.string().min(8).optional(),

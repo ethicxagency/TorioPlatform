@@ -10,6 +10,8 @@ import type {
   ImportOverview as ImportOverviewT,
   ImportRecordView,
   ImportResult,
+  MetaCatalogList,
+  MetaCatalogStatus,
   WebsiteScanInput,
 } from '@torio/contracts';
 import { api } from '@/lib/api';
@@ -273,5 +275,112 @@ export function useSourceAction(ws: string, action: 'sync' | 'disconnect') {
       return data as unknown as ImportJobDetail;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: scanKey(ws) }),
+  });
+}
+
+// ---------- Meta Catalog ----------
+
+const M = `${I}/meta`;
+const metaKey = (ws: string) => ['brain-meta-catalog', ws] as const;
+
+export function useMetaCatalog(ws: string | null) {
+  return useQuery({
+    queryKey: metaKey(ws ?? ''),
+    enabled: !!ws,
+    queryFn: async (): Promise<MetaCatalogStatus> => {
+      const { data, error, response } = await api.GET(M, {
+        params: { path: { workspaceId: ws! } },
+      });
+      if (!data) throw fail(error, 'Could not load the Meta connection', response.status);
+      return data as unknown as MetaCatalogStatus;
+    },
+  });
+}
+
+export function useMetaConnect(ws: string) {
+  return useMutation({
+    mutationFn: async (): Promise<{ url: string }> => {
+      const { data, error, response } = await api.POST(`${M}/connect`, {
+        params: { path: { workspaceId: ws } },
+      });
+      if (!data) throw fail(error, 'Could not start the Meta connection', response.status);
+      return data as unknown as { url: string };
+    },
+  });
+}
+
+export function useMetaCatalogs(ws: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['brain-meta-catalogs', ws] as const,
+    enabled,
+    retry: false,
+    queryFn: async (): Promise<MetaCatalogList> => {
+      const { data, error, response } = await api.GET(`${M}/catalogs`, {
+        params: { path: { workspaceId: ws } },
+      });
+      if (!data) throw fail(error, 'Could not list your catalogs', response.status);
+      return data as unknown as MetaCatalogList;
+    },
+  });
+}
+
+export function useMetaSelect(ws: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (v: { catalogId: string; name: string }) => {
+      const { data, error, response } = await api.POST(`${M}/catalog`, {
+        params: { path: { workspaceId: ws } },
+        body: v,
+      });
+      if (!data) throw fail(error, 'Could not choose that catalog', response.status);
+      return data as unknown as MetaCatalogStatus;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: metaKey(ws) }),
+  });
+}
+
+export function useMetaPreview(ws: string) {
+  return useMutation({
+    mutationFn: async (): Promise<FeedPreview> => {
+      const { data, error, response } = await api.POST(`${M}/preview`, {
+        params: { path: { workspaceId: ws } },
+      });
+      if (!data) throw fail(error, 'Could not read the catalog', response.status);
+      return data as unknown as FeedPreview;
+    },
+  });
+}
+
+export function useMetaSync(ws: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<ImportJobDetail> => {
+      const { data, error, response } = await api.POST(`${M}/sync`, {
+        params: { path: { workspaceId: ws } },
+      });
+      if (!data) throw fail(error, 'Could not start the sync', response.status);
+      return data as unknown as ImportJobDetail;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: scanKey(ws) });
+      void qc.invalidateQueries({ queryKey: metaKey(ws) });
+    },
+  });
+}
+
+export function useMetaDisconnect(ws: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error, response } = await api.POST(`${M}/disconnect`, {
+        params: { path: { workspaceId: ws } },
+      });
+      if (!data) throw fail(error, 'Could not disconnect', response.status);
+      return data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: metaKey(ws) });
+      void qc.invalidateQueries({ queryKey: scanKey(ws) });
+    },
   });
 }

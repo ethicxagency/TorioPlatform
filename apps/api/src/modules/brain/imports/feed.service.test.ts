@@ -58,7 +58,13 @@ describe('FeedService', () => {
       },
     };
     feeds = new FeedService({ client: db.client } as never);
-    scans = new ScanService({ client: db.client } as never, brain as never, feeds, {} as never);
+    scans = new ScanService(
+      { client: db.client } as never,
+      brain as never,
+      feeds,
+      {} as never,
+      {} as never,
+    );
   });
 
   const create = (over: Record<string, unknown> = {}) =>

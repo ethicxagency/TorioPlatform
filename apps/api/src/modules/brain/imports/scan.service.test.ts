@@ -53,7 +53,13 @@ describe('ScanService', () => {
         return {};
       },
     };
-    svc = new ScanService({ client: db.client } as never, brain as never, {} as never, {} as never);
+    svc = new ScanService(
+      { client: db.client } as never,
+      brain as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
   });
 
   const SHOP = `<title>Shop</title><meta property="og:site_name" content="UrbanNest"><a href="/pages/shipping-policy">s</a><a href="/products/vase">p</a><a href="/cart">c</a>

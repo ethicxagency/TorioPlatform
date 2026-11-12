@@ -32,6 +32,27 @@ export interface MetaBusiness {
   owned_whatsapp_business_accounts?: { data?: MetaWaba[] };
 }
 
+export interface MetaCatalog {
+  id: string;
+  name?: string;
+  product_count?: number;
+}
+export interface MetaCatalogProduct {
+  id: string;
+  retailer_id?: string;
+  name?: string;
+  description?: string;
+  price?: string;
+  currency?: string;
+  availability?: string;
+  url?: string;
+  image_url?: string;
+  category?: string;
+  color?: string;
+  size?: string;
+  brand?: string;
+}
+
 type GraphBody = { error?: { message?: string; code?: number; error_subcode?: number } };
 
 /**
@@ -130,6 +151,44 @@ export class MetaGraph {
       if (!after) break;
     }
     return out;
+  }
+
+  /** Business portfolios the user can see. Needs business_management. */
+  async businesses(userToken: string): Promise<{ id: string; name?: string }[]> {
+    const r = await this.call<{ data?: { id: string; name?: string }[] }>('me/businesses', {
+      token: userToken,
+      query: { fields: 'id,name', limit: '50' },
+    });
+    return r.data ?? [];
+  }
+
+  /** Product catalogs a business owns. Needs catalog_management. */
+  async ownedCatalogs(userToken: string, businessId: string): Promise<MetaCatalog[]> {
+    const r = await this.call<{ data?: MetaCatalog[] }>(`${businessId}/owned_product_catalogs`, {
+      token: userToken,
+      query: { fields: 'id,name,product_count', limit: '50' },
+    });
+    return r.data ?? [];
+  }
+
+  /** One page of a catalog's products, 100 at a time, with the cursor for the next page. */
+  async catalogProducts(userToken: string, catalogId: string, after?: string) {
+    const r = await this.call<{
+      data?: MetaCatalogProduct[];
+      paging?: { cursors?: { after?: string }; next?: string };
+    }>(`${catalogId}/products`, {
+      token: userToken,
+      query: {
+        fields:
+          'id,retailer_id,name,description,price,currency,availability,url,image_url,category,color,size,brand',
+        limit: '100',
+        ...(after && { after }),
+      },
+    });
+    return {
+      products: r.data ?? [],
+      next: r.paging?.next ? (r.paging.cursors?.after ?? null) : null,
+    };
   }
 
   /** App-level checks (credentials, subscriptions) use the app access token `{app-id}|{app-secret}`. */

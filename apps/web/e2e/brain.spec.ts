@@ -7,7 +7,7 @@ import {
   STAGE_MIN,
   type BrainConfig,
 } from '@torio/contracts';
-import { brainState, mockApi, resetScan, scanState } from './mocks';
+import { brainState, metaState, mockApi, resetScan, scanState } from './mocks';
 
 const openTab = (page: Page, name: string) => page.getByRole('tab', { name }).click();
 const summary = (page: Page) => page.getByRole('tabpanel', { name: 'Summary' });
@@ -405,6 +405,87 @@ test.describe('brain (admin)', () => {
     await panel.getByRole('button', { name: /^Import 1 approved/ }).click();
     await expect(panel.getByText('Imported 1 entry into Brain.')).toBeVisible();
     expect(scanState.imported).toEqual(['9d0f0000-0000-4000-8000-0000000000b1']);
+  });
+
+  test('Meta Catalog: unavailable by default with the reason; never shown as connected', async ({
+    page,
+  }) => {
+    await openTab(page, 'Intelligence');
+    const card = intelligence(page)
+      .getByRole('listitem')
+      .filter({ has: page.getByRole('heading', { name: 'Meta Catalog' }) });
+    await expect(card).toContainText('Not connected');
+    await expect(card).toContainText('catalog_management');
+    await expect(card.getByRole('button', { name: 'Connect Meta' })).toHaveCount(0);
+  });
+
+  test('Meta Catalog: connect goes to Meta’s own authorization with the catalog permissions', async ({
+    page,
+  }) => {
+    metaState.available = true;
+    let asked = '';
+    await page.route('https://www.facebook.com/**', (r) => {
+      asked = r.request().url();
+      return r.fulfill({ status: 200, contentType: 'text/html', body: '<title>Meta</title>' });
+    });
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openTab(page, 'Intelligence');
+    await intelligence(page).getByRole('button', { name: 'Connect Meta' }).click();
+    await expect.poll(() => asked).toContain('catalog_management');
+  });
+
+  test('Meta Catalog: a denied or incomplete authorization is explained when Meta sends you back', async ({
+    page,
+  }) => {
+    metaState.available = true;
+    await page.goto('/brain?tab=intelligence&meta_catalog=missing_permissions');
+    await expect(intelligence(page).getByRole('alert')).toContainText(
+      'did not grant catalog access',
+    );
+  });
+
+  test('Meta Catalog: choose a catalog, preview, import for review, approve, import', async ({
+    page,
+  }) => {
+    metaState.available = true;
+    metaState.connected = true;
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openTab(page, 'Intelligence');
+    const hub = intelligence(page);
+    await hub.getByRole('button', { name: 'Choose catalog' }).click();
+    const dlg = page.getByRole('dialog', { name: 'Import from a Meta catalog' });
+    await expect(dlg.getByRole('button', { name: 'Choose a catalog' })).toBeDisabled();
+    await dlg.getByLabel(/Main catalog/).check();
+    const pv = dlg.getByRole('region', { name: 'Catalog preview' });
+    await expect(pv).toContainText('Nordic Vase');
+    expect(metaState.selected).toEqual(['cat1']);
+    await dlg.getByRole('button', { name: 'Import 11 products for review' }).click();
+    expect(metaState.syncs).toBe(1);
+    const panel = hub.getByRole('region', { name: 'Feed import' });
+    await panel.getByRole('button', { name: 'Approve Nordic Vase' }).click();
+    await panel.getByRole('button', { name: /^Import 1 approved/ }).click();
+    await expect(panel.getByText('Imported 1 entry into Brain.')).toBeVisible();
+    expect(scanState.imported).toEqual(['9d0f0000-0000-4000-8000-0000000000d1']);
+  });
+
+  test('Meta Catalog: an expired connection asks to reconnect instead of syncing', async ({
+    page,
+  }) => {
+    metaState.available = true;
+    metaState.connected = true;
+    metaState.status = 'ERROR';
+    metaState.catalog = { id: 'cat1', name: 'Main catalog' };
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openTab(page, 'Intelligence');
+    const hub = intelligence(page);
+    await expect(
+      hub.getByText('Meta authorization expired or was revoked. Reconnect to continue.'),
+    ).toBeVisible();
+    await expect(hub.getByRole('button', { name: 'Reconnect Meta' })).toBeVisible();
+    await expect(hub.getByRole('button', { name: 'Sync now' })).toHaveCount(0);
   });
 
   test('Summary has all eight sections, in order', async ({ page }) => {

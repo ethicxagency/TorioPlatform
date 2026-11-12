@@ -11,6 +11,6 @@ import { MetaWebhookService } from './meta.webhook.service';
   imports: [ChannelsModule, RealtimeModule, WhatsAppModule],
   controllers: [MetaCallbackController, MetaWebhookController, MetaController],
   providers: [MetaConnectionService, MetaWebhookService, MetaDeliveryService],
-  exports: [MetaDeliveryService, MetaWebhookService],
+  exports: [MetaDeliveryService, MetaWebhookService, MetaConnectionService],
 })
 export class MetaModule {}

@@ -9,19 +9,12 @@ import {
 import type { FeedCreateInput, FeedPreview } from '@torio/contracts';
 import type { Prisma } from '@torio/database';
 import { PrismaService } from '../../../database/prisma.service';
+import { classify, insertProposals, MAX_RECORDS, previousImports } from './propose';
 import { safeGet } from './safe-fetch';
 import { assertResolvesPublic, parsePublicUrl, UnsafeUrlError } from './url-guard';
-import {
-  detectedTags,
-  effectiveMapping,
-  mapItems,
-  parseFeed,
-  type FeedMapping,
-  type MappedProduct,
-} from './xml';
+import { detectedTags, effectiveMapping, mapItems, parseFeed, type FeedMapping } from './xml';
 
 const ACTIVE = ['QUEUED', 'RUNNING'] as const;
-const MAX_RECORDS = 1000;
 const FEED_BYTES = 8_000_000;
 const DAY = 86_400_000;
 
@@ -243,49 +236,10 @@ export class FeedService {
       const { feed } = await this.fetchFeed(s.url);
       const map = effectiveMapping(feed.items, s.mapping);
       const mapped = mapItems(feed.items, map, s.currency);
-      const previous = await this.previousImports(workspaceId, job.sourceId, job.id);
-      const fresh: (MappedProduct & { change: 'new' | 'changed'; was?: string })[] = [];
-      let unchanged = 0;
-      for (const p of mapped.products) {
-        const prev = p.externalId ? previous.get(p.externalId) : undefined;
-        if (!prev) {
-          fresh.push({ ...p, change: 'new' });
-          continue;
-        }
-        const diffs = Object.entries(p.data).filter(
-          ([k, v]) => !['url', 'image'].includes(k) && prev[k] !== v,
-        );
-        if (!diffs.length) {
-          unchanged++;
-          continue;
-        }
-        fresh.push({
-          ...p,
-          change: 'changed',
-          was: diffs.map(([k, v]) => `${k}: ${prev[k] ?? '—'} → ${v}`).join('; '),
-        });
-      }
+      const previous = await previousImports(this.prisma, workspaceId, job.sourceId, job.id);
+      const { fresh, unchanged } = classify(mapped.products, previous);
       const kept = fresh.slice(0, MAX_RECORDS);
-      if (kept.length)
-        await db.importRecord.createMany({
-          data: kept.map((p) => {
-            const data = { ...p.data, change: p.change };
-            return {
-              workspaceId,
-              jobId,
-              category: 'product',
-              title: p.data['name']!,
-              data: data as Prisma.InputJsonValue,
-              original: data as Prisma.InputJsonValue,
-              sourceUrl: p.data['url'] ?? s.url,
-              confidence: 85 - Math.min(40, p.warnings.length * 10),
-              warnings: [
-                ...(p.change === 'changed' ? [`Changed since the last import: ${p.was}`] : []),
-                ...p.warnings,
-              ] as Prisma.InputJsonValue,
-            };
-          }),
-        });
+      await insertProposals(this.prisma, workspaceId, jobId, kept, s.url);
       const w = [...mapped.issues];
       if (feed.truncated) w.push('Only the first 5,000 items of the feed were read.');
       if (fresh.length > MAX_RECORDS)
@@ -341,27 +295,6 @@ export class FeedService {
           data: { lastError: msg, status: 'ERROR' },
         });
     }
-  }
-
-  /** What was imported from this source before, by the feed's own product ID, so a re-sync proposes only real changes. */
-  private async previousImports(workspaceId: string, sourceId: string | null, exceptJobId: string) {
-    const out = new Map<string, Record<string, string>>();
-    if (!sourceId) return out;
-    const db = this.prisma.client;
-    const jobs = await db.importJob.findMany({
-      where: { workspaceId, sourceId, id: { not: exceptJobId } },
-      select: { id: true },
-    });
-    if (!jobs.length) return out;
-    const rows = await db.importRecord.findMany({
-      where: { workspaceId, jobId: { in: jobs.map((j) => j.id) }, status: 'IMPORTED' },
-      orderBy: { createdAt: 'asc' },
-    });
-    for (const r of rows) {
-      const d = r.data as Record<string, string>;
-      if (d['externalId']) out.set(d['externalId'], d);
-    }
-    return out;
   }
 
   /** For a scheduler: start (and run) syncs for feeds whose daily or weekly time has come. Feeds set to manual never sync here. */

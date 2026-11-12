@@ -1,7 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- the in-memory table stand-in is deliberately loosely typed */
 /** A tiny in-memory stand-in for the three import tables, scoped the way the real queries are. */
 export function fakeDb() {
-  const t = { jobs: [] as any[], sources: [] as any[], records: [] as any[], audit: [] as any[] };
+  const t = {
+    jobs: [] as any[],
+    sources: [] as any[],
+    records: [] as any[],
+    audit: [] as any[],
+    secrets: [] as any[],
+  };
   let n = 0;
   const id = () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`;
   const match = (row: any, where: any): boolean =>
@@ -11,7 +17,19 @@ export function fakeDb() {
       return row[k] === v;
     });
   const model = (rows: any[], extra: (row: any) => void = () => undefined) => ({
-    findFirst: async ({ where }: any) => rows.find((r) => match(r, where)) ?? null,
+    findFirst: async ({ where, include }: any) => {
+      const r = rows.find((x) => match(x, where)) ?? null;
+      if (r && include?.secret)
+        return { ...r, secret: t.secrets.find((x) => x.sourceId === r.id) ?? null };
+      return r;
+    },
+    upsert: async ({ where, create, update }: any) => {
+      const r = rows.find((x) => match(x, where));
+      if (r) return Object.assign(r, update);
+      const row = { id: id(), createdAt: new Date(), ...create };
+      rows.push(row);
+      return row;
+    },
     findUnique: async ({ where }: any) => rows.find((r) => match(r, where)) ?? null,
     findMany: async ({ where }: any = {}) => rows.filter((r) => match(r, where)),
     create: async ({ data }: any) => {
@@ -51,6 +69,7 @@ export function fakeDb() {
     importSource: model(t.sources),
     importRecord: model(t.records),
     auditLog: model(t.audit),
+    importSourceSecret: model(t.secrets),
   };
   return { t, client };
 }

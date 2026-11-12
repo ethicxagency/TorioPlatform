@@ -127,7 +127,24 @@ export const scanState = {
   imported: [] as string[],
   records: [] as ReturnType<typeof rec>[],
 };
+export const metaState = {
+  available: false,
+  connected: false,
+  status: 'ACTIVE' as string,
+  catalog: null as null | { id: string; name: string },
+  selected: [] as string[],
+  syncs: 0,
+};
+export function resetMeta() {
+  metaState.available = false;
+  metaState.connected = false;
+  metaState.status = 'ACTIVE';
+  metaState.catalog = null;
+  metaState.selected = [];
+  metaState.syncs = 0;
+}
 export function resetScan() {
+  resetMeta();
   scanState.started = false;
   scanState.kind = 'WEBSITE';
   scanState.feedBody = null;
@@ -1724,7 +1741,7 @@ export async function mockApi(
           stats:
             status !== 'NEEDS_REVIEW'
               ? null
-              : scanState.kind === 'XML_FEED'
+              : scanState.kind !== 'WEBSITE'
                 ? { items: 2, products: 1, changed: 1, unchanged: 0 }
                 : { pages: 3, business: 1, products: 1, faqs: 1 },
           error: null,
@@ -1747,6 +1764,82 @@ export async function mockApi(
           sources: [],
           jobs: scanState.started ? [job(scanState.status).job] : [],
         });
+      if (sub === '/meta')
+        return reply({
+          available: metaState.available,
+          reason: metaState.available
+            ? null
+            : 'Catalog import is switched off on this server. It needs the Torio Meta app to have Advanced access to the catalog_management permission (Meta App Review).',
+          connected: metaState.connected,
+          sourceId: metaState.connected ? '9d0f0000-0000-4000-8000-0000000000c1' : null,
+          status: metaState.connected ? metaState.status : null,
+          lastError:
+            metaState.status === 'ERROR'
+              ? 'Meta authorization expired or was revoked. Reconnect to continue.'
+              : null,
+          catalog: metaState.catalog,
+          lastSyncedAt: null,
+        });
+      if (sub === '/meta/connect')
+        return reply({
+          url: 'https://www.facebook.com/v27.0/dialog/oauth?scope=business_management,catalog_management',
+        });
+      if (sub === '/meta/catalogs')
+        return reply({
+          data: [
+            { id: 'cat1', name: 'Main catalog', businessName: 'UrbanNest Ltd', productCount: 12 },
+          ],
+        });
+      if (sub === '/meta/catalog') {
+        const b = req.postDataJSON() as { catalogId: string; name: string };
+        metaState.selected.push(b.catalogId);
+        metaState.catalog = { id: b.catalogId, name: b.name };
+        return reply({
+          available: true,
+          reason: null,
+          connected: true,
+          sourceId: null,
+          status: 'ACTIVE',
+          lastError: null,
+          catalog: metaState.catalog,
+          lastSyncedAt: null,
+        });
+      }
+      if (sub === '/meta/preview')
+        return reply({
+          format: 'meta-catalog',
+          totalItems: 12,
+          valid: 11,
+          invalid: 0,
+          duplicates: 1,
+          missingPrice: 0,
+          truncated: false,
+          tags: [],
+          mapping: {},
+          issues: [],
+          sample: [{ data: { name: 'Nordic Vase', price: '1500', currency: 'BDT' }, warnings: [] }],
+        });
+      if (sub === '/meta/sync') {
+        metaState.syncs++;
+        scanState.started = true;
+        scanState.kind = 'META_CATALOG';
+        scanState.status = 'QUEUED';
+        scanState.records = [
+          rec(
+            '9d0f0000-0000-4000-8000-0000000000d1',
+            'product',
+            'Nordic Vase',
+            { name: 'Nordic Vase', price: '1500', currency: 'BDT', change: 'new' },
+            85,
+          ),
+        ];
+        return reply(job('QUEUED'));
+      }
+      if (sub === '/meta/disconnect') {
+        metaState.connected = false;
+        metaState.status = 'DISCONNECTED';
+        return reply({ ok: true });
+      }
       if (sub === '/feed/preview') {
         const b = req.postDataJSON() as { url: string; mapping?: Record<string, string> };
         scanState.previews.push(b);

@@ -1,7 +1,8 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
-export type MetaProduct = 'MESSENGER' | 'INSTAGRAM' | 'WHATSAPP';
-const PRODUCTS = new Set<string>(['MESSENGER', 'INSTAGRAM', 'WHATSAPP']);
+/** CATALOG is the product-catalog import in Brain → Intelligence; it shares the Meta app and redirect, not the channel flow. */
+export type MetaProduct = 'MESSENGER' | 'INSTAGRAM' | 'WHATSAPP' | 'CATALOG';
+const PRODUCTS = new Set<string>(['MESSENGER', 'INSTAGRAM', 'WHATSAPP', 'CATALOG']);
 
 export interface OAuthStatePayload {
   /** workspace id */

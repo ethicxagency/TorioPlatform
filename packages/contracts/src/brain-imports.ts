@@ -142,3 +142,35 @@ export const feedPreviewSchema = z.object({
 });
 export type FeedPreview = z.infer<typeof feedPreviewSchema>;
 export type FeedCreateInput = z.infer<typeof feedCreateSchema>;
+
+// ---------- Meta Catalog ----------
+
+export const metaCatalogStatusSchema = z.object({
+  /** True only when the server is set up for it AND the operator has switched catalog import on. */
+  available: z.boolean(),
+  /** Why it cannot be used, in plain words. Null when available. */
+  reason: z.string().nullable(),
+  connected: z.boolean(),
+  sourceId: z.uuid().nullable(),
+  status: z.enum(['ACTIVE', 'PAUSED', 'ERROR', 'DISCONNECTED']).nullable(),
+  lastError: z.string().nullable(),
+  catalog: z.object({ id: z.string(), name: z.string() }).nullable(),
+  lastSyncedAt: iso.nullable(),
+});
+export const metaCatalogListSchema = z.object({
+  data: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      businessName: z.string().nullable(),
+      productCount: z.number().int().nullable(),
+    }),
+  ),
+});
+export const metaCatalogSelectSchema = z.object({
+  catalogId: z.string().trim().min(1).max(40),
+  name: z.string().trim().min(1).max(120),
+});
+export const metaConnectUrlSchema = z.object({ url: z.string() });
+export type MetaCatalogStatus = z.infer<typeof metaCatalogStatusSchema>;
+export type MetaCatalogList = z.infer<typeof metaCatalogListSchema>;
