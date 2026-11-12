@@ -14,6 +14,7 @@ export function fakeDb() {
     Object.entries(where ?? {}).every(([k, v]) => {
       if (v && typeof v === 'object' && 'in' in (v as any)) return (v as any).in.includes(row[k]);
       if (v && typeof v === 'object' && 'not' in (v as any)) return row[k] !== (v as any).not;
+      if (v && typeof v === 'object' && 'gte' in (v as any)) return row[k] >= (v as any).gte;
       return row[k] === v;
     });
   const model = (rows: any[], extra: (row: any) => void = () => undefined) => ({

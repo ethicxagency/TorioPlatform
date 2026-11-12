@@ -19629,6 +19629,37 @@
           "ready": {
             "type": "boolean"
           },
+          "totals": {
+            "type": "object",
+            "properties": {
+              "importedProducts": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "importedEntries": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "pendingReview": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "failedImports": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "importedProducts",
+              "importedEntries",
+              "pendingReview",
+              "failedImports"
+            ]
+          },
           "sources": {
             "type": "array",
             "items": {
@@ -19815,6 +19846,7 @@
         },
         "required": [
           "ready",
+          "totals",
           "sources",
           "jobs"
         ]

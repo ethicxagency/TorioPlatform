@@ -20,7 +20,13 @@ import { GoogleG } from '@/features/auth/social-buttons';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useWorkspace } from '@/lib/workspace';
-import { useImports, useSourceAction, type ImportOverview } from '../queries';
+import {
+  useCancelScan,
+  useImports,
+  useRetryScan,
+  useSourceAction,
+  type ImportOverview,
+} from '../queries';
 import { fmtAgoIso } from './bits';
 import { FeedDialog, FeedPanel } from './feed-import';
 import { CatalogSourceCard } from './meta-catalog';
@@ -112,6 +118,33 @@ function Panel({
       </div>
       {children}
     </section>
+  );
+}
+
+/** Cancel a running import, or retry a failed one; a retry opens the new run's review below. */
+function JobAction({
+  ws,
+  jobId,
+  action,
+  onDone,
+}: {
+  ws: string;
+  jobId: string;
+  action: 'cancel' | 'retry';
+  onDone: (newJobId: string) => void;
+}) {
+  const cancel = useCancelScan(ws, jobId);
+  const retry = useRetryScan(ws, jobId);
+  const m = action === 'cancel' ? cancel : retry;
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      disabled={m.isPending}
+      onClick={() => m.mutate(undefined, { onSuccess: (d) => onDone(d.job.id) })}
+    >
+      {action === 'cancel' ? 'Cancel' : 'Retry'}
+    </Button>
   );
 }
 
@@ -316,8 +349,8 @@ export function IntelligenceTab({
   );
   // undefined = follow the sync the server reports as open; a value (or null) is the person's choice
   const feedJobId = feedChoice === undefined ? (feedResumable?.id ?? null) : feedChoice;
-  const review = jobs.filter((j) => j.status === 'NEEDS_REVIEW').length;
-  const failed = jobs.filter((j) => j.status === 'FAILED').length;
+  const review = data?.totals.pendingReview ?? 0;
+  const failed = data?.totals.failedImports ?? 0;
 
   return (
     <div className="flex flex-col gap-5">
@@ -461,6 +494,12 @@ export function IntelligenceTab({
             color="#5B5CE2"
           />
           <Stat icon={Hourglass} label="Pending review" value={review} color="#D97706" />
+          <Stat
+            icon={Shirt}
+            label="Imported products"
+            value={data?.totals.importedProducts ?? 0}
+            color="#2B8FD9"
+          />
         </ul>
         {failed > 0 && (
           <p className="m-0 flex items-center gap-1.5 text-xs text-danger">
@@ -496,7 +535,15 @@ export function IntelligenceTab({
                 key={j.id}
                 className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-[13px]"
               >
-                <span className="font-medium text-ink">{KIND_LABEL[j.kind]}</span>
+                <span className="font-medium text-ink">
+                  {KIND_LABEL[j.kind]}
+                  {sources.find((x) => x.id === j.sourceId)?.name && (
+                    <span className="font-normal text-muted">
+                      {' '}
+                      · {sources.find((x) => x.id === j.sourceId)!.name}
+                    </span>
+                  )}
+                </span>
                 <span
                   className={cn(
                     'rounded-full px-2 py-0.5 text-[11px] font-medium',
@@ -513,7 +560,27 @@ export function IntelligenceTab({
                   </span>
                 )}
                 {j.error && <span className="text-xs text-danger">{j.error}</span>}
-                <span className="ml-auto text-xs text-faint">{fmtAgoIso(j.createdAt)}</span>
+                <span className="ml-auto flex items-center gap-2 text-xs text-faint">
+                  {workspaceId && (j.status === 'QUEUED' || j.status === 'RUNNING') && (
+                    <JobAction
+                      ws={workspaceId}
+                      jobId={j.id}
+                      action="cancel"
+                      onDone={() => undefined}
+                    />
+                  )}
+                  {workspaceId &&
+                    j.kind !== 'WEBSITE' &&
+                    (j.status === 'FAILED' || j.status === 'CANCELLED') && (
+                      <JobAction
+                        ws={workspaceId}
+                        jobId={j.id}
+                        action="retry"
+                        onDone={setFeedChoice}
+                      />
+                    )}
+                  {fmtAgoIso(j.createdAt)}
+                </span>
               </li>
             ))}
           </ul>

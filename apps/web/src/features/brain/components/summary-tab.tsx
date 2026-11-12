@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAudit } from '@/features/settings/queries';
+import { useImports } from '../queries';
 import { cn } from '@/lib/utils';
 import { useWorkspace } from '@/lib/workspace';
 import { fmtAgoIso } from './bits';
@@ -134,6 +135,105 @@ const priorityOf = (a: BrainArea): 'High' | 'Medium' | 'Low' =>
 const PRIORITY_RANK = { High: 0, Medium: 1, Low: 2 } as const;
 const PRIORITY_DOT = { High: '#DC2626', Medium: '#D98A00', Low: '#2B8FD9' } as const;
 
+const SRC_KIND: Record<string, string> = {
+  WEBSITE: 'Website',
+  XML_FEED: 'XML feed',
+  META_CATALOG: 'Meta Catalog',
+  GOOGLE_MERCHANT: 'Google Merchant Center',
+  MANUAL: 'Manual',
+};
+
+/**
+ * What the imports have contributed, as part of the Brain's overview. It appears only when there is something real to say:
+ * a connected source, an import, or entries waiting for review. Setting up and running imports happens on Intelligence.
+ */
+function KnowledgeSources({ onOpen }: { onOpen: () => void }) {
+  const { workspaceId } = useWorkspace();
+  const q = useImports(workspaceId);
+  const d = q.data;
+  if (!d?.ready) return null;
+  const t = d.totals;
+  const live = d.sources.filter((s) => s.status !== 'DISCONNECTED');
+  if (
+    live.length === 0 &&
+    t.importedEntries === 0 &&
+    t.pendingReview === 0 &&
+    t.failedImports === 0
+  )
+    return null;
+  const last = live
+    .map((s) => s.lastSyncedAt)
+    .filter((x): x is string => !!x)
+    .sort()
+    .at(-1);
+  const attention = live.filter((s) => s.status === 'ERROR');
+  const tiles: [string, number | string, boolean][] = [
+    ['Products imported', t.importedProducts, false],
+    ['Entries imported', t.importedEntries, false],
+    ['Pending review', t.pendingReview, t.pendingReview > 0],
+    ['Failed imports', t.failedImports, t.failedImports > 0],
+  ];
+  return (
+    <section aria-label="Knowledge sources" className="flex flex-col gap-2">
+      <Heading
+        aside={
+          <button
+            type="button"
+            onClick={onOpen}
+            className="cursor-pointer border-none bg-transparent p-0 text-[12.5px] font-semibold text-primary"
+          >
+            Open Intelligence
+          </button>
+        }
+      >
+        Knowledge sources
+      </Heading>
+      <div className="rounded-2xl border border-line bg-white p-4">
+        <ul className="m-0 grid list-none grid-cols-2 gap-2.5 p-0 sm:grid-cols-4">
+          {tiles.map(([label, value, warn]) => (
+            <li key={label} className="rounded-xl bg-wash px-3 py-2.5">
+              <div className="text-xs text-muted">{label}</div>
+              <div className={cn('text-[19px] font-semibold tabular-nums', warn && 'text-warning')}>
+                {value}
+              </div>
+            </li>
+          ))}
+        </ul>
+        {live.length > 0 && (
+          <ul className="m-0 mt-3 flex list-none flex-col gap-1.5 p-0 text-[12.5px]">
+            {live.map((s) => (
+              <li key={s.id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <span className="font-medium text-ink">{SRC_KIND[s.kind] ?? s.kind}</span>
+                <span className="text-muted">{s.name}</span>
+                <span
+                  className={cn(
+                    'rounded-full px-2 py-0.5 text-[11px] font-medium',
+                    s.status === 'ERROR'
+                      ? 'bg-danger-soft text-danger'
+                      : 'bg-success-soft text-success',
+                  )}
+                >
+                  {s.status === 'ERROR' ? 'Needs attention' : 'Connected'}
+                </span>
+                <span className="ml-auto text-xs text-faint">
+                  {s.lastSyncedAt ? `Synced ${fmtAgoIso(s.lastSyncedAt)}` : 'Not synced'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {(last || attention.length > 0) && (
+          <p className={cn('m-0 mt-2.5 text-xs', attention.length ? 'text-danger' : 'text-faint')}>
+            {attention.length
+              ? `${attention.length} source${attention.length === 1 ? ' needs' : 's need'} attention: ${attention.map((s) => s.lastError ?? s.name).join(' · ')}`
+              : `Last knowledge sync ${fmtAgoIso(last)}`}
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export function SummaryTab({
   maturity: m,
   areaList,
@@ -145,6 +245,7 @@ export function SummaryTab({
   celebrate,
   actions,
   onGoTo,
+  onOpenIntelligence,
 }: {
   maturity: BrainMaturity;
   /** The existing readiness areas, computed from the draft with the shared `areas()`. */
@@ -159,6 +260,8 @@ export function SummaryTab({
   celebrate?: Stage | null;
   actions: React.ReactNode;
   onGoTo: (section: string, focus?: boolean) => void;
+  /** Switches to the Intelligence tab, where sources are connected and imports are reviewed. */
+  onOpenIntelligence: () => void;
 }) {
   const [showAllFixes, setShowAllFixes] = useState(false);
   const { workspaceId, can } = useWorkspace();
@@ -272,6 +375,8 @@ export function SummaryTab({
           </li>
         </ul>
       </section>
+
+      <KnowledgeSources onOpen={onOpenIntelligence} />
 
       {/* 3. Intelligence Quality */}
       <section aria-label="Intelligence quality" className="flex flex-col gap-2">

@@ -12,6 +12,7 @@ import {
   googleState,
   metaState,
   mockApi,
+  overviewState,
   resetScan,
   REVIEW_IDS,
   reviewState,
@@ -469,9 +470,9 @@ test.describe('brain (admin)', () => {
     await dlg.getByLabel(/Main catalog/).check();
     const pv = dlg.getByRole('region', { name: 'Catalog preview' });
     await expect(pv).toContainText('Nordic Vase');
-    expect(metaState.selected).toEqual(['cat1']);
+    await expect.poll(() => metaState.selected).toEqual(['cat1']);
     await dlg.getByRole('button', { name: 'Import 11 products for review' }).click();
-    expect(metaState.syncs).toBe(1);
+    await expect.poll(() => metaState.syncs).toBe(1);
     const panel = hub.getByRole('region', { name: 'Feed import' });
     await panel.getByRole('button', { name: 'Approve Nordic Vase' }).click();
     await panel.getByRole('button', { name: /^Import 1 approved/ }).click();
@@ -550,9 +551,9 @@ test.describe('brain (admin)', () => {
     await expect(dlg.getByRole('region', { name: 'Merchant Center preview' })).toContainText(
       'Linen Cushion',
     );
-    expect(googleState.selected).toEqual(['42']);
+    await expect.poll(() => googleState.selected).toEqual(['42']);
     await dlg.getByRole('button', { name: 'Import 7 products for review' }).click();
-    expect(googleState.syncs).toBe(1);
+    await expect.poll(() => googleState.syncs).toBe(1);
     const panel = hub.getByRole('region', { name: 'Feed import' });
     await panel.getByRole('button', { name: 'Approve Linen Cushion' }).click();
     await panel.getByRole('button', { name: /^Import 1 approved/ }).click();
@@ -657,6 +658,121 @@ test.describe('brain (admin)', () => {
     await rv.getByRole('button', { name: /^Import 2 approved/ }).click();
     await expect(rv.getByText('Imported 2 products into Brain.')).toBeVisible();
     expect(reviewState.imported).toBe(1);
+  });
+
+  test('Summary: knowledge sources appear only when there is something real to say', async ({
+    page,
+  }) => {
+    await expect(summary(page).getByRole('region', { name: 'Knowledge sources' })).toHaveCount(0);
+    overviewState.sources = [
+      {
+        id: '9d0f0000-0000-4000-8000-0000000000a9',
+        kind: 'XML_FEED',
+        name: 'Main feed',
+        url: 'https://s.test/f.xml',
+        status: 'ACTIVE',
+        lastSyncedAt: new Date(Date.now() - 3600_000).toISOString(),
+        lastError: null,
+        frequency: 'manual',
+      },
+      {
+        id: '9d0f0000-0000-4000-8000-0000000000b9',
+        kind: 'META_CATALOG',
+        name: 'Meta Catalog: Main',
+        url: null,
+        status: 'ERROR',
+        lastSyncedAt: null,
+        lastError: 'Meta authorization expired or was revoked. Reconnect to continue.',
+        frequency: null,
+      },
+    ];
+    overviewState.totals = {
+      importedProducts: 12,
+      importedEntries: 15,
+      pendingReview: 4,
+      failedImports: 1,
+    };
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    const ks = summary(page).getByRole('region', { name: 'Knowledge sources' });
+    await expect(ks).toContainText('Products imported');
+    await expect(ks.getByRole('listitem').filter({ hasText: 'Products imported' })).toContainText(
+      '12',
+    );
+    await expect(ks.getByRole('listitem').filter({ hasText: 'Pending review' })).toContainText('4');
+    await expect(ks).toContainText('XML feedMain feed');
+    await expect(ks).toContainText('1 source needs attention');
+    await expect(ks).toContainText('Meta authorization expired');
+    await ks.getByRole('button', { name: 'Open Intelligence' }).click();
+    await expect(page.getByRole('tab', { name: 'Intelligence' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
+  test('Import activity: names the source, can cancel a running import and retry a failed feed (not a website scan)', async ({
+    page,
+  }) => {
+    const job = (id: string, kind: string, status: string, sourceId: string | null = null) => ({
+      id,
+      sourceId,
+      kind,
+      status,
+      stats: null,
+      error: status === 'FAILED' ? 'The feed could not be read.' : null,
+      startedAt: null,
+      finishedAt: null,
+      createdAt: new Date().toISOString(),
+    });
+    overviewState.sources = [
+      {
+        id: '9d0f0000-0000-4000-8000-0000000000a9',
+        kind: 'XML_FEED',
+        name: 'Main feed',
+        url: 'https://s.test/f.xml',
+        status: 'ACTIVE',
+        lastSyncedAt: null,
+        lastError: null,
+        frequency: 'manual',
+      },
+    ];
+    overviewState.jobs = [
+      job(
+        '9d0f0000-0000-4000-8000-0000000000aa',
+        'XML_FEED',
+        'FAILED',
+        '9d0f0000-0000-4000-8000-0000000000a9',
+      ),
+      job('9d0f0000-0000-4000-8000-0000000000ab', 'WEBSITE', 'FAILED'),
+      job('9d0f0000-0000-4000-8000-0000000000ac', 'META_CATALOG', 'RUNNING'),
+    ];
+    overviewState.totals = {
+      importedProducts: 0,
+      importedEntries: 0,
+      pendingReview: 0,
+      failedImports: 2,
+    };
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openTab(page, 'Intelligence');
+    const act = intelligence(page).getByRole('region', { name: 'Import activity' });
+    const feedRow = act.getByRole('listitem').filter({ hasText: 'XML feed · Main feed' });
+    await expect(feedRow).toContainText('The feed could not be read.');
+    await feedRow.getByRole('button', { name: 'Retry' }).click();
+    await expect.poll(() => overviewState.actions.some((a) => a.endsWith('/retry'))).toBe(true);
+    await expect(
+      act
+        .getByRole('listitem')
+        .filter({ hasText: 'Website scan' })
+        .getByRole('button', { name: 'Retry' }),
+    ).toHaveCount(0);
+    await act
+      .getByRole('listitem')
+      .filter({ hasText: 'Meta Catalog' })
+      .getByRole('button', { name: 'Cancel' })
+      .click();
+    await expect.poll(() => overviewState.actions.some((a) => a.endsWith('/cancel'))).toBe(true);
+    await expect(intelligence(page).getByText('2 recent imports failed')).toBeVisible();
   });
 
   test('Summary has all eight sections, in order', async ({ page }) => {

@@ -467,6 +467,7 @@ function BrainEditor({
           dirty={dirty}
           celebrate={celebrate}
           onGoTo={goTo}
+          onOpenIntelligence={() => selectTab('intelligence')}
           actions={
             <>
               <SaveControls {...controls} />

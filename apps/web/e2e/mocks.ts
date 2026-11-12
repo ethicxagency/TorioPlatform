@@ -172,6 +172,24 @@ export function resetReview() {
   reviewState.imported = 0;
   reviewState.approved = 0;
 }
+/** What the import overview reports, beyond the scan flow above. */
+export const overviewState = {
+  sources: [] as unknown[],
+  jobs: [] as unknown[],
+  totals: { importedProducts: 0, importedEntries: 0, pendingReview: 0, failedImports: 0 },
+  actions: [] as string[],
+};
+export function resetOverview() {
+  overviewState.sources = [];
+  overviewState.jobs = [];
+  overviewState.totals = {
+    importedProducts: 0,
+    importedEntries: 0,
+    pendingReview: 0,
+    failedImports: 0,
+  };
+  overviewState.actions = [];
+}
 export const googleState = {
   available: false,
   connected: false,
@@ -195,6 +213,7 @@ export function resetMeta() {
   metaState.syncs = 0;
 }
 export function resetScan() {
+  resetOverview();
   resetMeta();
   resetReview();
   scanState.started = false;
@@ -1813,9 +1832,14 @@ export async function mockApi(
       if (sub === '')
         return reply({
           ready: true,
-          sources: [],
-          jobs: scanState.started ? [job(scanState.status).job] : [],
+          totals: overviewState.totals,
+          sources: overviewState.sources,
+          jobs: [...(scanState.started ? [job(scanState.status).job] : []), ...overviewState.jobs],
         });
+      if (sub.endsWith('/cancel') || sub.endsWith('/retry')) {
+        overviewState.actions.push(sub);
+        return reply(job('QUEUED'));
+      }
       if (sub === '/meta')
         return reply({
           available: metaState.available,

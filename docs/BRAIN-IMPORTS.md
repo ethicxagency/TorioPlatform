@@ -46,6 +46,14 @@ one active scan per store, `TorioBot` user agent.
 - Page text is untrusted. It never becomes an instruction: the AI answer must match a schema and be grounded in the page.
 - Every query is scoped to the workspace; another store's job or entry is reported as not found.
 
+## Overview and activity
+
+- **Summary → Knowledge sources** shows what imports have contributed (products and entries imported, entries pending review,
+  failed imports in the last 30 days, each connected source with its status and last sync, and a note when a source needs
+  attention). It appears only when there is something real to show; connecting and running imports stays on Intelligence.
+- **Import activity** names each run's source, offers Cancel on a running import and Retry on a failed or cancelled feed or
+  catalog sync (a website scan is retried from its own panel).
+
 ## XML feeds
 
 Reads RSS (Google Shopping `g:` fields), Atom and plain `<product>` lists with a small built-in reader: no DTDs or entity

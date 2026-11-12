@@ -4871,6 +4871,12 @@ export interface components {
         };
         ImportOverviewDto: {
             ready: boolean;
+            totals: {
+                importedProducts: number;
+                importedEntries: number;
+                pendingReview: number;
+                failedImports: number;
+            };
             sources: {
                 /** Format: uuid */
                 id: string;

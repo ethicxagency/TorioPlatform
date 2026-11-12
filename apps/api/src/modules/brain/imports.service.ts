@@ -20,7 +20,7 @@ export class ImportsService {
 
   async overview(workspaceId: string): Promise<ImportOverview> {
     try {
-      const [sources, jobs] = await Promise.all([
+      const [sources, jobs, imported, importedProducts, pending, failed] = await Promise.all([
         this.prisma.client.importSource.findMany({
           where: { workspaceId },
           orderBy: { createdAt: 'asc' },
@@ -31,9 +31,30 @@ export class ImportsService {
           orderBy: { createdAt: 'desc' },
           take: 20,
         }),
+        this.prisma.client.importRecord.count({ where: { workspaceId, status: 'IMPORTED' } }),
+        this.prisma.client.importRecord.count({
+          where: { workspaceId, status: 'IMPORTED', category: 'product' },
+        }),
+        this.prisma.client.importRecord.count({
+          where: { workspaceId, status: { in: ['PENDING', 'APPROVED'] } },
+        }),
+        // Failed in the last 30 days; an old failure that was retried successfully is history, not a problem.
+        this.prisma.client.importJob.count({
+          where: {
+            workspaceId,
+            status: 'FAILED',
+            createdAt: { gte: new Date(Date.now() - 30 * 86_400_000) },
+          },
+        }),
       ]);
       return {
         ready: true,
+        totals: {
+          importedProducts,
+          importedEntries: imported,
+          pendingReview: pending,
+          failedImports: failed,
+        },
         sources: sources.map((s) => ({
           id: s.id,
           kind: s.kind,
@@ -60,7 +81,12 @@ export class ImportsService {
     } catch (e) {
       if (!notMigrated(e)) throw e;
       this.log.warn('Import tables are not in this database yet; serving an empty overview.');
-      return { ready: false, sources: [], jobs: [] };
+      return {
+        ready: false,
+        totals: { importedProducts: 0, importedEntries: 0, pendingReview: 0, failedImports: 0 },
+        sources: [],
+        jobs: [],
+      };
     }
   }
 }

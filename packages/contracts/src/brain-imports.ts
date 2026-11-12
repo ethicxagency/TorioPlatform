@@ -43,6 +43,13 @@ export const importJobViewSchema = z.object({
  */
 export const importOverviewSchema = z.object({
   ready: z.boolean(),
+  /** Counts across every source, for the Summary and the Intelligence overview. All zero until something has been imported. */
+  totals: z.object({
+    importedProducts: z.number().int(),
+    importedEntries: z.number().int(),
+    pendingReview: z.number().int(),
+    failedImports: z.number().int(),
+  }),
   sources: z.array(importSourceViewSchema),
   jobs: z.array(importJobViewSchema),
 });
