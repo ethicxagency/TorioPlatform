@@ -20,8 +20,9 @@ import { ActionMenu } from '@/components/ui/menu';
 /**
  * Shipping providers and payment methods are lists of names a store tells its Brain it offers. There is no courier or
  * payment-gateway connection behind them, so the cards show what is true: it is listed, it can be added or removed, and it
- * never claims a "Connected" state, credentials or a connection test. Official brand logos are only used when an asset is
- * supplied for an entry (`logo`); none are bundled, so entries show a monogram or a Lucide icon instead of an invented mark.
+ * never claims a "Connected" state, credentials or a connection test. Official brand logos are used when an asset is supplied
+ * for an entry (`logo`, stored in /public/brands); entries without one show a monogram or a Lucide icon, never an invented mark.
+ * Shipping providers are a selectable logo grid (click to select / deselect); payment methods are an added-items card list.
  */
 export interface CatalogEntry {
   name: string;
@@ -69,9 +70,26 @@ export const SHIPPING_CATALOG: CatalogEntry[] = [
     category: 'Courier service',
     logo: { src: '/brands/redx.png', alt: 'REDX logo', width: 1024, height: 500 },
   },
-  { name: 'eCourier', category: 'Courier service' },
-  { name: 'Paperfly', category: 'Courier service' },
-  { name: 'Sundarban', category: 'Courier service' },
+  {
+    name: 'eCourier',
+    category: 'Courier service',
+    logo: { src: '/brands/ecourier.png', alt: 'eCourier logo', width: 444, height: 90 },
+  },
+  {
+    name: 'Paperfly',
+    category: 'Courier service',
+    logo: { src: '/brands/paperfly.png', alt: 'Paperfly logo', width: 1808, height: 412 },
+  },
+  {
+    name: 'Sundarban',
+    category: 'Courier service',
+    logo: {
+      src: '/brands/sundarban-courier.png',
+      alt: 'Sundarban Courier logo',
+      width: 447,
+      height: 447,
+    },
+  },
 ];
 export const PAYMENT_CATALOG: CatalogEntry[] = [
   { name: 'bKash', category: 'Mobile financial service', icon: Smartphone },
@@ -136,6 +154,78 @@ function Tile({ entry, small }: { entry: CatalogEntry; small?: boolean }) {
     >
       {Icon ? <Icon size={18} /> : monogram(entry.name)}
     </span>
+  );
+}
+
+/**
+ * A selectable provider card: white logo area of one fixed size (the artwork is only ever fitted with object-contain, never
+ * recoloured, stretched or cropped), the name below, an indigo selected state and a check badge. Click toggles.
+ */
+function ProviderCard({
+  entry,
+  selected,
+  onToggle,
+}: {
+  entry: CatalogEntry;
+  selected: boolean;
+  onToggle: () => void;
+}) {
+  const logo = entry.logo;
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      aria-label={`${entry.name}${selected ? ', selected' : ''}`}
+      onClick={onToggle}
+      className={`group relative flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-[13px] border bg-white text-left transition-[border-color,box-shadow,transform] duration-150 hover:-translate-y-px hover:shadow-[var(--shadow-card-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none motion-reduce:hover:translate-y-0 ${
+        selected
+          ? 'border-primary shadow-[0_0_0_3px_rgba(99,102,241,0.16)]'
+          : 'border-line hover:border-line-input'
+      }`}
+    >
+      <span className="relative flex h-[84px] items-center justify-center overflow-hidden bg-white px-4 py-3">
+        {logo ? (
+          <Image
+            src={logo.src}
+            alt={logo.alt}
+            width={logo.width}
+            height={logo.height}
+            sizes="160px"
+            className="object-contain"
+            style={{
+              width: 'auto',
+              height: 'auto',
+              maxWidth: '100%',
+              maxHeight: 56,
+              transform: logo.zoom ? `scale(${logo.zoom})` : undefined,
+            }}
+          />
+        ) : (
+          <span
+            aria-hidden
+            className="flex h-12 w-12 items-center justify-center rounded-[10px] border border-primary-line bg-primary-soft text-[14px] font-semibold text-primary-hover"
+          >
+            {monogram(entry.name)}
+          </span>
+        )}
+        <span
+          aria-hidden
+          className={`absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white transition-[opacity,transform] duration-150 motion-reduce:transition-none ${
+            selected ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
+          }`}
+        >
+          <Check size={12} strokeWidth={3} />
+        </span>
+      </span>
+      <span
+        className={`flex flex-col border-t px-3 py-2 ${
+          selected ? 'border-primary-line bg-primary-tint' : 'border-line-subtle bg-white'
+        }`}
+      >
+        <span className="truncate text-[13px] font-semibold text-ink">{entry.name}</span>
+        <span className="truncate text-[11.5px] text-muted">{entry.category}</span>
+      </span>
+    </button>
   );
 }
 
@@ -310,6 +400,7 @@ export function ServiceCards({
   customCategory,
   values,
   onChange,
+  selectable = false,
 }: {
   title: string;
   description: string;
@@ -323,6 +414,8 @@ export function ServiceCards({
   customCategory: string;
   values: string[];
   onChange: (v: string[]) => void;
+  /** Show every catalog entry as a toggle card (select / deselect) instead of only the added ones. */
+  selectable?: boolean;
 }) {
   const [picking, setPicking] = useState(false);
   const entryOf = (name: string): CatalogEntry =>
@@ -336,28 +429,53 @@ export function ServiceCards({
         )}
         <p className="m-0 basis-full text-[12.5px] text-muted">{description}</p>
       </div>
-      <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2.5 p-0">
-        {values.map((v) => {
-          const e = entryOf(v);
-          return (
-            <li key={v}>
-              <div className="flex h-full flex-col gap-2.5 rounded-[13px] border border-line bg-white p-3 transition-colors duration-150 hover:border-line-input motion-reduce:transition-none">
-                <div className="flex items-start justify-between gap-2">
-                  <Tile entry={e} />
-                  <CardMenu name={v} onRemove={() => onChange(values.filter((x) => x !== v))} />
+      <ul
+        className={
+          selectable
+            ? 'm-0 grid list-none grid-cols-2 gap-2.5 p-0 sm:grid-cols-3 lg:grid-cols-4'
+            : 'm-0 grid list-none grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2.5 p-0'
+        }
+      >
+        {selectable &&
+          [
+            ...catalog,
+            ...values.filter((v) => !catalog.some((c) => same(c.name, v))).map(entryOf),
+          ].map((e) => {
+            const on = values.some((v) => same(v, e.name));
+            return (
+              <li key={e.name}>
+                <ProviderCard
+                  entry={e}
+                  selected={on}
+                  onToggle={() =>
+                    onChange(on ? values.filter((v) => !same(v, e.name)) : [...values, e.name])
+                  }
+                />
+              </li>
+            );
+          })}
+        {!selectable &&
+          values.map((v) => {
+            const e = entryOf(v);
+            return (
+              <li key={v}>
+                <div className="flex h-full flex-col gap-2.5 rounded-[13px] border border-line bg-white p-3 transition-colors duration-150 hover:border-line-input motion-reduce:transition-none">
+                  <div className="flex items-start justify-between gap-2">
+                    <Tile entry={e} />
+                    <CardMenu name={v} onRemove={() => onChange(values.filter((x) => x !== v))} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-[13.5px] font-semibold text-ink">{v}</div>
+                    <div className="text-xs leading-snug text-muted">{e.category}</div>
+                  </div>
+                  <div className="mt-auto flex items-center gap-1.5 text-[11.5px] text-muted">
+                    <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    Listed in Brain
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <div className="truncate text-[13.5px] font-semibold text-ink">{v}</div>
-                  <div className="text-xs leading-snug text-muted">{e.category}</div>
-                </div>
-                <div className="mt-auto flex items-center gap-1.5 text-[11.5px] text-muted">
-                  <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-primary" />
-                  Listed in Brain
-                </div>
-              </div>
-            </li>
-          );
-        })}
+              </li>
+            );
+          })}
         <li>
           <button
             type="button"

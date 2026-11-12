@@ -186,13 +186,14 @@ export function PoliciesSection({ d, mut }: SectionProps) {
           title="Shipping Providers"
           description="Manage the courier services available to your store."
           addTitle="Add Shipping Provider"
-          addHint="Connect a courier or shipping service."
+          addHint="Add a courier that is not listed."
           pickerTitle="Add shipping provider"
           customLabel="Add as a custom provider"
           emptyTitle="No shipping providers yet."
           emptyText="Add the couriers you deliver with so AI can name them."
           catalog={SHIPPING_CATALOG}
           customCategory="Custom provider"
+          selectable
           values={s.providers}
           onChange={(v) =>
             mut((c) => {

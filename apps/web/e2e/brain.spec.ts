@@ -1195,9 +1195,16 @@ test.describe('brain (admin)', () => {
       ship.getByText('Manage the courier services available to your store.'),
     ).toBeVisible();
     await expect(ship.getByText('1 added')).toBeVisible();
-    const pathao = ship.getByRole('listitem').filter({ hasText: 'Pathao' });
-    await expect(pathao).toContainText('Courier service');
-    await expect(pathao).toContainText('Listed in Brain');
+    // every known courier is a selectable logo card; the one in the Brain is pressed
+    await expect(ship.getByRole('button', { name: 'Pathao, selected' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    for (const n of ['Steadfast', 'RedX', 'eCourier', 'Paperfly', 'Sundarban'])
+      await expect(ship.getByRole('button', { name: n, exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      );
     await expect(ship.getByRole('button', { name: /Add Shipping Provider/ })).toBeVisible();
     const pay = page.getByRole('region', { name: 'Payment Methods' });
     await expect(
@@ -1210,26 +1217,20 @@ test.describe('brain (admin)', () => {
     // there is no courier or gateway connection behind these lists, so nothing may claim one
     for (const r of [ship, pay])
       await expect(r.getByText(/Connected|Test connection|credential|API key/i)).toHaveCount(0);
-    // the old pill toggles are gone
-    await expect(page.getByRole('button', { name: 'Pathao', exact: true })).toHaveCount(0);
   });
 
-  test('supplied courier logos are real local images with their own aspect ratio, and say nothing about connection', async ({
+  test('courier logos are real local images with their own aspect ratio, and say nothing about connection', async ({
     page,
   }) => {
     await openTab(page, 'Knowledge');
     const ship = page.getByRole('region', { name: 'Shipping Providers' });
-    for (const n of ['Steadfast', 'RedX']) {
-      await ship.getByRole('button', { name: /Add Shipping Provider/ }).click();
-      await page
-        .getByRole('dialog')
-        .getByRole('button', { name: new RegExp(n) })
-        .click();
-    }
     const logos = [
       ['Pathao Courier logo', 1200 / 1200],
       ['Steadfast Courier logo', 640 / 256],
       ['REDX logo', 1024 / 500],
+      ['eCourier logo', 444 / 90],
+      ['Paperfly logo', 1808 / 412],
+      ['Sundarban Courier logo', 447 / 447],
     ] as const;
     for (const [alt, ratio] of logos) {
       const img = ship.getByRole('img', { name: alt });
@@ -1244,16 +1245,30 @@ test.describe('brain (admin)', () => {
       expect(info.ok).toBe(true);
       expect(new URL(info.src).origin).toBe(new URL(page.url()).origin); // local asset, no hotlink
       expect(info.fit).toBe('contain');
-      expect(Math.abs(info.w / info.h - ratio)).toBeLessThan(0.02); // original proportions
+      expect(Math.abs(info.w / info.h / ratio - 1)).toBeLessThan(0.02); // original proportions
     }
-    // other couriers have no supplied artwork, so they show a neutral monogram, never an invented logo
-    await ship.getByRole('button', { name: /Add Shipping Provider/ }).click();
-    await page
-      .getByRole('dialog')
-      .getByRole('button', { name: /Sundarban/ })
-      .click();
-    await expect(ship.getByRole('img', { name: /Sundarban/ })).toHaveCount(0);
     await expect(ship.getByText(/Connected/i)).toHaveCount(0);
+  });
+
+  test('clicking a courier card selects and deselects it, and the choice is saved with the Brain', async ({
+    page,
+  }) => {
+    await openTab(page, 'Knowledge');
+    const ship = page.getByRole('region', { name: 'Shipping Providers' });
+    await ship.getByRole('button', { name: 'Sundarban', exact: true }).click();
+    await expect(ship.getByRole('button', { name: 'Sundarban, selected' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await ship.getByRole('button', { name: 'Pathao, selected' }).click();
+    await expect(ship.getByRole('button', { name: 'Pathao', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    await page.getByRole('button', { name: 'Save Changes' }).click();
+    await expect(page.getByText('Brain saved.')).toBeVisible();
+    const put = brainState.puts.at(-1) as { config: { shipping: { providers: string[] } } };
+    expect(put.config.shipping.providers).toEqual(['Sundarban']);
   });
 
   test('add a provider from the picker: search, select, saved with the Brain', async ({ page }) => {
@@ -1267,7 +1282,7 @@ test.describe('brain (admin)', () => {
     await expect(dlg.getByRole('button', { name: /Steadfast/ })).toHaveCount(0);
     await dlg.getByRole('button', { name: /RedX/ }).click();
     await expect(dlg).toHaveCount(0);
-    await expect(ship.getByRole('listitem').filter({ hasText: 'RedX' })).toBeVisible();
+    await expect(ship.getByRole('button', { name: 'RedX, selected' })).toBeVisible();
     await page.getByRole('button', { name: 'Save Changes' }).click();
     await expect(page.getByText('Brain saved.')).toBeVisible();
     const put = brainState.puts.at(-1) as { config: { shipping: { providers: string[] } } };
@@ -1317,7 +1332,7 @@ test.describe('brain (admin)', () => {
     await expect(page.getByRole('button', { name: /Unsaved changes/ })).toBeVisible();
   });
 
-  test('an empty list shows an empty state with the Add card; cards stay in one column on a phone', async ({
+  test('an empty list shows an empty state with the Add card; the courier grid fits a phone', async ({
     page,
   }) => {
     await openTab(page, 'Knowledge');
@@ -1329,9 +1344,8 @@ test.describe('brain (admin)', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     const ship = page.getByRole('region', { name: 'Shipping Providers' });
     await ship.scrollIntoViewIfNeeded();
-    const a = (await ship.getByRole('listitem').first().boundingBox())!;
     const b = (await ship.getByRole('button', { name: /Add Shipping Provider/ }).boundingBox())!;
-    expect(Math.abs(a.x - b.x)).toBeLessThan(2); // stacked, not side by side
+    expect(b.x + b.width).toBeLessThanOrEqual(390); // inside the phone viewport
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
     ).toBe(false);
