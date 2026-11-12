@@ -1,16 +1,8 @@
 'use client';
 
-import {
-  DollarSign,
-  MessageSquareText,
-  Search,
-  Send,
-  Smile,
-  Sparkles,
-  StickyNote,
-  X,
-} from 'lucide-react';
+import { DollarSign, MessageSquareText, Search, Send, Smile, StickyNote, X } from 'lucide-react';
 import { forwardRef, useMemo, useRef, useState, type Ref } from 'react';
+import { AIButton } from '@/components/ui/ai';
 import { cn } from '@/lib/utils';
 import { MAX_MESSAGE_LENGTH } from '@torio/contracts';
 import { renderTemplate } from '../format';
@@ -440,13 +432,16 @@ export const MessageComposer = forwardRef<HTMLTextAreaElement, Props>(
               onClick={() => setMenu(menu === 'emoji' ? null : 'emoji')}
             />
             {!isNote && (
-              <ToolAction
-                icon={<Sparkles size={15} />}
-                label="AI Assist"
+              <AIButton
+                size="sm"
+                aria-label="AI Assist"
+                title="AI Assist"
                 aria-pressed={p.aiOpen}
-                active={p.aiOpen}
+                hideLabelOnSmall
                 onClick={p.onToggleAi}
-              />
+              >
+                AI Assist
+              </AIButton>
             )}
             <span className="flex-1" />
             {tooLong && (

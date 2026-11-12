@@ -10,7 +10,7 @@ import {
   type SectionKey,
   type Stage,
 } from '@torio/contracts';
-import { Sparkles } from 'lucide-react';
+import { AIButton, AIIcon } from '@/components/ui/ai';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -471,10 +471,7 @@ function BrainEditor({
           actions={
             <>
               <SaveControls {...controls} />
-              <Button variant="dark" className="h-9" onClick={() => selectTab('test')}>
-                <Sparkles size={14} />
-                Test AI
-              </Button>
+              <AIButton onClick={() => selectTab('test')}>Test AI</AIButton>
             </>
           }
         />
@@ -542,7 +539,7 @@ function BrainEditor({
         className="mx-auto flex w-full max-w-[860px] min-w-0 flex-col gap-3"
       >
         <p className="m-0 flex items-start gap-2 rounded-xl border border-[rgba(91,92,226,0.18)] bg-primary-tint px-3 py-2.5 text-[13px] text-ink">
-          <Sparkles size={15} aria-hidden className="mt-0.5 shrink-0 text-primary" />
+          <AIIcon size={16} className="mt-0.5" />
           <span>
             <b>This is a test, not a live conversation.</b> Nothing here is sent to customers, and
             it uses your current edits, saved or not.

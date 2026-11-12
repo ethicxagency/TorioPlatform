@@ -559,3 +559,233 @@ select:not([multiple]):not([size]) {
 select:not([multiple]):not([size]):disabled {
   cursor: not-allowed;
 }
+
+/*
+ * AI visual identity. One set of tokens and animations shared by every AI element (components/ui/ai.tsx): indigo through
+ * violet to purple with a touch of pink, deepened slightly so white text on it stays above 5:1. Motion is deliberately slow
+ * and cheap (a transform sweep and a background drift) and is switched off for prefers-reduced-motion.
+ */
+:root {
+  --ai-1: #5b5ce2;
+  --ai-2: #7c4de8;
+  --ai-3: #9333ea;
+  --ai-pink: #c04fd8;
+  --ai-gradient: linear-gradient(110deg, var(--ai-1), var(--ai-2), var(--ai-3), var(--ai-1));
+  --ai-gradient-soft: linear-gradient(110deg, #eef0ff, #f3edff, #f9eefd, #eef0ff);
+  --ai-glow: 0 2px 10px rgba(124, 77, 232, 0.24);
+  --ai-glow-strong: 0 5px 18px rgba(124, 77, 232, 0.38);
+  --ai-ink: #5b3fd0;
+}
+
+@keyframes ai-drift {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 300% 50%;
+  }
+}
+/* a soft highlight crosses the button once every few seconds, then rests */
+@keyframes ai-sweep {
+  0%,
+  72% {
+    transform: translateX(-130%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(260%) skewX(-18deg);
+  }
+}
+@keyframes ai-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes ai-bar {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(260%);
+  }
+}
+@keyframes ai-pop {
+  0% {
+    transform: scale(0.94);
+  }
+  60% {
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.ai-btn {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  cursor: pointer;
+  font-weight: 600;
+  transition:
+    box-shadow 180ms var(--ease-standard),
+    transform 120ms var(--ease-standard),
+    filter 180ms var(--ease-standard),
+    background-position 600ms ease;
+}
+.ai-btn:focus-visible {
+  outline: 2px solid var(--ai-2);
+  outline-offset: 2px;
+}
+.ai-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.ai-btn:disabled {
+  cursor: not-allowed;
+}
+/* primary: the full gradient, white text */
+.ai-btn-primary {
+  color: #fff;
+  background-image: var(--ai-gradient);
+  background-size: 300% 100%;
+  box-shadow: var(--ai-glow);
+}
+.ai-btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 38%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.34), transparent);
+  animation: ai-sweep 7s ease-in-out infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+.ai-btn-primary:hover:not(:disabled),
+.ai-btn-primary[aria-pressed='true'] {
+  box-shadow: var(--ai-glow-strong);
+  animation: ai-drift 7s linear infinite;
+  filter: saturate(1.08);
+}
+/* secondary: a light gradient with a gradient border and gradient icon */
+.ai-btn-secondary {
+  color: var(--ai-ink);
+  border: 1px solid transparent;
+  background:
+    linear-gradient(#fbfaff, #fbfaff) padding-box,
+    var(--ai-gradient) border-box;
+  background-size:
+    100% 100%,
+    300% 100%;
+}
+.ai-btn-secondary:hover:not(:disabled),
+.ai-btn-secondary[aria-pressed='true'] {
+  background:
+    var(--ai-gradient-soft) padding-box,
+    var(--ai-gradient) border-box;
+  background-size:
+    100% 100%,
+    300% 100%;
+  box-shadow: var(--ai-glow);
+  animation: ai-drift 8s linear infinite;
+}
+.ai-btn-success {
+  animation: ai-pop 260ms var(--ease-standard);
+}
+/* disabled: no gradient motion, no glow, low intensity */
+.ai-btn:disabled,
+.ai-btn[data-state='disabled'] {
+  animation: none;
+  box-shadow: none;
+  filter: grayscale(0.5);
+  opacity: 0.55;
+}
+.ai-btn:disabled::after {
+  display: none;
+}
+.ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(124, 77, 232, 0.22);
+  border-radius: 999px;
+  background: var(--ai-gradient-soft);
+  color: var(--ai-ink);
+  font-weight: 600;
+}
+.ai-icon-spin {
+  animation: ai-spin 2.4s linear infinite;
+  transform-origin: 50% 50%;
+}
+.ai-icon-hover {
+  transition:
+    transform 200ms var(--ease-standard),
+    filter 200ms var(--ease-standard);
+}
+.ai-btn:hover:not(:disabled) .ai-icon-hover,
+.group:hover .ai-icon-hover {
+  transform: rotate(14deg) scale(1.1);
+  filter: drop-shadow(0 0 3px rgba(147, 51, 234, 0.45));
+}
+.ai-bar {
+  position: relative;
+  overflow: hidden;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--ai-gradient-soft);
+}
+.ai-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 38%;
+  border-radius: inherit;
+  background: var(--ai-gradient);
+  animation: ai-bar 1.6s ease-in-out infinite;
+}
+.ai-gradient-border {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    var(--ai-gradient) border-box;
+  background-size:
+    100% 100%,
+    300% 100%;
+}
+.ai-gradient-border[data-animated='true'] {
+  animation: ai-drift 8s linear infinite;
+}
+.ai-gradient-text {
+  background: var(--ai-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-btn,
+  .ai-btn::after,
+  .ai-btn:hover,
+  .ai-btn[aria-pressed='true'],
+  .ai-icon-spin,
+  .ai-icon-hover,
+  .ai-bar::after,
+  .ai-gradient-border,
+  .ai-btn-success {
+    animation: none !important;
+    transition: none !important;
+  }
+  .ai-btn-primary::after {
+    display: none;
+  }
+  .ai-btn:hover:not(:disabled) .ai-icon-hover {
+    transform: none;
+  }
+  .ai-bar::after {
+    width: 100%;
+    opacity: 0.55;
+  }
+}

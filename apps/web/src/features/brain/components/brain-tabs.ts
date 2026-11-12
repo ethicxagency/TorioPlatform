@@ -1,6 +1,6 @@
+import { AISparkle } from '@/components/ui/ai';
 import {
   BookOpenText,
-  FlaskConical,
   Gauge,
   LayoutDashboard,
   SlidersHorizontal,
@@ -16,7 +16,7 @@ export const TABS: { id: TabId; label: string; icon: LucideIcon }[] = [
   { id: 'intelligence', label: 'Intelligence', icon: Gauge },
   { id: 'knowledge', label: 'Knowledge', icon: BookOpenText },
   { id: 'rules', label: 'Rules & Behavior', icon: SlidersHorizontal },
-  { id: 'test', label: 'Test AI', icon: FlaskConical },
+  { id: 'test', label: 'Test AI', icon: AISparkle },
 ];
 
 export const isTab = (v: string | null): v is TabId =>

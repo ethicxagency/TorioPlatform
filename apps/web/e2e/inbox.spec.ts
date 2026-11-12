@@ -137,7 +137,7 @@ test.describe('inbox', () => {
 
   test('composer actions are icon-only until hovered, then show their label', async ({ page }) => {
     await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
-    for (const name of ['Create order', 'Saved replies', 'Insert emoji', 'AI Assist']) {
+    for (const name of ['Create order', 'Saved replies', 'Insert emoji']) {
       const btn = page.getByRole('button', { name, exact: true });
       const label = btn.locator('span[aria-hidden]');
       const rest = (await btn.boundingBox())!.width;
@@ -146,6 +146,48 @@ test.describe('inbox', () => {
       await expect.poll(async () => (await btn.boundingBox())!.width).toBeGreaterThan(rest + 20);
       await page.mouse.move(0, 0);
     }
+  });
+
+  test('AI Assist has the AI look: gradient, glow, pressed state; ordinary buttons keep theirs', async ({
+    page,
+  }) => {
+    await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
+    const ai = page.getByRole('button', { name: 'AI Assist', exact: true });
+    await expect(ai).toContainText('AI Assist');
+    const look = await ai.evaluate((el) => {
+      const c = getComputedStyle(el);
+      return { bg: c.backgroundImage, shadow: c.boxShadow, color: c.color };
+    });
+    expect(look.bg).toContain('linear-gradient');
+    expect(look.shadow).not.toBe('none');
+    expect(look.color).toBe('rgb(255, 255, 255)');
+    // Send is an ordinary action: solid brand colour, no gradient
+    const send = await page
+      .getByRole('button', { name: 'Send', exact: true })
+      .evaluate((el) => getComputedStyle(el).backgroundImage);
+    expect(send).toBe('none');
+    await expect(ai).toHaveAttribute('aria-pressed', 'false');
+    await ai.click();
+    await expect(ai).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('region', { name: 'AI Assist' })).toBeVisible();
+  });
+
+  test('AI Assist motion is switched off for reduced motion, and the label stays reachable on a phone', async ({
+    page,
+  }) => {
+    await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
+    const ai = page.getByRole('button', { name: 'AI Assist', exact: true });
+    const sweep = () => ai.evaluate((el) => getComputedStyle(el, '::after').animationName);
+    expect(await sweep()).toContain('ai-sweep');
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await ai.hover();
+    expect(await ai.evaluate((el) => getComputedStyle(el).animationName)).toBe('none');
+    expect(await ai.evaluate((el) => getComputedStyle(el, '::after').display)).toBe('none');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.getByRole('button', { name: 'AI Assist', exact: true })).toBeVisible();
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
   });
 
   test('a failed reply shows its reason and can be resent', async ({ page }) => {

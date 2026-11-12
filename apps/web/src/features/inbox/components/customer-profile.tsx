@@ -11,7 +11,6 @@ import {
   Phone,
   Plus,
   X,
-  Sparkles,
   AtSign,
   Check,
 } from 'lucide-react';
@@ -20,6 +19,7 @@ import { useState } from 'react';
 import { ChannelIcon } from '@/components/channel-icon';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWorkspace } from '@/lib/workspace';
+import { AIIcon } from '@/components/ui/ai';
 import { cn } from '@/lib/utils';
 import { useShell } from '@/components/shell/shell-context';
 import { useCustomerConversations } from '@/features/customers/queries';
@@ -613,7 +613,7 @@ export function CustomerProfile({
 
         <Section title="AI summary" defaultOpen={false}>
           <div className="flex items-start gap-2 rounded-lg border border-primary-line bg-primary-tint p-3 text-[13px] text-muted">
-            <Sparkles size={14} className="mt-0.5 shrink-0 text-primary" />
+            <AIIcon size={15} className="mt-0.5" />
             No AI summary yet. Summaries will appear here once Brain is connected.
           </div>
         </Section>

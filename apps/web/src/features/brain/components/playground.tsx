@@ -1,7 +1,8 @@
 'use client';
 
 import { previewReply, type BrainConfig, type PreviewResult } from '@torio/contracts';
-import { ChevronDown, Send, Sparkles, Trash2, TriangleAlert } from 'lucide-react';
+import { ChevronDown, Send, Trash2, TriangleAlert } from 'lucide-react';
+import { AIIcon, AIProcessingIndicator } from '@/components/ui/ai';
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Pill } from './bits';
@@ -71,7 +72,7 @@ export const Playground = forwardRef<
     >
       <div className="border-b border-line-subtle bg-[linear-gradient(180deg,rgba(240,240,255,0.7),rgba(255,255,255,0))] px-4 pb-3 pt-3.5">
         <div className="flex items-center gap-2">
-          <Sparkles size={16} className="text-primary" />
+          <AIIcon size={17} />
           <h2 className="m-0 flex-1 text-[15px] font-semibold">Test Your AI</h2>
           <span
             className="rounded-md bg-wash-2 px-2 py-0.5 text-[11px] font-medium text-muted"
@@ -212,10 +213,10 @@ export const Playground = forwardRef<
         )}
         {typing && (
           <div
-            className="self-end rounded-[14px_14px_4px_14px] bg-primary-soft px-3 py-2 text-xs text-primary-hover"
+            className="self-end rounded-[14px_14px_4px_14px] bg-primary-soft px-3 py-2"
             aria-label="Generating preview"
           >
-            Applying your rules…
+            <AIProcessingIndicator label="Applying your rules…" bar />
           </div>
         )}
       </div>

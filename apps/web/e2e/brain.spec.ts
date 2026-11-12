@@ -896,6 +896,26 @@ test.describe('brain (admin)', () => {
       .toBe(true);
   });
 
+  test('Test AI is an AI element: gradient button, gradient sparkle on its tab; other header buttons are unchanged', async ({
+    page,
+  }) => {
+    const ai = page.getByRole('button', { name: 'Test AI', exact: true });
+    expect(await ai.evaluate((el) => getComputedStyle(el).backgroundImage)).toContain(
+      'linear-gradient',
+    );
+    await expect(page.getByRole('tab', { name: 'Test AI' }).locator('linearGradient')).toHaveCount(
+      1,
+    );
+    await expect(page.getByRole('tab', { name: 'Summary' }).locator('linearGradient')).toHaveCount(
+      0,
+    );
+    await ai.click();
+    await expect(page.getByRole('tab', { name: 'Test AI' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
   test('Summary has all eight sections, in order', async ({ page }) => {
     const names = [
       'Brain overview',
