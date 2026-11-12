@@ -192,3 +192,27 @@ describe('previewReply (rule-based simulation, not AI)', () => {
     expect(p.confidence).toBe('Low');
   });
 });
+
+describe('shipping provider and payment method records', () => {
+  it('a Brain saved before disable and notes existed still parses, with empty defaults', () => {
+    const old = structuredClone(emptyBrainConfig()) as Record<string, any>;
+    for (const k of ['providersOff', 'providerNotes', 'paymentsOff', 'paymentNotes'])
+      delete old.shipping[k];
+    old.shipping.providers = ['Pathao'];
+    const r = brainConfigSchema.safeParse(old);
+    expect(r.success).toBe(true);
+    if (!r.success) return;
+    expect(r.data.shipping.providers).toEqual(['Pathao']);
+    expect(r.data.shipping.providersOff).toEqual([]);
+    expect(r.data.shipping.paymentNotes).toEqual({});
+  });
+
+  it('keeps disabled entries and per-name notes, and rejects an over-long note', () => {
+    const c = emptyBrainConfig();
+    c.shipping.paymentsOff = ['bKash'];
+    c.shipping.paymentNotes = { bKash: 'Send Money' };
+    expect(brainConfigSchema.safeParse(c).success).toBe(true);
+    c.shipping.paymentNotes = { bKash: 'x'.repeat(301) };
+    expect(brainConfigSchema.safeParse(c).success).toBe(false);
+  });
+});

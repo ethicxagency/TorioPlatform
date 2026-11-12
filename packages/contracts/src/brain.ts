@@ -181,7 +181,12 @@ export const brainConfigSchema = z.object({
   }),
   products: z.array(brainProductSchema).max(300),
   shipping: z.object({
+    /** Couriers the store has added and left enabled: the ones the AI may name. */
     providers: z.array(text(60)).max(20),
+    /** Couriers that were added but are switched off. Kept so their details survive; never quoted. */
+    providersOff: z.array(text(60)).max(20).default([]),
+    /** Customer-facing details per courier name (e.g. the booking hotline or coverage). */
+    providerNotes: z.record(text(60), text(300)).default({}),
     coverage: text(120),
     feeInside: text(20),
     feeOutside: text(20),
@@ -189,6 +194,9 @@ export const brainConfigSchema = z.object({
     timeOutside: text(60),
     cod: z.boolean(),
     payments: z.array(text(60)).max(20),
+    paymentsOff: z.array(text(60)).max(20).default([]),
+    /** Customer-facing payment instructions per method (e.g. the bKash number and whether to use Send Money). */
+    paymentNotes: z.record(text(60), text(300)).default({}),
     freeShip: z.boolean(),
     threshold: text(20),
     processing: text(120),
@@ -281,6 +289,8 @@ export const emptyBrainConfig = (): BrainConfig => ({
   products: [],
   shipping: {
     providers: [],
+    providersOff: [],
+    providerNotes: {},
     coverage: '',
     feeInside: '',
     feeOutside: '',
@@ -288,6 +298,8 @@ export const emptyBrainConfig = (): BrainConfig => ({
     timeOutside: '',
     cod: false,
     payments: [],
+    paymentsOff: [],
+    paymentNotes: {},
     freeShip: false,
     threshold: '',
     processing: '',

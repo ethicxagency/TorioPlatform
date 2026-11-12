@@ -2,6 +2,7 @@
 
 import { areas, filled, TONES } from '@torio/contracts';
 import { Plus } from 'lucide-react';
+import { useShell } from '@/components/shell/shell-context';
 import {
   AreaField,
   Chips,
@@ -12,7 +13,7 @@ import {
   TextField,
   Toggle,
 } from './bits';
-import { PAYMENT_CATALOG, SHIPPING_CATALOG, ServiceCards } from './service-cards';
+import { ServiceList } from './service-cards';
 import type { SectionProps } from './types';
 import { CURRENCY_DEFS, DEFAULT_CURRENCY } from '@torio/contracts';
 
@@ -151,7 +152,9 @@ export function IdentitySection({
   );
 }
 
-export function PoliciesSection({ d, mut }: SectionProps) {
+export function PoliciesSection({ d, mut, canWrite, commit }: SectionProps) {
+  const { toast } = useShell();
+  const commitNow = commit ?? (async () => Promise.reject(new Error('Saving is not available.')));
   const s = d.shipping,
     r = d.returns;
   const sh =
@@ -182,24 +185,13 @@ export function PoliciesSection({ d, mut }: SectionProps) {
         description="Orders, delivery and payments. AI quotes these exactly; it never guesses fees or times."
         status={status(d, 'shipping')}
       >
-        <ServiceCards
-          title="Shipping Providers"
-          description="Manage the courier services available to your store."
-          addTitle="Add Shipping Provider"
-          addHint="Add a courier that is not listed."
-          pickerTitle="Add shipping provider"
-          customLabel="Add as a custom provider"
-          emptyTitle="No shipping providers yet."
-          emptyText="Add the couriers you deliver with so AI can name them."
-          catalog={SHIPPING_CATALOG}
-          customCategory="Custom provider"
-          selectable
-          values={s.providers}
-          onChange={(v) =>
-            mut((c) => {
-              c.shipping.providers = v;
-            })
-          }
+        <ServiceList
+          kind="shipping"
+          keys={{ list: 'providers', off: 'providersOff', notes: 'providerNotes' }}
+          value={s}
+          commit={commitNow}
+          canWrite={canWrite}
+          toast={toast}
         />
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <SelectField
@@ -266,24 +258,13 @@ export function PoliciesSection({ d, mut }: SectionProps) {
             className="max-w-xs"
           />
         )}
-        <ServiceCards
-          title="Payment Methods"
-          description="Manage how your customers can pay for their orders."
-          addTitle="Add Payment Method"
-          addHint="Offer another way to pay."
-          pickerTitle="Add payment method"
-          customLabel="Add as a custom method"
-          emptyTitle="No payment methods yet."
-          emptyText="Add the ways customers can pay so AI can tell them."
-          catalog={PAYMENT_CATALOG}
-          customCategory="Custom payment method"
-          selectable
-          values={s.payments}
-          onChange={(v) =>
-            mut((c) => {
-              c.shipping.payments = v;
-            })
-          }
+        <ServiceList
+          kind="payment"
+          keys={{ list: 'payments', off: 'paymentsOff', notes: 'paymentNotes' }}
+          value={s}
+          commit={commitNow}
+          canWrite={canWrite}
+          toast={toast}
         />
         <AreaField
           label="Delivery tracking instructions"

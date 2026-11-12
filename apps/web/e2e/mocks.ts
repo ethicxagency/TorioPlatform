@@ -332,6 +332,8 @@ const brainConfig = () => ({
   ],
   shipping: {
     providers: ['Pathao'],
+    providersOff: [],
+    providerNotes: {},
     coverage: 'Nationwide',
     feeInside: '60',
     feeOutside: '120',
@@ -339,6 +341,8 @@ const brainConfig = () => ({
     timeOutside: '3–5 days',
     cod: true,
     payments: ['bKash'],
+    paymentsOff: [],
+    paymentNotes: {},
     freeShip: false,
     threshold: '',
     processing: '',

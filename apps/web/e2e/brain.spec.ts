@@ -1186,178 +1186,233 @@ test.describe('brain (admin)', () => {
     await expect(page.getByRole('heading', { name: 'Custom Instructions' })).toBeInViewport();
   });
 
-  test('shipping providers and payment methods are cards, with honest status and no connection claims', async ({
+  type Shipping = {
+    providers: string[];
+    providersOff: string[];
+    providerNotes: Record<string, string>;
+    payments: string[];
+    paymentsOff: string[];
+    paymentNotes: Record<string, string>;
+  };
+  const lastShipping = () =>
+    (brainState.puts.at(-1) as { config: { shipping: Shipping } }).config.shipping;
+  const shipRegion = (page: Page) => page.getByRole('region', { name: 'Shipping Providers' });
+  const payRegion = (page: Page) => page.getByRole('region', { name: 'Payment Methods' });
+
+  test('only the providers and methods the store added are listed, with honest status', async ({
     page,
   }) => {
     await openTab(page, 'Knowledge');
-    const ship = page.getByRole('region', { name: 'Shipping Providers' });
+    const ship = shipRegion(page);
+    const pay = payRegion(page);
     await expect(
       ship.getByText('Manage the courier services available to your store.'),
     ).toBeVisible();
     await expect(ship.getByText('1 added')).toBeVisible();
-    // every known courier is a selectable logo card; the one in the Brain is pressed
-    await expect(ship.getByRole('button', { name: 'Pathao, selected' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    const pathao = ship.getByRole('listitem').filter({ hasText: 'Pathao' });
+    await expect(pathao).toContainText('Courier service');
+    await expect(pathao).toContainText('Active');
+    // the catalog is not a list of the store's providers
     for (const n of ['Steadfast', 'RedX', 'eCourier', 'Paperfly', 'Sundarban'])
-      await expect(ship.getByRole('button', { name: n, exact: true })).toHaveAttribute(
-        'aria-pressed',
-        'false',
-      );
-    await expect(ship.getByRole('button', { name: /Add Shipping Provider/ })).toBeVisible();
-    const pay = page.getByRole('region', { name: 'Payment Methods' });
-    await expect(
-      pay.getByText('Manage how your customers can pay for their orders.'),
-    ).toBeVisible();
-    await expect(pay.getByRole('listitem').filter({ hasText: 'bKash' })).toContainText(
-      'Mobile financial service',
-    );
-    await expect(pay.getByRole('button', { name: /Add Payment Method/ })).toBeVisible();
-    // there is no courier or gateway connection behind these lists, so nothing may claim one
+      await expect(ship.getByRole('listitem').filter({ hasText: n })).toHaveCount(0);
+    await expect(pay.getByRole('listitem').filter({ hasText: 'bKash' })).toContainText('Active');
+    for (const n of ['Nagad', 'Rocket', 'Upay'])
+      await expect(pay.getByRole('listitem').filter({ hasText: n })).toHaveCount(0);
+    await expect(ship.getByRole('button', { name: 'Add Shipping Provider' })).toBeVisible();
+    await expect(pay.getByRole('button', { name: 'Add Payment Method' })).toBeVisible();
+    // there is no courier or gateway connection behind these, so nothing may claim one
     for (const r of [ship, pay])
       await expect(r.getByText(/Connected|Test connection|credential|API key/i)).toHaveCount(0);
   });
 
-  test('courier logos are real local images with their own aspect ratio, and say nothing about connection', async ({
+  test('the picker shows real local logos with their own proportions, compact and contained', async ({
     page,
   }) => {
     await openTab(page, 'Knowledge');
-    const ship = page.getByRole('region', { name: 'Shipping Providers' });
-    const logos = [
-      ['Pathao Courier logo', 1200 / 1200],
-      ['Steadfast Courier logo', 640 / 256],
-      ['REDX logo', 1024 / 500],
-      ['eCourier logo', 444 / 90],
-      ['Paperfly logo', 1808 / 412],
-      ['Sundarban Courier logo', 447 / 447],
+    const sets = [
+      [
+        'Shipping Providers',
+        'Add Shipping Provider',
+        [
+          ['Pathao Courier logo', 912 / 325],
+          ['Steadfast Courier logo', 640 / 256],
+          ['REDX logo', 1024 / 500],
+          ['eCourier logo', 444 / 90],
+          ['Paperfly logo', 1808 / 412],
+          ['Sundarban Courier logo', 1],
+        ],
+      ],
+      [
+        'Payment Methods',
+        'Add Payment Method',
+        [
+          ['bKash logo', 738 / 354],
+          ['Nagad logo', 334 / 132],
+          ['Rocket logo', 673 / 430],
+          ['Upay logo', 272 / 397],
+          ['Card payments icon', 1],
+          ['Bank transfer icon', 1],
+        ],
+      ],
     ] as const;
-    for (const [alt, ratio] of logos) {
-      const img = ship.getByRole('img', { name: alt });
-      await expect(img).toBeVisible();
-      const info = await img.evaluate((el: HTMLImageElement) => ({
-        ok: el.complete && el.naturalWidth > 0,
-        src: el.currentSrc,
-        w: el.naturalWidth,
-        h: el.naturalHeight,
-        fit: getComputedStyle(el).objectFit,
-      }));
-      expect(info.ok).toBe(true);
-      expect(new URL(info.src).origin).toBe(new URL(page.url()).origin); // local asset, no hotlink
-      expect(info.fit).toBe('contain');
-      expect(Math.abs(info.w / info.h / ratio - 1)).toBeLessThan(0.02); // original proportions
+    for (const [region, add, logos] of sets) {
+      await page.getByRole('region', { name: region }).getByRole('button', { name: add }).click();
+      const dlg = page.getByRole('dialog');
+      for (const [alt, ratio] of logos) {
+        const img = dlg.getByRole('img', { name: alt });
+        await img.scrollIntoViewIfNeeded(); // lazy-loaded
+        await expect(img).toBeVisible();
+        const i = await img.evaluate((el: HTMLImageElement) => ({
+          ok: el.complete && el.naturalWidth > 0,
+          src: el.currentSrc,
+          r: el.naturalWidth / el.naturalHeight,
+          fit: getComputedStyle(el).objectFit,
+          h: el.getBoundingClientRect().height,
+        }));
+        expect(i.ok).toBe(true);
+        expect(new URL(i.src).origin).toBe(new URL(page.url()).origin); // local asset, no hotlink
+        expect(i.fit).toBe('contain');
+        expect(Math.abs(i.r / ratio - 1)).toBeLessThan(0.02);
+        expect(i.h).toBeLessThanOrEqual(24.5); // compact
+      }
+      await page.keyboard.press('Escape');
+      await expect(dlg).toHaveCount(0);
     }
-    await expect(ship.getByText(/Connected/i)).toHaveCount(0);
   });
 
-  test('clicking a courier card selects and deselects it, and the choice is saved with the Brain', async ({
-    page,
-  }) => {
+  test('add a shipping provider: pick, set up, saved at once, then listed', async ({ page }) => {
     await openTab(page, 'Knowledge');
-    const ship = page.getByRole('region', { name: 'Shipping Providers' });
-    await ship.getByRole('button', { name: 'Sundarban', exact: true }).click();
-    await expect(ship.getByRole('button', { name: 'Sundarban, selected' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-    await ship.getByRole('button', { name: 'Pathao, selected' }).click();
-    await expect(ship.getByRole('button', { name: 'Pathao', exact: true })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    );
-    await page.getByRole('button', { name: 'Save Changes' }).click();
-    await expect(page.getByText('Brain saved.')).toBeVisible();
-    const put = brainState.puts.at(-1) as { config: { shipping: { providers: string[] } } };
-    expect(put.config.shipping.providers).toEqual(['Sundarban']);
-  });
-
-  test('add a provider from the picker: search, select, saved with the Brain', async ({ page }) => {
-    await openTab(page, 'Knowledge');
-    const ship = page.getByRole('region', { name: 'Shipping Providers' });
-    await ship.getByRole('button', { name: /Add Shipping Provider/ }).click();
+    const ship = shipRegion(page);
+    await ship.getByRole('button', { name: 'Add Shipping Provider' }).click();
     const dlg = page.getByRole('dialog', { name: 'Add shipping provider' });
-    await expect(dlg.getByRole('button', { name: /Pathao/ })).toBeDisabled(); // already added
-    await expect(dlg.getByText('Added')).toBeVisible();
-    await dlg.getByLabel('Search').fill('red');
-    await expect(dlg.getByRole('button', { name: /Steadfast/ })).toHaveCount(0);
-    await dlg.getByRole('button', { name: /RedX/ }).click();
-    await expect(dlg).toHaveCount(0);
-    await expect(ship.getByRole('button', { name: 'RedX, selected' })).toBeVisible();
-    await page.getByRole('button', { name: 'Save Changes' }).click();
-    await expect(page.getByText('Brain saved.')).toBeVisible();
-    const put = brainState.puts.at(-1) as { config: { shipping: { providers: string[] } } };
-    expect(put.config.shipping.providers).toEqual(['Pathao', 'RedX']);
+    await expect(dlg.getByRole('button', { name: /Pathao/ })).toBeDisabled(); // duplicate prevented
+    await dlg.getByLabel('Search').fill('stead');
+    await expect(dlg.getByRole('button', { name: /RedX/ })).toHaveCount(0);
+    await dlg.getByRole('button', { name: /Steadfast/ }).click();
+    const form = page.getByRole('dialog', { name: 'Set up Steadfast' });
+    await form.getByRole('button', { name: 'Back' }).click(); // back keeps the picker
+    await page
+      .getByRole('dialog', { name: 'Add shipping provider' })
+      .getByRole('button', { name: /Steadfast/ })
+      .click();
+    await page.getByLabel(/Delivery details/).fill('Delivers in 2 days');
+    // nothing is listed or saved until the server accepts it
+    await expect(ship.getByRole('listitem').filter({ hasText: 'Steadfast' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Add Steadfast' }).click();
+    await expect(page.getByText('Steadfast added.')).toBeVisible();
+    const card = ship.getByRole('listitem').filter({ hasText: 'Steadfast' });
+    await expect(card).toContainText('Delivers in 2 days');
+    await expect(card).toContainText('Active');
+    expect(lastShipping().providers).toEqual(['Pathao', 'Steadfast']);
+    expect(lastShipping().providerNotes).toEqual({ Steadfast: 'Delivers in 2 days' });
+    // it was saved on its own: the page is not left with unsaved changes
+    await expect(page.getByRole('button', { name: /Unsaved changes/ })).toHaveCount(0);
   });
 
-  test('duplicates are prevented, including a custom name in another case', async ({ page }) => {
+  test('a custom name can be added once, in any case', async ({ page }) => {
     await openTab(page, 'Knowledge');
-    const ship = page.getByRole('region', { name: 'Shipping Providers' });
-    await ship.getByRole('button', { name: /Add Shipping Provider/ }).click();
+    const ship = shipRegion(page);
+    await ship.getByRole('button', { name: 'Add Shipping Provider' }).click();
     let dlg = page.getByRole('dialog', { name: 'Add shipping provider' });
     await dlg.getByLabel('Search').fill('Local Rider');
     await dlg.getByRole('button', { name: /Add “Local Rider”/ }).click();
+    await page.getByRole('button', { name: 'Add Local Rider' }).click();
     await expect(ship.getByRole('listitem').filter({ hasText: 'Local Rider' })).toContainText(
       'Custom provider',
     );
-    await ship.getByRole('button', { name: /Add Shipping Provider/ }).click();
+    await ship.getByRole('button', { name: 'Add Shipping Provider' }).click();
     dlg = page.getByRole('dialog', { name: 'Add shipping provider' });
     await dlg.getByLabel('Search').fill('local rider');
     await dlg.getByRole('button', { name: /Add “local rider”/ }).click();
     await expect(dlg.getByRole('alert')).toContainText('already added');
-    await dlg.getByLabel('Search').press('Escape');
-    await expect(dlg).toHaveCount(0);
-    await expect(ship.getByRole('listitem').filter({ hasText: /Local Rider/i })).toHaveCount(1);
   });
 
-  test('payment methods are selectable logo cards that toggle and save', async ({ page }) => {
+  test('a failed save keeps the form, shows the error and adds nothing', async ({ page }) => {
     await openTab(page, 'Knowledge');
-    const pay = page.getByRole('region', { name: 'Payment Methods' });
-    for (const [alt, ratio] of [
-      ['bKash logo', 738 / 354],
-      ['Nagad logo', 334 / 132],
-      ['Rocket logo', 673 / 430],
-      ['Upay logo', 272 / 397],
-      ['Card payments icon', 1],
-      ['Bank transfer icon', 1],
-    ] as const) {
-      const img = pay.getByRole('img', { name: alt });
-      await img.scrollIntoViewIfNeeded(); // images are lazy-loaded
-      await expect(img).toBeVisible();
-      const i = await img.evaluate((el: HTMLImageElement) => ({
-        ok: el.complete && el.naturalWidth > 0,
-        r: el.naturalWidth / el.naturalHeight,
-        fit: getComputedStyle(el).objectFit,
-      }));
-      expect(i.ok).toBe(true);
-      expect(i.fit).toBe('contain');
-      expect(Math.abs(i.r / ratio - 1)).toBeLessThan(0.02);
-    }
-    await expect(pay.getByRole('button', { name: 'bKash, selected' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-    await pay.getByRole('button', { name: 'Nagad', exact: true }).click();
-    await pay.getByRole('button', { name: 'bKash, selected' }).click();
-    await expect(page.getByRole('button', { name: /Unsaved changes/ })).toBeVisible();
-    await page.getByRole('button', { name: 'Save Changes' }).click();
-    await expect(page.getByText('Brain saved.')).toBeVisible();
-    const put = brainState.puts.at(-1) as { config: { shipping: { payments: string[] } } };
-    expect(put.config.shipping.payments).toEqual(['Nagad']);
+    const ship = shipRegion(page);
+    await ship.getByRole('button', { name: 'Add Shipping Provider' }).click();
+    await page
+      .getByRole('dialog', { name: 'Add shipping provider' })
+      .getByRole('button', { name: /RedX/ })
+      .click();
+    await page.getByLabel(/Delivery details/).fill('Keep this text');
+    brainState.version += 1; // someone else saved first, so the server answers 409
+    await page.getByRole('button', { name: 'Add RedX' }).click();
+    await expect(page.getByRole('dialog').getByRole('alert')).toBeVisible();
+    await expect(page.getByLabel(/Delivery details/)).toHaveValue('Keep this text');
+    await expect(page.getByRole('button', { name: 'Add RedX' })).toBeEnabled();
+    await page.keyboard.press('Escape');
+    await expect(ship.getByRole('listitem').filter({ hasText: 'RedX' })).toHaveCount(0);
   });
 
-  test('an empty list shows an empty state with the Add card; the courier grid fits a phone', async ({
-    page,
-  }) => {
+  test('disable keeps the details, enable restores them, remove asks first', async ({ page }) => {
     await openTab(page, 'Knowledge');
-    const pay = page.getByRole('region', { name: 'Payment Methods' });
-    await pay.getByRole('button', { name: 'bKash, selected' }).click();
-    await expect(pay.getByText('No payment methods yet.')).toBeVisible();
-    await expect(pay.getByRole('button', { name: /Add Payment Method/ })).toBeVisible();
+    const pay = payRegion(page);
+    // add a note first so we can see it survive a disable
+    await pay.getByRole('button', { name: 'Actions for bKash' }).click();
+    await page.getByRole('menuitem', { name: 'Edit details' }).click();
+    await page.getByLabel(/Payment instructions/).fill('Send Money, then share the ID');
+    await page.getByRole('button', { name: 'Save details' }).click();
+    await expect(page.getByText('bKash updated.')).toBeVisible();
+    expect(lastShipping().paymentNotes).toEqual({ bKash: 'Send Money, then share the ID' });
+
+    await pay.getByRole('button', { name: 'Actions for bKash' }).click();
+    await page.getByRole('menuitem', { name: 'Disable' }).click();
+    const card = pay.getByRole('listitem').filter({ hasText: 'bKash' });
+    await expect(card).toContainText('Inactive');
+    await expect(card).toContainText('Send Money, then share the ID'); // details kept
+    expect(lastShipping().payments).toEqual([]); // the AI is no longer told about it
+    expect(lastShipping().paymentsOff).toEqual(['bKash']);
+
+    await pay.getByRole('button', { name: 'Actions for bKash' }).click();
+    await page.getByRole('menuitem', { name: 'Enable' }).click();
+    await expect(card).toContainText('Active');
+    expect(lastShipping().payments).toEqual(['bKash']);
+    expect(lastShipping().paymentNotes.bKash).toBe('Send Money, then share the ID');
+
+    await pay.getByRole('button', { name: 'Actions for bKash' }).click();
+    await page.getByRole('menuitem', { name: 'Remove' }).click();
+    const confirm = page.getByRole('alertdialog', { name: 'Remove bKash?' });
+    await confirm.getByRole('button', { name: 'Cancel' }).click();
+    await expect(card).toBeVisible(); // cancelling removes nothing
+    await pay.getByRole('button', { name: 'Actions for bKash' }).click();
+    await page.getByRole('menuitem', { name: 'Remove' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Remove' }).click();
+    await expect(pay.getByText('No payment methods added yet')).toBeVisible();
+    await expect(
+      pay.getByText('Add a payment method to start receiving payments from customers.'),
+    ).toBeVisible();
+    expect(lastShipping().paymentNotes).toEqual({});
+    await expect(pay.getByRole('button', { name: 'Add Payment Method' }).first()).toBeVisible();
+  });
+
+  test('the card menu is keyboard accessible', async ({ page }) => {
+    await openTab(page, 'Knowledge');
+    const trigger = payRegion(page).getByRole('button', { name: 'Actions for bKash' });
+    await trigger.focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(page.getByRole('menuitem', { name: 'Edit details' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('menuitem', { name: 'Edit details' })).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+  });
+
+  test('an empty store shows empty states; the grid and dialogs fit a phone', async ({ page }) => {
+    await openTab(page, 'Knowledge');
+    const ship = shipRegion(page);
+    await ship.getByRole('button', { name: 'Actions for Pathao' }).click();
+    await page.getByRole('menuitem', { name: 'Remove' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Remove' }).click();
+    await expect(ship.getByText('No shipping providers added yet')).toBeVisible();
+    await expect(
+      ship.getByText('Add your preferred courier service to start delivering orders.'),
+    ).toBeVisible();
     await page.setViewportSize({ width: 390, height: 844 });
-    const ship = page.getByRole('region', { name: 'Shipping Providers' });
     await ship.scrollIntoViewIfNeeded();
-    const b = (await ship.getByRole('button', { name: /Add Shipping Provider/ }).boundingBox())!;
-    expect(b.x + b.width).toBeLessThanOrEqual(390); // inside the phone viewport
+    await ship.getByRole('button', { name: 'Add Shipping Provider' }).first().click();
+    const box = (await page.getByRole('dialog').boundingBox())!;
+    expect(box.x + box.width).toBeLessThanOrEqual(390);
+    await page.keyboard.press('Escape');
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
     ).toBe(false);

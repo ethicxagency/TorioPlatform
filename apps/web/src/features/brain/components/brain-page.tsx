@@ -312,7 +312,31 @@ function BrainEditor({
     selectTab('test');
     setTimeout(() => play.current?.ask(msg), 60);
   };
-  const bundle = { d: draft, mut, canWrite };
+  /**
+   * Applies one change to the last saved Brain and saves it at once (add / edit / remove a shipping provider or payment
+   * method). Other unsaved edits are not swept in; the same change is mirrored into the draft so the two stay consistent.
+   */
+  const commit = useCallback(
+    async (fn: (c: BrainConfig) => void) => {
+      const base = structuredClone(saved.config);
+      fn(base);
+      try {
+        const doc = await save.mutateAsync({ config: base, baseVersion: saved.version });
+        setSaved(doc);
+        mut(fn);
+        setConflict(false);
+        return doc;
+      } catch (e) {
+        if ((e as { status?: number }).status === 409) {
+          setConflict(true);
+          throw new Error('Someone else saved Brain first. Reload the latest and try again.');
+        }
+        throw e;
+      }
+    },
+    [saved, save, mut],
+  );
+  const bundle = { d: draft, mut, canWrite, commit };
 
   const controls = {
     dirty,
