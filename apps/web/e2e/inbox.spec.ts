@@ -78,6 +78,23 @@ test.describe('inbox', () => {
     await expect(panel.getByRole('button', { name: 'Suggest a reply' })).toHaveCount(0); // nothing is faked
   });
 
+  test('AI Assist explains when the plan does not include it or the allowance is used up', async ({
+    page,
+  }) => {
+    await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
+    aiState.options = {
+      available: false,
+      reason: 'You have used all 100 AI drafts in your plan this month.',
+      usage: { requests: 100, requestLimit: 100, tokens: 0, tokenLimit: null },
+      modes: [],
+      recommended: null,
+    };
+    await page.getByRole('button', { name: 'AI Assist', exact: true }).click();
+    const panel = page.getByRole('region', { name: 'AI Assist' });
+    await expect(panel.getByText(/used all 100 AI drafts/)).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'Suggest a reply' })).toHaveCount(0);
+  });
+
   test('AI Assist prepares one draft for review; inserting it does not send anything', async ({
     page,
   }) => {
@@ -88,6 +105,7 @@ test.describe('inbox', () => {
     });
     await page.getByRole('button', { name: 'AI Assist', exact: true }).click();
     const panel = page.getByRole('region', { name: 'AI Assist' });
+    await expect(panel.getByTestId('ai-usage')).toHaveText('88 of 100 AI drafts left this month');
     await panel.getByRole('button', { name: 'Suggest a reply' }).click();
     const box = panel.getByRole('textbox', { name: 'Suggested reply' });
     await expect(box).toHaveValue(aiState.draftText);

@@ -204,6 +204,24 @@ describe.skipIf(!url)('AI infrastructure (real PostgreSQL, fake providers)', () 
       .send('patch', '/providers/openai', { enabled: true, defaultModel: 'openai-model' })
       .expect(200);
     await admin.send('patch', '/settings', { enabled: true }).expect(200);
+    // Nothing is assumed unlimited: until the plan is given an allowance, AI is refused.
+    await http()
+      .post(`/api/v1/workspaces/${ids.wsA}/ai/conversations/${ids.conv}/draft`)
+      .set(await auth(ids.agent!))
+      .send({ requestId: randomUUID(), mode: 'auto' })
+      .expect(403);
+    await admin
+      .send('patch', '/settings', {
+        defaultPlanLimit: {
+          included: true,
+          monthlyRequests: 100,
+          monthlyTokens: null,
+          multiModel: false,
+          maxConcurrent: 2,
+          maxRequestChars: 24000,
+        },
+      })
+      .expect(200);
     // Brain knowledge for the store
     const { emptyBrainConfig } = await import('@torio/contracts');
     const b = emptyBrainConfig();
@@ -273,6 +291,49 @@ describe.skipIf(!url)('AI infrastructure (real PostgreSQL, fake providers)', () 
     expect(ph.body).toMatchObject({ phase: 'done', status: 'succeeded' });
   });
 
+  it('stops AI at a budget limit with a clear message, and resumes when the budget is lifted', async () => {
+    const h = await auth(ids.agent!);
+    const draft = () =>
+      http()
+        .post(`/api/v1/workspaces/${ids.wsA}/ai/conversations/${ids.conv}/draft`)
+        .set(h)
+        .send({ requestId: randomUUID(), mode: 'auto' });
+    await admin
+      .send('patch', '/settings', {
+        budgets: {
+          monthlyMicros: 1000,
+          providerMicros: {},
+          workspaceMicros: null,
+          alertPercent: 80,
+          onLimit: 'block',
+        },
+      })
+      .expect(200);
+    const blocked = await draft().expect(429); // $0.0012 is already spent this month
+    expect(blocked.body.message ?? blocked.body.error?.message).toMatch(/paused for this month/);
+    const status = (await admin.get('/budget').expect(200)).body;
+    expect(status.alerts[0]).toMatchObject({ scope: 'platform', level: 'limit' });
+    const options = (
+      await http().get(`/api/v1/workspaces/${ids.wsA}/ai/options`).set(h).expect(200)
+    ).body;
+    expect(options.available).toBe(false);
+    await admin
+      .send('patch', '/settings', {
+        budgets: {
+          monthlyMicros: null,
+          providerMicros: {},
+          workspaceMicros: null,
+          alertPercent: 80,
+          onLimit: 'block',
+        },
+      })
+      .expect(200);
+    await draft().expect(200);
+    const o2 = (await http().get(`/api/v1/workspaces/${ids.wsA}/ai/options`).set(h).expect(200))
+      .body;
+    expect(o2.usage).toMatchObject({ requests: 2, requestLimit: 100 });
+  });
+
   it('keeps tenants apart: another workspace cannot draft from, or read the progress of, this one', async () => {
     const out = await auth(ids.outsider!);
     await http()
@@ -296,10 +357,10 @@ describe.skipIf(!url)('AI infrastructure (real PostgreSQL, fake providers)', () 
   it('admin usage and logs show recorded requests, and a key can be removed (turning the provider off)', async () => {
     const o = (await admin.get('/overview?days=30').expect(200)).body;
     expect(o).toMatchObject({
-      requests: 1,
-      succeeded: 1,
-      inputTokens: 1000,
-      estimatedCostMicros: 1200,
+      requests: 2,
+      succeeded: 2,
+      inputTokens: 2000,
+      estimatedCostMicros: 2400,
     });
     const l = (await admin.get('/logs?status=succeeded').expect(200)).body;
     expect(l.data[0]).toMatchObject({ providers: ['openai'], costMicros: 1200 });

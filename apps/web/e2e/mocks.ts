@@ -1017,10 +1017,28 @@ export const resetAi = () => {
     },
     logRetentionDays: 90,
     contextMessages: 12,
+    planLimits: {},
+    defaultPlanLimit: {
+      included: false,
+      monthlyRequests: 0,
+      monthlyTokens: null,
+      multiModel: false,
+      maxConcurrent: 2,
+      maxRequestChars: 24000,
+    },
+    budgets: {
+      monthlyMicros: null,
+      providerMicros: {},
+      workspaceMicros: null,
+      alertPercent: 80,
+      onLimit: 'block',
+    },
+    providerRpm: {},
   };
   aiState.options = {
     available: true,
     reason: null,
+    usage: { requests: 12, requestLimit: 100, tokens: 5000, tokenLimit: null },
     modes: [
       { mode: 'auto', label: 'Auto (Recommended)', available: true, reason: null },
       { mode: 'openai', label: 'OpenAI', available: true, reason: null },
@@ -3365,6 +3383,24 @@ export async function mockApi(
           }
           return reply(aiState.settings);
         }
+        if (a === '/budget')
+          return reply({
+            month: '2026-11',
+            platformSpendMicros: aiState.settings.budgets?.monthlyMicros
+              ? aiState.settings.budgets.monthlyMicros * 0.9
+              : 0,
+            alerts: aiState.settings.budgets?.monthlyMicros
+              ? [
+                  {
+                    scope: 'platform',
+                    spendMicros: aiState.settings.budgets.monthlyMicros * 0.9,
+                    limitMicros: aiState.settings.budgets.monthlyMicros,
+                    percent: 90,
+                    level: 'warning',
+                  },
+                ]
+              : [],
+          });
         if (a.startsWith('/overview'))
           return reply({
             days: 30,

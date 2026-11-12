@@ -100,6 +100,9 @@ export class AdminAiController {
   updateSettings(@CurrentAdmin() a: AdminContext, @Ip() ip: string, @Body() b: UpdateSettingsDto) {
     return this.ai.updateSettings(this.ref(a, ip), b);
   }
+  @Get('budget') budget() {
+    return this.ai.budgetStatus();
+  }
   @Get('overview') overview(@Query() q: OverviewQueryDto) {
     return this.ai.overview(q.days);
   }
@@ -117,8 +120,8 @@ export class AiController {
 
   @Get('options')
   @RequirePermission('conversations:read')
-  options(@Param('workspaceId', ParseUUIDPipe) _ws: string) {
-    return this.orchestrator.options();
+  options(@Param('workspaceId', ParseUUIDPipe) ws: string) {
+    return this.orchestrator.options(ws);
   }
 
   @Get('requests/:requestId/phase')

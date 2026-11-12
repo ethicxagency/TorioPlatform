@@ -4,6 +4,7 @@ import { AI_PROVIDER_KEYS, type AiSettings, type UpdateAiSettings } from '@torio
 import { PrismaService } from '../../database/prisma.service';
 import { AdminAudit } from '../admin/admin-audit.service';
 import { AiConfigService } from './ai-config.service';
+import { AiLimitsService } from './ai-limits.service';
 import { AiProviderRegistry } from './ai-registry';
 import { classifyError } from './providers/types';
 
@@ -22,6 +23,7 @@ export class AiAdminService {
     private readonly config: AiConfigService,
     private readonly registry: AiProviderRegistry,
     private readonly audit: AdminAudit,
+    private readonly limits: AiLimitsService,
   ) {}
 
   providers() {
@@ -252,6 +254,11 @@ export class AiAdminService {
       metadata: { changed: Object.keys(patch) },
     });
     return saved;
+  }
+
+  // ---------- budgets ----------
+  async budgetStatus() {
+    return this.limits.alerts(await this.config.settings());
   }
 
   // ---------- usage ----------

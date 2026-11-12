@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -18,6 +19,7 @@ import {
 import { PrismaService } from '../../database/prisma.service';
 import { BrainService } from '../brain/brain.service';
 import { AiConfigService, type UsableProvider } from './ai-config.service';
+import { AiLimitsService } from './ai-limits.service';
 import { AiProviderRegistry } from './ai-registry';
 import { CircuitBreaker } from './circuit-breaker';
 import { buildPrompt, type AiRefinementInput, type ChatLine } from './context';
@@ -28,7 +30,6 @@ import { validateDraft } from './validator';
 
 type Phase = 'understanding' | 'consulting' | 'evaluating' | 'preparing' | 'done';
 const RUNNING_WINDOW_MS = 2 * 60_000;
-const MAX_CONCURRENT_PER_WORKSPACE = 3;
 const DEFAULT_MAX_TOKENS = 1024;
 
 interface CallOutcome {
@@ -63,6 +64,7 @@ const FRIENDLY: Record<string, string> = {
   unavailable: 'The AI service is unavailable right now. Try again shortly.',
   empty: 'The AI service returned no answer. Try again.',
   blocked: 'The draft was blocked by safety checks. Try again or write the reply yourself.',
+  budget: 'AI Assist is paused for this month.',
 };
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -83,20 +85,31 @@ export class AiOrchestrator {
     private readonly config: AiConfigService,
     private readonly registry: AiProviderRegistry,
     private readonly brain: BrainService,
+    private readonly limits: AiLimitsService,
   ) {}
 
   // ---------- availability ----------
-  async options(): Promise<{
+  async options(workspaceId: string): Promise<{
     available: boolean;
     reason: string | null;
+    usage: {
+      requests: number;
+      requestLimit: number | null;
+      tokens: number;
+      tokenLimit: number | null;
+    } | null;
     modes: { mode: AiMode; label: string; available: boolean; reason: string | null }[];
     recommended: AiMode | null;
   }> {
     const s = await this.config.settings();
     const usable = await this.config.usable();
-    const off = (reason: string) => ({
+    const off = (
+      reason: string,
+      usage: Awaited<ReturnType<AiLimitsService['allowance']>>['usage'] | null = null,
+    ) => ({
       available: false,
       reason,
+      usage,
       modes: AI_MODES.map((mode) => ({
         mode,
         label: AI_MODE_LABEL[mode],
@@ -107,6 +120,8 @@ export class AiOrchestrator {
     });
     if (!s.enabled) return off('AI Assist is turned off.');
     if (usable.length === 0) return off('AI Assist is not set up yet.');
+    const a = await this.limits.allowance(workspaceId, s);
+    if (a.blocked) return off(a.blocked, a.usage);
     const has = (k: string) => usable.some((p) => p.key === k);
     const modes = AI_MODES.map((mode) => {
       let reason: string | null = null;
@@ -116,6 +131,8 @@ export class AiOrchestrator {
       else if (mode === 'openai' && !has('openai')) reason = 'OpenAI is not available.';
       else if (mode === 'gemini' && !has('gemini')) reason = 'Gemini is not available.';
       else if (mode === 'synthesis' && !s.modes.synthesis) reason = 'Not enabled by your platform.';
+      else if (mode === 'synthesis' && !this.limits.allows(a.limit, mode))
+        reason = 'Not included in your plan.';
       else if (mode === 'synthesis' && usable.length < 2) reason = 'Needs two AI providers.';
       return { mode, label: AI_MODE_LABEL[mode], available: reason === null, reason };
     });
@@ -123,6 +140,7 @@ export class AiOrchestrator {
     return {
       available: !!first,
       reason: first ? null : 'No AI mode is available.',
+      usage: a.usage,
       modes,
       recommended: first?.mode ?? null,
     };
@@ -149,8 +167,14 @@ export class AiOrchestrator {
     const [settings, usable, opts] = await Promise.all([
       this.config.settings(),
       this.config.usable(),
-      this.options(),
+      this.options(workspaceId),
     ]);
+    // Plan and budget limits answer first, with their own status codes, once AI is on and configured.
+    const allowance = await this.limits.allowance(workspaceId, settings);
+    if (settings.enabled && usable.length > 0 && allowance.blocked)
+      throw allowance.limit.included
+        ? new HttpException(allowance.blocked, HttpStatus.TOO_MANY_REQUESTS)
+        : new ForbiddenException(allowance.blocked);
     const choice = opts.modes.find((m) => m.mode === input.mode);
     if (!opts.available || !choice?.available)
       throw new ServiceUnavailableException(
@@ -178,7 +202,7 @@ export class AiOrchestrator {
           createdAt: { gt: new Date(Date.now() - RUNNING_WINDOW_MS) },
         },
       });
-      if (running > MAX_CONCURRENT_PER_WORKSPACE)
+      if (running > allowance.limit.maxConcurrent)
         throw new HttpException(
           'Too many AI requests at once. Try again in a moment.',
           HttpStatus.TOO_MANY_REQUESTS,
@@ -203,14 +227,23 @@ export class AiOrchestrator {
       if (!lines.some((l) => l.from === 'customer'))
         throw new BadRequestException('There is no customer message to answer yet.');
       const brain = (await this.brain.get(workspaceId)).config;
-      const built = buildPrompt({
-        brain,
-        lines,
-        customerFirstName: convo.customer.name.split(/\s+/)[0] ?? null,
-        channel: convo.channel.provider,
-        refine: input.refine,
-        previousDraft: input.previousDraft,
-      });
+      const build = (l: ChatLine[]) =>
+        buildPrompt({
+          brain,
+          lines: l,
+          customerFirstName: convo.customer.name.split(/\s+/)[0] ?? null,
+          channel: convo.channel.provider,
+          refine: input.refine,
+          previousDraft: input.previousDraft,
+        });
+      // The plan's request size: drop the oldest messages until the prompt fits (the latest message is always kept).
+      let built = build(lines);
+      let kept = lines;
+      while (built.prompt.length > allowance.limit.maxRequestChars && kept.length > 1) {
+        kept = kept.slice(1);
+        if (!kept.some((l) => l.from === 'customer')) break;
+        built = build(kept);
+      }
 
       await this.setPhase(req.id, 'consulting');
       const ordered = [...usable].sort(
@@ -457,7 +490,10 @@ export class AiOrchestrator {
       costMicros: null,
       category: null,
     };
-    if (!this.breaker.allow(provider.key)) {
+    const blockedBy = await this.limits.providerBlock(provider.key, s);
+    if (blockedBy) {
+      out.category = blockedBy; // over its spending or rate limit: skipped, so another provider can serve the request
+    } else if (!this.breaker.allow(provider.key)) {
       out.category = 'unavailable'; // the provider is being skipped while it recovers; nothing is sent or billed
     } else {
       const key = await this.config.keyOf(provider.key);

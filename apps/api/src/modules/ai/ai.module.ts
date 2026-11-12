@@ -3,6 +3,7 @@ import { AdminAudit } from '../admin/admin-audit.service';
 import { BrainModule } from '../brain/brain.module';
 import { ChannelCryptoService } from '../whatsapp/channel-crypto.service';
 import { AiAdminService } from './ai-admin.service';
+import { AiLimitsService } from './ai-limits.service';
 import { AiConfigService } from './ai-config.service';
 import { AiController, AdminAiController } from './ai.controller';
 import { AiOrchestrator } from './ai-orchestrator.service';
@@ -16,6 +17,7 @@ import { AiProviderRegistry } from './ai-registry';
     AiConfigService,
     AiAdminService,
     AiOrchestrator,
+    AiLimitsService,
     AdminAudit,
     ChannelCryptoService,
   ],

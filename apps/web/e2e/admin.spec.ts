@@ -93,6 +93,48 @@ test.describe('super admin', () => {
     await expect(row).not.toContainText(/message|draft text/i);
   });
 
+  test('AI Management: plans start without AI; allowances and budgets are set per plan and alert near the limit', async ({
+    page,
+  }) => {
+    await signIn(page);
+    await page.goto('/admin/ai?tab=limits');
+    await expect(page.getByText(/AI <b>not included<\/b>|not included/).first()).toBeVisible();
+    const def = page.getByRole('row', { name: /Any other plan/ });
+    await expect(def.getByRole('checkbox', { name: /AI included/ })).not.toBeChecked();
+    await def.getByRole('checkbox', { name: /AI included/ }).check();
+    await def.getByLabel(/drafts per month/).fill('50');
+    await def.getByRole('button', { name: 'Save' }).click();
+    await expect
+      .poll(() => aiState.settings.defaultPlanLimit)
+      .toMatchObject({ included: true, monthlyRequests: 50, multiModel: false });
+    // a plan row of its own, with Multi-AI allowed
+    const free = page.getByRole('row', { name: /Free \(no subscription\)/ });
+    await free.getByRole('checkbox', { name: /AI included/ }).check();
+    await free.getByRole('checkbox', { name: /multi-AI/ }).check();
+    await free.getByLabel(/drafts per month/).fill('200');
+    await free.getByRole('button', { name: 'Save' }).click();
+    await expect
+      .poll(() => aiState.settings.planLimits.free)
+      .toMatchObject({ included: true, monthlyRequests: 200, multiModel: true });
+    // budgets
+    await page.getByLabel('Platform budget').fill('10');
+    await page.getByLabel('OpenAI budget').fill('4.5');
+    await page.getByLabel('OpenAI requests per minute').fill('60');
+    await page.getByRole('button', { name: 'Save budgets' }).click();
+    await expect
+      .poll(() => aiState.settings.budgets)
+      .toMatchObject({
+        monthlyMicros: 10_000_000,
+        providerMicros: { openai: 4_500_000, gemini: null },
+        onLimit: 'block',
+      });
+    expect(aiState.settings.providerRpm.openai).toBe(60);
+    await page.goto('/admin/ai');
+    await expect(
+      page.getByText(/Platform AI budget: \$9\.00 of \$10\.00 used this month \(90%\)/),
+    ).toBeVisible();
+  });
+
   test('anyone not signed in is sent to the admin login; bad credentials show an error and stay out', async ({
     page,
   }) => {

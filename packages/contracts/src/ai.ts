@@ -66,6 +66,52 @@ export const DEFAULT_AI_WEIGHTS: AiWeights = {
   safety: 5,
 };
 
+/** What one plan may do with AI. Plans with no entry use the default, which starts as "not included". */
+export const aiPlanLimitSchema = z.object({
+  included: z.boolean(),
+  /** AI drafts per calendar month (UTC). Null means no request cap for this plan. */
+  monthlyRequests: z.number().int().min(0).max(10_000_000).nullable(),
+  /** Input plus output tokens per month. Null means no token cap. */
+  monthlyTokens: z.number().int().min(0).max(10_000_000_000).nullable(),
+  /** May use Multi-AI Synthesis (an advanced, higher-cost feature). */
+  multiModel: z.boolean(),
+  /** AI requests running at once for one workspace. */
+  maxConcurrent: z.number().int().min(1).max(10),
+  /** Largest prompt sent for one request, in characters. Older messages are dropped to fit. */
+  maxRequestChars: z.number().int().min(2_000).max(200_000),
+});
+export type AiPlanLimit = z.infer<typeof aiPlanLimitSchema>;
+export const DEFAULT_PLAN_LIMIT: AiPlanLimit = {
+  included: false,
+  monthlyRequests: 0,
+  monthlyTokens: null,
+  multiModel: false,
+  maxConcurrent: 2,
+  maxRequestChars: 24_000,
+};
+
+/** Spending controls, in USD micro-dollars (1,000,000 = $1). Costs are estimates from the prices entered per model. */
+export const aiBudgetsSchema = z.object({
+  /** Whole-platform AI spend per month. Null means no budget. */
+  monthlyMicros: z.number().int().min(0).nullable(),
+  /** Per provider, keyed by provider key. */
+  providerMicros: z.record(z.string(), z.number().int().min(0).nullable()),
+  /** Per workspace, the same limit for each. */
+  workspaceMicros: z.number().int().min(0).nullable(),
+  /** Show an alert when spend reaches this share of a budget. */
+  alertPercent: z.number().int().min(1).max(100),
+  /** At the limit: stop AI (block) or only show the alert (alert). */
+  onLimit: z.enum(['block', 'alert']),
+});
+export type AiBudgets = z.infer<typeof aiBudgetsSchema>;
+export const DEFAULT_AI_BUDGETS: AiBudgets = {
+  monthlyMicros: null,
+  providerMicros: {},
+  workspaceMicros: null,
+  alertPercent: 80,
+  onLimit: 'block',
+};
+
 export const aiSettingsSchema = z.object({
   /** Master switch. Off means AI Assist says it is not available. */
   enabled: z.boolean(),
@@ -84,6 +130,11 @@ export const aiSettingsSchema = z.object({
   logRetentionDays: z.number().int().min(1).max(365),
   /** Most recent messages sent for context. */
   contextMessages: z.number().int().min(1).max(30),
+  planLimits: z.record(z.string(), aiPlanLimitSchema),
+  defaultPlanLimit: aiPlanLimitSchema,
+  budgets: aiBudgetsSchema,
+  /** Requests per minute allowed to one provider. Missing or null means no limit from Torio's side. */
+  providerRpm: z.record(z.string(), z.number().int().min(1).max(100_000).nullable()),
 });
 export type AiSettings = z.infer<typeof aiSettingsSchema>;
 export const DEFAULT_AI_SETTINGS: AiSettings = {
@@ -99,6 +150,10 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
   weights: DEFAULT_AI_WEIGHTS,
   logRetentionDays: 90,
   contextMessages: 12,
+  planLimits: {},
+  defaultPlanLimit: DEFAULT_PLAN_LIMIT,
+  budgets: DEFAULT_AI_BUDGETS,
+  providerRpm: {},
 };
 export const updateAiSettingsSchema = aiSettingsSchema.partial().extend({
   modes: aiSettingsSchema.shape.modes.partial().optional(),
@@ -198,6 +253,15 @@ export const aiDraftSchema = z.object({
 export const aiOptionsSchema = z.object({
   available: z.boolean(),
   reason: z.string().nullable(),
+  /** This workspace's use of its plan allowance this month. Null limits mean no cap. */
+  usage: z
+    .object({
+      requests: z.number().int(),
+      requestLimit: z.number().int().nullable(),
+      tokens: z.number().int(),
+      tokenLimit: z.number().int().nullable(),
+    })
+    .nullable(),
   modes: z.array(
     z.object({
       mode: aiModeSchema,

@@ -1,9 +1,22 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- test doubles stand in for the Prisma client and SDK shapes */
-import { ConflictException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
-import { DEFAULT_AI_SETTINGS, emptyBrainConfig, type AiSettings } from '@torio/contracts';
+import {
+  ConflictException,
+  ForbiddenException,
+  HttpException,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import {
+  DEFAULT_AI_SETTINGS,
+  DEFAULT_PLAN_LIMIT,
+  emptyBrainConfig,
+  type AiPlanLimit,
+  type AiSettings,
+} from '@torio/contracts';
 import { Prisma } from '@torio/database';
 import { describe, expect, it } from 'vitest';
 import type { AiConfigService, UsableProvider } from './ai-config.service';
+import { AiLimitsService } from './ai-limits.service';
 import { AiOrchestrator } from './ai-orchestrator.service';
 import { AiProviderRegistry } from './ai-registry';
 import { AiProviderError, type GenerateInput, type ProviderAdapter } from './providers/types';
@@ -72,6 +85,9 @@ function setup(opts: {
   providers?: UsableProvider[];
   adapters: Record<string, Behaviour>;
   messages?: { kind: string; body: string }[];
+  limit?: Partial<AiPlanLimit>;
+  blocked?: string | null;
+  providerBlock?: (p: string) => 'budget' | 'rate_limit' | null;
   brain?: ReturnType<typeof emptyBrainConfig>;
 }) {
   const log: string[] = [];
@@ -165,7 +181,25 @@ function setup(opts: {
     },
   };
   const brainSvc = { get: async () => ({ config: brain }) };
-  const o = new AiOrchestrator(prisma as never, config, registry, brainSvc as never);
+  const limit: AiPlanLimit = {
+    ...DEFAULT_PLAN_LIMIT,
+    included: true,
+    monthlyRequests: null,
+    multiModel: true,
+    maxConcurrent: 3,
+    ...opts.limit,
+  };
+  const limits = {
+    allowance: async () => ({
+      planKey: 'growth',
+      limit,
+      usage: { requests: 4, requestLimit: limit.monthlyRequests, tokens: 900, tokenLimit: null },
+      blocked: opts.blocked ?? null,
+    }),
+    providerBlock: async (p: string) => opts.providerBlock?.(p) ?? null,
+    allows: AiLimitsService.prototype.allows,
+  } as unknown as AiLimitsService;
+  const o = new AiOrchestrator(prisma as never, config, registry, brainSvc as never, limits);
   o.wait = async () => undefined;
   return { o, log, requests, calls };
 }
@@ -175,18 +209,20 @@ const GOOD = 'The linen sofa is Tk 25,000 and delivery inside the city takes 2-3
 describe('availability', () => {
   it('says why AI is unavailable and offers only the modes that can run', async () => {
     expect(
-      (await setup({ settings: { enabled: false }, adapters: {} }).o.options()).available,
+      (await setup({ settings: { enabled: false }, adapters: {} }).o.options(WS)).available,
     ).toBe(false);
-    expect((await setup({ providers: [], adapters: {} }).o.options()).reason).toMatch(/not set up/);
+    expect((await setup({ providers: [], adapters: {} }).o.options(WS)).reason).toMatch(
+      /not set up/,
+    );
     const one = await setup({
       providers: [provider('openai')],
       adapters: { openai: ok(GOOD) },
-    }).o.options();
+    }).o.options(WS);
     const m = Object.fromEntries(one.modes.map((x) => [x.mode, x]));
     expect(m.openai!.available).toBe(true);
     expect(m.gemini!.available).toBe(false);
     expect(m.synthesis!.reason).toMatch(/two AI providers/);
-    const two = await setup({ adapters: { openai: ok(GOOD), gemini: ok(GOOD) } }).o.options();
+    const two = await setup({ adapters: { openai: ok(GOOD), gemini: ok(GOOD) } }).o.options(WS);
     expect(two.modes.every((x) => x.available)).toBe(true);
     expect(two.recommended).toBe('auto');
   });
@@ -194,7 +230,7 @@ describe('availability', () => {
     const r = await setup({
       settings: { modes: { single: false, auto: true, synthesis: false } },
       adapters: { openai: ok(GOOD), gemini: ok(GOOD) },
-    }).o.options();
+    }).o.options(WS);
     expect(r.modes.find((m) => m.mode === 'synthesis')!.available).toBe(false);
     expect(r.modes.find((m) => m.mode === 'openai')!.available).toBe(false);
     expect(r.modes.find((m) => m.mode === 'auto')!.available).toBe(true);
@@ -501,5 +537,93 @@ describe('safety, tenancy and idempotency', () => {
     await expect(
       t.o.draft(WS, 'u1', CONV, { requestId: rid(22), mode: 'synthesis' }),
     ).rejects.toBeInstanceOf(ServiceUnavailableException);
+  });
+});
+
+describe('plan allowances and budgets', () => {
+  it('refuses a plan that does not include AI, without calling a provider', async () => {
+    const t = setup({
+      limit: { included: false },
+      blocked: 'AI Assist is not included in your plan.',
+      adapters: { openai: ok(GOOD), gemini: ok(GOOD) },
+    });
+    const o = await t.o.options(WS);
+    expect(o.available).toBe(false);
+    expect(o.reason).toMatch(/not included in your plan/);
+    await expect(
+      t.o.draft(WS, 'u1', CONV, { requestId: rid(40), mode: 'auto' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(t.log).toEqual([]);
+    expect(t.requests).toHaveLength(0); // no request row, so no usage is recorded
+  });
+  it('answers 429 with a clear message when the monthly allowance is used up', async () => {
+    const t = setup({
+      blocked: 'You have used all 100 AI drafts in your plan this month.',
+      adapters: { openai: ok(GOOD), gemini: ok(GOOD) },
+    });
+    const e = await t.o.draft(WS, 'u1', CONV, { requestId: rid(41), mode: 'auto' }).catch((x) => x);
+    expect(e).toBeInstanceOf(HttpException);
+    expect(e.getStatus()).toBe(429);
+    expect(String(e.message)).toMatch(/used all 100/);
+    expect(t.log).toEqual([]);
+  });
+  it('reports usage and hides Multi-AI Synthesis when the plan lacks it', async () => {
+    const t = setup({
+      limit: { monthlyRequests: 100, multiModel: false },
+      adapters: { openai: ok(GOOD), gemini: ok(GOOD) },
+    });
+    const o = await t.o.options(WS);
+    expect(o.usage).toEqual({ requests: 4, requestLimit: 100, tokens: 900, tokenLimit: null });
+    expect(o.modes.find((m) => m.mode === 'synthesis')).toMatchObject({
+      available: false,
+      reason: 'Not included in your plan.',
+    });
+    await expect(
+      t.o.draft(WS, 'u1', CONV, { requestId: rid(42), mode: 'synthesis' }),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
+  });
+  it('skips a provider that is over its spending or rate limit and uses the other', async () => {
+    const t = setup({
+      providerBlock: (p) => (p === 'openai' ? 'budget' : null),
+      adapters: { openai: ok(GOOD), gemini: ok(GOOD) },
+    });
+    const r = await t.o.draft(WS, 'u1', CONV, { requestId: rid(43), mode: 'openai' });
+    expect(r.strategy).toBe('fallback');
+    expect(t.log).toEqual(['gemini:draft']); // the blocked provider was never called
+    expect(t.calls[0]).toMatchObject({
+      provider: 'openai',
+      status: 'failed',
+      errorCategory: 'budget',
+    });
+  });
+  it('fails with the paused message when every provider is blocked', async () => {
+    const t = setup({
+      providerBlock: () => 'budget',
+      adapters: { openai: ok(GOOD), gemini: ok(GOOD) },
+    });
+    const e = await t.o.draft(WS, 'u1', CONV, { requestId: rid(44), mode: 'auto' }).catch((x) => x);
+    expect(e).toBeInstanceOf(ServiceUnavailableException);
+    expect(JSON.stringify(e.getResponse())).toMatch(/paused for this month/);
+    expect(t.log).toEqual([]);
+  });
+  it('keeps the request within the plan size by dropping the oldest messages', async () => {
+    const long = (n: number) => `message ${n} ${'x'.repeat(900)}`;
+    const msgs = [
+      ...Array.from({ length: 9 }, (_, i) => ({
+        kind: i % 2 ? 'OUTBOUND' : 'INBOUND',
+        body: long(i),
+      })),
+      { kind: 'INBOUND', body: 'How much is the linen sofa?' },
+    ];
+    let prompt = '';
+    const t = setup({
+      limit: { maxRequestChars: 4_000 },
+      messages: msgs,
+      adapters: { openai: async (i) => ((prompt = i.prompt), { text: GOOD }), gemini: ok(GOOD) },
+    });
+    await t.o.draft(WS, 'u1', CONV, { requestId: rid(45), mode: 'openai' });
+    expect(prompt.length).toBeLessThanOrEqual(4_000);
+    expect(prompt).toContain('How much is the linen sofa?'); // the latest message is always kept
+    expect(prompt).not.toContain('message 0 ');
   });
 });

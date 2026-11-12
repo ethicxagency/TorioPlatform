@@ -271,6 +271,12 @@ export function AiAssistPanel({ conversationId, composerText, onInsert, onClose 
             </div>
           </div>
         )}
+        {opts.data?.usage?.requestLimit != null && (
+          <p className="m-0 mt-1.5 text-[11.5px] tabular-nums text-faint" data-testid="ai-usage">
+            {Math.max(0, opts.data.usage.requestLimit - opts.data.usage.requests)} of{' '}
+            {opts.data.usage.requestLimit} AI drafts left this month
+          </p>
+        )}
         {!result && !busy && !error && (
           <p className="m-0 mt-1 text-muted">
             Drafts use your Brain knowledge. You review and edit every suggestion; nothing is sent

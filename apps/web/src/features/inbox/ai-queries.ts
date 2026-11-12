@@ -8,6 +8,12 @@ import { env } from '@/lib/env';
 export interface AiOptions {
   available: boolean;
   reason: string | null;
+  usage: {
+    requests: number;
+    requestLimit: number | null;
+    tokens: number;
+    tokenLimit: number | null;
+  } | null;
   modes: { mode: AiMode; label: string; available: boolean; reason: string | null }[];
   recommended: AiMode | null;
 }

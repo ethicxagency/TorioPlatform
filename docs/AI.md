@@ -44,10 +44,24 @@ authentication or bad-request errors), an in-memory circuit breaker, a concurren
 outcome category. **Cost is an estimate** from the per-million-token prices entered on the Models tab; no price means no cost is
 shown. Logs hold metadata only, never customer messages or drafts, and are purged after the retention period.
 
-## Not in this slice
+## Plan allowances and budgets
 
-Spending budgets and alerts, per-plan AI allowances and limits, workspace/provider spend limits, structured-output/tool-calling
-capability flags, background job processing for long runs. The data model supports adding them.
+Nothing is assumed unlimited. AI is **not included** for any plan until **Limits & Budgets** gives it an allowance (a plan with no
+row of its own uses the default row; a workspace without an active subscription counts as `free`). Per plan: included, drafts per
+month, tokens per month (empty = no cap), Multi-AI synthesis allowed, concurrent requests, and the largest prompt in characters
+(older messages are dropped to fit; the latest is always kept). Allowances reset on the 1st (UTC) and are counted from the recorded
+requests.
+
+Budgets (USD per month; the cost is an estimate from the entered model prices, so it is a lower bound if prices are missing):
+platform, per workspace, per provider, and a requests-per-minute limit per provider. At the limit the policy is **Stop AI** or
+**Only alert**. A provider over its own limit is skipped so another can serve the request. Alerts appear on the AI overview at the
+configured percentage and again at the limit. Customers see a clear message (not included, allowance used up, paused for the month)
+and how many drafts are left.
+
+## Not built yet
+
+Per-workspace overrides of plan allowances, email or push alerts for budgets, structured-output/tool-calling capability flags and
+background job processing for long runs. The data model supports adding them.
 
 ## Testing
 

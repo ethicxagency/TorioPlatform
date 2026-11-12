@@ -2,11 +2,13 @@
 
 import {
   AI_MODE_LABEL,
+  type AiPlanLimit,
   type AiProviderView,
   type AiSettings,
   type UpdateAiSettings,
 } from '@torio/contracts';
 import {
+  Gauge,
   Activity,
   Cpu,
   KeyRound,
@@ -44,6 +46,7 @@ const TABS = [
   { id: 'models', label: 'Models', icon: Cpu },
   { id: 'orchestration', label: 'Orchestration', icon: SlidersHorizontal },
   { id: 'usage', label: 'Usage & Costs', icon: Wallet },
+  { id: 'limits', label: 'Limits & Budgets', icon: Gauge },
   { id: 'logs', label: 'AI Logs', icon: ListChecks },
   { id: 'settings', label: 'Settings', icon: Settings2 },
 ] as const;
@@ -140,6 +143,7 @@ export function AiManagementPage() {
       {tab === 'models' && <ModelsTab />}
       {tab === 'orchestration' && <OrchestrationTab />}
       {tab === 'usage' && <UsageTab />}
+      {tab === 'limits' && <LimitsTab />}
       {tab === 'logs' && <LogsTab />}
       {tab === 'settings' && <SettingsTab />}
     </>
@@ -194,6 +198,7 @@ function OverviewTab() {
   const o = q.data;
   return (
     <div className="flex flex-col gap-4">
+      <BudgetAlerts />
       {s.data && !s.data.enabled && (
         <Notice tone="warn">
           AI Assist is switched off for customers. Turn it on in Settings once a provider is ready.
@@ -1076,5 +1081,309 @@ function LogsTab() {
       )}
       {q.data && <Pager meta={q.data.meta} onPage={(page) => setF({ ...f, page })} />}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------- limits and budgets
+interface BudgetStatus {
+  month: string;
+  platformSpendMicros: number;
+  alerts: {
+    scope: 'platform' | 'provider';
+    provider?: string;
+    spendMicros: number;
+    limitMicros: number;
+    percent: number;
+    level: 'warning' | 'limit';
+  }[];
+}
+
+function BudgetAlerts() {
+  const q = useAdminOne<BudgetStatus>('/ai/budget');
+  if (!q.data || q.data.alerts.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-2">
+      {q.data.alerts.map((a) => (
+        <Notice key={`${a.scope}-${a.provider ?? ''}`} tone={a.level === 'limit' ? 'bad' : 'warn'}>
+          {a.scope === 'platform' ? 'Platform AI budget' : `${a.provider} budget`}:{' '}
+          {usd(a.spendMicros)} of {usd(a.limitMicros)} used this month ({a.percent}%).
+          {a.level === 'limit' ? ' The limit has been reached.' : ''}
+        </Notice>
+      ))}
+    </div>
+  );
+}
+
+const dollars = (micros: number | null) => (micros === null ? '' : String(micros / 1_000_000));
+const toMicros = (v: string) => (v.trim() === '' ? null : Math.round(Number(v) * 1_000_000));
+
+function LimitsTab() {
+  const { q, update, saving } = useSettings();
+  const plans = useAdminOne<{ data: { key: string; name: string }[] }>('/plans');
+  if (q.isPending) return <Loading />;
+  if (q.isError) return <Notice tone="bad">{q.error.message}</Notice>;
+  const s = q.data;
+  const rows = [
+    { key: '', name: 'Any other plan (default)' },
+    { key: 'free', name: 'Free (no subscription)' },
+    ...(plans.data?.data ?? []).map((p) => ({ key: p.key, name: p.name })),
+  ];
+  const uniq = rows.filter((r, i) => rows.findIndex((x) => x.key === r.key) === i);
+  const saveRow = (key: string, l: AiPlanLimit) =>
+    key === ''
+      ? update({ defaultPlanLimit: l }, 'Default plan limit saved')
+      : update({ planLimits: { ...s.planLimits, [key]: l } }, 'Plan limit saved');
+  return (
+    <div className="flex flex-col gap-4">
+      <BudgetAlerts />
+      <Notice>
+        Plans start with AI <b>not included</b>. Give each plan an allowance below; a plan with no
+        row of its own uses the default row. Allowances reset on the 1st of each month (UTC).
+      </Notice>
+      <Panel title="Plan allowances">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] border-collapse text-[13px]">
+            <thead>
+              <tr className="border-b border-line">
+                {[
+                  'Plan',
+                  'AI included',
+                  'Drafts / month',
+                  'Tokens / month',
+                  'Multi-AI',
+                  'Concurrent',
+                  'Max request chars',
+                  '',
+                ].map((h) => (
+                  <th key={h} className={th}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line-subtle">
+              {uniq.map((r) => (
+                <PlanRow
+                  key={r.key || 'default'}
+                  name={r.name}
+                  planKey={r.key}
+                  limit={
+                    r.key === '' ? s.defaultPlanLimit : (s.planLimits[r.key] ?? s.defaultPlanLimit)
+                  }
+                  own={r.key === '' || !!s.planLimits[r.key]}
+                  saving={saving}
+                  onSave={(l) => saveRow(r.key, l)}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+      <BudgetsPanel s={s} update={update} saving={saving} />
+    </div>
+  );
+}
+
+function PlanRow({
+  name,
+  planKey,
+  limit,
+  own,
+  saving,
+  onSave,
+}: {
+  name: string;
+  planKey: string;
+  limit: AiPlanLimit;
+  own: boolean;
+  saving: boolean;
+  onSave: (l: AiPlanLimit) => void;
+}) {
+  const [d, setD] = useState({
+    included: limit.included,
+    req: limit.monthlyRequests === null ? '' : String(limit.monthlyRequests),
+    tok: limit.monthlyTokens === null ? '' : String(limit.monthlyTokens),
+    multi: limit.multiModel,
+    conc: String(limit.maxConcurrent),
+    chars: String(limit.maxRequestChars),
+  });
+  const n = (v: string) => (v.trim() === '' ? null : Number(v));
+  const bad = [d.req, d.tok, d.conc, d.chars].some(
+    (v) => v.trim() !== '' && !Number.isFinite(Number(v)),
+  );
+  const cell = cn(input, 'h-8 w-28');
+  return (
+    <tr>
+      <td className={td}>
+        <div className="font-medium text-ink">{name}</div>
+        {planKey && !own && <div className="text-xs text-muted">uses the default</div>}
+      </td>
+      <td className={td}>
+        <input
+          type="checkbox"
+          aria-label={`${name} AI included`}
+          className="h-4 w-4 cursor-pointer accent-primary"
+          checked={d.included}
+          onChange={(e) => setD({ ...d, included: e.target.checked })}
+        />
+      </td>
+      <td className={td}>
+        <input
+          aria-label={`${name} drafts per month`}
+          className={cell}
+          placeholder="no cap"
+          value={d.req}
+          onChange={(e) => setD({ ...d, req: e.target.value })}
+        />
+      </td>
+      <td className={td}>
+        <input
+          aria-label={`${name} tokens per month`}
+          className={cell}
+          placeholder="no cap"
+          value={d.tok}
+          onChange={(e) => setD({ ...d, tok: e.target.value })}
+        />
+      </td>
+      <td className={td}>
+        <input
+          type="checkbox"
+          aria-label={`${name} multi-AI synthesis`}
+          className="h-4 w-4 cursor-pointer accent-primary"
+          checked={d.multi}
+          onChange={(e) => setD({ ...d, multi: e.target.checked })}
+        />
+      </td>
+      <td className={td}>
+        <input
+          aria-label={`${name} concurrent requests`}
+          className={cn(cell, 'w-16')}
+          value={d.conc}
+          onChange={(e) => setD({ ...d, conc: e.target.value })}
+        />
+      </td>
+      <td className={td}>
+        <input
+          aria-label={`${name} max request characters`}
+          className={cell}
+          value={d.chars}
+          onChange={(e) => setD({ ...d, chars: e.target.value })}
+        />
+      </td>
+      <td className={td}>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={bad}
+          loading={saving}
+          onClick={() =>
+            onSave({
+              included: d.included,
+              monthlyRequests: n(d.req) === null ? null : Math.round(n(d.req)!),
+              monthlyTokens: n(d.tok) === null ? null : Math.round(n(d.tok)!),
+              multiModel: d.multi,
+              maxConcurrent: Math.min(10, Math.max(1, Math.round(Number(d.conc) || 1))),
+              maxRequestChars: Math.min(
+                200_000,
+                Math.max(2_000, Math.round(Number(d.chars) || 24_000)),
+              ),
+            })
+          }
+        >
+          Save
+        </Button>
+      </td>
+    </tr>
+  );
+}
+
+function BudgetsPanel({
+  s,
+  update,
+  saving,
+}: {
+  s: AiSettings;
+  update: (p: UpdateAiSettings, done?: string) => void;
+  saving: boolean;
+}) {
+  const [b, setB] = useState({
+    platform: dollars(s.budgets.monthlyMicros),
+    workspace: dollars(s.budgets.workspaceMicros),
+    openai: dollars(s.budgets.providerMicros.openai ?? null),
+    gemini: dollars(s.budgets.providerMicros.gemini ?? null),
+    alert: String(s.budgets.alertPercent),
+    onLimit: s.budgets.onLimit,
+    rpmOpenai: s.providerRpm.openai == null ? '' : String(s.providerRpm.openai),
+    rpmGemini: s.providerRpm.gemini == null ? '' : String(s.providerRpm.gemini),
+  });
+  const bad = [b.platform, b.workspace, b.openai, b.gemini, b.alert, b.rpmOpenai, b.rpmGemini].some(
+    (v) => v.trim() !== '' && !Number.isFinite(Number(v)),
+  );
+  const f = (label: string, key: keyof typeof b, hint?: string, w = 'w-32') => (
+    <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
+      {label}
+      <input
+        aria-label={label}
+        className={cn(input, w)}
+        placeholder="none"
+        value={b[key]}
+        onChange={(e) => setB({ ...b, [key]: e.target.value })}
+      />
+      {hint && <span className="font-normal text-faint">{hint}</span>}
+    </label>
+  );
+  const rpm = (v: string) => (v.trim() === '' ? null : Math.max(1, Math.round(Number(v))));
+  return (
+    <Panel title="Spending budgets (USD per month)">
+      <p className="m-0 mb-3 text-[12.5px] text-muted">
+        Spend is estimated from the model prices you entered, so it is a lower bound if some prices
+        are missing. Leave a field empty for no limit.
+      </p>
+      <div className="flex flex-wrap gap-x-6 gap-y-4">
+        {f('Platform budget', 'platform')}
+        {f('Per workspace', 'workspace', 'The same limit for each workspace.')}
+        {f('OpenAI budget', 'openai')}
+        {f('Gemini budget', 'gemini')}
+        {f('Alert at %', 'alert', 'Show an alert at this share of a budget.', 'w-24')}
+        <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
+          At the limit
+          <Select
+            aria-label="At the limit"
+            value={b.onLimit}
+            options={[
+              { value: 'block', label: 'Stop AI' },
+              { value: 'alert', label: 'Only alert' },
+            ]}
+            onChange={(v) => setB({ ...b, onLimit: v as 'block' | 'alert' })}
+          />
+        </label>
+        {f('OpenAI requests per minute', 'rpmOpenai', 'Torio-side limit.', 'w-28')}
+        {f('Gemini requests per minute', 'rpmGemini', undefined, 'w-28')}
+      </div>
+      <div className="mt-4">
+        <Button
+          size="sm"
+          disabled={bad}
+          loading={saving}
+          onClick={() =>
+            update(
+              {
+                budgets: {
+                  monthlyMicros: toMicros(b.platform),
+                  workspaceMicros: toMicros(b.workspace),
+                  providerMicros: { openai: toMicros(b.openai), gemini: toMicros(b.gemini) },
+                  alertPercent: Math.min(100, Math.max(1, Math.round(Number(b.alert) || 80))),
+                  onLimit: b.onLimit,
+                },
+                providerRpm: { openai: rpm(b.rpmOpenai), gemini: rpm(b.rpmGemini) },
+              },
+              'Budgets saved',
+            )
+          }
+        >
+          Save budgets
+        </Button>
+      </div>
+    </Panel>
   );
 }
