@@ -190,6 +190,15 @@ export function resetOverview() {
   };
   overviewState.actions = [];
 }
+export const provenanceState = {
+  data: { products: {}, faqs: {} } as {
+    products: Record<string, unknown>;
+    faqs: Record<string, unknown>;
+  },
+};
+export function resetProvenance() {
+  provenanceState.data = { products: {}, faqs: {} };
+}
 export const googleState = {
   available: false,
   connected: false,
@@ -213,6 +222,7 @@ export function resetMeta() {
   metaState.syncs = 0;
 }
 export function resetScan() {
+  resetProvenance();
   resetOverview();
   resetMeta();
   resetReview();
@@ -1856,6 +1866,7 @@ export async function mockApi(
           catalog: metaState.catalog,
           lastSyncedAt: null,
         });
+      if (sub === '/provenance') return reply(provenanceState.data);
       if (sub === '/products') {
         if (!reviewState.on)
           return reply({

@@ -1700,6 +1700,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/brain/imports/provenance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ImportsController_provenance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/brain/imports/products": {
         parameters: {
             query?: never;
@@ -5006,6 +5022,34 @@ export interface components {
         MetaCatalogSelectDto: {
             catalogId: string;
             name: string;
+        };
+        ProvenanceDto: {
+            products: {
+                [key: string]: {
+                    source: {
+                        /** @enum {string} */
+                        kind: "WEBSITE" | "XML_FEED" | "META_CATALOG" | "GOOGLE_MERCHANT" | "MANUAL";
+                        name: string;
+                    };
+                    url: string | null;
+                    /** Format: date-time */
+                    importedAt: string;
+                    edited: boolean;
+                };
+            };
+            faqs: {
+                [key: string]: {
+                    source: {
+                        /** @enum {string} */
+                        kind: "WEBSITE" | "XML_FEED" | "META_CATALOG" | "GOOGLE_MERCHANT" | "MANUAL";
+                        name: string;
+                    };
+                    url: string | null;
+                    /** Format: date-time */
+                    importedAt: string;
+                    edited: boolean;
+                };
+            };
         };
         ProductReviewDto: {
             groups: {
@@ -9735,6 +9779,27 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    ImportsController_provenance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvenanceDto"];
+                };
             };
         };
     };

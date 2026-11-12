@@ -30,6 +30,7 @@ import {
   type Candidate,
   type PageInfo,
 } from './extract';
+import { POLICY_Q } from './policy-questions';
 import { parseRobots, type Robots } from './robots';
 import { safeGet } from './safe-fetch';
 import {
@@ -684,14 +685,6 @@ export class ScanService {
       payment: 'Payments',
       terms: 'General',
       privacy: 'General',
-    };
-    const POLICY_Q: Record<string, string> = {
-      shipping: 'What is your shipping and delivery policy?',
-      returns: 'What is your return and refund policy?',
-      exchange: 'What is your exchange policy?',
-      payment: 'Which payment methods do you accept?',
-      terms: 'What are your terms and conditions?',
-      privacy: 'What is your privacy policy?',
     };
     for (const r of rows) {
       const d = r.data as Record<string, string>;

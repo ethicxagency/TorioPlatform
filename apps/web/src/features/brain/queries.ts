@@ -13,6 +13,7 @@ import type {
   MetaCatalogList,
   MetaCatalogStatus,
   ProductReview,
+  Provenance,
   WebsiteScanInput,
 } from '@torio/contracts';
 import { api } from '@/lib/api';
@@ -227,6 +228,7 @@ export function useImportApproved(ws: string, jobId: string | null) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['brain-import-records', ws, jobId] });
       void qc.invalidateQueries({ queryKey: scanKey(ws) });
+      void qc.invalidateQueries({ queryKey: ['brain-provenance', ws] });
     },
   });
 }
@@ -421,6 +423,7 @@ function useReviewInvalidate(ws: string) {
     void qc.invalidateQueries({ queryKey: reviewKey(ws) });
     void qc.invalidateQueries({ queryKey: scanKey(ws) });
     void qc.invalidateQueries({ queryKey: ['brain-import-records', ws] });
+    void qc.invalidateQueries({ queryKey: ['brain-provenance', ws] });
   };
 }
 
@@ -484,5 +487,21 @@ export function useImportProducts(ws: string) {
       return data as unknown as ImportResult;
     },
     onSuccess: done,
+  });
+}
+
+/** Where imported products and FAQs came from. Empty until something has been imported. */
+export function useProvenance(ws: string | null) {
+  return useQuery({
+    queryKey: ['brain-provenance', ws ?? ''] as const,
+    enabled: !!ws,
+    staleTime: 30_000,
+    queryFn: async (): Promise<Provenance> => {
+      const { data, error, response } = await api.GET(`${I}/provenance`, {
+        params: { path: { workspaceId: ws! } },
+      });
+      if (!data) throw fail(error, 'Could not load where knowledge came from', response.status);
+      return data as unknown as Provenance;
+    },
   });
 }

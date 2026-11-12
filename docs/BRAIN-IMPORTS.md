@@ -54,6 +54,14 @@ one active scan per store, `TorioBot` user agent.
 - **Import activity** names each run's source, offers Cancel on a running import and Retry on a failed or cancelled feed or
   catalog sync (a website scan is retried from its own panel).
 
+## Where knowledge came from
+
+Brain → Knowledge marks products and FAQs that were imported with "Imported from <source> · <name>", linking to the page or
+listing when there is one, with the import date and "(edited)" when the person changed it during review. It is built from the
+approved-and-imported records (`GET …/brain/imports/provenance`), matched by product name or FAQ question (policy pages
+imported as FAQs use their standard question). Hand-written knowledge shows nothing. If imported knowledge is renamed in
+Knowledge, the link to its source is lost, since matching is by name.
+
 ## XML feeds
 
 Reads RSS (Google Shopping `g:` fields), Atom and plain `<product>` lists with a small built-in reader: no DTDs or entity

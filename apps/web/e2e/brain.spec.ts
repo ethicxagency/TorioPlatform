@@ -13,6 +13,7 @@ import {
   metaState,
   mockApi,
   overviewState,
+  provenanceState,
   resetScan,
   REVIEW_IDS,
   reviewState,
@@ -773,6 +774,34 @@ test.describe('brain (admin)', () => {
       .click();
     await expect.poll(() => overviewState.actions.some((a) => a.endsWith('/cancel'))).toBe(true);
     await expect(intelligence(page).getByText('2 recent imports failed')).toBeVisible();
+  });
+
+  test('Knowledge: imported products and FAQs say where they came from; hand-written ones say nothing', async ({
+    page,
+  }) => {
+    provenanceState.data = {
+      products: {
+        'nordic ceramic vase': {
+          source: { kind: 'XML_FEED', name: 'Main feed' },
+          url: 'https://shop.test/p/vase',
+          importedAt: '2026-11-12T10:00:00.000Z',
+          edited: true,
+        },
+      },
+      faqs: {},
+    };
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openTab(page, 'Knowledge');
+    const kn = page.getByRole('tabpanel', { name: 'Knowledge' });
+    const row = kn.getByRole('listitem').filter({ hasText: 'Nordic Ceramic Vase' });
+    const chip = row.getByRole('link', { name: /Imported from XML feed · Main feed \(edited\)/ });
+    await expect(chip).toHaveAttribute('href', 'https://shop.test/p/vase');
+    await expect(chip).toHaveAttribute('title', /Edited during review/);
+    // a FAQ nobody imported has no source line
+    await expect(
+      kn.getByRole('listitem').filter({ hasText: 'Do you offer COD?' }),
+    ).not.toContainText('Imported from');
   });
 
   test('Summary has all eight sections, in order', async ({ page }) => {

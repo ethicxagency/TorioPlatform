@@ -1,6 +1,6 @@
 'use client';
 
-import { formatCurrencyMajor } from '@torio/contracts';
+import { formatCurrencyMajor, type ProvenanceEntry } from '@torio/contracts';
 import {
   areas,
   FAQ_CATS,
@@ -9,14 +9,16 @@ import {
   type BrainFaq,
   type BrainProduct,
 } from '@torio/contracts';
-import { ChevronDown, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ChevronDown, ExternalLink, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { useProvenance } from '../queries';
 import { cn } from '@/lib/utils';
 import { AreaField, Drawer, Pill, SectionCard, SelectField, TextField, Toggle, uid } from './bits';
 import type { Remove, SectionProps } from './types';
 import { CURRENCY_DEFS, DEFAULT_CURRENCY } from '@torio/contracts';
 import { fmtDate } from '@/lib/datetime';
+import { useWorkspace } from '@/lib/workspace';
 
 const CURRENCY_SYMBOL = CURRENCY_DEFS[DEFAULT_CURRENCY].symbol;
 
@@ -163,7 +165,48 @@ function ProductDrawer({
   );
 }
 
+const norm = (v: string) => v.toLowerCase().replace(/\s+/g, ' ').trim();
+const KIND: Record<string, string> = {
+  WEBSITE: 'Website scan',
+  XML_FEED: 'XML feed',
+  META_CATALOG: 'Meta Catalog',
+  GOOGLE_MERCHANT: 'Google Merchant Center',
+  MANUAL: 'Manual',
+};
+
+/** "Imported from …" for knowledge that came from an import: the source, the page, when, and whether it was edited in review. */
+function ImportedFrom({ entry }: { entry: ProvenanceEntry | undefined }) {
+  if (!entry) return null;
+  const label = `Imported from ${KIND[entry.source.kind] ?? entry.source.kind} · ${entry.source.name}`;
+  const title = `Imported ${fmtDate(entry.importedAt)}${entry.edited ? '. Edited during review, so it differs from the source.' : '.'}`;
+  const cls = 'inline-flex max-w-full items-center gap-1 truncate text-[11.5px] text-faint';
+  return entry.url ? (
+    <a
+      href={entry.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={title}
+      className={cn(cls, 'hover:text-primary')}
+    >
+      <span className="truncate">
+        {label}
+        {entry.edited ? ' (edited)' : ''}
+      </span>
+      <ExternalLink size={10} aria-hidden className="shrink-0" />
+    </a>
+  ) : (
+    <span title={title} className={cls}>
+      <span className="truncate">
+        {label}
+        {entry.edited ? ' (edited)' : ''}
+      </span>
+    </span>
+  );
+}
+
 export function ProductsSection({ d, mut, canWrite, remove }: SectionProps & { remove: Remove }) {
+  const { workspaceId } = useWorkspace();
+  const prov = useProvenance(workspaceId).data;
   const [edit, setEdit] = useState<{ p: BrainProduct; isNew: boolean } | null>(null);
   const a = areas(d).find((x) => x.key === 'products')!;
   return (
@@ -209,6 +252,7 @@ export function ProductsSection({ d, mut, canWrite, remove }: SectionProps & { r
                     {p.category || 'No category'}
                     {p.updatedAt ? ` · edited ${fmtDate(p.updatedAt)}` : ''}
                   </div>
+                  <ImportedFrom entry={prov?.products[norm(p.name)]} />
                 </div>
                 <div className="w-20 text-sm tabular-nums">
                   {p.price ? formatCurrencyMajor(Number(p.price)) : '—'}
@@ -339,6 +383,8 @@ function FaqModal({
 }
 
 export function KbSection({ d, mut, canWrite, remove }: SectionProps & { remove: Remove }) {
+  const { workspaceId } = useWorkspace();
+  const prov = useProvenance(workspaceId).data;
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('All');
   const [open, setOpen] = useState<Record<string, boolean>>({});
@@ -429,6 +475,9 @@ export function KbSection({ d, mut, canWrite, remove }: SectionProps & { remove:
                     {f.q}
                   </span>
                 </button>
+                <span className="hidden min-w-0 max-w-[260px] sm:block">
+                  <ImportedFrom entry={prov?.faqs[norm(f.q)]} />
+                </span>
                 <Pill tone="neutral">{f.cat}</Pill>
                 {!f.active && <Pill tone="warn">Inactive</Pill>}
                 {canWrite && (

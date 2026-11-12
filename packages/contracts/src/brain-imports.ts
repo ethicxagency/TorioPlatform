@@ -236,3 +236,21 @@ export const resolveProductSchema = z.object({
 export type ProductReview = z.infer<typeof productReviewSchema>;
 export type ProductGroup = z.infer<typeof productGroupSchema>;
 export type ProductCandidate = z.infer<typeof productCandidateSchema>;
+
+// ---------- provenance ----------
+
+export const provenanceEntrySchema = z.object({
+  source: z.object({ kind: importSourceKindSchema, name: z.string() }),
+  /** The page or listing the entry came from, when the source gave one. */
+  url: z.string().nullable(),
+  importedAt: iso,
+  /** True when the person changed it during review, so what Brain holds differs from what the source said. */
+  edited: z.boolean(),
+});
+/** Where imported Brain knowledge came from, keyed by the normalised product name or FAQ question. */
+export const provenanceSchema = z.object({
+  products: z.record(z.string(), provenanceEntrySchema),
+  faqs: z.record(z.string(), provenanceEntrySchema),
+});
+export type Provenance = z.infer<typeof provenanceSchema>;
+export type ProvenanceEntry = z.infer<typeof provenanceEntrySchema>;

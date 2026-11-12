@@ -31,6 +31,7 @@ import {
   importRecordViewSchema,
   importResultSchema,
   productReviewSchema,
+  provenanceSchema,
   resolveProductSchema,
   reviewRecordSchema,
   websiteScanSchema,
@@ -69,6 +70,7 @@ class MetaCatalogSelectDto extends createZodDto(metaCatalogSelectSchema) {}
 class MetaCatalogUrlDto extends createZodDto(metaConnectUrlSchema) {}
 class ProductReviewDto extends createZodDto(productReviewSchema) {}
 class ResolveProductDto extends createZodDto(resolveProductSchema) {}
+class ProvenanceDto extends createZodDto(provenanceSchema) {}
 class BulkResultDto extends createZodDto(z.object({ updated: z.number().int() })) {}
 
 const BASE = 'workspaces/:workspaceId/brain/imports';
@@ -256,6 +258,13 @@ export class ImportsController {
   @RequirePermission('brain:write')
   googleDisconnect(@Param('workspaceId', ParseUUIDPipe) ws: string) {
     return this.google.disconnect(ws);
+  }
+
+  @Get('provenance')
+  @RequirePermission('brain:read')
+  @ApiOkResponse({ type: ProvenanceDto })
+  provenance(@Param('workspaceId', ParseUUIDPipe) ws: string) {
+    return this.imports.provenance(ws);
   }
 
   @Get('products')

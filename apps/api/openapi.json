@@ -5635,6 +5635,41 @@
         ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/brain/imports/provenance": {
+      "get": {
+        "operationId": "ImportsController_provenance",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProvenanceDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "brain"
+        ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/brain/imports/products": {
       "get": {
         "operationId": "ImportsController_productReview",
@@ -20384,6 +20419,121 @@
         "required": [
           "catalogId",
           "name"
+        ]
+      },
+      "ProvenanceDto": {
+        "type": "object",
+        "properties": {
+          "products": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "source": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "WEBSITE",
+                        "XML_FEED",
+                        "META_CATALOG",
+                        "GOOGLE_MERCHANT",
+                        "MANUAL"
+                      ]
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "name"
+                  ]
+                },
+                "url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "importedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "edited": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "source",
+                "url",
+                "importedAt",
+                "edited"
+              ]
+            }
+          },
+          "faqs": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "source": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "WEBSITE",
+                        "XML_FEED",
+                        "META_CATALOG",
+                        "GOOGLE_MERCHANT",
+                        "MANUAL"
+                      ]
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "name"
+                  ]
+                },
+                "url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "importedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "edited": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "source",
+                "url",
+                "importedAt",
+                "edited"
+              ]
+            }
+          }
+        },
+        "required": [
+          "products",
+          "faqs"
         ]
       },
       "ProductReviewDto": {
