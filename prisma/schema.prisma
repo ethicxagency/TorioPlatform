@@ -313,6 +313,7 @@ model Workspace {
   /// Last issued invoice number for this workspace (see OrderInvoice).
   invoiceSeq           Int                   @default(0)
   orderInvoices        OrderInvoice[]
+  aiRequests           AiRequest[]
   billingAccount       BillingAccount?
   subscription         Subscription?
   invoices             Invoice[]
@@ -1528,4 +1529,123 @@ model ImportSourceSecret {
 
   @@index([workspaceId])
   @@map("import_source_secrets")
+}
+
+/// An AI provider the platform owner has configured (OpenAI, Google Gemini). The API key is stored encrypted and never returned.
+model AiProvider {
+  id                String    @id @default(uuid(7)) @db.Uuid
+  /// Stable adapter key: "openai" or "gemini".
+  key               String    @unique
+  name              String
+  enabled           Boolean   @default(false)
+  /// AES-256-GCM blob (same scheme as channel tokens). Null until a key is saved.
+  keyCiphertext     String?
+  /// Only the last four characters, for the masked display.
+  keyLast4          String?
+  keyUpdatedAt      DateTime?
+  defaultModel      String?
+  /// UNKNOWN | HEALTHY | DEGRADED | DOWN, from real connection tests and live calls.
+  health            String    @default("UNKNOWN")
+  lastCheckedAt     DateTime?
+  lastSuccessAt     DateTime?
+  /// A safe category (auth, rate_limit, timeout, unavailable...), never a provider message that could carry secrets.
+  lastErrorCategory String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  models AiModel[]
+
+  @@map("ai_providers")
+}
+
+/// A model offered by a provider, discovered from the provider's own model list and then configured by the platform owner.
+model AiModel {
+  id                  String   @id @default(uuid(7)) @db.Uuid
+  providerId          String   @db.Uuid
+  modelId             String
+  label               String
+  enabled             Boolean  @default(false)
+  /// Lower runs first when a provider needs ordering (fallback, automatic selection).
+  priority            Int      @default(100)
+  maxOutputTokens     Int?
+  /// Null means the provider default; only sent to models that accept it.
+  temperature         Float?
+  supportsTemperature Boolean  @default(true)
+  /// USD micro-dollars per one million tokens, entered by the platform owner. Null means "price not set": no cost is shown.
+  inputPriceMicros    Int?
+  outputPriceMicros   Int?
+  discoveredAt        DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  provider AiProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  calls    AiCall[]
+
+  @@unique([providerId, modelId])
+  @@map("ai_models")
+}
+
+/// One AI Assist request: who asked, which strategy ran and how it ended. Holds no prompt or message text.
+model AiRequest {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  workspaceId    String    @db.Uuid
+  userId         String?   @db.Uuid
+  conversationId String?   @db.Uuid
+  /// Client-generated key: a retried request returns the first result instead of billing twice.
+  requestId      String    @db.Uuid
+  /// auto | openai | gemini | synthesis
+  mode           String
+  /// running | succeeded | failed
+  status         String    @default("running")
+  /// understanding | consulting | evaluating | preparing | done
+  phase          String    @default("understanding")
+  strategy       String?
+  inputTokens    Int       @default(0)
+  outputTokens   Int       @default(0)
+  /// Estimated, from prices the platform owner entered. Null when no price was set.
+  costMicros     Int?
+  durationMs     Int?
+  retryCount     Int       @default(0)
+  errorCategory  String?
+  needsReview    Boolean   @default(false)
+  /// Internal heuristic score 0-100 of the chosen draft. A signal, not a guarantee of correctness.
+  qualityScore   Int?
+  createdAt      DateTime  @default(now())
+  finishedAt     DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  calls     AiCall[]
+
+  @@unique([workspaceId, requestId])
+  @@index([workspaceId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@index([status])
+  @@map("ai_requests")
+}
+
+/// One provider call inside a request (a candidate, the synthesis step, or a single-model answer).
+model AiCall {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  requestId     String   @db.Uuid
+  modelRefId    String?  @db.Uuid
+  /// candidate | synthesis | single
+  role          String
+  provider      String
+  model         String
+  /// ok | failed
+  status        String
+  errorCategory String?
+  inputTokens   Int      @default(0)
+  outputTokens  Int      @default(0)
+  cachedTokens  Int      @default(0)
+  latencyMs     Int      @default(0)
+  retries       Int      @default(0)
+  costMicros    Int?
+  createdAt     DateTime @default(now())
+
+  request  AiRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  modelRef AiModel?  @relation(fields: [modelRefId], references: [id], onDelete: SetNull)
+
+  @@index([requestId])
+  @@index([provider, model, createdAt(sort: Desc)])
+  @@map("ai_calls")
 }

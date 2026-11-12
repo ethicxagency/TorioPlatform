@@ -1,8 +1,17 @@
 import { expect, test } from '@playwright/test';
-import { inboxState, mockApi, orderListItem, orderState, resetOrders } from './mocks';
+import {
+  aiState,
+  inboxState,
+  mockApi,
+  orderListItem,
+  orderState,
+  resetAi,
+  resetOrders,
+} from './mocks';
 
 test.describe('inbox', () => {
   test.beforeEach(async ({ page }) => {
+    resetAi();
     await mockApi(page);
     await page.goto('/inbox');
   });
@@ -57,8 +66,67 @@ test.describe('inbox', () => {
   test('send is disabled for an empty draft; AI Assist is honest', async ({ page }) => {
     await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
     await expect(page.getByRole('button', { name: 'Send', exact: true })).toBeDisabled();
+    aiState.options = {
+      available: false,
+      reason: 'AI Assist is not set up yet.',
+      modes: [],
+      recommended: null,
+    };
     await page.getByRole('button', { name: 'AI Assist' }).click();
-    await expect(page.getByText("AI Assist isn't connected yet")).toBeVisible();
+    const panel = page.getByRole('region', { name: 'AI Assist' });
+    await expect(panel.getByText(/AI Assist is not set up yet/)).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'Suggest a reply' })).toHaveCount(0); // nothing is faked
+  });
+
+  test('AI Assist prepares one draft for review; inserting it does not send anything', async ({
+    page,
+  }) => {
+    await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
+    const sends: string[] = [];
+    page.on('request', (r) => {
+      if (r.method() === 'POST' && /\/messages/.test(r.url())) sends.push(r.url());
+    });
+    await page.getByRole('button', { name: 'AI Assist', exact: true }).click();
+    const panel = page.getByRole('region', { name: 'AI Assist' });
+    await panel.getByRole('button', { name: 'Suggest a reply' }).click();
+    const box = panel.getByRole('textbox', { name: 'Suggested reply' });
+    await expect(box).toHaveValue(aiState.draftText);
+    expect(aiState.drafts[0]).toMatchObject({ mode: 'auto' });
+    await expect(panel.getByText('Auto (Recommended)').last()).toBeVisible();
+    await expect(panel.getByText('OpenAI').last()).toBeVisible();
+    await expect(panel.getByText('2.3s')).toBeVisible();
+    await box.fill('Hello Tanvir, the Linen sofa is $400.00.'); // the agent edits it
+    await panel.getByRole('button', { name: 'Insert into composer' }).click();
+    await expect(page.getByRole('textbox', { name: /Reply to Tanvir/ })).toHaveValue(
+      'Hello Tanvir, the Linen sofa is $400.00.',
+    );
+    expect(sends).toHaveLength(0); // inserting is not sending
+  });
+
+  test('AI Assist offers refinements, keeps the draft when a regenerate fails, and explains unavailable modes', async ({
+    page,
+  }) => {
+    await page.getByRole('option', { name: /Tanvir Hasan/ }).click();
+    await page.getByRole('button', { name: 'AI Assist', exact: true }).click();
+    const panel = page.getByRole('region', { name: 'AI Assist' });
+    await panel.getByRole('button', { name: 'Suggest a reply' }).click();
+    const box = panel.getByRole('textbox', { name: 'Suggested reply' });
+    await expect(box).toHaveValue(aiState.draftText);
+    await panel.getByRole('button', { name: 'Make shorter' }).click();
+    await expect(box).toHaveValue(`${aiState.draftText} (shorter)`);
+    expect(aiState.drafts.at(-1)).toMatchObject({
+      refine: 'shorter',
+      previousDraft: aiState.draftText,
+    });
+    const before = await box.inputValue();
+    aiState.draftFail = 'The AI service is busy right now. Try again in a moment.';
+    await panel.getByRole('button', { name: 'Regenerate' }).first().click();
+    await expect(panel.getByRole('alert')).toContainText('busy right now');
+    await expect(box).toHaveValue(before); // nothing the agent was reading is lost
+    await panel.getByRole('combobox', { name: 'AI mode' }).click();
+    const synth = page.getByRole('option', { name: /Multi-AI Synthesis/ });
+    await expect(synth).toHaveAttribute('aria-disabled', 'true');
+    await expect(synth).toContainText('Needs two AI providers');
   });
 
   test('keyboard: ? opens shortcuts, J opens the first conversation, Escape closes the dialog', async ({

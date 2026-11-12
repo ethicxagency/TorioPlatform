@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- the AI mock reads loosely-typed request bodies */
 import type { Page } from '@playwright/test';
 
 import { evaluateMaturity, type BrainConfig } from '@torio/contracts';
@@ -931,6 +932,110 @@ export const adminState = {
   }[],
   plans: [] as Record<string, unknown>[],
 };
+
+export const aiState = {
+  encryptionReady: true,
+  providers: [] as Record<string, any>[],
+  settings: {} as Record<string, any>,
+  calls: [] as string[],
+  /** Customer side (Inbox AI Assist). */
+  options: {} as Record<string, any>,
+  drafts: [] as Record<string, any>[],
+  draftFail: '' as string,
+  draftText: 'Hello Tanvir, the Linen sofa is $400.00 and we deliver in 2-3 days.',
+};
+export const resetAi = () => {
+  aiState.encryptionReady = true;
+  aiState.calls = [];
+  aiState.drafts = [];
+  aiState.draftFail = '';
+  const model = (id: string, enabled: boolean, over: Record<string, any> = {}) => ({
+    id: `0d0d0d0d-0d0d-4d0d-8d0d-${id.padStart(12, '0').slice(-12)}`,
+    modelId: id,
+    label: id,
+    enabled,
+    priority: 100,
+    maxOutputTokens: null,
+    temperature: null,
+    supportsTemperature: true,
+    inputPriceMicros: null,
+    outputPriceMicros: null,
+    ...over,
+  });
+  aiState.providers = [
+    {
+      key: 'openai',
+      name: 'OpenAI',
+      enabled: true,
+      hasKey: true,
+      keyMask: '••••••••cdef',
+      keyUpdatedAt: iso(300),
+      defaultModel: 'gpt-4o',
+      health: 'HEALTHY',
+      lastCheckedAt: iso(60),
+      lastSuccessAt: iso(60),
+      lastErrorCategory: null,
+      updatedAt: iso(300),
+      models: [
+        model('gpt-4o', true, { inputPriceMicros: 2_500_000, outputPriceMicros: 10_000_000 }),
+        model('gpt-5', false, { supportsTemperature: false }),
+      ],
+    },
+    {
+      key: 'gemini',
+      name: 'Google Gemini',
+      enabled: false,
+      hasKey: false,
+      keyMask: null,
+      keyUpdatedAt: null,
+      defaultModel: null,
+      health: 'UNKNOWN',
+      lastCheckedAt: null,
+      lastSuccessAt: null,
+      lastErrorCategory: null,
+      updatedAt: null,
+      models: [],
+    },
+  ];
+  aiState.settings = {
+    enabled: true,
+    modes: { single: true, auto: true, synthesis: false },
+    defaultProvider: null,
+    synthesisProvider: null,
+    requestTimeoutMs: 20000,
+    maxRetries: 1,
+    fallback: true,
+    maxParallel: 2,
+    minQualityScore: 55,
+    weights: {
+      relevance: 25,
+      knowledge: 25,
+      instructions: 20,
+      completeness: 15,
+      clarity: 10,
+      safety: 5,
+    },
+    logRetentionDays: 90,
+    contextMessages: 12,
+  };
+  aiState.options = {
+    available: true,
+    reason: null,
+    modes: [
+      { mode: 'auto', label: 'Auto (Recommended)', available: true, reason: null },
+      { mode: 'openai', label: 'OpenAI', available: true, reason: null },
+      { mode: 'gemini', label: 'Gemini', available: false, reason: 'Gemini is not available.' },
+      {
+        mode: 'synthesis',
+        label: 'Multi-AI Synthesis',
+        available: false,
+        reason: 'Needs two AI providers.',
+      },
+    ],
+    recommended: 'auto',
+  };
+};
+resetAi();
 export const metaAdminState = {
   values: {} as Record<string, unknown>,
   appSecret: false,
@@ -2490,6 +2595,36 @@ export async function mockApi(
       }
       return reply(ch);
     }
+    if (p.startsWith(`/workspaces/${WS}/ai/`)) {
+      const a = p.slice(`/workspaces/${WS}/ai`.length);
+      if (a === '/options') return reply(aiState.options);
+      if (/^\/requests\/[\w-]+\/phase$/.test(a))
+        return reply({ phase: 'consulting', status: 'running' });
+      if (/^\/conversations\/[\w-]+\/draft$/.test(a)) {
+        const b = req.postDataJSON() as Record<string, any>;
+        aiState.drafts.push(b);
+        if (aiState.draftFail)
+          return reply(
+            {
+              error: { code: 'UNAVAILABLE', message: aiState.draftFail, statusCode: 503 },
+              message: aiState.draftFail,
+            },
+            503,
+          );
+        await new Promise((r) => setTimeout(r, 250));
+        return reply({
+          requestId: b.requestId,
+          draft: b.refine ? `${aiState.draftText} (${b.refine})` : aiState.draftText,
+          mode: b.mode,
+          strategy: 'single',
+          providers: ['OpenAI'],
+          durationMs: 2300,
+          needsReview: false,
+          warnings: [],
+          qualityScore: 88,
+        });
+      }
+    }
     if (p.startsWith(`/workspaces/${WS}/orders`)) {
       const rest = p.slice(`/workspaces/${WS}/orders`.length);
       const url = new URL(req.url());
@@ -3168,6 +3303,135 @@ export async function mockApi(
           401,
         );
       if (rest === '/auth/me') return reply(ADMIN_USER);
+      if (rest.startsWith('/ai/')) {
+        const a = rest.slice('/ai'.length);
+        const body = () => (req.postDataJSON() ?? {}) as Record<string, any>;
+        const provs = () =>
+          reply({ encryptionReady: aiState.encryptionReady, data: aiState.providers });
+        if (a === '/providers') return provs();
+        const mk = /^\/providers\/(\w+)\/key$/.exec(a);
+        if (mk) {
+          const pr = aiState.providers.find((x) => x.key === mk[1])!;
+          aiState.calls.push(`${method} key ${mk[1]}`);
+          if (method === 'PUT') {
+            const k = String(body().apiKey);
+            Object.assign(pr, {
+              hasKey: true,
+              keyMask: `••••••••${k.slice(-4)}`,
+              health: 'UNKNOWN',
+            });
+          } else Object.assign(pr, { hasKey: false, keyMask: null, enabled: false });
+          return provs();
+        }
+        const mt = /^\/providers\/(\w+)\/test$/.exec(a);
+        if (mt) {
+          aiState.calls.push(`test ${mt[1]}`);
+          const pr = aiState.providers.find((x) => x.key === mt[1])!;
+          Object.assign(pr, { health: 'HEALTHY', lastSuccessAt: iso(0), lastCheckedAt: iso(0) });
+          return reply({
+            ok: true,
+            health: 'HEALTHY',
+            category: null,
+            modelCount: pr.models.length,
+            latencyMs: 420,
+          });
+        }
+        const mp = /^\/providers\/(\w+)$/.exec(a);
+        if (mp && method === 'PATCH') {
+          aiState.calls.push(`patch ${mp[1]} ${JSON.stringify(body())}`);
+          Object.assign(
+            aiState.providers.find((x) => x.key === mp[1])!,
+            body(),
+          );
+          return provs();
+        }
+        const mm = /^\/models\/([\w-]+)$/.exec(a);
+        if (mm && method === 'PATCH') {
+          aiState.calls.push(`model ${JSON.stringify(body())}`);
+          for (const pr of aiState.providers)
+            for (const m of pr.models) if (m.id === mm[1]) Object.assign(m, body());
+          return provs();
+        }
+        if (a === '/settings') {
+          if (method === 'PATCH') {
+            const b = body();
+            aiState.calls.push(`settings ${JSON.stringify(b)}`);
+            aiState.settings = {
+              ...aiState.settings,
+              ...b,
+              modes: { ...aiState.settings.modes, ...b.modes },
+              weights: { ...aiState.settings.weights, ...b.weights },
+            };
+          }
+          return reply(aiState.settings);
+        }
+        if (a.startsWith('/overview'))
+          return reply({
+            days: 30,
+            configuredProviders: 1,
+            activeProviders: 1,
+            availableModels: 1,
+            requests: 12,
+            succeeded: 10,
+            failed: 2,
+            inputTokens: 24000,
+            outputTokens: 6000,
+            estimatedCostMicros: 120000,
+            costIncomplete: false,
+            avgDurationMs: 2400,
+            multiModelRequests: 4,
+            orchestrationSuccessRate: 75,
+            daily: [
+              { date: '2026-11-11', total: 5, failed: 1, costMicros: 50000 },
+              { date: '2026-11-12', total: 7, failed: 1, costMicros: 70000 },
+            ],
+            providerUsage: [
+              {
+                provider: 'openai',
+                calls: 16,
+                inputTokens: 24000,
+                outputTokens: 6000,
+                costMicros: 120000,
+              },
+            ],
+            modelPerformance: [
+              {
+                provider: 'openai',
+                model: 'gpt-4o',
+                calls: 16,
+                ok: 14,
+                avgLatencyMs: 2100,
+                inputTokens: 24000,
+                outputTokens: 6000,
+                costMicros: 120000,
+              },
+            ],
+          });
+        if (a.startsWith('/logs'))
+          return reply({
+            data: [
+              {
+                id: '1a1a1a1a-1a1a-4a1a-8a1a-000000000001',
+                requestId: '2b2b2b2b-2b2b-4b2b-8b2b-000000000001',
+                workspace: { id: WS, name: 'UrbanNest' },
+                mode: 'auto',
+                status: 'succeeded',
+                strategy: 'single',
+                providers: ['openai'],
+                models: ['gpt-4o'],
+                durationMs: 2100,
+                inputTokens: 1500,
+                outputTokens: 200,
+                costMicros: 5750,
+                errorCategory: null,
+                needsReview: false,
+                retryCount: 0,
+                createdAt: iso(30),
+              },
+            ],
+            meta: { page: 1, pageSize: 25, total: 1, totalPages: 1 },
+          });
+      }
       if (rest.startsWith('/integrations/meta-auth')) {
         const m = rest.slice('/integrations/meta-auth'.length);
         const st = metaAuthState;

@@ -2036,6 +2036,22 @@ export interface paths {
         patch: operations["OrdersController_update"];
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/orders/{orderId}/invoice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["OrdersController_invoice"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/orders/{orderId}/status": {
         parameters: {
             query?: never;
@@ -3198,6 +3214,54 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["AdminMetaAuthController_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/ai/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AiController_options"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/ai/requests/{requestId}/phase": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AiController_phase"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/ai/conversations/{conversationId}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AiController_draft"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4533,6 +4597,12 @@ export interface components {
                 }[];
                 shipping: {
                     providers: string[];
+                    /** @default [] */
+                    providersOff: string[];
+                    /** @default {} */
+                    providerNotes: {
+                        [key: string]: string;
+                    };
                     coverage: string;
                     feeInside: string;
                     feeOutside: string;
@@ -4540,6 +4610,12 @@ export interface components {
                     timeOutside: string;
                     cod: boolean;
                     payments: string[];
+                    /** @default [] */
+                    paymentsOff: string[];
+                    /** @default {} */
+                    paymentNotes: {
+                        [key: string]: string;
+                    };
                     freeShip: boolean;
                     threshold: string;
                     processing: string;
@@ -4773,6 +4849,12 @@ export interface components {
                 }[];
                 shipping: {
                     providers: string[];
+                    /** @default [] */
+                    providersOff: string[];
+                    /** @default {} */
+                    providerNotes: {
+                        [key: string]: string;
+                    };
                     coverage: string;
                     feeInside: string;
                     feeOutside: string;
@@ -4780,6 +4862,12 @@ export interface components {
                     timeOutside: string;
                     cod: boolean;
                     payments: string[];
+                    /** @default [] */
+                    paymentsOff: string[];
+                    /** @default {} */
+                    paymentNotes: {
+                        [key: string]: string;
+                    };
                     freeShip: boolean;
                     threshold: string;
                     processing: string;
@@ -6790,6 +6878,15 @@ export interface components {
                 label: string;
                 value: string;
             }[];
+        };
+        DraftInputDto: {
+            /** Format: uuid */
+            requestId: string;
+            /** @enum {string} */
+            mode: "auto" | "openai" | "gemini" | "synthesis";
+            /** @enum {string} */
+            refine?: "shorter" | "detailed" | "tone" | "translate_en" | "translate_bn";
+            previousDraft?: string;
         };
         DashboardAnalyticsDto: {
             range: {
@@ -10388,6 +10485,26 @@ export interface operations {
             };
         };
     };
+    OrdersController_invoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     OrdersController_status: {
         parameters: {
             query?: never;
@@ -12286,6 +12403,69 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MetaAuthTestResultDto"];
                 };
+            };
+        };
+    };
+    AiController_options: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AiController_phase: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AiController_draft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                conversationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftInputDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

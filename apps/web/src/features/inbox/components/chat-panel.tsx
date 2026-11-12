@@ -91,7 +91,15 @@ export const ChatPanel = forwardRef<HTMLTextAreaElement, Props>(function ChatPan
         onCopy={p.onCopy}
         onRetrySend={p.onRetrySend}
       />
-      {p.aiOpen && p.mode === 'reply' && <AiAssistPanel onClose={p.onToggleAi} />}
+      {p.aiOpen && p.mode === 'reply' && p.canReply && (
+        <AiAssistPanel
+          key={c.id}
+          conversationId={c.id}
+          composerText={p.draft}
+          onInsert={p.onDraft}
+          onClose={p.onToggleAi}
+        />
+      )}
       <MessageComposer
         key={c.id}
         ref={composerRef}

@@ -6882,6 +6882,42 @@
         ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/orders/{orderId}/invoice": {
+      "get": {
+        "operationId": "OrdersController_invoice",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "orders"
+        ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/orders/{orderId}/status": {
       "post": {
         "operationId": "OrdersController_status",
@@ -10213,6 +10249,101 @@
         },
         "tags": [
           "admin meta auth"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/ai/options": {
+      "get": {
+        "operationId": "AiController_options",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/ai/requests/{requestId}/phase": {
+      "get": {
+        "operationId": "AiController_phase",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/ai/conversations/{conversationId}/draft": {
+      "post": {
+        "operationId": "AiController_draft",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "conversationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftInputDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ai"
         ]
       }
     },
@@ -17708,6 +17839,27 @@
                       "maxLength": 60
                     }
                   },
+                  "providersOff": {
+                    "default": [],
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 60
+                    }
+                  },
+                  "providerNotes": {
+                    "default": {},
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "additionalProperties": {
+                      "type": "string",
+                      "maxLength": 300
+                    }
+                  },
                   "coverage": {
                     "type": "string",
                     "maxLength": 120
@@ -17737,6 +17889,27 @@
                     "items": {
                       "type": "string",
                       "maxLength": 60
+                    }
+                  },
+                  "paymentsOff": {
+                    "default": [],
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 60
+                    }
+                  },
+                  "paymentNotes": {
+                    "default": {},
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "additionalProperties": {
+                      "type": "string",
+                      "maxLength": 300
                     }
                   },
                   "freeShip": {
@@ -18990,6 +19163,27 @@
                       "maxLength": 60
                     }
                   },
+                  "providersOff": {
+                    "default": [],
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 60
+                    }
+                  },
+                  "providerNotes": {
+                    "default": {},
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "additionalProperties": {
+                      "type": "string",
+                      "maxLength": 300
+                    }
+                  },
                   "coverage": {
                     "type": "string",
                     "maxLength": 120
@@ -19019,6 +19213,27 @@
                     "items": {
                       "type": "string",
                       "maxLength": 60
+                    }
+                  },
+                  "paymentsOff": {
+                    "default": [],
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 60
+                    }
+                  },
+                  "paymentNotes": {
+                    "default": {},
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "additionalProperties": {
+                      "type": "string",
+                      "maxLength": 300
                     }
                   },
                   "freeShip": {
@@ -29434,6 +29649,43 @@
           "message",
           "resolution",
           "details"
+        ]
+      },
+      "DraftInputDto": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "openai",
+              "gemini",
+              "synthesis"
+            ]
+          },
+          "refine": {
+            "type": "string",
+            "enum": [
+              "shorter",
+              "detailed",
+              "tone",
+              "translate_en",
+              "translate_bn"
+            ]
+          },
+          "previousDraft": {
+            "type": "string",
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "requestId",
+          "mode"
         ]
       },
       "DashboardAnalyticsDto": {

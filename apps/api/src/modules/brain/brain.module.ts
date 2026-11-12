@@ -35,5 +35,6 @@ import { ScanService } from './imports/scan.service';
     CsvImportService,
     { provide: GoogleMerchantClient, useFactory: () => new GoogleMerchantClient() },
   ],
+  exports: [BrainService],
 })
 export class BrainModule {}

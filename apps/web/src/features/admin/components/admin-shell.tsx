@@ -12,6 +12,7 @@ import {
   Plug,
   ScrollText,
   Settings,
+  Sparkles,
   Tags,
   Users,
 } from 'lucide-react';
@@ -62,7 +63,10 @@ const NAV = [
   },
   {
     group: 'INTEGRATIONS',
-    items: [{ href: '/admin/integrations/meta', label: 'Meta Developer', icon: Plug }],
+    items: [
+      { href: '/admin/integrations/meta', label: 'Meta Developer', icon: Plug },
+      { href: '/admin/ai', label: 'AI Management', icon: Sparkles },
+    ],
   },
   {
     group: 'PLATFORM',

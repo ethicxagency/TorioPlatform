@@ -1,6 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
   adminState,
+  aiState,
+  resetAi,
   metaAdminState,
   metaAuthState,
   mockApi,
@@ -19,8 +21,76 @@ const signIn = async (page: Page) => {
 test.describe('super admin', () => {
   test.beforeEach(async ({ page }) => {
     resetAdmin();
+    resetAi();
     resetMetaAuth();
     await mockApi(page, { role: 'OWNER' });
+  });
+
+  test('AI Management: keys are masked, saved server-side and never shown back; the connection test reports safely', async ({
+    page,
+  }) => {
+    await signIn(page);
+    await page.getByRole('link', { name: 'AI Management' }).click();
+    await expect(page.getByRole('heading', { name: 'AI Management', level: 1 })).toBeVisible();
+    await page.getByRole('button', { name: 'Providers' }).click();
+    const openai = page.getByRole('region', { name: 'OpenAI' });
+    await expect(openai.getByText('••••••••cdef')).toBeVisible();
+    await expect(page.getByText(/sk-/)).toHaveCount(0);
+    await openai.getByRole('button', { name: 'Test connection' }).click();
+    await expect(openai.getByRole('status')).toContainText('Connected');
+    expect(aiState.calls).toContain('test openai');
+    await openai.getByRole('button', { name: 'Replace' }).click();
+    await openai.getByLabel('OpenAI API key').fill('sk-test-replacement-key-9999');
+    await openai.getByRole('button', { name: 'Save key' }).click();
+    await expect(openai.getByText('••••••••9999')).toBeVisible();
+    await expect(page.getByText('sk-test-replacement-key-9999')).toHaveCount(0); // never echoed back
+    // Gemini has no key yet: it can be added, and cannot be tested
+    const gem = page.getByRole('region', { name: 'Google Gemini' });
+    await expect(gem.getByRole('button', { name: 'Test connection' })).toBeDisabled();
+  });
+
+  test('AI Management: no encryption key blocks saving keys with a clear message', async ({
+    page,
+  }) => {
+    aiState.encryptionReady = false;
+    await signIn(page);
+    await page.goto('/admin/ai?tab=providers');
+    await expect(page.getByText(/CHANNEL_ENCRYPTION_KEY is not set/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Save key' }).first()).toBeDisabled();
+  });
+
+  test('AI Management: model prices, modes and settings save; overview and logs show recorded usage', async ({
+    page,
+  }) => {
+    await signIn(page);
+    await page.goto('/admin/ai?tab=models');
+    const price = page.getByLabel('gpt-4o input price per million tokens');
+    await expect(price).toHaveValue('2.5');
+    await page.getByLabel('gpt-4o output price per million tokens').fill('12');
+    await page
+      .getByRole('row', { name: /gpt-4o/ })
+      .getByRole('button', { name: 'Save' })
+      .click();
+    await expect
+      .poll(() => aiState.calls.some((c) => c.includes('"outputPriceMicros":12000000')))
+      .toBe(true);
+    // models that do not take a temperature cannot be given one
+    await expect(page.getByLabel('gpt-5 temperature')).toBeDisabled();
+    await page.goto('/admin/ai?tab=orchestration');
+    await page.getByRole('switch', { name: /Multi-model synthesis/ }).click();
+    await expect.poll(() => aiState.settings.modes.synthesis).toBe(true);
+    await page.goto('/admin/ai?tab=settings');
+    await page.getByRole('switch', { name: /AI Assist enabled/ }).click();
+    await expect.poll(() => aiState.settings.enabled).toBe(false);
+    await page.goto('/admin/ai');
+    await expect(page.getByText('Estimated cost')).toBeVisible();
+    await expect(page.getByText('$0.1200')).toBeVisible();
+    await expect(page.getByText(/AI Assist is switched off/)).toBeVisible();
+    await page.goto('/admin/ai?tab=logs');
+    const row = page.getByRole('row', { name: /UrbanNest/ });
+    await expect(row).toContainText('gpt-4o');
+    await expect(row).toContainText('succeeded');
+    await expect(row).not.toContainText(/message|draft text/i);
   });
 
   test('anyone not signed in is sent to the admin login; bad credentials show an error and stay out', async ({
@@ -51,6 +121,7 @@ test.describe('super admin', () => {
       'Plans & Pricing',
       'Deletion requests',
       'Meta Developer',
+      'AI Management',
       'Activity & Logs',
       'Settings',
     ]);
