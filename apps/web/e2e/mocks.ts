@@ -118,6 +118,9 @@ const rec = (
 });
 export const scanState = {
   started: false,
+  kind: 'WEBSITE',
+  feedBody: null as unknown,
+  previews: [] as unknown[],
   status: 'QUEUED',
   body: null as unknown,
   patches: [] as unknown[],
@@ -126,6 +129,9 @@ export const scanState = {
 };
 export function resetScan() {
   scanState.started = false;
+  scanState.kind = 'WEBSITE';
+  scanState.feedBody = null;
+  scanState.previews = [];
   scanState.status = 'QUEUED';
   scanState.body = null;
   scanState.patches = [];
@@ -1713,9 +1719,14 @@ export async function mockApi(
         job: {
           id: SCAN_JOB,
           sourceId: null,
-          kind: 'WEBSITE',
+          kind: scanState.kind,
           status,
-          stats: status === 'NEEDS_REVIEW' ? { pages: 3, business: 1, products: 1, faqs: 1 } : null,
+          stats:
+            status !== 'NEEDS_REVIEW'
+              ? null
+              : scanState.kind === 'XML_FEED'
+                ? { items: 2, products: 1, changed: 1, unchanged: 0 }
+                : { pages: 3, business: 1, products: 1, faqs: 1 },
           error: null,
           startedAt: iso(0),
           finishedAt: null,
@@ -1736,8 +1747,71 @@ export async function mockApi(
           sources: [],
           jobs: scanState.started ? [job(scanState.status).job] : [],
         });
+      if (sub === '/feed/preview') {
+        const b = req.postDataJSON() as { url: string; mapping?: Record<string, string> };
+        scanState.previews.push(b);
+        if (b.url.includes('bad'))
+          return reply(
+            {
+              error: {
+                message:
+                  'No products were found. This does not look like a product feed (RSS, Atom or a list of <product> elements).',
+              },
+            },
+            400,
+          );
+        return reply({
+          format: 'rss',
+          totalItems: 12,
+          valid: 10,
+          invalid: 1,
+          duplicates: 1,
+          missingPrice: 2,
+          truncated: false,
+          tags: ['id', 'title', 'price', 'availability', 'link', 'cost'],
+          mapping: {
+            name: 'title',
+            price: b.mapping?.['price'] ?? 'price',
+            externalId: 'id',
+            stock: 'availability',
+            url: 'link',
+          },
+          issues: ['2 items have no readable price.'],
+          sample: [
+            {
+              data: { name: 'Nordic Vase', price: '1500', currency: 'BDT', stock: 'In stock' },
+              warnings: [],
+            },
+          ],
+        });
+      }
+      if (sub === '/feed') {
+        scanState.started = true;
+        scanState.kind = 'XML_FEED';
+        scanState.status = 'QUEUED';
+        scanState.feedBody = req.postDataJSON();
+        scanState.records = [
+          rec(
+            '9d0f0000-0000-4000-8000-0000000000b1',
+            'product',
+            'Nordic Vase',
+            { name: 'Nordic Vase', price: '1800', currency: 'BDT', change: 'changed' },
+            85,
+            ['Changed since the last import: price: 1500 → 1800'],
+          ),
+          rec(
+            '9d0f0000-0000-4000-8000-0000000000b2',
+            'product',
+            'Linen Cushion',
+            { name: 'Linen Cushion', price: '900', currency: 'BDT', change: 'new' },
+            85,
+          ),
+        ];
+        return reply(job('QUEUED'));
+      }
       if (sub === '/website') {
         scanState.started = true;
+        scanState.kind = 'WEBSITE';
         scanState.status = 'QUEUED';
         scanState.body = req.postDataJSON();
         return reply(job('QUEUED'));

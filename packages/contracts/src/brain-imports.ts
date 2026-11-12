@@ -21,6 +21,8 @@ export const importSourceViewSchema = z.object({
   status: z.enum(['ACTIVE', 'PAUSED', 'ERROR', 'DISCONNECTED']),
   lastSyncedAt: iso.nullable(),
   lastError: z.string().nullable(),
+  /** XML feeds only: how often it is meant to sync (manual, daily or weekly). */
+  frequency: z.string().nullable(),
 });
 
 export const importJobViewSchema = z.object({
@@ -108,3 +110,35 @@ export const importResultSchema = z.object({
 export type ImportJobDetail = z.infer<typeof importJobDetailSchema>;
 export type ImportRecordView = z.infer<typeof importRecordViewSchema>;
 export type ImportResult = z.infer<typeof importResultSchema>;
+
+// ---------- XML product feed ----------
+
+export const FEED_FIELDS = ['externalId', 'name', 'description', 'price', 'category', 'stock', 'colors', 'sizes', 'url', 'image'] as const;
+export const feedMappingSchema = z.record(z.enum(FEED_FIELDS), z.string().max(80));
+export const FEED_FREQUENCIES = ['manual', 'daily', 'weekly'] as const;
+
+export const feedPreviewRequestSchema = z.object({
+  url: z.string().trim().min(4).max(500),
+  mapping: feedMappingSchema.optional(),
+  currency: z.string().trim().length(3).optional(),
+});
+export const feedCreateSchema = feedPreviewRequestSchema.extend({
+  name: z.string().trim().min(1).max(80),
+  frequency: z.enum(FEED_FREQUENCIES).default('manual'),
+});
+
+export const feedPreviewSchema = z.object({
+  format: z.string(),
+  totalItems: z.number().int(),
+  valid: z.number().int(),
+  invalid: z.number().int(),
+  duplicates: z.number().int(),
+  missingPrice: z.number().int(),
+  truncated: z.boolean(),
+  tags: z.array(z.string()),
+  mapping: z.record(z.string(), z.string()),
+  issues: z.array(z.string()),
+  sample: z.array(z.object({ data: z.record(z.string(), z.string()), warnings: z.array(z.string()) })),
+});
+export type FeedPreview = z.infer<typeof feedPreviewSchema>;
+export type FeedCreateInput = z.infer<typeof feedCreateSchema>;

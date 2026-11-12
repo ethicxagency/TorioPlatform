@@ -42,6 +42,8 @@ export class ImportsService {
           status: s.status,
           lastSyncedAt: s.lastSyncedAt?.toISOString() ?? null,
           lastError: s.lastError,
+          frequency:
+            ((s.config as { frequency?: string } | null)?.frequency as string | undefined) ?? null,
         })),
         jobs: jobs.map((j) => ({
           id: j.id,

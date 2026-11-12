@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- the in-memory table stand-in is deliberately loosely typed */
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { emptyBrainConfig, type BrainConfig } from '@torio/contracts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -28,62 +27,8 @@ vi.mock('node:dns/promises', () => ({
   ),
 }));
 
+import { fakeDb } from './test-db';
 import { ScanService } from './scan.service';
-
-/** A tiny in-memory stand-in for the three import tables, scoped the way the real queries are. */
-function fakeDb() {
-  const t = { jobs: [] as any[], sources: [] as any[], records: [] as any[], audit: [] as any[] };
-  let n = 0;
-  const id = () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`;
-  const match = (row: any, where: any): boolean =>
-    Object.entries(where ?? {}).every(([k, v]) => {
-      if (v && typeof v === 'object' && 'in' in (v as any)) return (v as any).in.includes(row[k]);
-      return row[k] === v;
-    });
-  const model = (rows: any[], extra: (row: any) => void = () => undefined) => ({
-    findFirst: async ({ where }: any) => rows.find((r) => match(r, where)) ?? null,
-    findUnique: async ({ where }: any) => rows.find((r) => match(r, where)) ?? null,
-    findMany: async ({ where }: any = {}) => rows.filter((r) => match(r, where)),
-    create: async ({ data }: any) => {
-      const row = { id: id(), createdAt: new Date(), status: 'QUEUED', confidence: 50, ...data };
-      extra(row);
-      rows.push(row);
-      return row;
-    },
-    createMany: async ({ data }: any) => {
-      for (const d of data) rows.push({ id: id(), status: 'PENDING', createdAt: new Date(), ...d });
-    },
-    update: async ({ where, data }: any) => {
-      const r = rows.find((x) => match(x, where))!;
-      Object.assign(r, data);
-      return r;
-    },
-    updateMany: async ({ where, data }: any) => {
-      const m = rows.filter((x) => match(x, where));
-      m.forEach((x) => Object.assign(x, data));
-      return { count: m.length };
-    },
-    deleteMany: async ({ where }: any) => {
-      for (let i = rows.length - 1; i >= 0; i--) if (match(rows[i], where)) rows.splice(i, 1);
-    },
-    count: async ({ where }: any) => rows.filter((r) => match(r, where)).length,
-    groupBy: async ({ where }: any) => {
-      const m = rows.filter((r) => match(r, where));
-      const cats = [...new Set(m.map((r) => r.category))];
-      return cats.map((category) => ({
-        category,
-        _count: m.filter((r) => r.category === category).length,
-      }));
-    },
-  });
-  const client = {
-    importJob: model(t.jobs),
-    importSource: model(t.sources),
-    importRecord: model(t.records),
-    auditLog: model(t.audit),
-  };
-  return { t, client };
-}
 
 const WS = '11111111-1111-4111-8111-111111111111';
 const OTHER = '22222222-2222-4222-8222-222222222222';
@@ -108,7 +53,7 @@ describe('ScanService', () => {
         return {};
       },
     };
-    svc = new ScanService({ client: db.client } as never, brain as never, {} as never);
+    svc = new ScanService({ client: db.client } as never, brain as never, {} as never, {} as never);
   });
 
   const SHOP = `<title>Shop</title><meta property="og:site_name" content="UrbanNest"><a href="/pages/shipping-policy">s</a><a href="/products/vase">p</a><a href="/cart">c</a>

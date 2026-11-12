@@ -1,4 +1,3 @@
-import { lookup } from 'node:dns/promises';
 import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
@@ -19,6 +18,7 @@ import type { Prisma } from '@torio/database';
 import { APP_CONFIG, type AppConfig } from '../../../config/config.module';
 import { PrismaService } from '../../../database/prisma.service';
 import { BrainService } from '../brain.service';
+import { FeedService } from './feed.service';
 import { aiCandidates } from './ai';
 import {
   candidatesFromPage,
@@ -30,7 +30,7 @@ import {
 } from './extract';
 import { parseRobots, type Robots } from './robots';
 import { safeGet } from './safe-fetch';
-import { isBlockedAddress, parsePublicUrl, UnsafeUrlError } from './url-guard';
+import { assertResolvesPublic, parsePublicUrl, UnsafeUrlError } from './url-guard';
 
 export const MAX_PAGES = 15;
 const MAX_DEPTH = 2;
@@ -67,22 +67,11 @@ export class ScanService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly brain: BrainService,
+    private readonly feeds: FeedService,
     @Inject(APP_CONFIG) private readonly cfg: AppConfig,
   ) {}
 
   // ---------- starting ----------
-
-  /** Rejects an address whose DNS answer is not entirely public. The same check runs again at connection time. */
-  private async assertResolvesPublic(host: string) {
-    try {
-      const all = await lookup(host, { all: true });
-      if (!all.length || all.some((a) => isBlockedAddress(a.address)))
-        throw new UnsafeUrlError('That address resolves to an internal network.');
-    } catch (e) {
-      if (e instanceof UnsafeUrlError) throw e;
-      throw new UnsafeUrlError('That website address could not be found.');
-    }
-  }
 
   async start(workspaceId: string, userId: string, input: WebsiteScanInput) {
     try {
@@ -100,7 +89,7 @@ export class ScanService {
     let url: URL;
     try {
       url = parsePublicUrl(/^[a-z]+:\/\//i.test(input.url) ? input.url : `https://${input.url}`);
-      await this.assertResolvesPublic(url.hostname);
+      await assertResolvesPublic(url.hostname);
     } catch (e) {
       if (e instanceof UnsafeUrlError) throw new BadRequestException(e.message);
       throw e;
@@ -210,12 +199,18 @@ export class ScanService {
     const s = j.state as unknown as ScanState | null;
     return {
       job: this.view(j),
-      progress: {
-        pages: s?.visited.length ?? (j.stats as { pages?: number } | null)?.pages ?? 0,
-        maxPages: MAX_PAGES,
-      },
+      progress:
+        j.kind === 'XML_FEED'
+          ? {
+              pages: (j.stats as { items?: number } | null)?.items ?? 0,
+              maxPages: (j.stats as { items?: number } | null)?.items ?? 0,
+            }
+          : {
+              pages: s?.visited?.length ?? (j.stats as { pages?: number } | null)?.pages ?? 0,
+              maxPages: MAX_PAGES,
+            },
       warnings: s?.warnings ?? [],
-      url: s?.start ?? null,
+      url: s?.start ?? (s as unknown as { url?: string } | null)?.url ?? null,
     };
   }
 
@@ -224,7 +219,7 @@ export class ScanService {
     const rows = await this.prisma.client.importRecord.findMany({
       where: { workspaceId, jobId },
       orderBy: [{ category: 'asc' }, { confidence: 'desc' }, { createdAt: 'asc' }],
-      take: 500,
+      take: 1000,
     });
     return {
       data: rows.map((r) => {
@@ -256,6 +251,10 @@ export class ScanService {
   async step(workspaceId: string, jobId: string, budgetMs = 9000) {
     const db = this.prisma.client;
     const job = await this.load(workspaceId, jobId);
+    if (job.kind === 'XML_FEED') {
+      await this.feeds.step(workspaceId, jobId);
+      return this.detail(workspaceId, jobId);
+    }
     if (!ACTIVE.includes(job.status as 'QUEUED')) return this.detail(workspaceId, jobId);
     const s = job.state as unknown as ScanState;
     if (s.lockUntil > Date.now()) return this.detail(workspaceId, jobId);
@@ -521,6 +520,10 @@ export class ScanService {
     const j = await this.load(workspaceId, jobId);
     if (j.status !== 'FAILED' && j.status !== 'CANCELLED')
       throw new ConflictException('Only a failed or cancelled scan can be retried.');
+    if (j.kind === 'XML_FEED') {
+      if (!j.sourceId) throw new ConflictException('This feed is no longer connected.');
+      return this.detail(workspaceId, await this.feeds.startJob(workspaceId, userId, j.sourceId));
+    }
     const s = j.state as unknown as ScanState;
     return this.start(workspaceId, userId, { url: s.start, ...s.options });
   }
@@ -600,6 +603,8 @@ export class ScanService {
     const cfg: BrainConfig = structuredClone(doc.config);
     const notes: string[] = [];
     let skipped = 0;
+    let updated = 0;
+    let capped = 0;
     const done: string[] = [];
     const prodNames = new Set(cfg.products.map((p) => norm(p.name)));
     const faqQs = new Set(cfg.faqs.map((f) => norm(f.q)));
@@ -636,8 +641,27 @@ export class ScanService {
         fill('website', 200);
         done.push(r.id);
       } else if (r.category === 'product') {
-        if (prodNames.has(norm(d['name'] ?? '')) || cfg.products.length >= 300) {
+        const key = norm(d['name'] ?? '');
+        const existing = cfg.products.find((p) => norm(p.name) === key);
+        if (d['change'] === 'changed' && existing) {
+          // A changed product from a feed: the approval is the permission to update the matching product.
+          const price = [d['price'], d['currency']].filter(Boolean).join(' ').slice(0, 20);
+          if (price) existing.price = price;
+          if (d['description']) existing.description = d['description'].slice(0, 1000);
+          if (d['category']) existing.category = d['category'].slice(0, 60);
+          if (d['colors']) existing.colors = d['colors'].slice(0, 300);
+          if ((STOCK_STATES as readonly string[]).includes(d['stock'] ?? ''))
+            existing.stock = d['stock'] as (typeof STOCK_STATES)[number];
+          updated++;
+          done.push(r.id);
+          continue;
+        }
+        if (existing) {
           skipped++;
+          continue;
+        }
+        if (cfg.products.length >= 300) {
+          capped++;
           continue;
         }
         prodNames.add(norm(d['name']!));
@@ -718,6 +742,9 @@ export class ScanService {
       },
     });
     if (skipped) notes.push(`${skipped} already in your Brain, so they were left alone.`);
+    if (updated)
+      notes.push(`${updated} existing product${updated === 1 ? ' was' : 's were'} updated.`);
+    if (capped) notes.push(`${capped} not added: Brain holds up to 300 products.`);
     return { imported: done.length, skippedDuplicates: skipped, notes };
   }
 

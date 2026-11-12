@@ -1,3 +1,4 @@
+import { lookup } from 'node:dns/promises';
 import { BlockList, isIP } from 'node:net';
 
 export class UnsafeUrlError extends Error {}
@@ -77,4 +78,16 @@ export function parsePublicUrl(raw: string): URL {
   }
   u.hash = '';
   return u;
+}
+
+/** Rejects a hostname whose DNS answer is not entirely public. The same check runs again at connection time. */
+export async function assertResolvesPublic(host: string) {
+  try {
+    const all = await lookup(host, { all: true });
+    if (!all.length || all.some((a) => isBlockedAddress(a.address)))
+      throw new UnsafeUrlError('That address resolves to an internal network.');
+  } catch (e) {
+    if (e instanceof UnsafeUrlError) throw e;
+    throw new UnsafeUrlError('That website address could not be found.');
+  }
 }

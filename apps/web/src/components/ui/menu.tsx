@@ -26,7 +26,7 @@ export interface MenuItem {
 
 /** Shared look of a floating menu surface and its items, for menus that manage their own open state. */
 export const MENU_SURFACE =
-  'z-30 animate-panel-in rounded-xl border border-line glass-menu p-1 shadow-popover motion-reduce:animate-none';
+  'z-[110] animate-panel-in rounded-xl border border-line glass-menu p-1 shadow-popover motion-reduce:animate-none';
 export const MENU_ITEM =
   'flex min-h-9 w-full cursor-pointer items-center gap-2.5 rounded-lg border-none bg-transparent px-2.5 py-1.5 text-left text-[13px] font-medium text-ink no-underline transition-colors duration-150 hover:bg-wash hover:no-underline focus-visible:bg-wash focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none';
 

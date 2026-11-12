@@ -135,7 +135,7 @@ export function ColumnsMenu({
             top: pos?.top ?? 0,
             visibility: pos ? 'visible' : 'hidden',
           }}
-          className={cn(MENU_SURFACE, 'z-[80] w-[220px]')}
+          className={cn(MENU_SURFACE, 'z-[110] w-[220px]')}
         >
           {optional.map((c) => {
             const on = !hidden.includes(c.key);

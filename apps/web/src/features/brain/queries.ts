@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   BrainConfig,
   BrainMaturity,
+  FeedCreateInput,
+  FeedPreview,
   ImportJobDetail,
   ImportOverview as ImportOverviewT,
   ImportRecordView,
@@ -223,5 +225,53 @@ export function useImportApproved(ws: string, jobId: string | null) {
       void qc.invalidateQueries({ queryKey: ['brain-import-records', ws, jobId] });
       void qc.invalidateQueries({ queryKey: scanKey(ws) });
     },
+  });
+}
+
+// ---------- XML feed ----------
+
+export function usePreviewFeed(ws: string) {
+  return useMutation({
+    mutationFn: async (b: {
+      url: string;
+      mapping?: Record<string, string>;
+      currency?: string;
+    }): Promise<FeedPreview> => {
+      const { data, error, response } = await api.POST(`${I}/feed/preview`, {
+        params: { path: { workspaceId: ws } },
+        body: b as never,
+      });
+      if (!data) throw fail(error, 'Could not read the feed', response.status);
+      return data as unknown as FeedPreview;
+    },
+  });
+}
+
+export function useCreateFeed(ws: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (b: FeedCreateInput): Promise<ImportJobDetail> => {
+      const { data, error, response } = await api.POST(`${I}/feed`, {
+        params: { path: { workspaceId: ws } },
+        body: b as never,
+      });
+      if (!data) throw fail(error, 'Could not connect the feed', response.status);
+      return data as unknown as ImportJobDetail;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: scanKey(ws) }),
+  });
+}
+
+export function useSourceAction(ws: string, action: 'sync' | 'disconnect') {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (sourceId: string) => {
+      const { data, error, response } = await api.POST(`${I}/sources/{sourceId}/${action}`, {
+        params: { path: { workspaceId: ws, sourceId } },
+      });
+      if (!data) throw fail(error, `Could not ${action}`, response.status);
+      return data as unknown as ImportJobDetail;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: scanKey(ws) }),
   });
 }

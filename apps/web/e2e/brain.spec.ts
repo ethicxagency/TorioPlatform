@@ -361,6 +361,52 @@ test.describe('brain (admin)', () => {
     await expect(vase).toContainText('Imported');
   });
 
+  test('XML feed: check, map, import for review, approve, import; a bad feed explains itself', async ({
+    page,
+  }) => {
+    await openTab(page, 'Intelligence');
+    const hub = intelligence(page);
+    await hub.getByRole('button', { name: 'Connect a feed' }).click();
+    const dlg = page.getByRole('dialog', { name: 'Connect an XML product feed' });
+    const check = dlg.getByRole('button', { name: 'Check feed' });
+    await expect(check).toBeDisabled();
+    // a page that is not a feed is explained, and nothing is created
+    await dlg.getByLabel('Feed URL').fill('https://shop.test/bad.xml');
+    await check.click();
+    await expect(dlg.getByRole('alert')).toContainText('does not look like a product feed');
+    await dlg.getByLabel('Feed URL').fill('https://shop.test/feed.xml');
+    await dlg.getByRole('button', { name: 'Check feed' }).click();
+    const pv = dlg.getByRole('region', { name: 'Feed preview' });
+    await expect(pv.getByText('Items in feed')).toBeVisible();
+    await expect(pv).toContainText('2 items have no readable price.');
+    await expect(pv.getByRole('combobox', { name: 'Name column' })).toContainText('title');
+    // changing a column re-checks the feed with that mapping
+    await pv.getByRole('combobox', { name: 'Price column' }).click();
+    await page.getByRole('option', { name: 'cost' }).click();
+    await expect
+      .poll(
+        () =>
+          (scanState.previews.at(-1) as { mapping?: Record<string, string> }).mapping?.['price'],
+      )
+      .toBe('cost');
+    // changing the currency invalidates the preview, so the feed is checked again before importing
+    await dlg.getByLabel('Currency, only if the feed has none').fill('bdt');
+    await dlg.getByRole('button', { name: 'Check feed' }).click();
+    await dlg.getByRole('button', { name: /^Import 10 products for review/ }).click();
+    await expect
+      .poll(() => scanState.feedBody)
+      .toMatchObject({ url: 'https://shop.test/feed.xml', frequency: 'manual' });
+    // the sync proposes a changed and a new product; the change is spelled out
+    const panel = hub.getByRole('region', { name: 'Feed import' });
+    const vase = panel.getByRole('listitem').filter({ hasText: 'Nordic Vase' });
+    await expect(vase).toContainText('price: 1500 → 1800');
+    await expect(panel.getByRole('button', { name: /^Import 0 approved/ })).toBeDisabled();
+    await panel.getByRole('button', { name: 'Approve Nordic Vase' }).click();
+    await panel.getByRole('button', { name: /^Import 1 approved/ }).click();
+    await expect(panel.getByText('Imported 1 entry into Brain.')).toBeVisible();
+    expect(scanState.imported).toEqual(['9d0f0000-0000-4000-8000-0000000000b1']);
+  });
+
   test('Summary has all eight sections, in order', async ({ page }) => {
     const names = [
       'Brain overview',

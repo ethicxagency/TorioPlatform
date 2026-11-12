@@ -13,12 +13,15 @@ import {
   Shirt,
   type LucideIcon,
 } from 'lucide-react';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { GoogleG } from '@/features/auth/social-buttons';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useWorkspace } from '@/lib/workspace';
-import { useImports, type ImportOverview } from '../queries';
+import { useImports, useSourceAction, type ImportOverview } from '../queries';
 import { fmtAgoIso } from './bits';
+import { FeedDialog, FeedPanel } from './feed-import';
 import { WebsiteScan } from './website-scan';
 
 type Source = ImportOverview['sources'][number];
@@ -60,7 +63,8 @@ const PROVIDERS: Provider[] = [
     blurb:
       'Import products from a Google Shopping-compatible feed, with preview and field mapping.',
     icon: <FileCode2 size={18} className="text-[#0F9D8A]" />,
-    unavailable: 'Feed import is being built. Nothing is imported until it is available.',
+    unavailable:
+      'No feed connected. Products are only proposed for your review, never added on their own.',
   },
   {
     kind: 'META_CATALOG',
@@ -108,7 +112,26 @@ function Panel({
   );
 }
 
-function SourceCard({ p, sources }: { p: Provider; sources: Source[] }) {
+const FREQ_LABEL: Record<string, string> = {
+  manual: 'Manual sync',
+  daily: 'Syncs daily',
+  weekly: 'Syncs weekly',
+};
+
+function SourceCard({
+  p,
+  sources,
+  actions,
+}: {
+  p: Provider;
+  sources: Source[];
+  actions?: {
+    connect: () => void;
+    sync: (id: string) => void;
+    disconnect: (id: string) => void;
+    busy: boolean;
+  };
+}) {
   const mine = sources.filter((s) => s.kind === p.kind);
   return (
     <li className="flex flex-col gap-3 rounded-card border border-line bg-white p-4">
@@ -126,6 +149,16 @@ function SourceCard({ p, sources }: { p: Provider; sources: Source[] }) {
           <p className="m-0 mt-1 text-[12.5px] leading-snug text-muted">{p.blurb}</p>
         </div>
       </div>
+      {actions && (
+        <Button
+          size="sm"
+          variant={mine.length ? 'outline' : 'primary'}
+          className="self-start"
+          onClick={actions.connect}
+        >
+          {mine.length ? 'Connect another feed' : 'Connect a feed'}
+        </Button>
+      )}
       {mine.length === 0 ? (
         <p className="m-0 flex items-start gap-1.5 rounded-lg bg-wash px-2.5 py-2 text-xs text-muted">
           <CircleAlert size={13} aria-hidden className="mt-0.5 shrink-0 text-faint" />
@@ -151,7 +184,29 @@ function SourceCard({ p, sources }: { p: Provider; sources: Source[] }) {
               </div>
               <div className="mt-0.5 text-xs text-faint">
                 {s.lastSyncedAt ? `Last synced ${fmtAgoIso(s.lastSyncedAt)}` : 'Not synced'}
+                {s.frequency && ` · ${FREQ_LABEL[s.frequency] ?? s.frequency}`}
               </div>
+              {actions && s.status !== 'DISCONNECTED' && (
+                <div className="mt-1.5 flex gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={actions.busy}
+                    onClick={() => actions.sync(s.id)}
+                  >
+                    Sync now
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={actions.busy}
+                    aria-label={`Disconnect ${s.name}`}
+                    onClick={() => actions.disconnect(s.id)}
+                  >
+                    Disconnect
+                  </Button>
+                </div>
+              )}
               {s.lastError && <div className="mt-0.5 text-xs text-danger">{s.lastError}</div>}
             </li>
           ))}
@@ -228,6 +283,11 @@ export function IntelligenceTab({
 }) {
   const { workspaceId } = useWorkspace();
   const imports = useImports(workspaceId);
+  const [feedDialog, setFeedDialog] = useState(false);
+  const [feedChoice, setFeedChoice] = useState<string | null | undefined>(undefined);
+  const [feedError, setFeedError] = useState('');
+  const sync = useSourceAction(workspaceId ?? '', 'sync');
+  const disconnect = useSourceAction(workspaceId ?? '', 'disconnect');
   const data = imports.data;
   const sources = data?.sources ?? [];
   const jobs = data?.jobs ?? [];
@@ -240,6 +300,11 @@ export function IntelligenceTab({
   const resumable = jobs.find(
     (j) => j.kind === 'WEBSITE' && ['QUEUED', 'RUNNING', 'NEEDS_REVIEW'].includes(j.status),
   );
+  const feedResumable = jobs.find(
+    (j) => j.kind === 'XML_FEED' && ['QUEUED', 'RUNNING', 'NEEDS_REVIEW'].includes(j.status),
+  );
+  // undefined = follow the sync the server reports as open; a value (or null) is the person's choice
+  const feedJobId = feedChoice === undefined ? (feedResumable?.id ?? null) : feedChoice;
   const review = jobs.filter((j) => j.status === 'NEEDS_REVIEW').length;
   const failed = jobs.filter((j) => j.status === 'FAILED').length;
 
@@ -293,9 +358,45 @@ export function IntelligenceTab({
         ) : (
           <ul className="m-0 grid list-none grid-cols-1 gap-3 p-0 md:grid-cols-3">
             {PROVIDERS.map((p) => (
-              <SourceCard key={p.kind} p={p} sources={sources} />
+              <SourceCard
+                key={p.kind}
+                p={p}
+                sources={sources}
+                actions={
+                  p.kind === 'XML_FEED' && workspaceId
+                    ? {
+                        connect: () => setFeedDialog(true),
+                        busy: sync.isPending || disconnect.isPending,
+                        sync: (id) =>
+                          sync.mutate(id, {
+                            onSuccess: (d) => setFeedChoice(d.job.id),
+                            onError: (e) => setFeedError(e.message),
+                          }),
+                        disconnect: (id) =>
+                          disconnect.mutate(id, { onError: (e) => setFeedError(e.message) }),
+                      }
+                    : undefined
+                }
+              />
             ))}
           </ul>
+        )}
+        {feedError && (
+          <p
+            role="alert"
+            className="m-0 rounded-xl bg-danger-soft px-3 py-2 text-[12.5px] text-[#8F2424]"
+          >
+            {feedError}
+          </p>
+        )}
+        {workspaceId && feedJobId && (
+          <FeedPanel
+            ws={workspaceId}
+            jobId={feedJobId}
+            onImported={onImported}
+            onClose={() => setFeedChoice(null)}
+            onJob={setFeedChoice}
+          />
         )}
         <p className="m-0 flex flex-wrap items-center gap-x-2 text-[12.5px] text-muted">
           <PenLine size={13} aria-hidden className="text-faint" />
@@ -310,6 +411,17 @@ export function IntelligenceTab({
           .
         </p>
       </Panel>
+
+      {feedDialog && workspaceId && (
+        <FeedDialog
+          ws={workspaceId}
+          onClose={() => setFeedDialog(false)}
+          onStarted={(id) => {
+            setFeedDialog(false);
+            setFeedChoice(id);
+          }}
+        />
+      )}
 
       <Panel title="Knowledge in your Brain" hint="Approved and active. Edit it under Knowledge">
         <ul className="m-0 grid list-none grid-cols-2 gap-2.5 p-0 lg:grid-cols-4">

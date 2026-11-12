@@ -244,7 +244,7 @@ export function Select({
               width: pos?.width,
               visibility: pos ? 'visible' : 'hidden',
             }}
-            className={cn(MENU_SURFACE, 'z-[80] max-h-[300px] overflow-y-auto')}
+            className={cn(MENU_SURFACE, 'z-[110] max-h-[300px] overflow-y-auto')}
           >
             {searchable && (
               <label className="mb-1 flex h-9 items-center gap-2 rounded-lg bg-wash px-2.5">

@@ -4970,6 +4970,175 @@
         ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/brain/imports/feed/preview": {
+      "post": {
+        "operationId": "ImportsController_previewFeed",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedPreviewRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedPreviewDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "brain"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/brain/imports/feed": {
+      "post": {
+        "operationId": "ImportsController_createFeed",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedCreateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportJobDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "brain"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/brain/imports/sources/{sourceId}/sync": {
+      "post": {
+        "operationId": "ImportsController_sync",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sourceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportJobDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "brain"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/brain/imports/sources/{sourceId}/disconnect": {
+      "post": {
+        "operationId": "ImportsController_disconnect",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sourceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "brain"
+        ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/brain/imports/jobs/{jobId}": {
       "get": {
         "operationId": "ImportsController_job",
@@ -18876,6 +19045,12 @@
                     "string",
                     "null"
                   ]
+                },
+                "frequency": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 }
               },
               "required": [
@@ -18885,7 +19060,8 @@
                 "url",
                 "status",
                 "lastSyncedAt",
-                "lastError"
+                "lastError",
+                "frequency"
               ]
             }
           },
@@ -19174,6 +19350,222 @@
           "progress",
           "warnings",
           "url"
+        ]
+      },
+      "FeedPreviewRequestDto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "minLength": 4,
+            "maxLength": 500
+          },
+          "mapping": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "enum": [
+                "externalId",
+                "name",
+                "description",
+                "price",
+                "category",
+                "stock",
+                "colors",
+                "sizes",
+                "url",
+                "image"
+              ]
+            },
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "required": [
+              "externalId",
+              "name",
+              "description",
+              "price",
+              "category",
+              "stock",
+              "colors",
+              "sizes",
+              "url",
+              "image"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3
+          }
+        },
+        "required": [
+          "url"
+        ]
+      },
+      "FeedPreviewDto": {
+        "type": "object",
+        "properties": {
+          "format": {
+            "type": "string"
+          },
+          "totalItems": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "valid": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "invalid": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "duplicates": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "missingPrice": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mapping": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sample": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "data",
+                "warnings"
+              ]
+            }
+          }
+        },
+        "required": [
+          "format",
+          "totalItems",
+          "valid",
+          "invalid",
+          "duplicates",
+          "missingPrice",
+          "truncated",
+          "tags",
+          "mapping",
+          "issues",
+          "sample"
+        ]
+      },
+      "FeedCreateDto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "minLength": 4,
+            "maxLength": 500
+          },
+          "mapping": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "enum": [
+                "externalId",
+                "name",
+                "description",
+                "price",
+                "category",
+                "stock",
+                "colors",
+                "sizes",
+                "url",
+                "image"
+              ]
+            },
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "required": [
+              "externalId",
+              "name",
+              "description",
+              "price",
+              "category",
+              "stock",
+              "colors",
+              "sizes",
+              "url",
+              "image"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "frequency": {
+            "default": "manual",
+            "type": "string",
+            "enum": [
+              "manual",
+              "daily",
+              "weekly"
+            ]
+          }
+        },
+        "required": [
+          "url",
+          "name"
         ]
       },
       "ImportRecordListDto": {

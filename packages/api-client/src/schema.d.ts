@@ -1412,6 +1412,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/brain/imports/feed/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ImportsController_previewFeed"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/brain/imports/feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ImportsController_createFeed"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/brain/imports/sources/{sourceId}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ImportsController_sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/brain/imports/sources/{sourceId}/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ImportsController_disconnect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/brain/imports/jobs/{jobId}": {
         parameters: {
             query?: never;
@@ -4530,6 +4594,7 @@ export interface components {
                 status: "ACTIVE" | "PAUSED" | "ERROR" | "DISCONNECTED";
                 lastSyncedAt: string | null;
                 lastError: string | null;
+                frequency: string | null;
             }[];
             jobs: {
                 /** Format: uuid */
@@ -4579,6 +4644,46 @@ export interface components {
             };
             warnings: string[];
             url: string[];
+        };
+        FeedPreviewRequestDto: {
+            url: string;
+            mapping?: {
+                [key: string]: string;
+            };
+            currency?: string;
+        };
+        FeedPreviewDto: {
+            format: string;
+            totalItems: number;
+            valid: number;
+            invalid: number;
+            duplicates: number;
+            missingPrice: number;
+            truncated: boolean;
+            tags: string[];
+            mapping: {
+                [key: string]: string;
+            };
+            issues: string[];
+            sample: {
+                data: {
+                    [key: string]: string;
+                };
+                warnings: string[];
+            }[];
+        };
+        FeedCreateDto: {
+            url: string;
+            mapping?: {
+                [key: string]: string;
+            };
+            currency?: string;
+            name: string;
+            /**
+             * @default manual
+             * @enum {string}
+             */
+            frequency: "manual" | "daily" | "weekly";
         };
         ImportRecordListDto: {
             data: {
@@ -8863,6 +8968,98 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ImportJobDetailDto"];
                 };
+            };
+        };
+    };
+    ImportsController_previewFeed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedPreviewRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedPreviewDto"];
+                };
+            };
+        };
+    };
+    ImportsController_createFeed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedCreateDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportJobDetailDto"];
+                };
+            };
+        };
+    };
+    ImportsController_sync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                sourceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportJobDetailDto"];
+                };
+            };
+        };
+    };
+    ImportsController_disconnect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                sourceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

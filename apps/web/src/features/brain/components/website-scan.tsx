@@ -238,7 +238,15 @@ function Row({
   );
 }
 
-function Review({ ws, jobId, onImported }: { ws: string; jobId: string; onImported: () => void }) {
+export function Review({
+  ws,
+  jobId,
+  onImported,
+}: {
+  ws: string;
+  jobId: string;
+  onImported: () => void;
+}) {
   const recs = useScanRecords(ws, jobId, true);
   const review = useReviewRecord(ws, jobId);
   const bulk = useBulkReview(ws, jobId);
@@ -253,7 +261,9 @@ function Review({ ws, jobId, onImported }: { ws: string; jobId: string; onImport
     for (const k of CATS) c[k.key] = list.filter((r) => r.category === k.key).length;
     return c;
   }, [list]);
-  const shown = tab === 'all' ? list : list.filter((r) => r.category === tab);
+  const [limit, setLimit] = useState(50);
+  const all = tab === 'all' ? list : list.filter((r) => r.category === tab);
+  const shown = all.slice(0, limit);
   const approved = list.filter((r) => r.status === 'APPROVED').length;
   const fail = (e: unknown) => setError(e instanceof Error ? e.message : 'Something went wrong');
 
@@ -278,7 +288,10 @@ function Review({ ws, jobId, onImported }: { ws: string; jobId: string; onImport
             type="button"
             role="tab"
             aria-selected={tab === t.key}
-            onClick={() => setTab(t.key)}
+            onClick={() => {
+              setTab(t.key);
+              setLimit(50);
+            }}
             className={cn(
               'h-8 cursor-pointer rounded-full border px-3 text-[12.5px] transition-colors duration-150',
               tab === t.key
@@ -385,30 +398,10 @@ function Review({ ws, jobId, onImported }: { ws: string; jobId: string; onImport
 }
 
 /**
- * The website scan: a short form, live progress while the scan advances in small steps, then a review screen. Nothing found
- * is active until it is approved and imported; imports add to Brain and never overwrite what is already there.
+ * Loads a scan or feed job and, while it is active, keeps asking the server for the next small step. Each call is
+ * time-boxed on the server, so the work happens in pieces and survives leaving and returning to the page.
  */
-export function WebsiteScan({
-  ws,
-  initialJobId,
-  defaults,
-  onImported,
-}: {
-  ws: string;
-  initialJobId: string | null;
-  defaults: { url: string; country: string; category: string };
-  onImported: () => void;
-}) {
-  // undefined = follow the resumable scan the server reports; a value (or null) is the person's own choice.
-  const [chosen, setJobId] = useState<string | null | undefined>(undefined);
-  const jobId = chosen === undefined ? initialJobId : chosen;
-  const [url, setUrl] = useState(defaults.url);
-  const [country, setCountry] = useState(defaults.country);
-  const [category, setCategory] = useState(defaults.category);
-  const [notes, setNotes] = useState('');
-  const [more, setMore] = useState(false);
-  const [error, setError] = useState('');
-  const start = useStartScan(ws);
+export function useJobRunner(ws: string, jobId: string | null) {
   const job = useScanJob(ws, jobId);
   const step = useScanStep(ws, jobId);
   const cancel = useCancelScan(ws, jobId);
@@ -441,6 +434,35 @@ export function WebsiteScan({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, jobId]);
 
+  return { job, step, cancel, retry, active, status };
+}
+
+/**
+ * The website scan: a short form, live progress while the scan advances in small steps, then a review screen. Nothing found
+ * is active until it is approved and imported; imports add to Brain and never overwrite what is already there.
+ */
+export function WebsiteScan({
+  ws,
+  initialJobId,
+  defaults,
+  onImported,
+}: {
+  ws: string;
+  initialJobId: string | null;
+  defaults: { url: string; country: string; category: string };
+  onImported: () => void;
+}) {
+  // undefined = follow the resumable scan the server reports; a value (or null) is the person's own choice.
+  const [chosen, setJobId] = useState<string | null | undefined>(undefined);
+  const jobId = chosen === undefined ? initialJobId : chosen;
+  const [url, setUrl] = useState(defaults.url);
+  const [country, setCountry] = useState(defaults.country);
+  const [category, setCategory] = useState(defaults.category);
+  const [notes, setNotes] = useState('');
+  const [more, setMore] = useState(false);
+  const [error, setError] = useState('');
+  const start = useStartScan(ws);
+  const { job, cancel, retry, active, status } = useJobRunner(ws, jobId);
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');

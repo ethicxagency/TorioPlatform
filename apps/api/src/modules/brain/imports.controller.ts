@@ -16,6 +16,9 @@ import {
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import {
   bulkReviewSchema,
+  feedCreateSchema,
+  feedPreviewRequestSchema,
+  feedPreviewSchema,
   importApproveSchema,
   importJobDetailSchema,
   importOverviewSchema,
@@ -33,6 +36,7 @@ import { CurrentUser, Public, RequirePermission } from '../../common/decorators'
 import { WorkspaceAccessGuard } from '../../common/guards/workspace-access.guard';
 import type { AuthUser } from '../../common/types';
 import { ImportsService } from './imports.service';
+import { FeedService } from './imports/feed.service';
 import { ScanService } from './imports/scan.service';
 
 class ImportOverviewDto extends createZodDto(importOverviewSchema) {}
@@ -44,6 +48,9 @@ class ReviewRecordDto extends createZodDto(reviewRecordSchema) {}
 class BulkReviewDto extends createZodDto(bulkReviewSchema) {}
 class ImportApproveDto extends createZodDto(importApproveSchema) {}
 class ImportResultDto extends createZodDto(importResultSchema) {}
+class FeedPreviewRequestDto extends createZodDto(feedPreviewRequestSchema) {}
+class FeedPreviewDto extends createZodDto(feedPreviewSchema) {}
+class FeedCreateDto extends createZodDto(feedCreateSchema) {}
 class BulkResultDto extends createZodDto(z.object({ updated: z.number().int() })) {}
 
 const BASE = 'workspaces/:workspaceId/brain/imports';
@@ -56,6 +63,7 @@ export class ImportsController {
   constructor(
     private readonly imports: ImportsService,
     private readonly scans: ScanService,
+    private readonly feeds: FeedService,
   ) {}
 
   @Get()
@@ -74,6 +82,50 @@ export class ImportsController {
     @Body() body: WebsiteScanDto,
   ) {
     return this.scans.start(ws, u.id, body);
+  }
+
+  @Post('feed/preview')
+  @HttpCode(200)
+  @RequirePermission('brain:write')
+  @ApiOkResponse({ type: FeedPreviewDto })
+  previewFeed(
+    @Param('workspaceId', ParseUUIDPipe) _ws: string,
+    @Body() body: FeedPreviewRequestDto,
+  ) {
+    return this.feeds.preview(body.url, body.mapping, body.currency);
+  }
+
+  @Post('feed')
+  @RequirePermission('brain:write')
+  @ApiOkResponse({ type: ImportJobDetailDto })
+  async createFeed(
+    @Param('workspaceId', ParseUUIDPipe) ws: string,
+    @CurrentUser() u: AuthUser,
+    @Body() body: FeedCreateDto,
+  ) {
+    return this.scans.detail(ws, await this.feeds.create(ws, u.id, body));
+  }
+
+  @Post('sources/:sourceId/sync')
+  @HttpCode(200)
+  @RequirePermission('brain:write')
+  @ApiOkResponse({ type: ImportJobDetailDto })
+  async sync(
+    @Param('workspaceId', ParseUUIDPipe) ws: string,
+    @CurrentUser() u: AuthUser,
+    @Param('sourceId', ParseUUIDPipe) id: string,
+  ) {
+    return this.scans.detail(ws, await this.feeds.startJob(ws, u.id, id));
+  }
+
+  @Post('sources/:sourceId/disconnect')
+  @HttpCode(200)
+  @RequirePermission('brain:write')
+  disconnect(
+    @Param('workspaceId', ParseUUIDPipe) ws: string,
+    @Param('sourceId', ParseUUIDPipe) id: string,
+  ) {
+    return this.feeds.disconnect(ws, id);
   }
 
   @Get('jobs/:jobId')
@@ -168,6 +220,7 @@ export class ImportsController {
 export class ImportsTickController {
   constructor(
     private readonly scans: ScanService,
+    private readonly feeds: FeedService,
     @Inject(APP_CONFIG) private readonly cfg: AppConfig,
   ) {}
 
@@ -181,6 +234,8 @@ export class ImportsTickController {
       given.length === secret.length &&
       timingSafeEqual(Buffer.from(given), Buffer.from(secret));
     if (!ok) throw new NotFoundException();
-    return this.scans.tick();
+    const a = await this.scans.tick();
+    const b = await this.feeds.tickDue();
+    return { ...a, ...b };
   }
 }
