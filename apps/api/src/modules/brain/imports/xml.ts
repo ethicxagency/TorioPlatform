@@ -271,6 +271,8 @@ export function mapItems(items: RawItem[], mapping: FeedMapping, currencyOverrid
     if (!data['description']) warnings.push('No description in the feed.');
     products.push({ externalId: id, data, warnings });
   }
+  if (products.length > 0 && missingPrice === products.length)
+    issues.add('None of the items has a price, so this may not be a product feed.');
   if (missingPrice)
     issues.add(`${missingPrice} item${missingPrice === 1 ? ' has' : 's have'} no readable price.`);
   if (duplicates)

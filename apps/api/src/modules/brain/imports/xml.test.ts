@@ -94,6 +94,13 @@ describe('mapping and validation', () => {
   });
 });
 
+describe('non-product feeds', () => {
+  it('says so when no item has a price', () => {
+    const r = mapItems([{ title: 'Post one' }, { title: 'Post two' }], { name: 'title' });
+    expect(r.issues.join(' ')).toMatch(/may not be a product feed/);
+  });
+});
+
 describe('values', () => {
   it('parses prices in common shapes and rejects unreadable ones', () => {
     expect(parsePrice('1,500.00 BDT')).toEqual({ amount: '1500', currency: 'BDT' });

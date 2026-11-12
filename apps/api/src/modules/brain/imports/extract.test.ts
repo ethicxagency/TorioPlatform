@@ -41,6 +41,12 @@ describe('candidatesFromPage', () => {
     expect(c).toHaveLength(1);
     expect(c[0]).toMatchObject({ category: 'policy', data: { kind: 'shipping' } });
     expect(c[0]!.data['text']).toContain('2 to 4 working days');
+    expect(
+      page(
+        'https://shop.test/products/free-returns-coverage',
+        `<title>Free Returns Coverage</title><body><p>${body}</p></body>`,
+      ),
+    ).toEqual([]);
     expect(page('https://shop.test/blog/hello', '<title>Hello</title><body>Short.</body>')).toEqual(
       [],
     );
@@ -58,6 +64,26 @@ describe('candidatesFromPage', () => {
     const home = page('https://urbannest.test/', og);
     expect(home[0]!.confidence).toBeLessThan(60);
     expect(page('https://urbannest.test/about/team', og)).toEqual([]);
+  });
+});
+
+describe('collapsible blocks', () => {
+  it('are FAQs only when they read like questions or sit on a help page, never filter facets', () => {
+    const facets =
+      '<details><summary>Sort By</summary><p>Featured Best selling</p></details><details><summary>Size</summary><p>8 9 10</p></details>';
+    expect(page('https://shop.test/collections/shoes', facets)).toEqual([]);
+    expect(
+      page(
+        'https://shop.test/collections/shoes',
+        '<details><summary>Do you ship abroad?</summary><p>Yes, worldwide.</p></details>',
+      ),
+    ).toHaveLength(1);
+    expect(
+      page(
+        'https://shop.test/pages/faq',
+        '<details><summary>Delivery times</summary><p>Two to four days.</p></details>',
+      ),
+    ).toHaveLength(1);
   });
 });
 

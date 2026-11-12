@@ -339,10 +339,17 @@ export function candidatesFromPage(p: PageInfo): Candidate[] {
     const ans = n['acceptedAnswer'] as Record<string, unknown> | undefined;
     addFaq(str(n['name'], 300), str(ans?.['text'], 2000), 90);
   }
-  for (const d of p.details) addFaq(d.q, d.a, 75);
+  // Collapsible blocks are FAQs only when they read like questions or sit on a help/FAQ page; otherwise they are things like
+  // filter facets ("Sort by", "Size") on a collection page.
+  const faqPage =
+    /\/(faqs?|help|support|customer-service|questions)(\/|$)/i.test(safePath(p.url)) ||
+    /^\s*(faqs?\b|frequently asked|help\b|support\b)/i.test(p.title);
+  for (const d of p.details)
+    if (d.q.trim().endsWith('?') || faqPage) addFaq(d.q, d.a, d.q.trim().endsWith('?') ? 75 : 60);
 
   // Policy pages: the page's own text, shortened, for a person to review. Never rewritten.
-  const pk = policyKind(p.url, p.title);
+  // an individual product page is a product, even when its name says "returns" or "delivery"
+  const pk = /\/products?\//i.test(safePath(p.url)) ? null : policyKind(p.url, p.title);
   if (pk && p.text.length > 120)
     out.push({
       category: 'policy',
@@ -383,7 +390,8 @@ export function linkPriority(url: string): number {
   if (/(shipping|delivery|return|refund|exchange|payment|policy|policies|terms)/.test(path))
     return 85;
   if (/(about|contact|story)/.test(path)) return 70;
-  if (/(product|shop|collection|catalog|store|item)/.test(path)) return 60;
+  if (/\/products?\//.test(path)) return 80; // an individual product page carries the product data
+  if (/(product|shop|collection|catalog|store|item)/.test(path)) return 50;
   if (/\.(jpg|jpeg|png|gif|webp|svg|pdf|zip|css|js|ico|mp4)$/.test(path)) return -1;
   if (/(login|cart|checkout|account|wp-admin|cdn-cgi|feed|tag|search)/.test(path)) return -1;
   return 20;

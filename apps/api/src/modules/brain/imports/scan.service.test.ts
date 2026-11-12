@@ -97,6 +97,42 @@ describe('ScanService', () => {
     expect(recs.find((r) => r.category === 'business')!.data['phone']).toBe('+8801700000000');
   });
 
+  it('reads product pages listed in the sitemap when the home page links none', async () => {
+    pagesByUrl['https://js.test/robots.txt'] = {
+      body: 'User-agent: *\nSitemap: https://js.test/sitemap.xml',
+    };
+    pagesByUrl['https://js.test/'] = {
+      body: '<title>Home</title><a href="/collections/all">all</a>',
+    };
+    pagesByUrl['https://js.test/collections/all'] = { body: '<title>All</title>' };
+    pagesByUrl['https://js.test/sitemap.xml'] = {
+      body: '<urlset><url><loc>https://js.test/products/vase</loc></url><url><loc>https://js.test/cart</loc></url></urlset>',
+    };
+    pagesByUrl['https://js.test/products/vase'] = { body: VASE };
+    const d = await svc.start(WS, USER, { url: 'https://js.test' });
+    const end = await svc.step(WS, d.job.id, 60_000);
+    expect(end.job.status).toBe('NEEDS_REVIEW');
+    const recs = (await svc.records(WS, d.job.id)).data;
+    expect(recs.find((r) => r.category === 'product')!.data['name']).toBe('Nordic Vase');
+  });
+
+  it('stops politely when the site asks to slow down, keeping what it already read', async () => {
+    pagesByUrl['https://slow.test/robots.txt'] = { body: '' };
+    pagesByUrl['https://slow.test/'] = {
+      body: SHOP.replaceAll('shop.test', 'slow.test') + '<a href="/pages/faq">f</a>',
+    };
+    pagesByUrl['https://slow.test/pages/faq'] = { status: 429, body: '' };
+    pagesByUrl['https://slow.test/pages/shipping-policy'] = { status: 429, body: '' };
+    pagesByUrl['https://slow.test/products/vase'] = { status: 429, body: '' };
+    const d = await svc.start(WS, USER, { url: 'https://slow.test' });
+    const end = await svc.step(WS, d.job.id, 60_000);
+    expect(end.job.status).toBe('NEEDS_REVIEW');
+    expect(end.warnings.join(' ')).toMatch(/asked us to slow down/);
+    expect((await svc.records(WS, d.job.id)).data.some((r) => r.category === 'business')).toBe(
+      true,
+    );
+  });
+
   it('one scan at a time per store, and stores are isolated', async () => {
     seed();
     await svc.start(WS, USER, { url: 'https://shop.test' });

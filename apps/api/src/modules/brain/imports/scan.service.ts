@@ -30,6 +30,13 @@ import {
 } from './extract';
 import { parseRobots, type Robots } from './robots';
 import { safeGet } from './safe-fetch';
+import {
+  isSitemapIndex,
+  pickSitemapPages,
+  productSitemaps,
+  sitemapLocs,
+  sitemapsFromRobots,
+} from './sitemap';
 import { assertResolvesPublic, parsePublicUrl, UnsafeUrlError } from './url-guard';
 
 export const MAX_PAGES = 15;
@@ -269,9 +276,12 @@ export class ScanService {
     });
     const t0 = Date.now();
     try {
-      if (s.robotsTxt === null) s.robotsTxt = await this.fetchRobots(s.origin);
+      if (s.robotsTxt === null) {
+        s.robotsTxt = await this.fetchRobots(s.origin);
+        await this.seedFromSitemap(s);
+      }
       const robots: Robots = parseRobots(s.robotsTxt);
-      const delay = Math.min(3000, Math.max(250, (robots.crawlDelay ?? 0) * 1000));
+      const delay = Math.min(3000, Math.max(700, (robots.crawlDelay ?? 0) * 1000));
       while (s.frontier.length && s.visited.length < MAX_PAGES && Date.now() - t0 < budgetMs) {
         // a cancel from another request must stop the crawl at the next page
         const fresh = await db.importJob.findUnique({
@@ -290,6 +300,14 @@ export class ScanService {
         }
         try {
           const r = await safeGet(next.url, { timeoutMs: 8000 });
+          if (r.status === 429 || r.status === 503) {
+            // The site is asking crawlers to slow down. Stop politely and keep what was already found.
+            s.warnings.push(
+              `The site asked us to slow down (HTTP ${r.status}), so the scan stopped early with what it had read.`,
+            );
+            s.frontier = [];
+            break;
+          }
           if (r.status >= 400) throw new Error(`HTTP ${r.status}`);
           const page = parsePage(r.url, r.body);
           await this.store(workspaceId, job.id, s, page);
@@ -341,6 +359,47 @@ export class ScanService {
       await this.finish(job.id, s, 'FAILED', 'The scan stopped unexpectedly. You can retry it.');
     }
     return this.detail(workspaceId, jobId);
+  }
+
+  /**
+   * Many storefronts draw product grids with scripts, so their product pages are not linked in the HTML. The sitemap lists
+   * them. A few well-spread product pages and help pages from it are queued so the scan can read real product data.
+   */
+  private async seedFromSitemap(s: ScanState) {
+    try {
+      const listed = sitemapsFromRobots(s.robotsTxt ?? '');
+      const roots = listed.length ? listed : [`${s.origin}/sitemap.xml`];
+      const urls: string[] = [];
+      for (const root of roots.slice(0, 2)) {
+        const first = await safeGet(root, {
+          timeoutMs: 8000,
+          maxBytes: 3_000_000,
+          accept: /xml|text\/plain|octet-stream/i,
+        });
+        if (first.status >= 400) continue;
+        if (isSitemapIndex(first.body)) {
+          for (const child of productSitemaps(sitemapLocs(first.body))) {
+            const c = await safeGet(child, {
+              timeoutMs: 8000,
+              maxBytes: 3_000_000,
+              accept: /xml|text\/plain|octet-stream/i,
+            });
+            if (c.status < 400) urls.push(...sitemapLocs(c.body));
+          }
+        } else urls.push(...sitemapLocs(first.body));
+      }
+      for (const u of pickSitemapPages(urls, s.origin)) {
+        try {
+          const href = parsePublicUrl(u).toString();
+          if (!s.frontier.some((f) => f.url === href))
+            s.frontier.push({ url: href, depth: MAX_DEPTH });
+        } catch {
+          /* skip an address that is not allowed */
+        }
+      }
+    } catch {
+      // no usable sitemap: the scan simply continues with the pages it can reach by links
+    }
   }
 
   private async fetchRobots(origin: string) {
