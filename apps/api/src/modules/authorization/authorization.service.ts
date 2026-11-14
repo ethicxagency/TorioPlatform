@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import type { Permission } from '@torio/types';
 import { PrismaService } from '../../database/prisma.service';
 import type { WorkspaceMembershipContext } from '../../common/types';
-import { roleHasPermission } from './permissions';
+import { effectivePermissions } from './permissions';
 
 @Injectable()
 export class AuthorizationService {
@@ -17,6 +17,8 @@ export class AuthorizationService {
         workspaceId: true,
         userId: true,
         role: true,
+        customRoleId: true,
+        customRole: { select: { permissions: true } },
         status: true,
         user: { select: { status: true } },
         workspace: { select: { status: true } },
@@ -30,6 +32,8 @@ export class AuthorizationService {
         workspaceId: m.workspaceId,
         userId: m.userId,
         role: m.role,
+        customRoleId: m.customRoleId,
+        permissions: effectivePermissions(m.role, m.customRole?.permissions),
       } as WorkspaceMembershipContext,
       userDisabled: m.user?.status === 'DISABLED',
       workspaceSuspended: m.workspace?.status === 'SUSPENDED',
@@ -59,7 +63,7 @@ export class AuthorizationService {
     if (!m || m.userDisabled) throw new NotFoundException('Workspace not found');
     if (m.workspaceSuspended)
       throw new ForbiddenException('This workspace is suspended. Please contact Torio support.');
-    if (!roleHasPermission(m.ctx.role, permission)) {
+    if (!m.ctx.permissions.has(permission)) {
       throw new ForbiddenException('Insufficient permissions');
     }
     return m.ctx;

@@ -42,8 +42,12 @@ describe.skipIf(!url)('sign-in methods and pictures (real PostgreSQL)', () => {
     await app.init();
     db = createPrismaClient(url!);
     const jwt = app.get(JwtService);
-    auth = async (id, sid = 's') => ({
-      Authorization: `Bearer ${await jwt.signAsync({ sub: id, sid })}`,
+    // The token names the user's real session, as a sign-in would (the first-password flow keeps that session signed in).
+    auth = async (id, sid) => ({
+      Authorization: `Bearer ${await jwt.signAsync({
+        sub: id,
+        sid: sid ?? (await db.session.findFirstOrThrow({ where: { userId: id } })).id,
+      })}`,
     });
     const hash = await app.get(PasswordService).hash('Random-unusable-pass-1');
     const mk = (n: string, extra: object = {}) =>
@@ -280,7 +284,7 @@ describe.skipIf(!url)('sign-in methods and pictures (real PostgreSQL)', () => {
     expect((await db.workspace.findUnique({ where: { id: ids.wsB! } }))?.logo).toBeNull();
     // it is listed for members (so the store switcher updates), and removing it deletes the file
     const list = await http().get('/api/v1/workspaces').set(owner).expect(200);
-    expect(list.body.data.find((w: { id: string }) => w.id === ids.ws).logo).toBe(set.body.logo);
+    expect(list.body.find((w: { id: string }) => w.id === ids.ws).logo).toBe(set.body.logo);
     const gone = await http().delete(L).set(owner).expect(200);
     expect(gone.body.logo).toBeNull();
     expect(
@@ -341,7 +345,7 @@ describe.skipIf(!url)('sign-in methods and pictures (real PostgreSQL)', () => {
     expect((await sharp(odd.body as Buffer).metadata()).width).toBe(1000);
 
     const list = await http().get('/api/v1/workspaces').set(owner).expect(200);
-    expect(list.body.data.find((w: { id: string }) => w.id === ids.ws).logoLight).toBe(
+    expect(list.body.find((w: { id: string }) => w.id === ids.ws).logoLight).toBe(
       light.body.logoLight,
     );
     const off = await http().delete(LL).set(owner).expect(200);

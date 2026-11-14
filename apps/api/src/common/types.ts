@@ -1,4 +1,4 @@
-import type { WorkspaceRole } from '@torio/types';
+import type { Permission, WorkspaceRole } from '@torio/types';
 
 export interface AuthUser {
   id: string;
@@ -10,6 +10,10 @@ export interface WorkspaceMembershipContext {
   workspaceId: string;
   userId: string;
   role: WorkspaceRole;
+  /** Set when the member has a custom role; their `permissions` then come from it, not from `role`. */
+  customRoleId: string | null;
+  /** What this member may do right now: the custom role's list, else their system role's. Read it, never recompute it. */
+  permissions: ReadonlySet<Permission>;
 }
 
 declare global {

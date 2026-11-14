@@ -8,6 +8,7 @@ import { SLUG_MAX, storeSlugSchema } from '@torio/contracts';
 import type { AuditQuery, CreateStoreInput, UpdateWorkspaceInput } from '@torio/contracts';
 import { Prisma } from '@torio/database';
 import { PrismaService } from '../../database/prisma.service';
+import { effectivePermissions } from '../authorization/permissions';
 import { ImagesService, type UploadedFile } from '../images/images.service';
 
 /** Stops a runaway script from creating stores without bound. */
@@ -29,7 +30,10 @@ export class WorkspacesService {
       this.prisma.client.workspaceMembership.findMany({
         // Suspended stores stay listed (their status explains why they are locked).
         where: { userId, status: 'ACTIVE' },
-        include: { workspace: true },
+        include: {
+          workspace: true,
+          customRole: { select: { id: true, name: true, permissions: true } },
+        },
         orderBy: { createdAt: 'asc' },
       }),
       this.prisma.client.userPreferences.findUnique({ where: { userId } }),
@@ -41,6 +45,8 @@ export class WorkspacesService {
     const list = rows.map((m) => ({
       ...this.toDto(m.workspace, lights.get(m.workspaceId) ?? null),
       role: m.role,
+      permissions: [...effectivePermissions(m.role, m.customRole?.permissions)],
+      customRole: m.customRole ? { id: m.customRole.id, name: m.customRole.name } : null,
       active: m.workspaceId === activeId,
     }));
     return [...list.filter((w) => w.active), ...list.filter((w) => !w.active)];

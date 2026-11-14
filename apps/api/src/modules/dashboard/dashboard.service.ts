@@ -14,7 +14,6 @@ import {
   type DateRange,
   type Granularity,
 } from '@torio/contracts';
-import { roleHasPermission, type WorkspaceRole } from '@torio/types';
 import { PrismaService } from '../../database/prisma.service';
 import { PlansService } from '../billing/plans.service';
 
@@ -303,7 +302,7 @@ export class DashboardService {
     return new Map(rows.map((x) => [x.b, Number(x.total)]));
   }
 
-  async analytics(ws: string, role: WorkspaceRole, q: AnalyticsQuery) {
+  async analytics(ws: string, canSeeBilling: boolean, q: AnalyticsQuery) {
     const db = this.prisma.client;
     const workspace = await db.workspace.findUniqueOrThrow({
       where: { id: ws },
@@ -323,7 +322,7 @@ export class DashboardService {
     const [cur, prev, subscription, firstOrder, firstCustomer] = await Promise.all([
       this.totals(ws, range, tz, ch),
       cmpRange ? this.totals(ws, cmpRange, tz, ch) : Promise.resolve(null),
-      roleHasPermission(role, 'billing:read')
+      canSeeBilling
         ? db.subscription.findUnique({ where: { workspaceId: ws } })
         : Promise.resolve(undefined),
       db.order.findFirst({

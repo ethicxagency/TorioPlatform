@@ -1460,6 +1460,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["RolesController_list"];
+        put?: never;
+        post: operations["RolesController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/roles/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["RolesController_templates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/roles/{roleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["RolesController_detail"];
+        put?: never;
+        post?: never;
+        delete: operations["RolesController_remove"];
+        options?: never;
+        head?: never;
+        patch: operations["RolesController_update"];
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/roles/{roleId}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["RolesController_duplicate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/brain": {
         parameters: {
             query?: never;
@@ -3675,6 +3739,12 @@ export interface components {
             createdAt: string;
             /** @enum {string} */
             role: "OWNER" | "ADMIN" | "AGENT";
+            permissions?: string[];
+            customRole?: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+            } | null;
             active: boolean;
         };
         CreateWorkspaceDto: {
@@ -4511,6 +4581,11 @@ export interface components {
                 userId: string;
                 /** @enum {string} */
                 role: "OWNER" | "ADMIN" | "AGENT";
+                customRole: {
+                    /** Format: uuid */
+                    id: string;
+                    name: string;
+                } | null;
                 /** @enum {string} */
                 status: "ACTIVE" | "SUSPENDED";
                 name: string;
@@ -4540,6 +4615,11 @@ export interface components {
             userId: string;
             /** @enum {string} */
             role: "OWNER" | "ADMIN" | "AGENT";
+            customRole: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+            } | null;
             /** @enum {string} */
             status: "ACTIVE" | "SUSPENDED";
             name: string;
@@ -4574,6 +4654,7 @@ export interface components {
         UpdateMemberDto: {
             /** @enum {string} */
             role?: "ADMIN" | "AGENT";
+            customRoleId?: string | null;
             /** @enum {string} */
             status?: "ACTIVE" | "SUSPENDED";
         };
@@ -4707,6 +4788,74 @@ export interface components {
         };
         AcceptDto: {
             token: string;
+        };
+        RoleListDto: {
+            data: {
+                id: string;
+                /** @enum {string} */
+                kind: "SYSTEM" | "CUSTOM";
+                name: string;
+                description: string | null;
+                templateKey: string | null;
+                permissions: string[];
+                memberCount: number;
+                editable: boolean;
+                createdAt: string | null;
+                updatedAt: string | null;
+                updatedBy: {
+                    /** Format: uuid */
+                    id: string;
+                    name: string;
+                } | null;
+            }[];
+        };
+        RoleTemplateListDto: {
+            data: {
+                key: string;
+                label: string;
+                description: string;
+                permissions: string[];
+            }[];
+        };
+        RoleDetailDto: {
+            id: string;
+            /** @enum {string} */
+            kind: "SYSTEM" | "CUSTOM";
+            name: string;
+            description: string[];
+            templateKey: string[];
+            permissions: string[];
+            memberCount: number;
+            editable: boolean;
+            createdAt: string | null;
+            updatedAt: string | null;
+            updatedBy: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+            } | null;
+            members: {
+                /** Format: uuid */
+                id: string;
+                /** Format: uuid */
+                userId: string;
+                name: string;
+                email: string;
+            }[];
+        };
+        CreateRoleDto: {
+            name: string;
+            description?: string | null;
+            templateKey?: string | null;
+            permissions: string[];
+        };
+        UpdateRoleDto: {
+            name?: string;
+            description?: string | null;
+            permissions?: string[];
+        };
+        DeleteRoleDto: {
+            reassignTo?: ("ADMIN" | "AGENT") | string;
         };
         BrainDocumentDto: {
             config: {
@@ -9975,6 +10124,165 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AcceptedDto"];
+                };
+            };
+        };
+    };
+    RolesController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleListDto"];
+                };
+            };
+        };
+    };
+    RolesController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRoleDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleDetailDto"];
+                };
+            };
+        };
+    };
+    RolesController_templates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleTemplateListDto"];
+                };
+            };
+        };
+    };
+    RolesController_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                roleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleDetailDto"];
+                };
+            };
+        };
+    };
+    RolesController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                roleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeleteRoleDto"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RolesController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                roleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRoleDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleDetailDto"];
+                };
+            };
+        };
+    };
+    RolesController_duplicate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                roleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleDetailDto"];
                 };
             };
         };

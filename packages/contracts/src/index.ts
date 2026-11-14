@@ -178,6 +178,10 @@ export const workspaceSchema = z.object({
 
 export const workspaceWithRoleSchema = workspaceSchema.extend({
   role: workspaceRoleSchema,
+  /** What the signed-in member may do in this store: their custom role's list, else their system role's. Absent on endpoints that do not compute it. */
+  permissions: z.array(z.string()).optional(),
+  /** Set when the member has a custom role. */
+  customRole: z.object({ id: z.uuid(), name: z.string() }).nullable().optional(),
   /** The store the app opens now: the last one the person used, else the oldest. Exactly one is true. */
   active: z.boolean(),
 });
@@ -189,6 +193,8 @@ export const memberSchema = z.object({
   id: z.uuid(),
   userId: z.uuid(),
   role: workspaceRoleSchema,
+  /** Set when the member has a custom role; `role` is then AGENT, the base role every system rule still applies to. */
+  customRole: z.object({ id: z.uuid(), name: z.string() }).nullable(),
   status: membershipStatusSchema,
   name: z.string(),
   email: z.email(),
@@ -826,9 +832,15 @@ export const memberDetailSchema = memberSchema.extend({ resolvedLast30Days: z.nu
 export const updateMemberSchema = z
   .object({
     role: z.enum(['ADMIN', 'AGENT']).optional(),
+    /** A custom role to give the member; null removes it. Giving a system `role` also removes it. */
+    customRoleId: z.uuid().nullable().optional(),
     status: membershipStatusSchema.optional(),
   })
-  .refine((v) => Object.keys(v).length > 0, 'Nothing to update');
+  .refine((v) => Object.keys(v).length > 0, 'Nothing to update')
+  .refine((v) => !(v.role && v.customRoleId), {
+    path: ['customRoleId'],
+    message: 'Choose either a system role or a custom role',
+  });
 export type UpdateMemberInput = z.infer<typeof updateMemberSchema>;
 
 export const memberActivitySchema = z.object({
@@ -1108,3 +1120,75 @@ export const channelActivitySchema = z.object({
 export * from './brain-imports';
 export * from './ai';
 export * from './brain-version';
+
+// ---------- Roles & permissions ----------
+
+const roleNameSchema = z
+  .string()
+  .trim()
+  .min(2, 'Role name needs at least 2 characters')
+  .max(40, 'Role name can be at most 40 characters');
+const roleDescriptionSchema = z
+  .string()
+  .trim()
+  .max(200, 'Description can be at most 200 characters')
+  .nullable()
+  .optional()
+  .transform((v) => (v ? v : null));
+const permissionKeySchema = z.string().min(3).max(40);
+
+export const createRoleSchema = z.strictObject({
+  name: roleNameSchema,
+  description: roleDescriptionSchema,
+  /** The template the role was started from, kept as a label only. */
+  templateKey: z.string().max(40).nullable().optional(),
+  permissions: z.array(permissionKeySchema).max(60),
+});
+export type CreateRoleInput = z.infer<typeof createRoleSchema>;
+
+export const updateRoleSchema = z
+  .strictObject({
+    name: roleNameSchema.optional(),
+    description: roleDescriptionSchema,
+    permissions: z.array(permissionKeySchema).max(60).optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, 'Nothing to update');
+export type UpdateRoleInput = z.infer<typeof updateRoleSchema>;
+
+export const deleteRoleSchema = z.strictObject({
+  /** Where the role's members go: ADMIN, AGENT or another custom role's id. Required while the role has members. */
+  reassignTo: z.union([z.enum(['ADMIN', 'AGENT']), z.uuid()]).optional(),
+});
+export type DeleteRoleInput = z.infer<typeof deleteRoleSchema>;
+
+export const roleSchema = z.object({
+  /** A system role's key (OWNER, ADMIN, AGENT) or a custom role's id. */
+  id: z.string(),
+  kind: z.enum(['SYSTEM', 'CUSTOM']),
+  name: z.string(),
+  description: z.string().nullable(),
+  templateKey: z.string().nullable(),
+  permissions: z.array(z.string()),
+  memberCount: z.number().int(),
+  /** False for the Owner role, which is fixed. */
+  editable: z.boolean(),
+  createdAt: z.iso.datetime().nullable(),
+  updatedAt: z.iso.datetime().nullable(),
+  updatedBy: z.object({ id: z.uuid(), name: z.string() }).nullable(),
+});
+export const roleListSchema = z.object({ data: z.array(roleSchema) });
+export const roleDetailSchema = roleSchema.extend({
+  members: z.array(
+    z.object({ id: z.uuid(), userId: z.uuid(), name: z.string(), email: z.string() }),
+  ),
+});
+export const roleTemplateListSchema = z.object({
+  data: z.array(
+    z.object({
+      key: z.string(),
+      label: z.string(),
+      description: z.string(),
+      permissions: z.array(z.string()),
+    }),
+  ),
+});

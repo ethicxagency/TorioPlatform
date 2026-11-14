@@ -14,7 +14,12 @@ import type {
   UpdateMemberInput,
   UpdateTeamInput,
 } from '@torio/contracts';
-import { assignableRoles, canManageMember, type WorkspaceRole } from '@torio/types';
+import {
+  assignableRoles,
+  canManageMember,
+  type Permission,
+  type WorkspaceRole,
+} from '@torio/types';
 import { createHash, randomBytes } from 'node:crypto';
 import { APP_CONFIG, type AppConfig } from '../../config/config.module';
 import { PrismaService } from '../../database/prisma.service';
@@ -31,6 +36,8 @@ const ROLE_LABEL: Record<WorkspaceRole, string> = {
 export interface Actor {
   userId: string;
   role: WorkspaceRole;
+  /** What the actor may do themselves. Nobody can give another member more than this. */
+  permissions: ReadonlySet<Permission>;
 }
 
 /** Member, invitation and team management. Every query is scoped by workspaceId; every mutation is policy-checked and audited. */
@@ -77,6 +84,7 @@ export class TeamService {
       role: WorkspaceRole;
       status: 'ACTIVE' | 'SUSPENDED';
       createdAt: Date;
+      customRole?: { id: string; name: string } | null;
       user: {
         name: string;
         email: string;
@@ -109,6 +117,7 @@ export class TeamService {
         id: r.id,
         userId: r.userId,
         role: r.role,
+        customRole: r.customRole ?? null,
         status: r.status,
         name: r.user.name,
         email: r.user.email,
@@ -123,6 +132,7 @@ export class TeamService {
   }
 
   private memberInclude = {
+    customRole: { select: { id: true, name: true } },
     user: {
       select: {
         name: true,
@@ -227,29 +237,79 @@ export class TeamService {
       throw new ForbiddenException('You are not allowed to manage this member');
     if (input.role && !assignableRoles(actor.role).includes(input.role))
       throw new ForbiddenException('You are not allowed to assign that role');
-    const events: string[] = [];
+    const db = this.prisma.client;
+    const before = await db.workspaceMembership.findUniqueOrThrow({
+      where: { id: memberId },
+      select: { customRole: { select: { id: true, name: true } } },
+    });
+    // A custom role is only ever given from this workspace, and never carries a permission the giver does not hold.
+    let custom: { id: string; name: string } | null | undefined;
+    if (input.customRoleId) {
+      const def = await db.workspaceRoleDef.findFirst({
+        where: { id: input.customRoleId, workspaceId: ws },
+      });
+      if (!def) throw new NotFoundException('Role not found');
+      const beyond = def.permissions.filter((p) => !actor.permissions.has(p as Permission));
+      if (beyond.length)
+        throw new ForbiddenException(
+          'That role includes permissions you do not have, so you cannot give it to someone else',
+        );
+      custom = { id: def.id, name: def.name };
+    } else if (input.customRoleId === null || input.role) custom = null;
+
+    const events: { action: string; description: string; meta?: Prisma.InputJsonValue }[] = [];
     const who = await this.nameOf(target.userId);
     if (input.role && input.role !== target.role)
-      events.push(`Role changed from ${ROLE_LABEL[target.role]} to ${ROLE_LABEL[input.role]}`);
+      events.push({
+        action: 'member.role_change',
+        description: `Role changed from ${before.customRole?.name ?? ROLE_LABEL[target.role]} to ${ROLE_LABEL[input.role]}`,
+        meta: { from: before.customRole?.id ?? target.role, to: input.role },
+      });
+    else if (input.role && before.customRole)
+      events.push({
+        action: 'member.role_change',
+        description: `Role changed from ${before.customRole.name} to ${ROLE_LABEL[input.role]}`,
+        meta: { from: before.customRole.id, to: input.role },
+      });
+    if (custom !== undefined && custom?.id !== before.customRole?.id && !input.role)
+      events.push({
+        action: 'member.role_change',
+        description: custom
+          ? `Role changed from ${before.customRole?.name ?? ROLE_LABEL[target.role]} to ${custom.name}`
+          : `Custom role ${before.customRole?.name ?? ''} removed; now ${ROLE_LABEL[target.role]}`.replace(
+              '  ',
+              ' ',
+            ),
+        meta: { from: before.customRole?.id ?? target.role, to: custom?.id ?? target.role },
+      });
     if (input.status && input.status !== target.status)
-      events.push(input.status === 'SUSPENDED' ? 'Access suspended' : 'Access restored');
+      events.push({
+        action: 'member.update',
+        description: input.status === 'SUSPENDED' ? 'Access suspended' : 'Access restored',
+      });
     await this.prisma.client.$transaction(async (tx) => {
       await tx.workspaceMembership.update({
         where: { id: memberId },
         data: {
           ...(input.role && { role: input.role }),
+          ...(custom !== undefined && { customRoleId: custom?.id ?? null }),
+          // The base role of a custom-role member is AGENT, so the Owner/Admin rules never apply to them by accident.
+          ...(custom && { role: 'AGENT' as const }),
           ...(input.status && { status: input.status }),
         },
       });
-      for (const description of events)
+      for (const e of events)
         await tx.auditLog.create({
           data: {
             workspaceId: ws,
             actorId: actor.userId,
-            action: 'member.update',
+            action: e.action,
             entityType: 'membership',
             entityId: memberId,
-            metadata: { description: `${description} (${who})` },
+            metadata: {
+              description: `${e.description} (${who})`,
+              ...(e.meta ? { change: e.meta } : {}),
+            },
           },
         });
     });

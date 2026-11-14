@@ -290,6 +290,7 @@ model Workspace {
 
   createdBy            User?                 @relation("WorkspaceCreator", fields: [createdById], references: [id], onDelete: SetNull)
   memberships          WorkspaceMembership[]
+  customRoles          WorkspaceRoleDef[]
   preferredBy          UserPreferences[]
   auditLogs            AuditLog[]
   channels             Channel[]
@@ -330,22 +331,53 @@ model Workspace {
 }
 
 model WorkspaceMembership {
-  id          String           @id @default(uuid(7)) @db.Uuid
-  workspaceId String           @db.Uuid
-  userId      String           @db.Uuid
-  role        WorkspaceRole    @default(AGENT)
-  status      MembershipStatus @default(ACTIVE)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id           String           @id @default(uuid(7)) @db.Uuid
+  workspaceId  String           @db.Uuid
+  userId       String           @db.Uuid
+  /// The system role. A member with a custom role keeps AGENT here, so every rule written for the three system roles
+  /// (who may manage whom, owner protection) keeps applying; the custom role only changes what they are allowed to do.
+  role         WorkspaceRole    @default(AGENT)
+  /// When set, this role's permission list replaces the system role's for authorization.
+  customRoleId String?          @db.Uuid
+  status       MembershipStatus @default(ACTIVE)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
-  workspace       Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace       Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customRole      WorkspaceRoleDef? @relation(fields: [customRoleId], references: [id], onDelete: Restrict)
   teamMemberships TeamMembership[]
 
   @@unique([workspaceId, userId])
   @@index([userId])
   @@index([workspaceId, role])
+  @@index([customRoleId])
   @@map("workspace_memberships")
+}
+
+/// A workspace-scoped custom role: a name and a list of stable permission keys (see @torio/types). Deleting a role that
+/// members still use is refused by the foreign key and by the API, which asks for a reassignment first.
+model WorkspaceRoleDef {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  workspaceId String   @db.Uuid
+  name        String
+  /// Lower-cased name, so "Support" and "support" cannot both exist in one workspace.
+  nameKey     String
+  description String?
+  /// The template it was started from (a label for people only; the permission list below is what is enforced).
+  templateKey String?
+  permissions String[]
+  createdById String?  @db.Uuid
+  updatedById String?  @db.Uuid
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  memberships WorkspaceMembership[]
+
+  @@unique([workspaceId, nameKey])
+  @@index([workspaceId])
+  @@map("workspace_roles")
 }
 
 /// Per-user preferences that follow the person across stores. `lastActiveWorkspaceId` is the store restored after sign-in.

@@ -47,7 +47,11 @@ class TeamListDto extends createZodDto(teamListSchema) {}
 class TeamInputDto extends createZodDto(teamInputSchema) {}
 class UpdateTeamDto extends createZodDto(updateTeamSchema) {}
 
-const actor = (u: AuthUser, m: WorkspaceMembershipContext) => ({ userId: u.id, role: m.role });
+const actor = (u: AuthUser, m: WorkspaceMembershipContext) => ({
+  userId: u.id,
+  role: m.role,
+  permissions: m.permissions,
+});
 
 @ApiTags('team')
 @ApiBearerAuth()

@@ -66,6 +66,9 @@ describe.skipIf(!url)('AI infrastructure (real PostgreSQL, fake providers)', () 
     configureApp(app);
     await app.init();
     db = createPrismaClient(url!);
+    // The admin overview is platform-wide, so start from an empty AI ledger (this is a dedicated test database).
+    await db.aiCall.deleteMany();
+    await db.aiRequest.deleteMany();
     const jwt = app.get(JwtService);
     auth = async (id) => ({
       Authorization: `Bearer ${await jwt.signAsync({ sub: id, sid: 's' })}`,
@@ -225,6 +228,7 @@ describe.skipIf(!url)('AI infrastructure (real PostgreSQL, fake providers)', () 
     // Brain knowledge for the store
     const { emptyBrainConfig } = await import('@torio/contracts');
     const b = emptyBrainConfig();
+    b.identity.name = 'Urban Nest';
     b.voice.language = 'English';
     b.shipping.timeInside = '2-3 days';
     b.products = [
@@ -351,13 +355,21 @@ describe.skipIf(!url)('AI infrastructure (real PostgreSQL, fake providers)', () 
       .get(`/api/v1/workspaces/${ids.wsB}/ai/requests/${any!.requestId}/phase`)
       .set(out)
       .expect(404);
-    expect(await db.aiRequest.count({ where: { workspaceId: ids.wsB! } })).toBe(0);
+    // The other store's refused attempt is recorded as its own failed request; nothing succeeded for it, and this store's
+    // ledger is untouched by it.
+    expect(
+      await db.aiRequest.count({ where: { workspaceId: ids.wsB!, status: 'succeeded' } }),
+    ).toBe(0);
+    expect(await db.aiRequest.count({ where: { workspaceId: ids.wsA!, status: 'failed' } })).toBe(
+      0,
+    );
   });
 
   it('admin usage and logs show recorded requests, and a key can be removed (turning the provider off)', async () => {
     const o = (await admin.get('/overview?days=30').expect(200)).body;
+    // 3 requests: the two drafts, and the other store's refused attempt (recorded as failed in that store).
     expect(o).toMatchObject({
-      requests: 2,
+      requests: 3,
       succeeded: 2,
       inputTokens: 2000,
       estimatedCostMicros: 2400,

@@ -26,6 +26,6 @@ export class DashboardController {
     @CurrentMembership() m: WorkspaceMembershipContext,
     @Query() q: AnalyticsQueryDto,
   ) {
-    return this.dashboard.analytics(ws, m.role, q);
+    return this.dashboard.analytics(ws, m.permissions.has('billing:read'), q);
   }
 }
