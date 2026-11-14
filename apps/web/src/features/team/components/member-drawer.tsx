@@ -10,7 +10,7 @@ import { useShell } from '@/components/shell/shell-context';
 import { ConfirmDialog } from '@/features/inbox/components/confirm-dialog';
 import { fmtAgo, initialsOf } from '@/features/inbox/format';
 import { useWorkspace } from '@/lib/workspace';
-import { useMemberActivity, useMemberDetail, useTeamMutations } from '../queries';
+import { useRoles, useMemberActivity, useMemberDetail, useTeamMutations } from '../queries';
 import { ROLE_INFO, type Member, type Role } from '../types';
 import { RoleBadge, StatusBadge } from './role-badge';
 import { fmtDate, fmtStamp } from '@/lib/datetime';
@@ -24,7 +24,13 @@ interface Props {
 }
 
 type Pending =
-  | { kind: 'role'; role: 'ADMIN' | 'AGENT' }
+  | {
+      kind: 'role';
+      role?: 'ADMIN' | 'AGENT';
+      customRoleId?: string;
+      label: string;
+      description: string;
+    }
   | { kind: 'suspend' }
   | { kind: 'restore' }
   | { kind: 'remove' }
@@ -33,7 +39,8 @@ const heading = 'm-0 mb-1.5 text-[12px] font-semibold uppercase tracking-[0.04em
 
 export function MemberDrawer({ member: initial, meId, actorRole, canAudit, onClose }: Props) {
   const { toast, registerEscape } = useShell();
-  const { workspaceId: ws } = useWorkspace();
+  const { workspaceId: ws, permissions } = useWorkspace();
+  const customRoles = useRoles(ws);
   const detail = useMemberDetail(ws, initial.id);
   const m = detail.data ?? { ...initial, resolvedLast30Days: null as number | null };
   const acts = useMemberActivity(ws, initial.id, canAudit);
@@ -49,6 +56,11 @@ export function MemberDrawer({ member: initial, meId, actorRole, canAudit, onClo
 
   const isSelf = m.userId === meId;
   const manageable = !isSelf && canManageMember(actorRole, m.role);
+  const mine = new Set(permissions ?? []);
+  // Custom roles this person may give: only ones whose every permission they hold themselves (the server checks it too).
+  const givable = (customRoles.data ?? []).filter(
+    (r) => r.kind === 'CUSTOM' && r.permissions.every((p) => mine.has(p)),
+  );
   const roles = assignableRoles(actorRole).filter((r): r is 'ADMIN' | 'AGENT' => r !== 'OWNER');
   const err = (e: unknown) => {
     setPending(null);
@@ -68,7 +80,9 @@ export function MemberDrawer({ member: initial, meId, actorRole, canAudit, onClo
       });
     const body =
       pending.kind === 'role'
-        ? { role: pending.role }
+        ? pending.customRoleId
+          ? { customRoleId: pending.customRoleId }
+          : { role: pending.role }
         : { status: pending.kind === 'suspend' ? ('SUSPENDED' as const) : ('ACTIVE' as const) };
     mut.updateMember.mutate(
       { id: m.id, body },
@@ -90,10 +104,7 @@ export function MemberDrawer({ member: initial, meId, actorRole, canAudit, onClo
   const copy: Record<string, { title: string; body: string; label: string }> = {
     role: {
       title: `Change ${m.name}'s role?`,
-      body:
-        pending?.kind === 'role'
-          ? `${ROLE_INFO[pending.role].label}: ${ROLE_INFO[pending.role].description}`
-          : '',
+      body: pending?.kind === 'role' ? `${pending.label}: ${pending.description}` : '',
       label: 'Change role',
     },
     suspend: {
@@ -133,7 +144,7 @@ export function MemberDrawer({ member: initial, meId, actorRole, canAudit, onClo
             </h2>
             <div className="truncate text-[13px] text-muted">{m.email}</div>
             <div className="mt-1.5 flex items-center gap-2">
-              <RoleBadge role={m.role} />
+              <RoleBadge role={m.role} name={m.customRole?.name} />
               <StatusBadge status={m.status} />
             </div>
           </div>
@@ -156,12 +167,27 @@ export function MemberDrawer({ member: initial, meId, actorRole, canAudit, onClo
               <label className="flex flex-col gap-1.5 text-[13px] font-medium">
                 Role
                 <FieldSelect
-                  value={m.role}
+                  value={m.customRole?.id ?? m.role}
                   disabled={mut.updateMember.isPending}
-                  onChange={(e) =>
-                    e.target.value !== m.role &&
-                    setPending({ kind: 'role', role: e.target.value as 'ADMIN' | 'AGENT' })
-                  }
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === (m.customRole?.id ?? m.role)) return;
+                    const custom = givable.find((r) => r.id === v);
+                    if (custom)
+                      setPending({
+                        kind: 'role',
+                        customRoleId: custom.id,
+                        label: custom.name,
+                        description: custom.description ?? 'A custom role.',
+                      });
+                    else
+                      setPending({
+                        kind: 'role',
+                        role: v as 'ADMIN' | 'AGENT',
+                        label: ROLE_INFO[v as 'ADMIN' | 'AGENT'].label,
+                        description: ROLE_INFO[v as 'ADMIN' | 'AGENT'].description,
+                      });
+                  }}
                   className="h-9 rounded-[10px] border border-line bg-white px-2.5 text-sm font-normal"
                 >
                   {roles.map((r) => (
@@ -169,9 +195,21 @@ export function MemberDrawer({ member: initial, meId, actorRole, canAudit, onClo
                       {ROLE_INFO[r].label}
                     </option>
                   ))}
+                  {m.customRole && !givable.some((r) => r.id === m.customRole!.id) && (
+                    <option value={m.customRole.id} disabled>
+                      {m.customRole.name}
+                    </option>
+                  )}
+                  {givable.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name} (custom)
+                    </option>
+                  ))}
                 </FieldSelect>
                 <span className="text-xs font-normal text-muted">
-                  {ROLE_INFO[m.role].description}
+                  {m.customRole
+                    ? `${m.customRole.name}: a custom role. Its permissions replace the Agent role's.`
+                    : ROLE_INFO[m.role].description}
                 </span>
               </label>
             ) : (

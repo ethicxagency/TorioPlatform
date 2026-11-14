@@ -275,7 +275,7 @@ export function MembersTab(p: Props) {
                       </div>
                     </td>
                     <td className="px-3 py-3">
-                      <RoleBadge role={m.role} />
+                      <RoleBadge role={m.role} name={m.customRole?.name} />
                     </td>
                     <td className="max-w-[180px] px-3 py-3 max-lg:hidden">
                       <span className="block truncate text-muted">
@@ -319,7 +319,7 @@ export function MembersTab(p: Props) {
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
                       <span className="truncate text-sm font-medium">{m.name}</span>
-                      <RoleBadge role={m.role} className="shrink-0" />
+                      <RoleBadge role={m.role} name={m.customRole?.name} className="shrink-0" />
                     </span>
                     <span className="block truncate text-xs text-muted">{m.email}</span>
                     <span className="mt-1 flex items-center gap-2">

@@ -2,6 +2,7 @@
 import type { Page } from '@playwright/test';
 
 import { evaluateMaturity, type BrainConfig } from '@torio/contracts';
+import { ROLE_PERMISSIONS, normalizeRolePermissions } from '@torio/types';
 
 const WS = '11111111-1111-4111-8111-111111111111';
 const USER = {
@@ -272,6 +273,7 @@ export const MEMBERS = [
     id: 'eeeeeeee-0000-4000-8000-000000000001',
     userId: USER.id,
     role: 'ADMIN',
+    customRole: null as { id: string; name: string } | null,
     status: 'ACTIVE',
     name: USER.name,
     email: USER.email,
@@ -284,6 +286,7 @@ export const MEMBERS = [
     id: 'eeeeeeee-0000-4000-8000-000000000002',
     userId: 'ffffffff-0000-4000-8000-000000000002',
     role: 'AGENT',
+    customRole: null as { id: string; name: string } | null,
     status: 'ACTIVE',
     name: 'Nadia Islam',
     email: 'nadia@example.test',
@@ -431,6 +434,29 @@ export const channelState = {
   failKeys: [] as string[],
   checks: [] as string[],
 };
+/** Roles & permissions: what the mocked API holds, and what the page sent. */
+export const rolesState = {
+  custom: [] as {
+    id: string;
+    name: string;
+    description: string | null;
+    templateKey: string | null;
+    permissions: string[];
+  }[],
+  /** Members of each custom role id (ids of the mocked members). */
+  assigned: {} as Record<string, string[]>,
+  calls: [] as { method: string; path: string; body?: unknown }[],
+  failCreate: null as string | null,
+};
+export const resetRoles = () => {
+  for (const m of MEMBERS) m.customRole = null;
+  rolesState.custom = [];
+  rolesState.assigned = {};
+  rolesState.calls = [];
+  rolesState.failCreate = null;
+};
+resetRoles();
+
 export const resetChannels = () => {
   channelState.list = [
     chan('77777777-7777-4777-8777-000000000001', 'WHATSAPP', 'Sales WhatsApp', 'CONNECTED', {
@@ -1457,6 +1483,7 @@ export async function mockApi(
       .addCookies([{ name: 'torio_authed', value: '1', url: 'http://localhost:3100' }]);
   inboxState.bulks = [];
   inboxState.empty = false;
+  resetRoles();
   searchState.requests = [];
   searchState.fail = false;
   await page.route('http://localhost:4000/**', async (route) => {
@@ -1862,6 +1889,105 @@ export async function mockApi(
         pendingInvitations: 1,
         unassignedOpenConversations: 3,
       });
+    if (p.startsWith(`/workspaces/${WS}/roles`)) {
+      const rest = p.slice(`/workspaces/${WS}/roles`.length);
+      const m = req.method();
+      let body: Record<string, any> | null | undefined;
+      try {
+        body = m === 'GET' ? undefined : (req.postDataJSON() as Record<string, any> | null);
+      } catch {
+        body = null;
+      }
+      if (m !== 'GET') rolesState.calls.push({ method: m, path: rest || '/', body });
+      const sys = (['OWNER', 'ADMIN', 'AGENT'] as const).map((k) => ({
+        id: k,
+        kind: 'SYSTEM',
+        name: k[0] + k.slice(1).toLowerCase(),
+        description: `${k} role`,
+        templateKey: null,
+        permissions: [...ROLE_PERMISSIONS[k]],
+        memberCount: MEMBERS.filter((x) => x.role === k && !x.customRole).length,
+        editable: false,
+        createdAt: null,
+        updatedAt: null,
+        updatedBy: null,
+      }));
+      const customNow = () =>
+        rolesState.custom.map((r) => ({
+          ...r,
+          kind: 'CUSTOM',
+          memberCount: (rolesState.assigned[r.id] ?? []).length,
+          editable: true,
+          createdAt: iso(60),
+          updatedAt: iso(5),
+          updatedBy: { id: USER.id, name: USER.name },
+        }));
+      const detail = (id: string) => {
+        const r = [...sys, ...customNow()].find((x) => x.id === id);
+        if (!r) return null;
+        const ids = rolesState.assigned[id] ?? [];
+        return {
+          ...r,
+          members: MEMBERS.filter((x) => ids.includes(x.id)).map((x) => ({
+            id: x.id,
+            userId: x.userId,
+            name: x.name,
+            email: x.email,
+          })),
+        };
+      };
+      if (rest === '' && m === 'GET') return reply({ data: [...sys, ...customNow()] });
+      if (rest === '' && m === 'POST') {
+        if (rolesState.failCreate) {
+          const message = rolesState.failCreate;
+          rolesState.failCreate = null;
+          return reply({ error: { message, statusCode: 409 } }, 409);
+        }
+        const id = `99999999-0000-4000-8000-00000000000${rolesState.custom.length + 1}`;
+        rolesState.custom.push({
+          id,
+          name: body!.name,
+          description: body!.description ?? null,
+          templateKey: body!.templateKey ?? null,
+          permissions: normalizeRolePermissions(body!.permissions),
+        });
+        return reply(detail(id), 201);
+      }
+      const id = rest.split('/')[1]!;
+      const action = rest.split('/')[2];
+      const found = rolesState.custom.find((r) => r.id === id);
+      if (m === 'GET') {
+        const d = detail(id);
+        return d ? reply(d) : reply({ error: { message: 'Role not found', statusCode: 404 } }, 404);
+      }
+      if (m === 'POST' && action === 'duplicate' && found) {
+        const nid = `99999999-0000-4000-8000-00000000001${rolesState.custom.length}`;
+        rolesState.custom.push({ ...found, id: nid, name: `${found.name} copy` });
+        return reply(detail(nid), 201);
+      }
+      if (m === 'PATCH' && found) {
+        const before = found.permissions.length;
+        Object.assign(found, {
+          ...(body!.name && { name: body!.name }),
+          ...(body!.description !== undefined && { description: body!.description }),
+          ...(body!.permissions && { permissions: normalizeRolePermissions(body!.permissions) }),
+        });
+        const lost = found.permissions.length < before ? (rolesState.assigned[id] ?? []).length : 0;
+        return reply({ ...detail(id), affectedMembers: lost });
+      }
+      if (m === 'DELETE' && found) {
+        const ids = rolesState.assigned[id] ?? [];
+        if (ids.length && !body?.reassignTo)
+          return reply(
+            { error: { message: 'Choose a role to move them to', statusCode: 400 } },
+            400,
+          );
+        rolesState.custom = rolesState.custom.filter((r) => r.id !== id);
+        delete rolesState.assigned[id];
+        return route.fulfill({ status: 204 });
+      }
+      return reply({ error: { message: 'Role not found', statusCode: 404 } }, 404);
+    }
     if (p === `/workspaces/${WS}/teams`)
       return reply({
         data: [
@@ -1916,6 +2042,26 @@ export async function mockApi(
           },
         ],
       });
+    if (p.startsWith(`/workspaces/${WS}/members/`) && req.method() === 'PATCH') {
+      const b = req.postDataJSON() as { role?: string; customRoleId?: string | null };
+      rolesState.calls.push({
+        method: 'PATCH',
+        path: p.slice(`/workspaces/${WS}`.length),
+        body: b,
+      });
+      const mem = MEMBERS.find((m) => p.endsWith(m.id)) ?? MEMBERS[1]!;
+      for (const k of Object.keys(rolesState.assigned))
+        rolesState.assigned[k] = rolesState.assigned[k]!.filter((x) => x !== mem.id);
+      if (b.customRoleId) {
+        const r = rolesState.custom.find((x) => x.id === b.customRoleId);
+        mem.customRole = r ? { id: r.id, name: r.name } : null;
+        (rolesState.assigned[b.customRoleId] ??= []).push(mem.id);
+      } else {
+        mem.customRole = null;
+        if (b.role) (mem as { role: string }).role = b.role;
+      }
+      return reply({ ...mem, resolvedLast30Days: 4 });
+    }
     if (p.startsWith(`/workspaces/${WS}/members/`))
       return p.endsWith('/activity')
         ? reply({ data: [] })

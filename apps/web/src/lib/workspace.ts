@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { roleHasPermission, type Permission } from '@torio/types';
+import { ROLE_PERMISSIONS, roleHasPermission, type Permission } from '@torio/types';
 import type { CreateStoreInput } from '@torio/contracts';
 import { api } from './api';
 
@@ -29,7 +29,16 @@ export function useWorkspace() {
     role: workspace?.role ?? null,
     stores,
     /** UI hint only — the API enforces permissions on every request. */
-    can: (p: Permission) => (workspace ? roleHasPermission(workspace.role, p) : false),
+    can: (p: Permission) =>
+      !workspace
+        ? false
+        : workspace.permissions
+          ? workspace.permissions.includes(p)
+          : roleHasPermission(workspace.role, p),
+    /** Everything the member may do here (their custom role's list, else their system role's). */
+    permissions: workspace
+      ? (workspace.permissions ?? [...ROLE_PERMISSIONS[workspace.role]])
+      : null,
     isLoading: q.isPending,
     error: q.error,
   };

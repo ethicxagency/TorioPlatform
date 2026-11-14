@@ -23,6 +23,8 @@ export const teamKeys = {
   activity: (ws: string, id: string) => ['team', ws, 'activity', id] as const,
   invitations: (ws: string) => ['team', ws, 'invitations'] as const,
   teams: (ws: string) => ['team', ws, 'teams'] as const,
+  roles: (ws: string) => ['team', ws, 'roles'] as const,
+  role: (ws: string, id: string) => ['team', ws, 'roles', id] as const,
 };
 const P = '/api/v1/workspaces/{workspaceId}';
 
@@ -225,6 +227,93 @@ export function useTeamMutations(ws: string | null) {
         if (!response.ok) throw fail(error, 'Could not delete the team', response.status);
       },
       onSuccess: invalidate,
+    }),
+  };
+}
+
+// ---------- roles & permissions ----------
+
+type RoleBody = ApiSchemas['CreateRoleDto'];
+type RoleUpdate = ApiSchemas['UpdateRoleDto'];
+
+export function useRoles(ws: string | null) {
+  return useQuery({
+    queryKey: teamKeys.roles(ws ?? ''),
+    enabled: !!ws,
+    queryFn: async () => {
+      const { data, error, response } = await api.GET(`${P}/roles`, {
+        params: { path: { workspaceId: ws! } },
+      });
+      if (!data) throw fail(error, 'Could not load roles', response.status);
+      return data.data;
+    },
+  });
+}
+
+export function useRole(ws: string | null, id: string | null) {
+  return useQuery({
+    queryKey: teamKeys.role(ws ?? '', id ?? ''),
+    enabled: !!ws && !!id,
+    queryFn: async () => {
+      const { data, error, response } = await api.GET(`${P}/roles/{roleId}`, {
+        params: { path: { workspaceId: ws!, roleId: id! } },
+      });
+      if (!data) throw fail(error, 'Could not load the role', response.status);
+      return data;
+    },
+  });
+}
+
+export function useRoleMutations(ws: string | null) {
+  const qc = useQueryClient();
+  // Role changes move member counts and effective access, so everything team-related refreshes.
+  const done = () =>
+    Promise.all([
+      qc.invalidateQueries({ queryKey: teamKeys.all(ws ?? '') }),
+      qc.invalidateQueries({ queryKey: ['workspaces'] }),
+    ]);
+  return {
+    create: useMutation({
+      mutationFn: async (body: RoleBody) => {
+        const { data, error, response } = await api.POST(`${P}/roles`, {
+          params: { path: { workspaceId: ws! } },
+          body,
+        });
+        if (!data) throw fail(error, 'Could not create the role', response.status);
+        return data;
+      },
+      onSuccess: done,
+    }),
+    update: useMutation({
+      mutationFn: async ({ id, body }: { id: string; body: RoleUpdate }) => {
+        const { data, error, response } = await api.PATCH(`${P}/roles/{roleId}`, {
+          params: { path: { workspaceId: ws!, roleId: id } },
+          body,
+        });
+        if (!data) throw fail(error, 'Could not save the role', response.status);
+        return data;
+      },
+      onSuccess: done,
+    }),
+    duplicate: useMutation({
+      mutationFn: async (id: string) => {
+        const { data, error, response } = await api.POST(`${P}/roles/{roleId}/duplicate`, {
+          params: { path: { workspaceId: ws!, roleId: id } },
+        });
+        if (!data) throw fail(error, 'Could not duplicate the role', response.status);
+        return data;
+      },
+      onSuccess: done,
+    }),
+    remove: useMutation({
+      mutationFn: async ({ id, reassignTo }: { id: string; reassignTo?: string }) => {
+        const { error, response } = await api.DELETE(`${P}/roles/{roleId}`, {
+          params: { path: { workspaceId: ws!, roleId: id } },
+          body: reassignTo ? { reassignTo } : {},
+        });
+        if (!response.ok) throw fail(error, 'Could not delete the role', response.status);
+      },
+      onSuccess: done,
     }),
   };
 }

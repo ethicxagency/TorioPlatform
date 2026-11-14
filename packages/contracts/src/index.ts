@@ -1166,8 +1166,8 @@ export const roleSchema = z.object({
   id: z.string(),
   kind: z.enum(['SYSTEM', 'CUSTOM']),
   name: z.string(),
-  description: z.string().nullable(),
-  templateKey: z.string().nullable(),
+  description: z.string().describe('Text, or null when not set').nullable(),
+  templateKey: z.string().describe('Template key, or null when none').nullable(),
   permissions: z.array(z.string()),
   memberCount: z.number().int(),
   /** False for the Owner role, which is fixed. */
@@ -1181,6 +1181,10 @@ export const roleDetailSchema = roleSchema.extend({
   members: z.array(
     z.object({ id: z.uuid(), userId: z.uuid(), name: z.string(), email: z.string() }),
   ),
+});
+export const roleUpdateResultSchema = roleDetailSchema.extend({
+  /** Members who lost some access because of this change, so the UI can say so. */
+  affectedMembers: z.number().int(),
 });
 export const roleTemplateListSchema = z.object({
   data: z.array(

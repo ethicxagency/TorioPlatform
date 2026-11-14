@@ -7,16 +7,25 @@ const STYLE: Record<Role, string> = {
   AGENT: 'bg-[#EDF1F5] text-[#5A6A82]',
 };
 
-export function RoleBadge({ role, className }: { role: Role; className?: string }) {
+export function RoleBadge({
+  role,
+  name,
+  className,
+}: {
+  role: Role;
+  /** A custom role's name, shown instead of the system role it is based on. */
+  name?: string | null;
+  className?: string;
+}) {
   return (
     <span
       className={cn(
         'inline-flex rounded-md px-2 py-0.5 text-xs font-medium',
-        STYLE[role],
+        name ? 'bg-[#F0F0FF] text-[#4F50D1]' : STYLE[role],
         className,
       )}
     >
-      {ROLE_INFO[role].label}
+      {name ?? ROLE_INFO[role].label}
     </span>
   );
 }

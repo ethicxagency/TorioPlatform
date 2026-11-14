@@ -34,3 +34,6 @@ export const ROLE_INFO: Record<Role, { label: string; description: string }> = {
       'Works the Inbox, leads and customers. Cannot manage members or workspace settings.',
   },
 };
+
+export type RoleItem = ApiSchemas['RoleListDto']['data'][number];
+export type RoleDetail = ApiSchemas['RoleDetailDto'];

@@ -4822,8 +4822,8 @@ export interface components {
             /** @enum {string} */
             kind: "SYSTEM" | "CUSTOM";
             name: string;
-            description: string[];
-            templateKey: string[];
+            description: string | null;
+            templateKey: string | null;
             permissions: string[];
             memberCount: number;
             editable: boolean;
@@ -4853,6 +4853,33 @@ export interface components {
             name?: string;
             description?: string | null;
             permissions?: string[];
+        };
+        RoleUpdateResultDto: {
+            id: string;
+            /** @enum {string} */
+            kind: "SYSTEM" | "CUSTOM";
+            name: string;
+            description: string | null;
+            templateKey: string | null;
+            permissions: string[];
+            memberCount: number;
+            editable: boolean;
+            createdAt: string | null;
+            updatedAt: string | null;
+            updatedBy: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+            } | null;
+            members: {
+                /** Format: uuid */
+                id: string;
+                /** Format: uuid */
+                userId: string;
+                name: string;
+                email: string;
+            }[];
+            affectedMembers: number;
         };
         DeleteRoleDto: {
             reassignTo?: ("ADMIN" | "AGENT") | string;
@@ -10260,7 +10287,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RoleDetailDto"];
+                    "application/json": components["schemas"]["RoleUpdateResultDto"];
                 };
             };
         };

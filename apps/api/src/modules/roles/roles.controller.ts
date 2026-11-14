@@ -16,6 +16,7 @@ import {
   deleteRoleSchema,
   roleDetailSchema,
   roleListSchema,
+  roleUpdateResultSchema,
   roleTemplateListSchema,
   updateRoleSchema,
 } from '@torio/contracts';
@@ -30,6 +31,7 @@ class UpdateRoleDto extends createZodDto(updateRoleSchema) {}
 class DeleteRoleDto extends createZodDto(deleteRoleSchema) {}
 class RoleListDto extends createZodDto(roleListSchema) {}
 class RoleDetailDto extends createZodDto(roleDetailSchema) {}
+class RoleUpdateResultDto extends createZodDto(roleUpdateResultSchema) {}
 class RoleTemplateListDto extends createZodDto(roleTemplateListSchema) {}
 
 const actor = (u: AuthUser, m: WorkspaceMembershipContext) => ({
@@ -83,7 +85,7 @@ export class RolesController {
 
   @Patch(':roleId')
   @RequirePermission('roles:manage')
-  @ApiOkResponse({ type: RoleDetailDto })
+  @ApiOkResponse({ type: RoleUpdateResultDto })
   update(
     @Param('workspaceId', ParseUUIDPipe) ws: string,
     @Param('roleId', ParseUUIDPipe) id: string,

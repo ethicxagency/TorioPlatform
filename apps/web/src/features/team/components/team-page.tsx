@@ -223,7 +223,15 @@ export function TeamPage() {
           onInvite={() => setInviting(true)}
         />
       )}
-      {tab === 'roles' && <RolesTab />}
+      {tab === 'roles' && (
+        <RolesTab
+          people={everyone.data?.data ?? []}
+          meId={user?.id ?? ''}
+          actorRole={role as Role}
+          canManageRoles={can('roles:manage')}
+          canAssign={canManage}
+        />
+      )}
 
       {open && (
         <MemberDrawer
