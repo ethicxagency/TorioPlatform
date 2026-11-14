@@ -1,7 +1,13 @@
 import { Global, Module } from '@nestjs/common';
+import { ChannelCryptoService } from '../whatsapp/channel-crypto.service';
 import { APP_CONFIG, type AppConfig } from '../../config/config.module';
 import { BillingWebhookController } from './billing-webhook.controller';
 import { BillingWebhookService } from './billing-webhook.service';
+import {
+  SslcommerzCallbackController,
+  SslcommerzWorkspaceController,
+} from './sslcommerz/sslcommerz.controller';
+import { SslcommerzService } from './sslcommerz/sslcommerz.service';
 import { PlansService } from './plans.service';
 import { BillingController } from './billing.controller';
 import { BillingService } from './billing.service';
@@ -11,10 +17,17 @@ import { UnconfiguredProvider } from './provider/unconfigured.provider';
 
 @Global()
 @Module({
-  controllers: [BillingController, BillingWebhookController],
-  exports: [PlansService, BillingService, BILLING_PROVIDER],
+  controllers: [
+    BillingController,
+    BillingWebhookController,
+    SslcommerzWorkspaceController,
+    SslcommerzCallbackController,
+  ],
+  exports: [PlansService, BillingService, BILLING_PROVIDER, SslcommerzService],
   providers: [
     BillingService,
+    SslcommerzService,
+    ChannelCryptoService,
     BillingWebhookService,
     PlansService,
     {

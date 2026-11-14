@@ -645,6 +645,33 @@ test.describe('super admin', () => {
     expect(put.body).toMatchObject({ confirmLive: true, values: { environment: 'live' } });
   });
 
+  test('Integrations: SSLCommerz lists payments across stores, shows why one needs review, and can check it again', async ({
+    page,
+  }) => {
+    await signIn(page);
+    await page.getByRole('link', { name: 'SSLCommerz (Payments)' }).click();
+    await page.getByLabel('storeId').fill('torio5f1a');
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await page
+      .getByRole('region', { name: 'Credentials' })
+      .getByRole('button', { name: 'Add' })
+      .first()
+      .click();
+    await page.getByLabel('New storePassword').fill('torio5f1a@ssl');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    const tx = page.getByRole('region', { name: 'Recent payments' });
+    await expect(tx.getByRole('row', { name: /TORIO-0123456789ABCDEF01/ })).toContainText(
+      'UrbanNest',
+    );
+    await expect(tx.getByRole('row', { name: /TORIO-AAAAAAAAAAAAAAAA03/ })).toContainText(
+      'Paid 1.00, expected 4500.00',
+    );
+    await expect(tx.getByText(/server-side validation matches/)).toBeVisible();
+    await expect(page.getByText('torio5f1a@ssl')).toHaveCount(0);
+    await tx.getByRole('button', { name: /Check TORIO-AAAAAAAAAAAAAAAA03/ }).click();
+    await expect(page.getByText('TORIO-AAAAAAAAAAAAAAAA03: paid')).toBeVisible();
+  });
+
   test('Integrations: the Meta Pixel page lists server events with failures and a manual retry', async ({
     page,
   }) => {

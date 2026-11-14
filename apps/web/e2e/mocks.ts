@@ -675,6 +675,16 @@ export const integrationsReply = (
         },
       },
     };
+  if (k === 'sslcommerz' && parts[1] === 'transactions' && parts[3] === 'reconcile')
+    return { status: 200, body: gatewayTx('PAID', parts[2]) };
+  if (k === 'sslcommerz' && parts[1] === 'transactions')
+    return {
+      status: 200,
+      body: {
+        data: [gatewayTx('PAID'), gatewayTx('REJECTED', 'TORIO-AAAAAAAAAAAAAAAA03')],
+        meta: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
+      },
+    };
   if (k === 'torio_meta_pixel' && parts[1] === 'events' && parts[2] === 'retry')
     return { status: 200, body: { retried: 1 } };
   if (k === 'torio_meta_pixel' && parts[1] === 'events')
@@ -1213,12 +1223,39 @@ export const billingState = {
   noInvoices: false,
   detailsEmail: null as string | null,
   invoiceQueries: [] as Record<string, string>[],
+  /** SSLCommerz: availability and the payments the mocked API reports. */
+  gateway: { available: false, environment: 'sandbox' as 'sandbox' | 'live' },
+  gatewayStatus: 'PAID' as string,
 };
+const gatewayTx = (status: string, tranId = 'TORIO-0123456789ABCDEF01') => ({
+  id: '55555555-5555-4555-8555-555555555555',
+  tranId,
+  workspaceId: '44444444-4444-4444-8444-444444444444',
+  workspaceName: 'UrbanNest',
+  planKey: 'growth',
+  interval: 'MONTH',
+  amountMinor: 450_000,
+  currency: 'BDT',
+  environment: 'sandbox',
+  status,
+  reason:
+    status === 'REJECTED'
+      ? 'Paid 1.00, expected 4500.00'
+      : status === 'FAILED'
+        ? 'Card declined'
+        : null,
+  paymentMethod: status === 'PAID' ? 'BKASH-bKash' : null,
+  gatewayRef: status === 'PAID' ? 'BANK1' : null,
+  createdAt: iso(60),
+  paidAt: status === 'PAID' ? iso(55) : null,
+});
 export const resetBilling = () => {
   billingState.noInvoices = false;
   billingState.detailsEmail = null;
   billingState.invoiceQueries = [];
   billingState.configured = true;
+  billingState.gateway = { available: false, environment: 'sandbox' };
+  billingState.gatewayStatus = 'PAID';
   billingState.sub = null;
   billingState.failed = false;
   billingState.profile = Object.fromEntries(
@@ -3648,6 +3685,7 @@ export async function mockApi(
         return reply({
           providerConfigured: billingState.configured,
           provider: billingState.configured ? 'stripe' : null,
+          gateway: { sslcommerz: billingState.gateway },
           onFreePlan: !sub,
           plan,
           subscription: sub && {
@@ -3713,7 +3751,25 @@ export async function mockApi(
           },
           aiCredits: { metered: false },
         });
-      if (rest === '/plans') return reply({ data: PLANS_MOCK });
+      if (rest === '/plans')
+        return reply({
+          data: PLANS_MOCK.map((x) => ({
+            ...x,
+            gatewayPurchasable: billingState.gateway.available && x.rank > 0,
+          })),
+        });
+      if (rest === '/sslcommerz/checkout')
+        return reply({
+          url: 'https://sandbox.sslcommerz.com/gw/MOCK',
+          tranId: 'TORIO-0123456789ABCDEF01',
+        });
+      if (rest === '/sslcommerz/transactions')
+        return reply({
+          data: [gatewayTx('PAID'), gatewayTx('FAILED', 'TORIO-FFFFFFFFFFFFFFFF02')],
+          meta: { page: 1, pageSize: 25, total: 2, totalPages: 1 },
+        });
+      if (rest.startsWith('/sslcommerz/transactions/'))
+        return reply(gatewayTx(billingState.gatewayStatus, rest.split('/').pop()));
       if (rest === '/usage')
         return reply({
           planKey: plan.key,

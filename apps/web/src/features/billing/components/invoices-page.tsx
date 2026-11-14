@@ -6,6 +6,7 @@ import { useWorkspace } from '@/lib/workspace';
 import { useOverview } from '../queries';
 import { Notice } from './bits';
 import { DetailsNotice } from './details-notice';
+import { GatewayPayments } from './gateway-payments';
 import { InvoicesSection } from './invoices-section';
 import { PaymentMethodsSection } from './payment-methods-section';
 
@@ -56,6 +57,12 @@ export function BillingInvoicesPage() {
       <section id="billing-invoices" className="scroll-mt-4">
         <InvoicesSection ws={ws} canManage={canManage} />
       </section>
+      {o && (
+        <GatewayPayments
+          ws={ws}
+          enabled={!!o.gateway?.sslcommerz.available || o.subscription?.source === 'GATEWAY'}
+        />
+      )}
       {o && (
         <section id="billing-payment-methods" className="scroll-mt-4">
           <PaymentMethodsSection ws={ws} o={o} canManage={canManage} />

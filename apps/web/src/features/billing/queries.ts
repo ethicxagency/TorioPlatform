@@ -243,3 +243,55 @@ export async function downloadInvoicePdf(ws: string, id: string, name: string) {
 }
 
 export type { Interval };
+
+// ---------- SSLCommerz payments ----------
+
+const S = `${P}/sslcommerz`;
+export type GatewayTx = ApiSchemas['GatewayTxDto'];
+
+export function useGatewayPayments(ws: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ['billing', ws ?? '', 'gateway-payments'] as const,
+    enabled: !!ws && enabled,
+    queryFn: async () => {
+      const { data, error, response } = await api.GET(`${S}/transactions`, {
+        params: { path: { workspaceId: ws! }, query: { page: 1, pageSize: 25 } },
+      });
+      if (!data) throw fail(error, 'Could not load payments', response.status);
+      return data;
+    },
+  });
+}
+
+/** The payment the customer just came back from. The server asks the gateway about it, and this polls until it is decided. */
+export function useGatewayPayment(ws: string | null, tranId: string | null) {
+  const qc = useQueryClient();
+  return useQuery({
+    queryKey: ['billing', ws ?? '', 'gateway-payment', tranId] as const,
+    enabled: !!ws && !!tranId,
+    refetchInterval: (q) =>
+      q.state.data && ['INITIATED', 'PENDING'].includes(q.state.data.status) ? 3000 : false,
+    queryFn: async () => {
+      const { data, error, response } = await api.GET(`${S}/transactions/{tranId}`, {
+        params: { path: { workspaceId: ws!, tranId: tranId! } },
+      });
+      if (!data) throw fail(error, 'Could not check the payment', response.status);
+      if (data.status === 'PAID')
+        void qc.invalidateQueries({ queryKey: billingKeys.all(ws ?? '') });
+      return data;
+    },
+  });
+}
+
+export function useGatewayCheckout(ws: string | null) {
+  return useMutation({
+    mutationFn: async (body: { planKey: string; interval: Interval }) => {
+      const { data, error, response } = await api.POST(`${S}/checkout`, {
+        params: { path: { workspaceId: ws! } },
+        body,
+      });
+      if (!data) throw fail(error, 'Could not start the payment', response.status);
+      return data;
+    },
+  });
+}

@@ -510,3 +510,90 @@ test.describe('billing (admin and agent)', () => {
     ).toHaveCount(0);
   });
 });
+
+test.describe('billing: paying once with SSLCommerz', () => {
+  test.beforeEach(async ({ page }) => {
+    resetBilling();
+    resetSettings();
+    billingState.configured = false; // no recurring-payment provider: SSLCommerz is the only way to pay
+    billingState.gateway = { available: true, environment: 'sandbox' };
+    await mockApi(page, { role: 'OWNER' });
+  });
+
+  test('plans offer SSLCommerz, say it is a one-time sandbox payment, and send only the plan and term', async ({
+    page,
+  }) => {
+    await page.goto('/billing/subscription?tab=plans');
+    await expect(page.getByRole('button', { name: 'Pay with SSLCommerz' }).first()).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Upgrade' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Pay with SSLCommerz' }).nth(1).click();
+    const d = page.getByRole('dialog', { name: /Pay for Growth/ });
+    await expect(d).toContainText('one-time payment');
+    await expect(d).toContainText('does not renew');
+    await expect(d).toContainText('sandbox');
+    await expect(d).toContainText('never reach Torio');
+    await page.route('https://sandbox.sslcommerz.com/**', (r) =>
+      r.fulfill({ contentType: 'text/html', body: '<title>Gateway</title>' }),
+    );
+    await d.getByRole('button', { name: 'Continue to SSLCommerz' }).click();
+    await page.waitForURL(/sandbox\.sslcommerz\.com\/gw\/MOCK/);
+    const sent = billingState.calls.find((c) => c.path.includes('/sslcommerz/checkout'))!;
+    expect(sent.body).toEqual({ planKey: 'growth', interval: 'MONTH' }); // no amount, no status, no workspace
+  });
+
+  test('a workspace on a Stripe subscription keeps the Stripe flow, and a viewer cannot pay', async ({
+    page,
+  }) => {
+    billingState.configured = true;
+    billingState.sub = {
+      planKey: 'starter',
+      interval: 'MONTH',
+      status: 'ACTIVE',
+      cancelAtPeriodEnd: false,
+      source: 'PROVIDER',
+    } as never;
+    await page.goto('/billing/subscription?tab=plans');
+    await expect(page.getByRole('button', { name: 'Pay with SSLCommerz' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Upgrade' }).first()).toBeVisible();
+  });
+
+  test('coming back from the gateway shows what the server found, never what the URL says', async ({
+    page,
+  }) => {
+    // the URL claims success, but the server says the payment is still pending
+    billingState.gatewayStatus = 'PENDING';
+    await page.goto('/billing/subscription?result=success&tran=TORIO-0123456789ABCDEF01');
+    await expect(page.getByText(/still being confirmed/)).toBeVisible();
+    await expect(page.getByText('Payment confirmed')).toHaveCount(0);
+    // a payment the gateway confirmed is reported as confirmed, with its reference
+    billingState.gatewayStatus = 'PAID';
+    await page.goto('/billing/subscription?result=success&tran=TORIO-0123456789ABCDEF01');
+    await expect(page.getByText('Payment confirmed.')).toBeVisible();
+    await expect(page.getByText(/Reference TORIO-0123456789ABCDEF01/)).toBeVisible();
+    // rejected and failed ones say so and that nothing changed
+    billingState.gatewayStatus = 'REJECTED';
+    await page.goto('/billing/subscription?result=review&tran=TORIO-0123456789ABCDEF01');
+    await expect(page.getByText(/couldn.t confirm this payment automatically/)).toBeVisible();
+    billingState.gatewayStatus = 'FAILED';
+    await page.goto('/billing/subscription?result=failed&tran=TORIO-0123456789ABCDEF01');
+    await expect(page.getByText(/did not go through: Card declined/)).toBeVisible();
+    billingState.gatewayStatus = 'CANCELLED';
+    await page.goto('/billing/subscription?result=cancelled&tran=TORIO-0123456789ABCDEF01');
+    await expect(page.getByText(/payment was cancelled. Nothing was changed/)).toBeVisible();
+  });
+
+  test('the Billing page lists SSLCommerz payments with their status and gateway reference', async ({
+    page,
+  }) => {
+    await page.goto('/billing/invoices');
+    const pay = page.getByRole('region', { name: 'SSLCommerz payments' });
+    await expect(pay.getByRole('row', { name: /TORIO-0123456789ABCDEF01/ })).toContainText('Paid');
+    await expect(pay.getByRole('row', { name: /TORIO-0123456789ABCDEF01/ })).toContainText(
+      'Gateway ref BANK1',
+    );
+    await expect(pay.getByRole('row', { name: /TORIO-FFFFFFFFFFFFFFFF02/ })).toContainText(
+      'Card declined',
+    );
+    await expect(pay.getByText('sandbox').first()).toBeVisible();
+  });
+});

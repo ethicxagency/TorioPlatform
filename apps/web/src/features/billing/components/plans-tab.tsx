@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Modal } from '@/features/leads/components/modal';
 import { cn } from '@/lib/utils';
-import { useBillingMutations, usePlans } from '../queries';
+import { useBillingMutations, useGatewayCheckout, usePlans } from '../queries';
 import type { Interval, Overview, Plan, Preview } from '../types';
 import { Card, money, Notice, PlaceholderTag } from './bits';
 import { ComparePlans } from './compare-plans';
@@ -41,18 +41,34 @@ export function PlansTab({
   const [interval, setIntervalState] = useState<Interval>(initialInterval);
   const [target, setTarget] = useState<Plan | null>(null);
   const curInterval = o.subscription?.interval ?? 'MONTH';
+  // SSLCommerz: a term paid once. It applies to a workspace with no subscription, or one already on such a term.
+  const gatewayMode =
+    !!o.gateway?.sslcommerz.available && (!o.subscription || o.subscription.source === 'GATEWAY');
 
   if (plans.isPending) return <Skeleton className="h-72 w-full" />;
   if (plans.isError || !plans.data) return <Notice tone="bad">Couldn&apos;t load plans.</Notice>;
   const list = plans.data;
   const price = (p: Plan) => (interval === 'YEAR' ? p.yearlyMinor : p.monthlyMinor);
   const label = (p: Plan) => {
+    if (gatewayMode) {
+      if (p.rank === 0) return o.subscription ? 'Ends by itself' : 'Current plan';
+      return o.subscription && p.key === o.plan.key
+        ? 'Pay for another term'
+        : 'Pay with SSLCommerz';
+    }
     if (p.key === o.plan.key && (p.key === 'free' || interval === curInterval))
       return 'Current plan';
     if (p.key === o.plan.key) return interval === 'YEAR' ? 'Switch to yearly' : 'Switch to monthly';
     return p.rank > o.plan.rank ? 'Upgrade' : 'Downgrade';
   };
   const why = (p: Plan): string | null => {
+    if (gatewayMode) {
+      if (p.rank === 0)
+        return o.subscription ? 'Your paid term ends on its own date' : 'This is your current plan';
+      if (!canManage) return 'Only the workspace owner can pay for a plan';
+      if (!p.gatewayPurchasable) return 'This plan can’t be paid through SSLCommerz right now';
+      return null;
+    }
     if (label(p) === 'Current plan') return 'This is your current plan';
     if (!canManage) return 'Only the workspace owner can change plans';
     if (!o.providerConfigured) return 'Payments aren’t connected yet';
@@ -225,7 +241,16 @@ export function PlansTab({
         <ComparePlans plans={list} currentKey={o.plan.key} interval={interval} />
       </Card>
 
-      {target && (
+      {target && gatewayMode && (
+        <GatewayPayDialog
+          ws={ws}
+          o={o}
+          plan={target}
+          interval={interval}
+          onClose={() => setTarget(null)}
+        />
+      )}
+      {target && !gatewayMode && (
         <ChangeDialog
           ws={ws}
           o={o}
@@ -239,6 +264,87 @@ export function PlansTab({
         />
       )}
     </div>
+  );
+}
+
+/**
+ * Paying for a plan once through SSLCommerz. The amount shown is Torio's own price for the plan; the server fixes it again when the
+ * payment is created and checks it with the gateway afterwards. Nothing changes until the gateway confirms the payment.
+ */
+function GatewayPayDialog({
+  ws,
+  o,
+  plan,
+  interval,
+  onClose,
+}: {
+  ws: string;
+  o: Overview;
+  plan: Plan;
+  interval: Interval;
+  onClose: () => void;
+}) {
+  const pay = useGatewayCheckout(ws);
+  const [error, setError] = useState('');
+  const amount = interval === 'YEAR' ? plan.yearlyMinor : plan.monthlyMinor;
+  const sandbox = o.gateway?.sslcommerz.environment === 'sandbox';
+  const extending = !!o.subscription && o.plan.key === plan.key;
+  const go = async () => {
+    setError('');
+    try {
+      const r = await pay.mutateAsync({ planKey: plan.key, interval });
+      window.location.assign(r.url); // the gateway's own page: payment details never touch Torio
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong');
+    }
+  };
+  return (
+    <Modal
+      title={`Pay for ${plan.name}`}
+      onClose={pay.isPending ? () => undefined : onClose}
+      footer={
+        <>
+          <Button variant="outline" disabled={pay.isPending} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button loading={pay.isPending} onClick={() => void go()}>
+            Continue to SSLCommerz
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3 text-[13px]">
+        <div className="rounded-xl bg-wash p-3">
+          <div className="font-semibold">
+            {plan.name} · {money(amount, plan.currency)} for one{' '}
+            {interval === 'YEAR' ? 'year' : 'month'}
+          </div>
+          <p className="mb-0 mt-2 text-muted">
+            {extending
+              ? 'This adds another term after your current one ends.'
+              : 'Your plan starts when SSLCommerz confirms the payment, and lasts for one ' +
+                (interval === 'YEAR' ? 'year' : 'month') +
+                '.'}
+          </p>
+        </div>
+        <ul className="m-0 list-disc pl-5 text-muted">
+          <li>It is a one-time payment. Torio does not renew it or charge you again by itself.</li>
+          {!extending && o.subscription && (
+            <li>Unused time on a different plan is not credited.</li>
+          )}
+          <li>
+            You pay on SSLCommerz&apos;s secure page, so card or wallet details never reach Torio.
+          </li>
+        </ul>
+        {sandbox && (
+          <Notice tone="warn" icon={TriangleAlert}>
+            SSLCommerz is in <b>sandbox</b> mode: this is a test payment and no real money moves.
+          </Notice>
+        )}
+        {plan.placeholderPricing && <PlaceholderTag />}
+        {error && <Notice tone="bad">{error}</Notice>}
+      </div>
+    </Modal>
   );
 }
 

@@ -349,7 +349,7 @@ describe('SSLCommerz', () => {
     expect(t.audits.map((a) => a.action)).toContain('integration.live_confirmed');
   });
 
-  it('shows the callback addresses it will use, labelled as not active yet', async () => {
+  it('shows the callback addresses SSLCommerz needs', async () => {
     const t = setup();
     const v = await t.svc.view('sslcommerz');
     expect(v.readOnly.map((r) => r.label)).toEqual([
@@ -358,6 +358,6 @@ describe('SSLCommerz', () => {
       'Cancel URL',
       'IPN URL',
     ]);
-    expect(v.readOnly[0]!.hint).toMatch(/Not active yet/);
+    expect(v.readOnly[0]!.hint).toMatch(/Give SSLCommerz this address/);
   });
 });

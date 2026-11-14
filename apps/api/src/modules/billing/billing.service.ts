@@ -1,3 +1,4 @@
+import { SslcommerzService } from './sslcommerz/sslcommerz.service';
 import {
   BadRequestException,
   ConflictException,
@@ -45,6 +46,7 @@ export class BillingService {
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly catalog: PlansService,
     private readonly platform: PlatformSettingsService,
+    private readonly ssl: SslcommerzService,
   ) {}
 
   private async seller() {
@@ -69,7 +71,7 @@ export class BillingService {
     sub: (NonNullable<Parameters<typeof subscriptionActions>[0]> & { source?: string }) | null,
   ) {
     const a = subscriptionActions(sub);
-    if (sub && sub.source === 'MANUAL')
+    if (sub && (sub.source === 'MANUAL' || sub.source === 'GATEWAY'))
       return {
         ...a,
         canChange: false,
@@ -91,7 +93,7 @@ export class BillingService {
     return this.prisma.client.subscription.findUnique({ where: { workspaceId: ws } });
   }
 
-  private planDto(p: CatalogPlan) {
+  private planDto(p: CatalogPlan, gateway = false) {
     return {
       key: p.key,
       name: p.name,
@@ -104,6 +106,7 @@ export class BillingService {
       placeholderPricing: p.placeholderPricing,
       purchasable:
         this.provider.isConfigured() && p.rank > 0 && p.status === 'ACTIVE' && this.hasPrices(p),
+      gatewayPurchasable: gateway,
       limits: Object.fromEntries(
         USAGE_METRICS.map((m) => [m, p.limits[m] === null ? -1 : p.limits[m]]),
       ) as Record<string, number>,
@@ -112,7 +115,12 @@ export class BillingService {
   }
 
   async plans() {
-    return { data: (await this.catalog.active()).map((p) => this.planDto(p)) };
+    const cfg = await this.ssl.liveConfig();
+    return {
+      data: (await this.catalog.active()).map((p) =>
+        this.planDto(p, !!cfg && this.ssl.canPay(p, cfg)),
+      ),
+    };
   }
 
   private subDto(s: SubRow) {
@@ -126,12 +134,15 @@ export class BillingService {
       startedAt: iso(s.startedAt),
       cancelAtPeriodEnd: s.cancelAtPeriodEnd,
       canceledAt: iso(s.canceledAt),
+      source: s.source,
     };
   }
 
   // ---------- overview & usage ----------
 
   async overview(ws: string) {
+    await this.ssl.expireDue().catch(() => 0);
+    const gate = await this.ssl.availability();
     const sub = await this.subRow(ws);
     const live = sub && sub.status !== 'EXPIRED' ? sub : null;
     const plan = await this.planFor(live);
@@ -154,6 +165,7 @@ export class BillingService {
     return {
       providerConfigured: this.provider.isConfigured(),
       provider: this.provider.name,
+      gateway: { sslcommerz: gate },
       onFreePlan: !live,
       plan: this.planDto(plan),
       subscription: live ? this.subDto(live) : null,

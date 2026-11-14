@@ -161,6 +161,8 @@ enum PlanStatus {
 enum SubscriptionSource {
   PROVIDER
   MANUAL
+  /// A fixed term paid once through a payment gateway (SSLCommerz). It does not renew by itself: it ends at currentPeriodEnd.
+  GATEWAY
 }
 
 enum LeadStage {
@@ -1778,4 +1780,41 @@ model MetaTrackingEvent {
   @@index([ownerKey, createdAt(sort: Desc)])
   @@index([ownerKey, status])
   @@map("meta_tracking_events")
+}
+
+/// One SSLCommerz payment attempt. The amount, currency, plan and workspace are fixed here when the attempt is created and are what
+/// the gateway's server-side validation is compared with; nothing the browser sends can change them. `appliedAt` is set exactly once,
+/// in the same transaction that extends the subscription, which is what makes callbacks, IPN replays and reconciliation idempotent.
+model PaymentGatewayTransaction {
+  id            String          @id @default(uuid(7)) @db.Uuid
+  gateway       String
+  /// Our unique reference for the attempt, sent to the gateway as tran_id.
+  tranId        String          @unique
+  workspaceId   String          @db.Uuid
+  userId        String?         @db.Uuid
+  planKey       String
+  interval      BillingInterval
+  amountMinor   Int
+  currency      String          @db.VarChar(3)
+  /// sandbox | live, as configured when the attempt was created.
+  environment   String
+  /// INITIATED | PENDING | PAID | FAILED | CANCELLED | REFUNDED | REJECTED | REVIEW
+  status        String          @default("INITIATED")
+  /// Why it is FAILED, CANCELLED, REJECTED or in REVIEW.
+  reason        String?
+  sessionKey    String?
+  valId         String?
+  bankTranId    String?
+  paymentMethod String?
+  /// The gateway's own validation answer for the accepted payment (no card numbers), kept for support.
+  gatewayResult Json?
+  invoiceId     String?         @db.Uuid
+  validatedAt   DateTime?
+  appliedAt     DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([workspaceId, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+  @@map("payment_gateway_transactions")
 }

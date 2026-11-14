@@ -7,7 +7,7 @@ import { useShell } from '@/components/shell/shell-context';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWorkspace } from '@/lib/workspace';
-import { useOverview } from '../queries';
+import { useGatewayPayment, useOverview } from '../queries';
 import { Notice, SubscriptionBadge } from './bits';
 import { DetailsNotice } from './details-notice';
 import { OverviewTab } from './overview-tab';
@@ -20,6 +20,65 @@ import { PlanSummary } from './plan-summary';
  * methods and billing details live on the Billing page. There is no subscription event history to show: Torio does not
  * keep one that is exposed, and nothing is invented in its place.
  */
+/** What happened to the payment the customer just came back from, from the server's check with the gateway, not from the URL. */
+function GatewayResult({
+  result,
+  payment,
+  loading,
+  error,
+}: {
+  result: string | null;
+  payment: { status: string; tranId: string; reason: string | null } | undefined;
+  loading: boolean;
+  error: string | null;
+}) {
+  if (loading) return <Notice>Checking your payment with SSLCommerz…</Notice>;
+  if (error) return <Notice tone="bad">We couldn&apos;t check that payment: {error}</Notice>;
+  if (!payment) return null;
+  const ref = <span className="text-faint"> Reference {payment.tranId}.</span>;
+  switch (payment.status) {
+    case 'PAID':
+      return (
+        <Notice>
+          <b>Payment confirmed.</b> Your plan is active.{ref}
+        </Notice>
+      );
+    case 'INITIATED':
+    case 'PENDING':
+      return (
+        <Notice>
+          {result === 'cancelled' || result === 'failed'
+            ? 'This payment was not completed. Nothing was changed.'
+            : 'Your payment is still being confirmed by SSLCommerz. This page updates by itself; your plan starts only once it is confirmed.'}
+          {ref}
+        </Notice>
+      );
+    case 'CANCELLED':
+      return <Notice>The payment was cancelled. Nothing was changed.{ref}</Notice>;
+    case 'FAILED':
+      return (
+        <Notice tone="bad">
+          The payment did not go through{payment.reason ? `: ${payment.reason}` : ''}. Nothing was
+          changed.{ref}
+        </Notice>
+      );
+    case 'REJECTED':
+    case 'REVIEW':
+      return (
+        <Notice tone="warn">
+          We couldn&apos;t confirm this payment automatically, so your plan has not changed
+          {payment.reason ? ` (${payment.reason})` : ''}. Contact support with the reference.{ref}
+        </Notice>
+      );
+    default:
+      return (
+        <Notice>
+          Payment status: {payment.status}.{ref}
+        </Notice>
+      );
+  }
+}
+
 export function SubscriptionPage() {
   const router = useRouter();
   const params = useSearchParams();
@@ -29,6 +88,8 @@ export function SubscriptionPage() {
   const [message, setMessage] = useState('');
   const plansView = params.get('tab') === 'plans';
   const result = params.get('result');
+  const tran = params.get('tran');
+  const payment = useGatewayPayment(can('billing:read') ? ws : null, tran);
   const canManage = can('billing:manage');
   // ?tab=usage (an older link) scrolls to the usage section.
   const focusUsage = params.get('tab') === 'usage';
@@ -106,13 +167,24 @@ export function SubscriptionPage() {
           to keep your subscription.
         </Notice>
       )}
-      {result === 'success' && (
-        <Notice>
-          Back from the provider. Your subscription appears here as soon as the provider confirms it
-          (usually within seconds).
-        </Notice>
+      {tran ? (
+        <GatewayResult
+          result={result}
+          payment={payment.data}
+          loading={payment.isPending}
+          error={payment.isError ? payment.error.message : null}
+        />
+      ) : (
+        <>
+          {result === 'success' && (
+            <Notice>
+              Back from the provider. Your subscription appears here as soon as the provider
+              confirms it (usually within seconds).
+            </Notice>
+          )}
+          {result === 'cancelled' && <Notice>Checkout was cancelled. Nothing was changed.</Notice>}
+        </>
       )}
-      {result === 'cancelled' && <Notice>Checkout was cancelled. Nothing was changed.</Notice>}
       {message && <Notice>{message}</Notice>}
 
       {o && plansView && (

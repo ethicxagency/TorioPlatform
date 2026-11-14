@@ -10,6 +10,7 @@ export type TemplateKey =
   | 'social_confirm'
   | 'account_deletion'
   | 'team_invitation'
+  | 'payment_confirmation'
   | 'workspace_notice'
   | 'test';
 
@@ -119,6 +120,18 @@ const specs: Record<TemplateKey, (v: Vars) => Spec> = {
     ],
     scope: 'platform',
   }),
+  payment_confirmation: (v) => ({
+    subject: `Payment received: ${v.plan ?? 'your plan'} on Torio`,
+    heading: 'Payment received',
+    before: [
+      `Hi ${v.name ?? 'there'},`,
+      `We received ${v.amount ?? 'your payment'} for the ${v.plan ?? ''} plan (${v.term ?? ''}) for ${v.workspace ?? 'your workspace'}.`,
+      `Your plan is active until ${v.until ?? 'the end of the term'}. It doesn't renew automatically; you can pay again before it ends to continue.`,
+    ],
+    button: v.link ? { label: 'View billing', url: v.link } : undefined,
+    after: [`Reference: ${v.reference ?? ''}`],
+    scope: 'platform',
+  }),
   workspace_notice: (v) => ({
     subject: v.subject ?? 'A message from your store',
     heading: v.title ?? 'A message from your store',
@@ -176,6 +189,16 @@ export const SAMPLE_VARS: Record<TemplateKey, Vars> = {
   password_code: { name: 'Alex', code: '482913' },
   social_confirm: { link: 'https://app.example.com/auth/complete?token=sample' },
   account_deletion: { name: 'Alex', link: 'https://app.example.com/delete-account?token=sample' },
+  payment_confirmation: {
+    name: 'Alex',
+    plan: 'Growth',
+    term: 'monthly',
+    amount: '৳4,500.00',
+    workspace: 'Urban Nest',
+    until: '2026-12-28',
+    reference: 'TORIO-ABC123',
+    link: 'https://app.example.com/billing',
+  },
   team_invitation: {
     inviter: 'Nadia',
     workspace: 'Urban Nest',

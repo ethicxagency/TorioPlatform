@@ -46,8 +46,6 @@ sandbox verification never carries over to live.
 ## Not done yet (later phases)
 
 - Phase 4: workspace Pixels and Inbox/manual purchase events (the sender below is built to be reused: events are keyed per owner).
-- Phase 5: SSLCommerz checkout, success/fail/cancel/IPN routes and server-side validation. The addresses shown on the SSLCommerz page
-  are labelled "Not active yet" because those routes do not exist until then.
 - Real connectivity to Mailgun, Meta and SSLCommerz has not been exercised: tests use mocked providers. Verify with real sandbox
   credentials before relying on any of it.
 
@@ -112,3 +110,60 @@ deploying: the sender writes to the log table (a failure to log never blocks an 
 ### Migration
 
 `20261127000000_meta_tracking_events` (additive). Apply with `pnpm db:deploy` before deploying.
+
+## Phase 5: SSLCommerz subscription payments
+
+**Model.** SSLCommerz takes one-time payments, so a payment buys a fixed **term** (one month or one year) of a plan. The workspace's
+subscription gets `source = GATEWAY`, `cancelAtPeriodEnd = true` (shown as "access until") and a `currentPeriodEnd`; Torio never charges again by
+itself, and a term that has ended becomes `EXPIRED` (marked by a 15-minute sweep, before billing reads, and ignored by the AI plan lookup
+the moment it passes). Paying again for the same plan before it ends adds a term after the current one; paying for a different plan, or
+after expiry, starts a term now (unused time on another plan is not credited). A workspace with a Stripe or manually granted subscription
+cannot pay here (409). It reuses the existing `subscriptions`, `invoices` and plan snapshot; there is no second subscription system.
+
+**Flow.**
+
+1. `POST /workspaces/:id/billing/sslcommerz/checkout` (`billing:manage`, rate limited; body `{planKey, interval}` only): needs the
+   gateway verified and on, complete billing details, a plan with a price in a configured currency (a placeholder price is only charged in
+   sandbox). Torio creates a `payment_gateway_transactions` row (unique `TORIO-…` id, plan, term, **amount and currency fixed by Torio**) and
+   opens an SSLCommerz session; the browser is sent to the gateway's page.
+2. The browser returns to `/api/v1/payments/sslcommerz/{success,fail,cancel}` and SSLCommerz also calls `/ipn`. None of that is trusted.
+   Torio asks the gateway (`validationserverAPI`, or `merchantTransIDvalidationAPI` when no validation id arrived) and starts the plan only when
+   the answer is VALID/VALIDATED **and** the transaction id, store id, currency and amount (to the cent) equal what Torio created and the
+   risk level is not flagged. Anything else is `REJECTED` (mismatch) or `REVIEW` (risky), visible to Super Admin with the reason.
+3. Starting the plan, the invoice (`sslcommerz:<tranId>`, status PAID) and the audit entry happen in one transaction guarded by
+   `appliedAt`, so a repeated success callback, an IPN replay or a reconciliation changes nothing. Afterwards a confirmation email and a
+   `Purchase` event (server-side, event id `purchase-<tranId>`) are sent best-effort; neither can undo the payment.
+4. IPNs must carry a valid `verify_sign` (MD5 scheme from SSLCommerz's docs) **and** pass the same server-side validation. Fail and cancel
+   callbacks only change attempts that are still open; a payment already confirmed is never undone by a late failure.
+5. The return page (`/billing/subscription?tran=…`) asks `GET …/sslcommerz/transactions/:tranId`, which re-checks a pending payment with
+   the gateway, and shows only what the server found ("Payment confirmed" only for `PAID`).
+
+**Statuses:** INITIATED, PENDING, PAID, FAILED, CANCELLED, REFUNDED (reserved), REJECTED, REVIEW.
+**Other endpoints:** `GET …/transactions` (workspace's own, `billing:read`); Super Admin `GET /admin/integrations/platform/sslcommerz/transactions`
+and `POST …/transactions/:tranId/reconcile`. Workspace isolation: every workspace route filters by the caller's workspace; a transaction
+of another workspace is a 404.
+
+### Migration
+
+`20261128000000_sslcommerz_payments` adds the `GATEWAY` subscription source and `payment_gateway_transactions` (additive).
+
+### Sandbox testing
+
+1. Create an SSLCommerz sandbox store; in Super Admin → SSLCommerz save the store ID/password with Environment = Sandbox, run **Test connection**, **Enable**.
+2. In the SSLCommerz merchant panel set the IPN listener to the IPN URL shown on the page (needed for payments that finish after the browser closes).
+3. As a workspace owner with billing details filled in (Settings → General: name, email, country), open Subscription → plans and press **Pay with SSLCommerz**; pay with SSLCommerz's published sandbox credentials.
+4. Check: the plan is active "until" the term end, an invoice exists, the payment shows under Billing → SSLCommerz payments and in Super Admin → Recent payments. Cancel at the payment page and confirm nothing changes.
+
+### Production checklist
+
+- Real prices: switch the plans' pricing off "placeholder" in Plans & Pricing (live mode refuses placeholder prices); currency must be one of the store's configured currencies.
+- Live credentials in a separate save with Environment = Live and the explicit confirmation; **Test connection** and enable again (sandbox verification does not carry over).
+- IPN URL set in the live merchant panel; `API_URL` set so the callback addresses are your public API origin; `CHANNEL_ENCRYPTION_KEY` set.
+- Apply the three pending migrations before deploying (custom roles, email delivery, meta tracking events) plus this one.
+
+### Known limitations
+
+- Refunds are not automated: a refund done in the SSLCommerz panel does not change the subscription or invoice (the REFUNDED status is reserved).
+- No automatic renewal or reminder emails: a term simply ends; a renewal reminder needs a scheduled job that does not exist yet.
+- Only the currencies configured for the store are accepted; amounts are in the plan's currency (BDT today), and prices are the plan catalog's, not negotiated per customer.
+- Never exercised against the real gateway: automated tests mock SSLCommerz. Verify with sandbox credentials, then a small live payment, before announcing it.

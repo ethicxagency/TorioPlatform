@@ -9272,6 +9272,169 @@
         ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/billing/sslcommerz/checkout": {
+      "post": {
+        "operationId": "SslcommerzWorkspaceController_checkout",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SslCheckoutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SslCheckoutResultDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/billing/sslcommerz/transactions": {
+      "get": {
+        "operationId": "SslcommerzWorkspaceController_list",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "INITIATED",
+                "PENDING",
+                "PAID",
+                "FAILED",
+                "CANCELLED",
+                "REFUNDED",
+                "REJECTED",
+                "REVIEW"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayTxListDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/billing/sslcommerz/transactions/{tranId}": {
+      "get": {
+        "operationId": "SslcommerzWorkspaceController_one",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tranId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayTxDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "billing"
+        ]
+      }
+    },
     "/api/v1/admin/auth/login": {
       "post": {
         "operationId": "AdminController_login",
@@ -10964,6 +11127,98 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MetaRetryDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin integrations"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/platform/sslcommerz/transactions": {
+      "get": {
+        "operationId": "AdminIntegrationsController_sslTransactions",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "INITIATED",
+                "PENDING",
+                "PAID",
+                "FAILED",
+                "CANCELLED",
+                "REFUNDED",
+                "REJECTED",
+                "REVIEW"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayTxListDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin integrations"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/platform/sslcommerz/transactions/{tranId}/reconcile": {
+      "post": {
+        "operationId": "AdminIntegrationsController_sslReconcile",
+        "parameters": [
+          {
+            "name": "tranId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayTxDto"
                 }
               }
             }
@@ -26077,6 +26332,40 @@
               }
             ]
           },
+          "gateway": {
+            "type": "object",
+            "properties": {
+              "sslcommerz": {
+                "type": "object",
+                "properties": {
+                  "available": {
+                    "type": "boolean"
+                  },
+                  "environment": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "sandbox",
+                          "live"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "available",
+                  "environment"
+                ]
+              }
+            },
+            "required": [
+              "sslcommerz"
+            ]
+          },
           "onFreePlan": {
             "type": "boolean"
           },
@@ -26117,6 +26406,9 @@
                 "type": "boolean"
               },
               "purchasable": {
+                "type": "boolean"
+              },
+              "gatewayPurchasable": {
                 "type": "boolean"
               },
               "limits": {
@@ -26234,6 +26526,14 @@
                       {
                         "type": "null"
                       }
+                    ]
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "PROVIDER",
+                      "MANUAL",
+                      "GATEWAY"
                     ]
                   }
                 },
@@ -26432,6 +26732,9 @@
                   "type": "boolean"
                 },
                 "purchasable": {
+                  "type": "boolean"
+                },
+                "gatewayPurchasable": {
                   "type": "boolean"
                 },
                 "limits": {
@@ -27471,6 +27774,348 @@
             "maxLength": 500
           }
         }
+      },
+      "SslCheckoutDto": {
+        "type": "object",
+        "properties": {
+          "planKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "interval": {
+            "type": "string",
+            "enum": [
+              "MONTH",
+              "YEAR"
+            ]
+          }
+        },
+        "required": [
+          "planKey",
+          "interval"
+        ],
+        "additionalProperties": false
+      },
+      "SslCheckoutResultDto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "tranId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "tranId"
+        ]
+      },
+      "GatewayTxListDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "tranId": {
+                  "type": "string"
+                },
+                "workspaceId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "workspaceName": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "description": "Store name, or null"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "planKey": {
+                  "type": "string"
+                },
+                "interval": {
+                  "type": "string",
+                  "enum": [
+                    "MONTH",
+                    "YEAR"
+                  ]
+                },
+                "amountMinor": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "environment": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "INITIATED",
+                    "PENDING",
+                    "PAID",
+                    "FAILED",
+                    "CANCELLED",
+                    "REFUNDED",
+                    "REJECTED",
+                    "REVIEW"
+                  ]
+                },
+                "reason": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "description": "Why it failed, was rejected or needs review, or null"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "paymentMethod": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "description": "How it was paid, when the gateway said, or null"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "gatewayRef": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "description": "The gateway bank transaction reference, or null"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "paidAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "description": "When the payment was validated, or null"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "tranId",
+                "workspaceId",
+                "workspaceName",
+                "planKey",
+                "interval",
+                "amountMinor",
+                "currency",
+                "environment",
+                "status",
+                "reason",
+                "paymentMethod",
+                "gatewayRef",
+                "createdAt",
+                "paidAt"
+              ]
+            }
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "page": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "pageSize": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "total": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "totalPages": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "page",
+              "pageSize",
+              "total",
+              "totalPages"
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ]
+      },
+      "GatewayTxDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "tranId": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "workspaceName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Store name, or null"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "planKey": {
+            "type": "string"
+          },
+          "interval": {
+            "type": "string",
+            "enum": [
+              "MONTH",
+              "YEAR"
+            ]
+          },
+          "amountMinor": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "currency": {
+            "type": "string"
+          },
+          "environment": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "INITIATED",
+              "PENDING",
+              "PAID",
+              "FAILED",
+              "CANCELLED",
+              "REFUNDED",
+              "REJECTED",
+              "REVIEW"
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Why it failed, was rejected or needs review, or null"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "paymentMethod": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "How it was paid, when the gateway said, or null"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "gatewayRef": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "The gateway bank transaction reference, or null"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "paidAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "description": "When the payment was validated, or null"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "tranId",
+          "workspaceId",
+          "workspaceName",
+          "planKey",
+          "interval",
+          "amountMinor",
+          "currency",
+          "environment",
+          "status",
+          "reason",
+          "paymentMethod",
+          "gatewayRef",
+          "createdAt",
+          "paidAt"
+        ]
       },
       "AdminLoginDto": {
         "type": "object",

@@ -19,6 +19,9 @@ import {
   emailDeliveryQuerySchema,
   emailPreviewSchema,
   emailTemplateListSchema,
+  gatewayTxListSchema,
+  gatewayTxQuerySchema,
+  gatewayTxSchema,
   integrationEnableSchema,
   metaEventListSchema,
   metaEventQuerySchema,
@@ -36,6 +39,7 @@ import { AdminGuard, CurrentAdmin, type AdminContext } from './admin-auth';
 import { EmailEventsService } from '../email/email-events.service';
 import { MetaEventsService } from '../tracking/meta-events.service';
 import { PLATFORM_OWNER, TorioTrackingService } from '../tracking/torio-tracking.service';
+import { SslcommerzService } from '../billing/sslcommerz/sslcommerz.service';
 import { IntegrationsService } from './integrations/integrations.service';
 
 class EmailDeliveryQueryDto extends createZodDto(emailDeliveryQuerySchema) {}
@@ -45,6 +49,9 @@ class EmailPreviewDto extends createZodDto(emailPreviewSchema) {}
 class MetaEventQueryDto extends createZodDto(metaEventQuerySchema) {}
 class MetaEventListDto extends createZodDto(metaEventListSchema) {}
 class MetaRetryDto extends createZodDto(metaRetryResultSchema) {}
+class GatewayTxListDto extends createZodDto(gatewayTxListSchema) {}
+class GatewayTxDto extends createZodDto(gatewayTxSchema) {}
+class GatewayTxQueryDto extends createZodDto(gatewayTxQuerySchema) {}
 class IntegrationListDto extends createZodDto(integrationListSchema) {}
 class IntegrationViewDto extends createZodDto(integrationViewSchema) {}
 class IntegrationSaveDto extends createZodDto(integrationSaveSchema) {}
@@ -67,6 +74,7 @@ export class AdminIntegrationsController {
     private readonly emails: EmailEventsService,
     private readonly metaEvents: MetaEventsService,
     private readonly torio: TorioTrackingService,
+    private readonly ssl: SslcommerzService,
   ) {}
 
   @Get()
@@ -108,6 +116,20 @@ export class AdminIntegrationsController {
     if (!target)
       throw new BadRequestException('Server-side tracking is off or the Pixel is not verified.');
     return this.metaEvents.retry(target);
+  }
+
+  @Get('sslcommerz/transactions')
+  @ApiOkResponse({ type: GatewayTxListDto })
+  sslTransactions(@Query() q: GatewayTxQueryDto) {
+    return this.ssl.list(null, q);
+  }
+
+  @Post('sslcommerz/transactions/:tranId/reconcile')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOkResponse({ type: GatewayTxDto })
+  sslReconcile(@Param('tranId') tranId: string) {
+    return this.ssl.reconcile(tranId);
   }
 
   @Get('mailgun/templates')

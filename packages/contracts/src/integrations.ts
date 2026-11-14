@@ -185,10 +185,18 @@ export const metaEventListSchema = z.object({
       lastError: z.string().describe('Why the last attempt failed, or null').nullable(),
       eventTime: z.iso.datetime(),
       sentAt: z.iso.datetime().describe('When Meta accepted it, or null').nullable(),
-      nextTryAt: z.iso.datetime().describe('When the next automatic attempt is due, or null').nullable(),
+      nextTryAt: z.iso
+        .datetime()
+        .describe('When the next automatic attempt is due, or null')
+        .nullable(),
     }),
   ),
-  meta: z.object({ page: z.number().int(), pageSize: z.number().int(), total: z.number().int(), totalPages: z.number().int() }),
+  meta: z.object({
+    page: z.number().int(),
+    pageSize: z.number().int(),
+    total: z.number().int(),
+    totalPages: z.number().int(),
+  }),
   summary: z.object({
     counts: z.record(z.string(), z.number().int()),
     lastSentAt: z.iso.datetime().describe('Last event Meta accepted, or null').nullable(),
@@ -197,3 +205,55 @@ export const metaEventListSchema = z.object({
   }),
 });
 export const metaRetryResultSchema = z.object({ retried: z.number().int() });
+
+// ---------- SSLCommerz payments ----------
+
+export const GATEWAY_TX_STATUSES = [
+  'INITIATED',
+  'PENDING',
+  'PAID',
+  'FAILED',
+  'CANCELLED',
+  'REFUNDED',
+  'REJECTED',
+  'REVIEW',
+] as const;
+export const gatewayTxStatusSchema = z.enum(GATEWAY_TX_STATUSES);
+
+export const sslCheckoutSchema = z.strictObject({
+  planKey: z.string().min(1).max(40),
+  interval: z.enum(['MONTH', 'YEAR']),
+});
+export const sslCheckoutResultSchema = z.object({ url: z.string(), tranId: z.string() });
+
+export const gatewayTxSchema = z.object({
+  id: z.uuid(),
+  tranId: z.string(),
+  workspaceId: z.uuid(),
+  workspaceName: z.string().describe('Store name, or null').nullable(),
+  planKey: z.string(),
+  interval: z.enum(['MONTH', 'YEAR']),
+  amountMinor: z.number().int(),
+  currency: z.string(),
+  environment: z.string(),
+  status: gatewayTxStatusSchema,
+  reason: z.string().describe('Why it failed, was rejected or needs review, or null').nullable(),
+  paymentMethod: z.string().describe('How it was paid, when the gateway said, or null').nullable(),
+  gatewayRef: z.string().describe('The gateway bank transaction reference, or null').nullable(),
+  createdAt: z.iso.datetime(),
+  paidAt: z.iso.datetime().describe('When the payment was validated, or null').nullable(),
+});
+export const gatewayTxListSchema = z.object({
+  data: z.array(gatewayTxSchema),
+  meta: z.object({
+    page: z.number().int(),
+    pageSize: z.number().int(),
+    total: z.number().int(),
+    totalPages: z.number().int(),
+  }),
+});
+export const gatewayTxQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(10),
+  status: gatewayTxStatusSchema.optional(),
+});

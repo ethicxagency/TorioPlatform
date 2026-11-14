@@ -117,15 +117,26 @@ export class IntegrationsService {
 
   private readOnly(key: IntegrationKey) {
     const b = this.apiBase();
-    const later = 'Not active yet: this address starts working with the next integration phase.';
+    const live =
+      'Give SSLCommerz this address (set per store in its merchant panel, or sent with every payment by Torio).';
     if (key === 'mailgun')
-      return [{ label: 'Webhook URL', value: `${b}/api/v1/webhooks/mailgun`, hint: later }];
+      return [
+        {
+          label: 'Webhook URL',
+          value: `${b}/api/v1/webhooks/mailgun`,
+          hint: 'Add this in Mailgun → Webhooks for delivered, failed, opened, clicked, complained and unsubscribed events.',
+        },
+      ];
     if (key === 'sslcommerz')
       return [
-        { label: 'Success URL', value: `${b}/api/v1/payments/sslcommerz/success`, hint: later },
-        { label: 'Fail URL', value: `${b}/api/v1/payments/sslcommerz/fail`, hint: later },
-        { label: 'Cancel URL', value: `${b}/api/v1/payments/sslcommerz/cancel`, hint: later },
-        { label: 'IPN URL', value: `${b}/api/v1/payments/sslcommerz/ipn`, hint: later },
+        { label: 'Success URL', value: `${b}/api/v1/payments/sslcommerz/success`, hint: live },
+        { label: 'Fail URL', value: `${b}/api/v1/payments/sslcommerz/fail`, hint: live },
+        { label: 'Cancel URL', value: `${b}/api/v1/payments/sslcommerz/cancel`, hint: live },
+        {
+          label: 'IPN URL',
+          value: `${b}/api/v1/payments/sslcommerz/ipn`,
+          hint: 'Set this as the IPN listener in the SSLCommerz merchant panel so payments are confirmed even if the customer closes the browser.',
+        },
       ];
     return [];
   }

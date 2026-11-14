@@ -2740,6 +2740,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/billing/sslcommerz/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["SslcommerzWorkspaceController_checkout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/billing/sslcommerz/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SslcommerzWorkspaceController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/billing/sslcommerz/transactions/{tranId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SslcommerzWorkspaceController_one"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/auth/login": {
         parameters: {
             query?: never;
@@ -3438,6 +3486,38 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["AdminIntegrationsController_retryMeta"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/platform/sslcommerz/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminIntegrationsController_sslTransactions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/platform/sslcommerz/transactions/{tranId}/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminIntegrationsController_sslReconcile"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6376,6 +6456,12 @@ export interface components {
         BillingOverviewDto: {
             providerConfigured: boolean;
             provider: string | null;
+            gateway?: {
+                sslcommerz: {
+                    available: boolean;
+                    environment: ("sandbox" | "live") | null;
+                };
+            };
             onFreePlan: boolean;
             plan: {
                 key: string;
@@ -6388,6 +6474,7 @@ export interface components {
                 yearlyMinor: number;
                 placeholderPricing: boolean;
                 purchasable: boolean;
+                gatewayPurchasable?: boolean;
                 limits: {
                     [key: string]: number;
                 };
@@ -6405,6 +6492,8 @@ export interface components {
                 startedAt: string | null;
                 cancelAtPeriodEnd: boolean;
                 canceledAt: string | null;
+                /** @enum {string} */
+                source?: "PROVIDER" | "MANUAL" | "GATEWAY";
             } | null;
             actions: {
                 canCheckout: boolean;
@@ -6446,6 +6535,7 @@ export interface components {
                 yearlyMinor: number;
                 placeholderPricing: boolean;
                 purchasable: boolean;
+                gatewayPurchasable?: boolean;
                 limits: {
                     [key: string]: number;
                 };
@@ -6625,6 +6715,67 @@ export interface components {
             /** @default true */
             atPeriodEnd: boolean;
             reason?: string;
+        };
+        SslCheckoutDto: {
+            planKey: string;
+            /** @enum {string} */
+            interval: "MONTH" | "YEAR";
+        };
+        SslCheckoutResultDto: {
+            url: string;
+            tranId: string;
+        };
+        GatewayTxListDto: {
+            data: {
+                /** Format: uuid */
+                id: string;
+                tranId: string;
+                /** Format: uuid */
+                workspaceId: string;
+                workspaceName: string | null;
+                planKey: string;
+                /** @enum {string} */
+                interval: "MONTH" | "YEAR";
+                amountMinor: number;
+                currency: string;
+                environment: string;
+                /** @enum {string} */
+                status: "INITIATED" | "PENDING" | "PAID" | "FAILED" | "CANCELLED" | "REFUNDED" | "REJECTED" | "REVIEW";
+                reason: string | null;
+                paymentMethod: string | null;
+                gatewayRef: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                paidAt: string | null;
+            }[];
+            meta: {
+                page: number;
+                pageSize: number;
+                total: number;
+                totalPages: number;
+            };
+        };
+        GatewayTxDto: {
+            /** Format: uuid */
+            id: string;
+            tranId: string;
+            /** Format: uuid */
+            workspaceId: string;
+            workspaceName: string | null;
+            planKey: string;
+            /** @enum {string} */
+            interval: "MONTH" | "YEAR";
+            amountMinor: number;
+            currency: string;
+            environment: string;
+            /** @enum {string} */
+            status: "INITIATED" | "PENDING" | "PAID" | "FAILED" | "CANCELLED" | "REFUNDED" | "REJECTED" | "REVIEW";
+            reason: string | null;
+            paymentMethod: string | null;
+            gatewayRef: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            paidAt: string | null;
         };
         AdminLoginDto: {
             /** Format: email */
@@ -12626,6 +12777,78 @@ export interface operations {
             };
         };
     };
+    SslcommerzWorkspaceController_checkout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SslCheckoutDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SslCheckoutResultDto"];
+                };
+            };
+        };
+    };
+    SslcommerzWorkspaceController_list: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                status?: "INITIATED" | "PENDING" | "PAID" | "FAILED" | "CANCELLED" | "REFUNDED" | "REJECTED" | "REVIEW";
+            };
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GatewayTxListDto"];
+                };
+            };
+        };
+    };
+    SslcommerzWorkspaceController_one: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                tranId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GatewayTxDto"];
+                };
+            };
+        };
+    };
     AdminController_login: {
         parameters: {
             query?: never;
@@ -13740,6 +13963,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MetaRetryDto"];
+                };
+            };
+        };
+    };
+    AdminIntegrationsController_sslTransactions: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                status?: "INITIATED" | "PENDING" | "PAID" | "FAILED" | "CANCELLED" | "REFUNDED" | "REJECTED" | "REVIEW";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GatewayTxListDto"];
+                };
+            };
+        };
+    };
+    AdminIntegrationsController_sslReconcile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tranId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GatewayTxDto"];
                 };
             };
         };

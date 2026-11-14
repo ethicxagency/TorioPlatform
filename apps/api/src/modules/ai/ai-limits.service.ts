@@ -41,9 +41,14 @@ export class AiLimitsService {
   async planKey(workspaceId: string): Promise<string> {
     const sub = await this.prisma.client.subscription.findUnique({
       where: { workspaceId },
-      select: { planKey: true, status: true },
+      select: { planKey: true, status: true, source: true, currentPeriodEnd: true },
     });
-    return sub && ['ACTIVE', 'TRIALING', 'PAST_DUE'].includes(sub.status) ? sub.planKey : 'free';
+    // A term paid once through a gateway ends at its end date, even before the expiry sweep has marked it.
+    const lapsed =
+      sub?.source === 'GATEWAY' && !!sub.currentPeriodEnd && sub.currentPeriodEnd < new Date();
+    return sub && !lapsed && ['ACTIVE', 'TRIALING', 'PAST_DUE'].includes(sub.status)
+      ? sub.planKey
+      : 'free';
   }
 
   limitFor(settings: AiSettings, planKey: string): AiPlanLimit {

@@ -77,6 +77,8 @@ export const planSchema = z.object({
   placeholderPricing: z.boolean(),
   /** Whether the provider price ids needed to buy this plan are configured. */
   purchasable: z.boolean(),
+  /** Whether this plan can be paid for once, through SSLCommerz. */
+  gatewayPurchasable: z.boolean().optional(),
   limits: z.record(z.string(), z.number().int().describe('Limit, or -1 for unlimited')),
   features: z.array(z.string()),
 });
@@ -285,11 +287,22 @@ export const subscriptionSchema = z.object({
   startedAt: nullableString,
   cancelAtPeriodEnd: z.boolean(),
   canceledAt: nullableString,
+  /** PROVIDER (recurring, managed by the payment provider), MANUAL (granted by support) or GATEWAY (a term paid once, no renewal). */
+  source: z.enum(['PROVIDER', 'MANUAL', 'GATEWAY']).optional(),
 });
 export const overviewSchema = z.object({
   /** False until a payment provider and its credentials are configured. Nothing can be bought or changed then. */
   providerConfigured: z.boolean(),
   provider: nullableString,
+  /** SSLCommerz, when Super Admin has it verified and switched on: a one-time payment for a fixed term, with no automatic renewal. */
+  gateway: z
+    .object({
+      sslcommerz: z.object({
+        available: z.boolean(),
+        environment: z.enum(['sandbox', 'live']).nullable(),
+      }),
+    })
+    .optional(),
   /** True when no real subscription exists: the workspace is on the built-in Free plan. */
   onFreePlan: z.boolean(),
   plan: planSchema,
