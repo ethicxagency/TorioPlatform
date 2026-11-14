@@ -72,7 +72,10 @@ export class SslcommerzService implements OnModuleInit, OnModuleDestroy {
   private timer: NodeJS.Timeout | null = null;
   onModuleInit() {
     // Paid terms end by themselves; this also marks them expired when nobody is looking at billing.
-    this.timer = setInterval(() => void this.expireDue().catch(() => undefined), 15 * 60_000);
+    this.timer = setInterval(() => {
+      void this.expireDue().catch(() => undefined);
+      void this.remindDue().catch(() => undefined);
+    }, 15 * 60_000);
     this.timer.unref();
   }
   onModuleDestroy() {
@@ -624,5 +627,87 @@ export class SslcommerzService implements OnModuleInit, OnModuleDestroy {
       data: { status: 'EXPIRED' },
     });
     return r.count;
+  }
+
+  /**
+   * Emails the people who pay when a paid term is about to end, once at seven days and once at one day (an entry in the audit log
+   * per term and stage keeps it to one each). A term does not renew by itself, so this is how the owner finds out in time.
+   */
+  async remindDue(): Promise<number> {
+    const db = this.prisma.client;
+    const now = new Date();
+    const subs = await db.subscription.findMany({
+      where: {
+        source: 'GATEWAY',
+        status: 'ACTIVE',
+        currentPeriodEnd: { gt: now, lte: new Date(now.getTime() + 7 * 86_400_000) },
+      },
+    });
+    let sent = 0;
+    for (const s of subs) {
+      const end = s.currentPeriodEnd!;
+      const left = end.getTime() - now.getTime();
+      const stage = left <= 86_400_000 ? '1d' : '7d';
+      const key = `${stage}:${end.toISOString()}`;
+      const done = await db.auditLog.count({
+        where: {
+          workspaceId: s.workspaceId,
+          action: 'billing.renewal_reminder',
+          metadata: { path: ['key'], equals: key },
+        },
+      });
+      if (done) continue;
+      const [w, owners, plan] = await Promise.all([
+        db.workspace.findUnique({
+          where: { id: s.workspaceId },
+          select: { name: true, contactEmail: true },
+        }),
+        db.workspaceMembership.findMany({
+          where: { workspaceId: s.workspaceId, role: 'OWNER', status: 'ACTIVE' },
+          select: { user: { select: { email: true } } },
+        }),
+        this.plans.get(s.planKey),
+      ]);
+      const to = [
+        ...new Set(
+          [w?.contactEmail, ...owners.map((o) => o.user.email)].filter((e): e is string => !!e),
+        ),
+      ];
+      if (to.length === 0) continue;
+      // Recorded before sending, so a slow or failing email can never cause a second reminder for the same stage.
+      await db.auditLog.create({
+        data: {
+          workspaceId: s.workspaceId,
+          action: 'billing.renewal_reminder',
+          entityType: 'billing',
+          entityId: s.workspaceId,
+          metadata: {
+            description: `Renewal reminder (${stage === '1d' ? 'one day' : 'seven days'}) sent`,
+            key,
+          },
+        },
+      });
+      const days = Math.max(1, Math.ceil(left / 86_400_000));
+      for (const addr of to)
+        if (
+          await this.mail
+            .sendTemplate(
+              'renewal_reminder',
+              addr,
+              {
+                workspace: w?.name ?? '',
+                plan: plan?.name ?? s.planKey,
+                until: end.toISOString().slice(0, 10),
+                days: `${days} day${days === 1 ? '' : 's'}`,
+                when: `in ${days} day${days === 1 ? '' : 's'}`,
+                link: `${this.config.WEB_URL.replace(/\/$/, '')}/billing/subscription?tab=plans`,
+              },
+              { workspaceId: s.workspaceId },
+            )
+            .catch(() => false)
+        )
+          sent++;
+    }
+    return sent;
   }
 }

@@ -11,6 +11,7 @@ export type TemplateKey =
   | 'account_deletion'
   | 'team_invitation'
   | 'payment_confirmation'
+  | 'renewal_reminder'
   | 'workspace_notice'
   | 'test';
 
@@ -132,6 +133,17 @@ const specs: Record<TemplateKey, (v: Vars) => Spec> = {
     after: [`Reference: ${v.reference ?? ''}`],
     scope: 'platform',
   }),
+  renewal_reminder: (v) => ({
+    subject: `Your ${v.plan ?? ''} plan ends ${v.when ?? 'soon'}`,
+    heading: 'Your plan ends soon',
+    before: [
+      `The ${v.plan ?? ''} plan for ${v.workspace ?? 'your workspace'} ends on ${v.until ?? 'its end date'}${v.days ? ` (in ${v.days})` : ''}.`,
+      "It doesn't renew automatically. Pay again before it ends to keep your plan; otherwise the workspace moves to the Free plan.",
+    ],
+    button: v.link ? { label: 'Pay for another term', url: v.link } : undefined,
+    after: [],
+    scope: 'platform',
+  }),
   workspace_notice: (v) => ({
     subject: v.subject ?? 'A message from your store',
     heading: v.title ?? 'A message from your store',
@@ -198,6 +210,14 @@ export const SAMPLE_VARS: Record<TemplateKey, Vars> = {
     until: '2026-12-28',
     reference: 'TORIO-ABC123',
     link: 'https://app.example.com/billing',
+  },
+  renewal_reminder: {
+    workspace: 'Urban Nest',
+    plan: 'Growth',
+    until: '2026-12-28',
+    days: '3 days',
+    when: 'in 3 days',
+    link: 'https://app.example.com/billing/subscription?tab=plans',
   },
   team_invitation: {
     inviter: 'Nadia',

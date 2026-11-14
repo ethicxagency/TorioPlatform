@@ -6,6 +6,7 @@ import { createPrismaClient, type PrismaClient } from '@torio/database';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { fingerprintOf, type Stored } from '../src/modules/admin/integrations/state';
+import { MailService } from '../src/modules/auth/mail.service';
 import { PasswordService } from '../src/modules/auth/password.service';
 import { PlansService } from '../src/modules/billing/plans.service';
 import { SslcommerzService } from '../src/modules/billing/sslcommerz/sslcommerz.service';
@@ -468,6 +469,46 @@ describe.skipIf(!url)('SSLCommerz payments (real PostgreSQL, mocked gateway)', (
     gw.validation = valid(tran);
     await cb('success', { tran_id: tran.tranId, val_id: gw.validation.val_id! }).expect(303);
     expect((await sub())!).toMatchObject({ status: 'ACTIVE' });
+  });
+
+  it('reminds the owner once at seven days and once at one day before a paid term ends, and never for other subscriptions', async () => {
+    const mails: { to: string; subject: string }[] = [];
+    const mail = app.get(MailService);
+    const orig = mail.sendTemplate.bind(mail);
+    mail.sendTemplate = (async (key: string, to: string, vars: Record<string, string>) => {
+      mails.push({ to, subject: `${key}:${vars.until}:${vars.days}` });
+      return true;
+    }) as never;
+    await db.subscription.update({
+      where: { workspaceId: ids.ws! },
+      data: {
+        status: 'ACTIVE',
+        source: 'GATEWAY',
+        currentPeriodEnd: new Date(Date.now() + 5 * 86_400_000),
+      },
+    });
+    const first = await ssl.remindDue();
+    expect(first).toBeGreaterThanOrEqual(1);
+    expect(mails.every((m) => m.subject.startsWith('renewal_reminder:'))).toBe(true);
+    expect(mails.some((m) => m.to === `owner-${sfx}@t.co` || m.to === 'a@t.co')).toBe(true);
+    expect(await ssl.remindDue()).toBe(0); // the same stage is never sent twice
+    await db.subscription.update({
+      where: { workspaceId: ids.ws! },
+      data: { currentPeriodEnd: new Date(Date.now() + 20 * 3_600_000) },
+    });
+    expect(await ssl.remindDue()).toBeGreaterThanOrEqual(1); // the one-day stage
+    expect(await ssl.remindDue()).toBe(0);
+    await db.subscription.update({
+      where: { workspaceId: ids.ws! },
+      data: { source: 'PROVIDER', currentPeriodEnd: new Date(Date.now() + 2 * 86_400_000) },
+    });
+    expect(await ssl.remindDue()).toBe(0); // recurring subscriptions renew by themselves
+    await db.subscription.update({
+      where: { workspaceId: ids.ws! },
+      data: { source: 'GATEWAY', currentPeriodEnd: new Date(Date.now() + 25 * 86_400_000) },
+    });
+    expect(await ssl.remindDue()).toBe(0); // far from the end
+    mail.sendTemplate = orig;
   });
 
   it('refuses to start a payment when the workspace has a subscription managed elsewhere, when billing details are incomplete, or when the gateway is off', async () => {
