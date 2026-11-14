@@ -9,6 +9,7 @@ import {
   mockApi,
   resetAdmin,
   resetMetaAuth,
+  integrationsState,
 } from './mocks';
 
 const signIn = async (page: Page) => {
@@ -163,6 +164,9 @@ test.describe('super admin', () => {
       'Subscriptions & Billing',
       'Plans & Pricing',
       'Deletion requests',
+      'Mailgun (Email)',
+      'Torio Meta Pixel',
+      'SSLCommerz (Payments)',
       'Meta Developer',
       'AI Management',
       'Activity & Logs',
@@ -532,5 +536,88 @@ test.describe('super admin', () => {
       await expect(page.getByText('meta.config.update')).toBeVisible();
       await expect(page.getByText(/changed: appId/)).toBeVisible();
     });
+  });
+
+  test('Integrations: Mailgun is Verified only after a passing test of exactly what is saved, and secrets are write-only', async ({
+    page,
+  }) => {
+    await signIn(page);
+    for (const l of ['Mailgun (Email)', 'Torio Meta Pixel', 'SSLCommerz (Payments)'])
+      await expect(page.getByRole('link', { name: l })).toBeVisible();
+    await page.getByRole('link', { name: 'Mailgun (Email)' }).click();
+    await expect(page.getByRole('heading', { name: 'Mailgun', level: 1 })).toBeVisible();
+    await expect(page.getByText('Not configured').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Test connection' })).toBeDisabled();
+    await page.getByLabel('domain').fill('mg.example.com');
+    await page.getByLabel('fromName').fill('Torio');
+    await page.getByLabel('fromEmail').fill('no-reply@mg.example.com');
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await page
+      .getByRole('region', { name: 'Credentials' })
+      .getByRole('button', { name: 'Add' })
+      .first()
+      .click();
+    await page.getByLabel('New apiKey').fill('key-0123456789abcdef');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    // saved credentials are hidden and never shown back, and saving did not make it connected
+    await expect(page.getByText('Saved (hidden)')).toBeVisible();
+    await expect(page.getByText('key-0123456789abcdef')).toHaveCount(0);
+    await expect(page.getByText('Not verified').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Enable' })).toBeDisabled();
+    // a failing test is reported and leaves it off
+    integrationsState.passTest = false;
+    await page.getByRole('button', { name: 'Test connection' }).click();
+    await expect(
+      page.getByRole('region', { name: 'Connection' }).getByRole('status'),
+    ).toContainText('rejected');
+    await expect(page.getByText('Test failed').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Enable' })).toBeDisabled();
+    // a passing test verifies it, then it can be enabled
+    integrationsState.passTest = true;
+    await page.getByRole('button', { name: 'Test connection' }).click();
+    await expect(page.getByText('Verified').first()).toBeVisible();
+    await page.getByRole('button', { name: 'Enable' }).click();
+    await expect(page.getByText(/Verified · On/)).toBeVisible();
+    // changing a setting drops verification and switches it off
+    await page.getByLabel('replyTo').fill('help@example.com');
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await expect(page.getByText('Not verified').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Enable' })).toBeDisabled();
+    // the browser never sent the stored key back, only the new value once
+    const bodies = JSON.stringify(integrationsState.calls.filter((c) => c.method === 'GET'));
+    expect(bodies).not.toContain('key-0123456789abcdef');
+  });
+
+  test('Integrations: SSLCommerz asks for explicit confirmation before Live, and shows the callback addresses', async ({
+    page,
+  }) => {
+    await signIn(page);
+    await page.getByRole('link', { name: 'SSLCommerz (Payments)' }).click();
+    await expect(page.getByRole('heading', { name: 'SSLCommerz', level: 1 })).toBeVisible();
+    await expect(page.getByText('/api/v1/payments/sslcommerz/ipn')).toBeVisible();
+    await choose(page.getByLabel('environment'), 'live');
+    await expect(page.getByText(/Live mode processes real payments/)).toBeVisible();
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    const dlg = page.getByRole('alertdialog');
+    await expect(dlg).toContainText('Switch SSLCommerz to Live?');
+    await dlg.getByRole('button', { name: 'Cancel' }).click();
+    expect(
+      integrationsState.calls.some((c) => c.method === 'PUT' && c.path.endsWith('/config')),
+    ).toBe(false);
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Switch to Live' }).click();
+    const put = integrationsState.calls.find(
+      (c) => c.method === 'PUT' && c.path.endsWith('/config'),
+    )!;
+    expect(put.body).toMatchObject({ confirmLive: true, values: { environment: 'live' } });
+  });
+
+  test('Integrations: the Meta Pixel needs a verified connection before a test event can be sent', async ({
+    page,
+  }) => {
+    await signIn(page);
+    await page.getByRole('link', { name: 'Torio Meta Pixel' }).click();
+    await expect(page.getByRole('heading', { name: 'Torio Meta Pixel', level: 1 })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Send test event' })).toBeDisabled();
   });
 });

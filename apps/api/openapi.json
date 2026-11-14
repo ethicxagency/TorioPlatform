@@ -10811,6 +10811,303 @@
         ]
       }
     },
+    "/api/v1/admin/integrations/platform": {
+      "get": {
+        "operationId": "AdminIntegrationsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationListDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin integrations"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/platform/{key}": {
+      "get": {
+        "operationId": "AdminIntegrationsController_view",
+        "parameters": [
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationViewDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin integrations"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/platform/{key}/config": {
+      "put": {
+        "operationId": "AdminIntegrationsController_save",
+        "parameters": [
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntegrationSaveDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationViewDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin integrations"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/platform/{key}/secrets/{name}": {
+      "put": {
+        "operationId": "AdminIntegrationsController_setSecret",
+        "parameters": [
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntegrationSecretDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationViewDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin integrations"
+        ]
+      },
+      "delete": {
+        "operationId": "AdminIntegrationsController_clearSecret",
+        "parameters": [
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationViewDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin integrations"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/platform/{key}/enabled": {
+      "put": {
+        "operationId": "AdminIntegrationsController_enable",
+        "parameters": [
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntegrationEnableDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationViewDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin integrations"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/platform/{key}/test": {
+      "post": {
+        "operationId": "AdminIntegrationsController_test",
+        "parameters": [
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationTestResultDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin integrations"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/platform/mailgun/test-email": {
+      "post": {
+        "operationId": "AdminIntegrationsController_testEmail",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntegrationTestEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationTestResultDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin integrations"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/platform/torio_meta_pixel/test-event": {
+      "post": {
+        "operationId": "AdminIntegrationsController_testEvent",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationTestResultDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin integrations"
+        ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/ai/options": {
       "get": {
         "operationId": "AiController_options",
@@ -31105,6 +31402,499 @@
           "resolution",
           "details"
         ]
+      },
+      "IntegrationListDto": {
+        "type": "object",
+        "properties": {
+          "encryptionReady": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "enum": [
+                    "mailgun",
+                    "torio_meta_pixel",
+                    "sslcommerz"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "Email",
+                    "Marketing & Analytics",
+                    "Payments"
+                  ]
+                },
+                "description": {
+                  "type": "string"
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "NOT_CONFIGURED",
+                    "UNVERIFIED",
+                    "VERIFIED",
+                    "FAILED"
+                  ]
+                },
+                "lastTestedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "description": "Time of the last test, or null"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "lastSuccessAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "description": "Time of the last successful test, or null"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "key",
+                "name",
+                "category",
+                "description",
+                "enabled",
+                "status",
+                "lastTestedAt",
+                "lastSuccessAt"
+              ]
+            }
+          }
+        },
+        "required": [
+          "encryptionReady",
+          "data"
+        ]
+      },
+      "IntegrationViewDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "enum": [
+              "mailgun",
+              "torio_meta_pixel",
+              "sslcommerz"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "Email",
+              "Marketing & Analytics",
+              "Payments"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "NOT_CONFIGURED",
+              "UNVERIFIED",
+              "VERIFIED",
+              "FAILED"
+            ]
+          },
+          "lastTestedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "description": "Time of the last test, or null"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastSuccessAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "description": "Time of the last successful test, or null"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "encryptionReady": {
+            "type": "boolean"
+          },
+          "requirements": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "text",
+                    "email",
+                    "select",
+                    "boolean"
+                  ]
+                },
+                "required": {
+                  "type": "boolean"
+                },
+                "hint": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "placeholder": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "options": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "value": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "value",
+                          "label"
+                        ]
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "kind",
+                "required",
+                "hint",
+                "placeholder",
+                "options"
+              ]
+            }
+          },
+          "values": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": [
+                "string",
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "secrets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "required": {
+                  "type": "boolean"
+                },
+                "set": {
+                  "type": "boolean"
+                },
+                "hint": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "required",
+                "set",
+                "hint"
+              ]
+            }
+          },
+          "readOnly": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                },
+                "hint": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "label",
+                "value",
+                "hint"
+              ]
+            }
+          },
+          "lastError": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "The last test failure, or null"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "canTest": {
+            "type": "boolean"
+          },
+          "canEnable": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "description": "Last change, or null"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "extra": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "category",
+          "description",
+          "enabled",
+          "status",
+          "lastTestedAt",
+          "lastSuccessAt",
+          "encryptionReady",
+          "requirements",
+          "fields",
+          "values",
+          "secrets",
+          "readOnly",
+          "lastError",
+          "problems",
+          "canTest",
+          "canEnable",
+          "updatedAt",
+          "extra"
+        ]
+      },
+      "IntegrationSaveDto": {
+        "type": "object",
+        "properties": {
+          "values": {
+            "default": {},
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": [
+                "string",
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "confirmLive": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "IntegrationSecretDto": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 512
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "IntegrationEnableDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "IntegrationTestResultDto": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "NOT_CONFIGURED",
+              "UNVERIFIED",
+              "VERIFIED",
+              "FAILED"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "ok": {
+                  "type": "boolean"
+                },
+                "detail": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "label",
+                "ok",
+                "detail"
+              ]
+            }
+          }
+        },
+        "required": [
+          "ok",
+          "status",
+          "message",
+          "checks"
+        ]
+      },
+      "IntegrationTestEmailDto": {
+        "type": "object",
+        "properties": {
+          "to": {
+            "type": "string",
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          }
+        },
+        "required": [
+          "to"
+        ],
+        "additionalProperties": false
       },
       "DraftInputDto": {
         "type": "object",

@@ -448,6 +448,233 @@ export const rolesState = {
   calls: [] as { method: string; path: string; body?: unknown }[],
   failCreate: null as string | null,
 };
+/** Super Admin platform integrations: a small stand-in with the server's rules (verified only after a passing test of exactly what is saved). */
+const INTEG = {
+  mailgun: {
+    name: 'Mailgun',
+    category: 'Email',
+    fields: [
+      ['region', 'select', true, 'US'],
+      ['domain', 'text', true, null],
+      ['fromName', 'text', true, null],
+      ['fromEmail', 'email', true, null],
+      ['replyTo', 'email', false, null],
+    ],
+    secrets: [
+      ['apiKey', true],
+      ['webhookSigningKey', false],
+    ],
+  },
+  torio_meta_pixel: {
+    name: 'Torio Meta Pixel',
+    category: 'Marketing & Analytics',
+    fields: [
+      ['pixelId', 'text', true, null],
+      ['testEventCode', 'text', false, null],
+      ['browserTracking', 'boolean', false, false],
+      ['serverTracking', 'boolean', false, false],
+    ],
+    secrets: [['accessToken', true]],
+  },
+  sslcommerz: {
+    name: 'SSLCommerz',
+    category: 'Payments',
+    fields: [
+      ['environment', 'select', true, 'sandbox'],
+      ['storeId', 'text', true, null],
+      ['currencies', 'text', true, 'BDT'],
+    ],
+    secrets: [['storePassword', true]],
+  },
+} as const;
+type IKey = keyof typeof INTEG;
+export const integrationsState = {
+  data: {} as Record<
+    string,
+    {
+      values: Record<string, unknown>;
+      secrets: Record<string, number>;
+      enabled: boolean;
+      verified: string | null;
+      failed: string | null;
+      testedAt: string | null;
+    }
+  >,
+  passTest: true,
+  calls: [] as { method: string; path: string; body?: unknown }[],
+};
+export const resetIntegrations = () => {
+  integrationsState.data = {};
+  integrationsState.passTest = true;
+  integrationsState.calls = [];
+};
+const integ = (k: IKey) =>
+  (integrationsState.data[k] ??= {
+    values: {},
+    secrets: {},
+    enabled: false,
+    verified: null,
+    failed: null,
+    testedAt: null,
+  });
+const integFingerprint = (k: IKey) => {
+  const d = integ(k);
+  return JSON.stringify([
+    INTEG[k].fields.filter((f) => f[1] !== 'boolean').map((f) => d.values[f[0]] ?? f[3] ?? null),
+    d.secrets,
+  ]);
+};
+const integView = (k: IKey) => {
+  const d = integ(k);
+  const def = INTEG[k];
+  const problems = [
+    ...def.fields
+      .filter((f) => f[2] && !(d.values[f[0]] ?? f[3]))
+      .map((f) => `${f[0]} is required`),
+    ...def.secrets.filter((x) => x[1] && !d.secrets[x[0]]).map((x) => `${x[0]} is required`),
+  ];
+  const fp = integFingerprint(k);
+  const status = problems.length
+    ? 'NOT_CONFIGURED'
+    : d.verified === fp
+      ? 'VERIFIED'
+      : d.failed === fp
+        ? 'FAILED'
+        : 'UNVERIFIED';
+  return {
+    key: k,
+    name: def.name,
+    category: def.category,
+    description: `${def.name} integration`,
+    enabled: d.enabled && status === 'VERIFIED',
+    status,
+    lastTestedAt: d.testedAt,
+    lastSuccessAt: d.verified ? d.testedAt : null,
+    encryptionReady: true,
+    requirements: ['A provider account'],
+    fields: def.fields.map((f) => ({
+      key: f[0],
+      label: f[0],
+      kind: f[1],
+      required: f[2],
+      hint: null,
+      placeholder: null,
+      options:
+        f[1] === 'select'
+          ? f[0] === 'region'
+            ? [
+                { value: 'US', label: 'United States' },
+                { value: 'EU', label: 'Europe' },
+              ]
+            : [
+                { value: 'sandbox', label: 'Sandbox' },
+                { value: 'live', label: 'Live' },
+              ]
+          : null,
+    })),
+    values: Object.fromEntries(def.fields.map((f) => [f[0], d.values[f[0]] ?? f[3] ?? null])),
+    secrets: def.secrets.map((x) => ({
+      key: x[0],
+      label: x[0],
+      required: x[1],
+      set: !!d.secrets[x[0]],
+      hint: null,
+    })),
+    readOnly:
+      k === 'sslcommerz'
+        ? [
+            {
+              label: 'IPN URL',
+              value: 'https://api.example.test/api/v1/payments/sslcommerz/ipn',
+              hint: 'Not active yet',
+            },
+          ]
+        : [],
+    lastError: status === 'FAILED' ? 'The provider rejected the credentials.' : null,
+    problems,
+    canTest: problems.length === 0,
+    canEnable: status === 'VERIFIED',
+    updatedAt: null,
+    extra: {},
+  };
+};
+export const integrationsReply = (
+  rest: string,
+  method: string,
+  body: Record<string, any> | null,
+): { status: number; body: unknown } | null => {
+  integrationsState.calls.push({ method, path: rest, body: body ?? undefined });
+  const parts = rest.split('/').filter(Boolean);
+  if (parts.length === 0)
+    return {
+      status: 200,
+      body: {
+        encryptionReady: true,
+        data: (Object.keys(INTEG) as IKey[]).map((k) => {
+          const { fields: _f, secrets: _s, values: _v, ...sum } = integView(k) as any;
+          return sum;
+        }),
+      },
+    };
+  const k = parts[0] as IKey;
+  if (!INTEG[k])
+    return { status: 404, body: { error: { message: 'Unknown integration', statusCode: 404 } } };
+  const d = integ(k);
+  const fail = (message: string) => ({
+    status: 400,
+    body: { error: { message, statusCode: 400 } },
+  });
+  if (parts.length === 1) return { status: 200, body: integView(k) };
+  if (parts[1] === 'config') {
+    const before = integFingerprint(k);
+    const v = (body?.values ?? {}) as Record<string, unknown>;
+    if (
+      k === 'sslcommerz' &&
+      v.environment === 'live' &&
+      d.values.environment !== 'live' &&
+      !body?.confirmLive
+    )
+      return fail('Switching to Live processes real payments. Confirm it explicitly to continue.');
+    for (const [f, x] of Object.entries(v)) d.values[f] = x === '' ? null : x;
+    if (before !== integFingerprint(k)) d.enabled = false;
+    return { status: 200, body: integView(k) };
+  }
+  if (parts[1] === 'secrets') {
+    if (method === 'DELETE') delete d.secrets[parts[2]!];
+    else d.secrets[parts[2]!] = (d.secrets[parts[2]!] ?? 0) + 1;
+    d.enabled = false;
+    return { status: 200, body: integView(k) };
+  }
+  if (parts[1] === 'enabled') {
+    if (body?.enabled && integView(k).status !== 'VERIFIED')
+      return fail('Test the connection successfully before enabling this integration.');
+    d.enabled = !!body?.enabled;
+    return { status: 200, body: integView(k) };
+  }
+  if (parts[1] === 'test') {
+    d.testedAt = new Date().toISOString();
+    const ok = integrationsState.passTest;
+    if (ok) d.verified = integFingerprint(k);
+    else {
+      d.failed = integFingerprint(k);
+      d.enabled = false;
+    }
+    return {
+      status: 200,
+      body: {
+        ok,
+        status: ok ? 'VERIFIED' : 'FAILED',
+        message: ok
+          ? `${INTEG[k].name} accepted the credentials.`
+          : 'The provider rejected the credentials.',
+        checks: [{ label: 'Credentials accepted', ok, detail: null }],
+      },
+    };
+  }
+  return { status: 404, body: { error: { message: 'Not found', statusCode: 404 } } };
+};
+resetIntegrations();
+
 export const resetRoles = () => {
   for (const m of MEMBERS) m.customRole = null;
   rolesState.custom = [];
@@ -1484,6 +1711,7 @@ export async function mockApi(
   inboxState.bulks = [];
   inboxState.empty = false;
   resetRoles();
+  resetIntegrations();
   searchState.requests = [];
   searchState.fail = false;
   await page.route('http://localhost:4000/**', async (route) => {
@@ -3744,6 +3972,16 @@ export async function mockApi(
             ],
             meta: { page: 1, pageSize: 25, total: 1, totalPages: 1 },
           });
+      }
+      if (rest === '/integrations/platform' || rest.startsWith('/integrations/platform/')) {
+        let b: Record<string, any> | null = null;
+        try {
+          b = req.method() === 'GET' ? null : (req.postDataJSON() as Record<string, any> | null);
+        } catch {
+          b = null;
+        }
+        const r = integrationsReply(rest.slice('/integrations/platform'.length), req.method(), b);
+        if (r) return reply(r.body, r.status);
       }
       if (rest.startsWith('/integrations/meta-auth')) {
         const m = rest.slice('/integrations/meta-auth'.length);

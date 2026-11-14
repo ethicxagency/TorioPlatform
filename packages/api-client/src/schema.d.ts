@@ -3380,6 +3380,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/integrations/platform": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminIntegrationsController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/platform/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminIntegrationsController_view"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/platform/{key}/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["AdminIntegrationsController_save"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/platform/{key}/secrets/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["AdminIntegrationsController_setSecret"];
+        post?: never;
+        delete: operations["AdminIntegrationsController_clearSecret"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/platform/{key}/enabled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["AdminIntegrationsController_enable"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/platform/{key}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminIntegrationsController_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/platform/mailgun/test-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminIntegrationsController_testEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/platform/torio_meta_pixel/test-event": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminIntegrationsController_testEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/ai/options": {
         parameters: {
             query?: never;
@@ -7199,6 +7327,101 @@ export interface components {
                 label: string;
                 value: string;
             }[];
+        };
+        IntegrationListDto: {
+            encryptionReady: boolean;
+            data: {
+                /** @enum {string} */
+                key: "mailgun" | "torio_meta_pixel" | "sslcommerz";
+                name: string;
+                /** @enum {string} */
+                category: "Email" | "Marketing & Analytics" | "Payments";
+                description: string;
+                enabled: boolean;
+                /** @enum {string} */
+                status: "NOT_CONFIGURED" | "UNVERIFIED" | "VERIFIED" | "FAILED";
+                lastTestedAt: string | null;
+                lastSuccessAt: string | null;
+            }[];
+        };
+        IntegrationViewDto: {
+            /** @enum {string} */
+            key: "mailgun" | "torio_meta_pixel" | "sslcommerz";
+            name: string;
+            /** @enum {string} */
+            category: "Email" | "Marketing & Analytics" | "Payments";
+            description: string;
+            enabled: boolean;
+            /** @enum {string} */
+            status: "NOT_CONFIGURED" | "UNVERIFIED" | "VERIFIED" | "FAILED";
+            lastTestedAt: string | null;
+            lastSuccessAt: string | null;
+            encryptionReady: boolean;
+            requirements: string[];
+            fields: {
+                key: string;
+                label: string;
+                /** @enum {string} */
+                kind: "text" | "email" | "select" | "boolean";
+                required: boolean;
+                hint: string | null;
+                placeholder: string | null;
+                options: {
+                    value: string;
+                    label: string;
+                }[] | null;
+            }[];
+            values: {
+                [key: string]: string | boolean | null;
+            };
+            secrets: {
+                key: string;
+                label: string;
+                required: boolean;
+                set: boolean;
+                hint: string | null;
+            }[];
+            readOnly: {
+                label: string;
+                value: string;
+                hint: string | null;
+            }[];
+            lastError: string | null;
+            problems: string[];
+            canTest: boolean;
+            canEnable: boolean;
+            updatedAt: string | null;
+            extra: {
+                [key: string]: string | number | boolean | null;
+            };
+        };
+        IntegrationSaveDto: {
+            /** @default {} */
+            values: {
+                [key: string]: string | boolean | null;
+            };
+            confirmLive?: boolean;
+        };
+        IntegrationSecretDto: {
+            value: string;
+        };
+        IntegrationEnableDto: {
+            enabled: boolean;
+        };
+        IntegrationTestResultDto: {
+            ok: boolean;
+            /** @enum {string} */
+            status: "NOT_CONFIGURED" | "UNVERIFIED" | "VERIFIED" | "FAILED";
+            message: string;
+            checks: {
+                label: string;
+                ok: boolean;
+                detail: string | null;
+            }[];
+        };
+        IntegrationTestEmailDto: {
+            /** Format: email */
+            to: string;
         };
         DraftInputDto: {
             /** Format: uuid */
@@ -13268,6 +13491,207 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MetaAuthTestResultDto"];
+                };
+            };
+        };
+    };
+    AdminIntegrationsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationListDto"];
+                };
+            };
+        };
+    };
+    AdminIntegrationsController_view: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationViewDto"];
+                };
+            };
+        };
+    };
+    AdminIntegrationsController_save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IntegrationSaveDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationViewDto"];
+                };
+            };
+        };
+    };
+    AdminIntegrationsController_setSecret: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IntegrationSecretDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationViewDto"];
+                };
+            };
+        };
+    };
+    AdminIntegrationsController_clearSecret: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationViewDto"];
+                };
+            };
+        };
+    };
+    AdminIntegrationsController_enable: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IntegrationEnableDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationViewDto"];
+                };
+            };
+        };
+    };
+    AdminIntegrationsController_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationTestResultDto"];
+                };
+            };
+        };
+    };
+    AdminIntegrationsController_testEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IntegrationTestEmailDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationTestResultDto"];
+                };
+            };
+        };
+    };
+    AdminIntegrationsController_testEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationTestResultDto"];
                 };
             };
         };

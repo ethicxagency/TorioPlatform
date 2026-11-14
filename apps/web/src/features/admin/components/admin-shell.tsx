@@ -2,6 +2,9 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  BarChart3,
+  Mail,
+  Wallet,
   UserX,
   Building2,
   ChevronDown,
@@ -64,6 +67,9 @@ const NAV = [
   {
     group: 'INTEGRATIONS',
     items: [
+      { href: '/admin/integrations/mailgun', label: 'Mailgun (Email)', icon: Mail },
+      { href: '/admin/integrations/meta-pixel', label: 'Torio Meta Pixel', icon: BarChart3 },
+      { href: '/admin/integrations/sslcommerz', label: 'SSLCommerz (Payments)', icon: Wallet },
       { href: '/admin/integrations/meta', label: 'Meta Developer', icon: Plug },
       { href: '/admin/ai', label: 'AI Management', icon: Sparkles },
     ],

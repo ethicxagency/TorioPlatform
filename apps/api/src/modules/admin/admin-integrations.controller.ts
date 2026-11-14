@@ -1,0 +1,129 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Ip,
+  Param,
+  Post,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import {
+  integrationEnableSchema,
+  integrationListSchema,
+  integrationSaveSchema,
+  integrationSecretValueSchema,
+  integrationTestEmailSchema,
+  integrationTestResultSchema,
+  integrationViewSchema,
+} from '@torio/contracts';
+import { createZodDto } from 'nestjs-zod';
+import { Public } from '../../common/decorators';
+import { AdminGuard, CurrentAdmin, type AdminContext } from './admin-auth';
+import { IntegrationsService } from './integrations/integrations.service';
+
+class IntegrationListDto extends createZodDto(integrationListSchema) {}
+class IntegrationViewDto extends createZodDto(integrationViewSchema) {}
+class IntegrationSaveDto extends createZodDto(integrationSaveSchema) {}
+class IntegrationEnableDto extends createZodDto(integrationEnableSchema) {}
+class IntegrationSecretDto extends createZodDto(integrationSecretValueSchema) {}
+class IntegrationTestEmailDto extends createZodDto(integrationTestEmailSchema) {}
+class IntegrationTestResultDto extends createZodDto(integrationTestResultSchema) {}
+
+/**
+ * Super Admin → Integrations. Platform-level credentials for Mailgun, Torio's Meta Pixel and SSLCommerz. Every route needs
+ * an admin session, secrets are write-only (no route ever returns one), and workspaces have no access to any of it.
+ */
+@ApiTags('admin integrations')
+@Public()
+@UseGuards(AdminGuard)
+@Controller('admin/integrations/platform')
+export class AdminIntegrationsController {
+  constructor(private readonly integrations: IntegrationsService) {}
+
+  @Get()
+  @ApiOkResponse({ type: IntegrationListDto })
+  list() {
+    return this.integrations.list();
+  }
+
+  @Get(':key')
+  @ApiOkResponse({ type: IntegrationViewDto })
+  view(@Param('key') key: string) {
+    return this.integrations.view(key);
+  }
+
+  @Put(':key/config')
+  @ApiOkResponse({ type: IntegrationViewDto })
+  save(
+    @CurrentAdmin() a: AdminContext,
+    @Param('key') key: string,
+    @Body() b: IntegrationSaveDto,
+    @Ip() ip: string,
+  ) {
+    return this.integrations.save(a, key, b, ip);
+  }
+
+  @Put(':key/secrets/:name')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOkResponse({ type: IntegrationViewDto })
+  setSecret(
+    @CurrentAdmin() a: AdminContext,
+    @Param('key') key: string,
+    @Param('name') name: string,
+    @Body() b: IntegrationSecretDto,
+    @Ip() ip: string,
+  ) {
+    return this.integrations.setSecret(a, key, name, b.value, ip);
+  }
+
+  @Delete(':key/secrets/:name')
+  @ApiOkResponse({ type: IntegrationViewDto })
+  clearSecret(
+    @CurrentAdmin() a: AdminContext,
+    @Param('key') key: string,
+    @Param('name') name: string,
+    @Ip() ip: string,
+  ) {
+    return this.integrations.clearSecret(a, key, name, ip);
+  }
+
+  @Put(':key/enabled')
+  @ApiOkResponse({ type: IntegrationViewDto })
+  enable(
+    @CurrentAdmin() a: AdminContext,
+    @Param('key') key: string,
+    @Body() b: IntegrationEnableDto,
+    @Ip() ip: string,
+  ) {
+    return this.integrations.setEnabled(a, key, b.enabled, ip);
+  }
+
+  @Post(':key/test')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOkResponse({ type: IntegrationTestResultDto })
+  test(@CurrentAdmin() a: AdminContext, @Param('key') key: string, @Ip() ip: string) {
+    return this.integrations.test(a, key, ip);
+  }
+
+  @Post('mailgun/test-email')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOkResponse({ type: IntegrationTestResultDto })
+  testEmail(@CurrentAdmin() a: AdminContext, @Body() b: IntegrationTestEmailDto, @Ip() ip: string) {
+    return this.integrations.sendTestEmail(a, b.to, ip);
+  }
+
+  @Post('torio_meta_pixel/test-event')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOkResponse({ type: IntegrationTestResultDto })
+  testEvent(@CurrentAdmin() a: AdminContext, @Ip() ip: string) {
+    return this.integrations.sendTestEvent(a, ip);
+  }
+}
