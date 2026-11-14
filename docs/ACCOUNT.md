@@ -51,5 +51,6 @@ list. Other open browsers see a change on their next refresh of that list.
   falls back to initials. Invoices read the stored logo bytes directly (converted to PNG, transparency kept) and fall back to the store
   name.
 - **Replacing.** The new file is validated and processed before anything is stored, so a refused or cancelled upload leaves the saved
-  logo unchanged. Invoices are rendered on demand from the current logo; they do not keep a snapshot, so replacing the logo changes the
-  header of a re-downloaded older invoice.
+  logo unchanged. The logo of an invoice is frozen the first time that invoice is rendered (a `stored_images` row of kind `INVOICE_LOGO`,
+  owner = the invoice; empty when it had no logo), so replacing, removing or adding a logo never changes an issued invoice. Invoices
+  rendered before this existed are frozen with the store's logo at the first open after this change.

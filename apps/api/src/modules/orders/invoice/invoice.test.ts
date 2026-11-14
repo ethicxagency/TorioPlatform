@@ -5,6 +5,25 @@ import { renderOrderInvoicePdf } from './invoice-pdf';
 import type { InvoiceData } from './invoice-types';
 import { formatInvoiceNumber, InvoiceService, logoBytes } from './invoice.service';
 
+/** An in-memory stand-in for the picture store: the live logo (changeable) and the frozen per-invoice copies. */
+function fakeImages(initial: { bytes: Uint8Array } | null = null) {
+  const state = { live: initial as { bytes: Uint8Array } | null };
+  const frozen = new Map<string, { bytes: Uint8Array; sizeBytes: number }>();
+  const images = {
+    logoOf: async () => state.live,
+    frozenLogo: async (id: string) => frozen.get(id) ?? null,
+    freeze: async (_k: string, id: string, from: { bytes: Uint8Array } | null) => {
+      if (!frozen.has(id))
+        frozen.set(id, {
+          bytes: from?.bytes ?? new Uint8Array(),
+          sizeBytes: from?.bytes.length ?? 0,
+        });
+      return frozen.get(id)!;
+    },
+  };
+  return { images: images as never, state, frozen };
+}
+
 const base = (over: Partial<InvoiceData> = {}): InvoiceData => ({
   number: 'INV-00001',
   issuedAt: new Date('2026-10-25T10:00:00Z'),
@@ -179,7 +198,7 @@ function fakeDb() {
 describe('InvoiceService', () => {
   it('uses the order, the store and the stored totals, and keeps one number per order', async () => {
     const { prisma, invoices } = fakeDb();
-    const svc = new InvoiceService(prisma, { logoOf: async () => null } as never);
+    const svc = new InvoiceService(prisma, fakeImages().images);
     const a = await svc.data('wsA', 'o1', 'u1');
     expect(a.number).toBe('INV-00001');
     expect(a.seller.name).toBe('Store A');
@@ -199,7 +218,7 @@ describe('InvoiceService', () => {
   it("never reads another store's order", async () => {
     const { prisma, invoices } = fakeDb();
     await expect(
-      new InvoiceService(prisma, { logoOf: async () => null } as never).data('wsB', 'o1', 'u1'),
+      new InvoiceService(prisma, fakeImages().images).data('wsB', 'o1', 'u1'),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(invoices).toHaveLength(0); // no number is issued for a refused request
   });
@@ -217,9 +236,10 @@ describe('InvoiceService', () => {
       .webp()
       .toBuffer();
     const { prisma } = fakeDb();
-    const withLogo = await new InvoiceService(prisma, {
-      logoOf: async () => ({ bytes: new Uint8Array(webp) }),
-    } as never).data('wsA', 'o1', 'u1');
+    const withLogo = await new InvoiceService(
+      prisma,
+      fakeImages({ bytes: new Uint8Array(webp) }).images,
+    ).data('wsA', 'o1', 'u1');
     expect(withLogo.seller.logo).not.toBeNull();
     const m = await sharp(withLogo.seller.logo!).metadata();
     expect([m.format, m.width, m.height, m.hasAlpha]).toEqual(['png', 400, 100, true]);
@@ -231,9 +251,40 @@ describe('InvoiceService', () => {
     });
     expect(pdf.length).toBeGreaterThan(plain.length); // the logo really is in the file
     // a logo that cannot be read never breaks the invoice
-    const broken = await new InvoiceService(prisma, {
-      logoOf: async () => ({ bytes: new Uint8Array(Buffer.from('garbage')) }),
-    } as never).data('wsA', 'o1', 'u1');
+    const broken = await new InvoiceService(
+      prisma,
+      fakeImages({ bytes: new Uint8Array(Buffer.from('garbage')) }).images,
+    ).data('wsA', 'o1', 'u1');
     expect(broken.seller.logo).toBeNull();
+  });
+
+  it('freezes the logo an invoice was issued with: replacing, removing or adding a logo later never changes it', async () => {
+    const sharp = (await import('sharp')).default;
+    const mk = (r: number) =>
+      sharp({
+        create: { width: 300, height: 90, channels: 4, background: { r, g: 40, b: 90, alpha: 1 } },
+      })
+        .webp()
+        .toBuffer();
+    const a = await mk(200);
+    const b = await mk(10);
+    const { prisma } = fakeDb();
+    const store = fakeImages({ bytes: new Uint8Array(a) });
+    const svc = new InvoiceService(prisma, store.images);
+    const px = async (d: InvoiceData) => (await sharp(d.seller.logo!).raw().toBuffer())[0];
+    const first = await svc.data('wsA', 'o1', 'u1');
+    const was = await px(first);
+    expect(was).toBeGreaterThan(150); // the red one
+    store.state.live = { bytes: new Uint8Array(b) }; // the store replaces its logo
+    expect(await px(await svc.data('wsA', 'o1', 'u1'))).toBe(was); // the issued invoice still has the old one
+    store.state.live = null; // ...or removes it
+    expect(await px(await svc.data('wsA', 'o1', 'u1'))).toBe(was);
+    expect(store.frozen.size).toBe(1);
+    // an invoice issued with no logo stays without one when a logo is added later
+    const bare = fakeImages(null);
+    const svc2 = new InvoiceService(fakeDb().prisma, bare.images);
+    expect((await svc2.data('wsA', 'o1', 'u1')).seller.logo).toBeNull();
+    bare.state.live = { bytes: new Uint8Array(a) };
+    expect((await svc2.data('wsA', 'o1', 'u1')).seller.logo).toBeNull();
   });
 });

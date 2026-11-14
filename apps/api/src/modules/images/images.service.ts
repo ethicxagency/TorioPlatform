@@ -3,9 +3,14 @@ import { AVATAR_TYPES, IMAGE_MAX_BYTES, LOGO_TYPES } from '@torio/contracts';
 import { APP_CONFIG, type AppConfig } from '../../config/config.module';
 import { PrismaService } from '../../database/prisma.service';
 
-export type ImageKind = 'USER_AVATAR' | 'WORKSPACE_LOGO' | 'WORKSPACE_LOGO_LIGHT';
+export type ImageKind =
+  | 'USER_AVATAR'
+  | 'WORKSPACE_LOGO'
+  | 'WORKSPACE_LOGO_LIGHT'
+  /** A frozen copy of the logo an invoice was issued with (ownerId = the invoice). An empty one means it had no logo. */
+  | 'INVOICE_LOGO';
 /** Logos share one processing path; the light one is the same logo drawn for dark backgrounds. */
-const isLogo = (k: ImageKind) => k !== 'USER_AVATAR';
+const isLogo = (k: ImageKind) => k !== 'USER_AVATAR' && k !== 'INVOICE_LOGO';
 /** The widths a picture can be served at (display contexts top out near 180px, so 2x is 360). Anything else is the original. */
 export const IMAGE_WIDTHS = [160, 360, 720] as const;
 export interface UploadedFile {
@@ -143,6 +148,34 @@ export class ImagesService {
     return { id: row.id, url: this.url(row.id) };
   }
 
+  /**
+   * Freezes a copy of a picture for a document, once: a second call for the same owner changes nothing (so concurrent first
+   * renders agree). With no source it records "no logo", so a logo added later never rewrites an issued document.
+   */
+  async freeze(
+    kind: ImageKind,
+    ownerId: string,
+    from: { bytes: Uint8Array; width: number; height: number; contentType: string } | null,
+  ) {
+    await this.prisma.client.storedImage.createMany({
+      data: [
+        {
+          kind,
+          ownerId,
+          contentType: from?.contentType ?? 'image/webp',
+          bytes: new Uint8Array(from?.bytes ?? []),
+          width: from?.width ?? 0,
+          height: from?.height ?? 0,
+          sizeBytes: from?.bytes.length ?? 0,
+        },
+      ],
+      skipDuplicates: true,
+    });
+    return this.prisma.client.storedImage.findUnique({
+      where: { kind_ownerId: { kind, ownerId } },
+    });
+  }
+
   async remove(kind: ImageKind, ownerId: string) {
     await this.prisma.client.storedImage.deleteMany({ where: { kind, ownerId } });
   }
@@ -173,6 +206,13 @@ export class ImagesService {
     const row = await this.prisma.client.storedImage.findUnique({ where: { id } });
     if (!row) throw new NotFoundException('Image not found');
     return row;
+  }
+
+  /** The logo an invoice was frozen with, or null when it has not been frozen yet. */
+  async frozenLogo(invoiceId: string) {
+    return this.prisma.client.storedImage.findUnique({
+      where: { kind_ownerId: { kind: 'INVOICE_LOGO', ownerId: invoiceId } },
+    });
   }
 
   /** Bytes of a workspace's stored logo, for documents. Null when it has none. */

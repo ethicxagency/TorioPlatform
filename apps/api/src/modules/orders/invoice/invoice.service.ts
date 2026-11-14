@@ -61,16 +61,28 @@ export class InvoiceService {
   ) {}
 
   /**
-   * The logo for the invoice header: the picture saved as the workspace's brand logo (PDFs need PNG or JPEG, so the stored WebP is
-   * converted), else an older embedded one. Nothing is fetched from a URL.
+   * The logo for the invoice header, frozen when the invoice is first rendered: later logo changes never alter an issued
+   * invoice. PDFs need PNG or JPEG, so the stored WebP is converted (transparency kept). An invoice issued before this existed
+   * is frozen with whatever the store's logo is the first time it is opened. Nothing is fetched from a URL.
    */
-  private async logo(workspaceId: string, legacy: string | null): Promise<Buffer | null> {
+  private async logo(
+    workspaceId: string,
+    invoiceId: string,
+    legacy: string | null,
+  ): Promise<Buffer | null> {
     try {
-      const stored = await this.images.logoOf(workspaceId);
-      if (stored) {
+      const frozen =
+        (await this.images.frozenLogo(invoiceId)) ??
+        (await this.images.freeze(
+          'INVOICE_LOGO',
+          invoiceId,
+          await this.images.logoOf(workspaceId),
+        ));
+      if (frozen && frozen.sizeBytes > 0) {
         const sharp = (await import('sharp')).default;
-        return await sharp(Buffer.from(stored.bytes)).png().toBuffer();
+        return await sharp(Buffer.from(frozen.bytes)).png().toBuffer();
       }
+      if (frozen) return null; // issued without a logo, and it stays that way
     } catch {
       /* fall back to the store name */
     }
@@ -151,7 +163,7 @@ export class InvoiceService {
         ],
         email: w.contactEmail,
         phone: w.phone,
-        logo: await this.logo(order.workspaceId, w.logo),
+        logo: await this.logo(order.workspaceId, inv.id, w.logo),
       },
       billTo: {
         name: c.name,
