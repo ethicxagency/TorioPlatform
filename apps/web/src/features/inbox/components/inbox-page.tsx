@@ -32,7 +32,10 @@ import { ChatPanel } from './chat-panel';
 import type { HeaderMenu } from './chat-header';
 import { ConfirmDialog } from './confirm-dialog';
 import type { BulkRequest } from './bulk-actions-toolbar';
+import { ChannelOnboarding } from './channel-onboarding';
 import { ConversationList } from './conversation-list';
+import { useChannels } from '@/features/channels/queries';
+import { EMPTY_CHANNEL_FILTERS } from '@/features/channels/types';
 import { CreateOrderModal } from './create-order-modal';
 import { CustomerProfile } from './customer-profile';
 import { formatMoney } from '@torio/contracts';
@@ -93,6 +96,10 @@ export function InboxPage() {
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
   const list = useConversationList(ws, filters);
+  // Real persisted channels decide whether this workspace has anything to receive messages from. Only people who may
+  // read channels can know; for everyone else the Inbox keeps its normal empty state.
+  const canReadChannels = can('channels:read');
+  const channels = useChannels(canReadChannels ? ws : null, EMPTY_CHANNEL_FILTERS);
   const members = useMembers(ws);
   const savedReplies = useSavedReplies(ws);
   const m = useInboxMutations(ws);
@@ -391,6 +398,9 @@ export function InboxPage() {
       </div>
     );
 
+  const liveChannels = (channels.data ?? []).filter(
+    (c) => c.status === 'CONNECTED' && !c.isSample,
+  ).length;
   const listState = list.isPending ? 'loading' : list.isError && !list.data ? 'error' : 'ready';
   const mode = activeId ? (modes[activeId] ?? 'reply') : 'reply';
 
@@ -436,6 +446,12 @@ export function InboxPage() {
         )
       }
       onBulk={bulk}
+      hasChannels={liveChannels > 0}
+      onboarding={
+        channels.data && liveChannels === 0 ? (
+          <ChannelOnboarding channels={channels.data} canManage={can('channels:manage')} />
+        ) : null
+      }
     />
   );
 

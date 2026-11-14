@@ -40,6 +40,10 @@ interface Props {
   onManage: () => void;
   onToggleAll: () => void;
   onBulk: (req: BulkRequest) => void;
+  /** The first-run channel onboarding, shown instead of the empty message when no live channel exists. */
+  onboarding?: React.ReactNode;
+  /** True once at least one live channel is known: the empty inbox then says messages will arrive, not to connect. */
+  hasChannels?: boolean;
 }
 
 export function ConversationList(p: Props) {
@@ -120,7 +124,12 @@ export function ConversationList(p: Props) {
             </Button>
           </div>
         )}
-        {p.state === 'ready' && p.conversations.length === 0 && (
+        {p.state === 'ready' &&
+          p.conversations.length === 0 &&
+          p.onboarding &&
+          !filtered &&
+          p.onboarding}
+        {p.state === 'ready' && p.conversations.length === 0 && !(p.onboarding && !filtered) && (
           <div className="px-6 py-12 text-center">
             <span className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-[14px] bg-primary-soft">
               <Inbox size={24} className="text-primary" />
@@ -140,7 +149,9 @@ export function ConversationList(p: Props) {
               {filtered
                 ? 'Try a different search or clear your filters.'
                 : p.filters.status === 'OPEN'
-                  ? 'New customer messages will appear here once a channel is connected.'
+                  ? p.hasChannels
+                    ? 'New customer messages will appear here.'
+                    : 'New customer messages will appear here once a channel is connected.'
                   : 'Conversations you move here will appear in this tab.'}
             </div>
             {filtered && (

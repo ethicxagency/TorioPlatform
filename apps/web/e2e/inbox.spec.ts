@@ -1,7 +1,9 @@
 import { expect, test } from '@playwright/test';
 import {
   aiState,
+  channelState,
   inboxState,
+  resetChannels,
   mockApi,
   orderListItem,
   orderState,
@@ -800,5 +802,112 @@ test.describe('inbox', () => {
     await expect.poll(() => orderState.statuses.length).toBe(1);
     expect(orderState.statuses[0]).toEqual({ status: 'CONFIRMED' });
     await expect(panel.getByRole('link', { name: /#1002/ })).toHaveAttribute('href', /\/orders\//);
+  });
+});
+
+test.describe('inbox first-run channel onboarding', () => {
+  const heading = (page: import('@playwright/test').Page) =>
+    page.getByRole('heading', { name: 'Bring all your conversations into one inbox' });
+
+  test.beforeEach(async ({ page }) => {
+    resetChannels();
+    resetAi();
+    await mockApi(page, { role: 'OWNER' });
+    inboxState.empty = true;
+  });
+
+  test('a workspace with no channels is guided to connect one, and the CTA opens the existing dialog', async ({
+    page,
+  }) => {
+    channelState.list = [];
+    await page.goto('/inbox');
+    await expect(heading(page)).toBeVisible();
+    await expect(
+      page.getByText('Connect WhatsApp, Instagram, and Facebook Messenger'),
+    ).toBeVisible();
+    for (const n of ['WhatsApp Business', 'Instagram Messaging', 'Facebook Messenger'])
+      await expect(page.getByRole('list', { name: 'Channels' }).getByText(n)).toBeVisible();
+    await page.getByRole('button', { name: 'Connect a channel' }).click();
+    await expect(page.getByRole('dialog', { name: /Connect your channels/ })).toBeVisible();
+  });
+
+  test('a sample record and a channel that needs attention do not count as connected', async ({
+    page,
+  }) => {
+    await page.goto('/inbox'); // default channels: one sample CONNECTED, one NEEDS_ATTENTION
+    await expect(
+      page.getByRole('heading', { name: 'Reconnect a channel to receive messages' }),
+    ).toBeVisible();
+    await expect(page.getByText('Needs attention')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Reconnect Instagram' })).toBeVisible();
+    await expect(page.getByText('New customer messages will appear here.')).toHaveCount(0);
+  });
+
+  test('connecting WhatsApp replaces the onboarding with the normal empty state without a reload', async ({
+    page,
+  }) => {
+    channelState.list = [];
+    channelState.metaConfigured = true;
+    await page.goto('/inbox');
+    await expect(heading(page)).toBeVisible();
+    await page.getByRole('button', { name: 'Connect WhatsApp' }).first().click();
+    await page.getByLabel('Display name').fill('Shop WhatsApp');
+    await page.getByLabel(/Phone number ID/).fill('123456789012');
+    await page.getByLabel('Access token').fill('x'.repeat(40));
+    await page.getByRole('button', { name: 'Connect WhatsApp', exact: true }).last().click();
+    await expect(heading(page)).toHaveCount(0);
+    await expect(page.getByText('New customer messages will appear here.')).toBeVisible();
+    await expect(page.getByText('No open conversations')).toBeVisible();
+  });
+
+  test('connected channels with no conversations show the normal empty state, not the onboarding', async ({
+    page,
+  }) => {
+    channelState.list = [
+      { ...channelState.list[0]!, id: '77777777-7777-4777-8777-0000000000bb', isSample: false },
+    ];
+    await page.goto('/inbox');
+    await expect(page.getByText('No open conversations')).toBeVisible();
+    await expect(page.getByText('New customer messages will appear here.')).toBeVisible();
+    await expect(heading(page)).toHaveCount(0);
+  });
+
+  test('an empty search says so and offers Clear filters, even with no channels', async ({
+    page,
+  }) => {
+    channelState.list = [];
+    await page.goto('/inbox');
+    await expect(heading(page)).toBeVisible();
+    await page.getByLabel('Search conversations').fill('zzz');
+    await expect(page.getByText('No conversations match')).toBeVisible();
+    await expect(
+      page
+        .getByRole('listbox', { name: 'Conversation list' })
+        .getByRole('button', { name: 'Clear filters' }),
+    ).toBeVisible();
+    await expect(heading(page)).toHaveCount(0);
+  });
+
+  test('an agent sees the guidance but cannot connect: the actions are disabled and say why', async ({
+    page,
+  }) => {
+    await mockApi(page, { role: 'AGENT' });
+    inboxState.empty = true;
+    channelState.list = [];
+    await page.goto('/inbox');
+    await expect(heading(page)).toBeVisible();
+    const cta = page.getByRole('button', { name: 'Connect a channel' });
+    await expect(cta).toBeDisabled();
+    await expect(page.getByText('Ask a workspace owner or admin')).toBeVisible();
+  });
+
+  test('the onboarding fits a phone without horizontal scrolling', async ({ page }) => {
+    channelState.list = [];
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto('/inbox');
+    await expect(heading(page)).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      375,
+    );
   });
 });

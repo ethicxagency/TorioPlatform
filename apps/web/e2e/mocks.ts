@@ -1371,7 +1371,7 @@ export const CONVS = [
 
 /** Deterministic API for UI tests: no database needed. Registers before page.goto. */
 /** Inbox bulk requests the UI sent, for assertions. */
-export const inboxState = { bulks: [] as Record<string, unknown>[] };
+export const inboxState = { bulks: [] as Record<string, unknown>[], empty: false };
 
 /** Customer authentication mock: what the API would answer, and what the pages sent. */
 export const authState = {
@@ -1452,6 +1452,7 @@ export async function mockApi(
       .context()
       .addCookies([{ name: 'torio_authed', value: '1', url: 'http://localhost:3100' }]);
   inboxState.bulks = [];
+  inboxState.empty = false;
   searchState.requests = [];
   searchState.fail = false;
   await page.route('http://localhost:4000/**', async (route) => {
@@ -1773,11 +1774,13 @@ export async function mockApi(
     if (p === '/workspaces') return reply(storeList());
     if (p === `/workspaces/${WS}/conversations`)
       return reply({
-        data: CONVS,
-        meta: { page: 1, pageSize: 100, total: 2, totalPages: 1 },
-        counts: { open: 2, snoozed: 0, resolved: 0 },
+        data: inboxState.empty ? [] : CONVS,
+        meta: { page: 1, pageSize: 100, total: inboxState.empty ? 0 : 2, totalPages: 1 },
+        counts: inboxState.empty
+          ? { open: 0, snoozed: 0, resolved: 0 }
+          : { open: 2, snoozed: 0, resolved: 0 },
         channelCounts: {
-          all: CONVS.length,
+          all: inboxState.empty ? 0 : CONVS.length,
           ...Object.fromEntries(
             (['WHATSAPP', 'INSTAGRAM', 'MESSENGER'] as const).map((k) => [
               k,
@@ -2532,6 +2535,16 @@ export async function mockApi(
             connectedCount: 0,
           })),
         });
+      if (rest === '/whatsapp/connect' && req.method() === 'POST') {
+        const created = chan(
+          '77777777-7777-4777-8777-0000000000aa',
+          'WHATSAPP',
+          'Shop WhatsApp',
+          'CONNECTED',
+        );
+        channelState.list.push(created);
+        return reply(created, 201);
+      }
       if (rest === '/meta/config')
         return reply({
           appId: '1234567890',
