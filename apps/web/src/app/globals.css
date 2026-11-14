@@ -854,3 +854,106 @@ select:not([multiple]):not([size]):disabled {
     }
   }
 }
+
+/* Torio Brain landing page. Every motion here is decoration: it stops under prefers-reduced-motion. */
+@keyframes bl-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+@keyframes bl-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.97);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.04);
+  }
+}
+@keyframes bl-flow {
+  to {
+    stroke-dashoffset: -48;
+  }
+}
+@keyframes bl-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    r: 2.2;
+  }
+  50% {
+    opacity: 1;
+    r: 3.6;
+  }
+}
+@keyframes bl-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes bl-fade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.bl-float {
+  animation: bl-float 7s ease-in-out infinite;
+}
+.bl-glow {
+  animation: bl-glow 5.5s ease-in-out infinite;
+}
+.bl-flow {
+  stroke-dasharray: 6 10;
+  animation: bl-flow 2.4s linear infinite;
+}
+.bl-node {
+  animation: bl-pulse 3.2s ease-in-out infinite;
+}
+.bl-reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.bl-reveal[data-in='true'] {
+  opacity: 1;
+  transform: none;
+}
+.bl-enter {
+  animation: bl-rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.bl-swap {
+  animation: bl-fade 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bl-float,
+  .bl-glow,
+  .bl-flow,
+  .bl-node,
+  .bl-enter,
+  .bl-swap {
+    animation: none !important;
+  }
+  .bl-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

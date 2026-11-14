@@ -2,12 +2,14 @@
 
 import { ChevronDown, Menu, X } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { TorioLogo } from '@/components/shell/torio-logo';
 import { cn } from '@/lib/utils';
 
 const LINKS = [
   { label: 'Product', href: '/#product' },
+  { label: 'Brain', href: '/brain' },
   { label: 'Features', href: '/#features' },
   { label: 'Integrations', href: '/#integrations' },
   { label: 'Pricing', href: '/#pricing' },
@@ -22,6 +24,9 @@ const link =
 
 /** Sticky public header. Anchors work from every public page (`/#features` goes home first). */
 export function SiteHeader() {
+  // `/brain` is served from an internal path for visitors, so either one means the Brain page.
+  const raw = usePathname();
+  const pathname = raw === '/torio-brain' ? '/brain' : raw;
   const [open, setOpen] = useState(false);
   const [res, setRes] = useState(false);
   const menu = useRef<HTMLDivElement>(null);
@@ -49,9 +54,14 @@ export function SiteHeader() {
         <Link href="/" aria-label="Torio home" className="flex shrink-0">
           <TorioLogo className="h-8 w-auto object-contain" />
         </Link>
-        <nav aria-label="Primary" className="ml-6 hidden items-center gap-0.5 md:flex">
+        <nav aria-label="Primary" className="ml-6 hidden items-center gap-0.5 lg:flex">
           {LINKS.map((l) => (
-            <a key={l.href} href={l.href} className={link}>
+            <a
+              key={l.href}
+              href={l.href}
+              aria-current={l.href === pathname ? 'page' : undefined}
+              className={cn(link, l.href === pathname && 'bg-primary-soft text-primary-hover')}
+            >
               {l.label}
             </a>
           ))}
@@ -95,7 +105,7 @@ export function SiteHeader() {
             )}
           </div>
         </nav>
-        <div className="ml-auto hidden items-center gap-2 md:flex">
+        <div className="ml-auto hidden items-center gap-2 lg:flex">
           <Link
             href="/login"
             className="rounded-[10px] px-3.5 py-2 text-[14.5px] font-semibold text-ink no-underline hover:bg-wash hover:no-underline"
@@ -115,7 +125,7 @@ export function SiteHeader() {
           aria-expanded={open}
           aria-controls="site-mobile-menu"
           onClick={() => setOpen((v) => !v)}
-          className="ml-auto flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border border-line bg-white text-ink md:hidden"
+          className="ml-auto flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border border-line bg-white text-ink lg:hidden"
         >
           {open ? <X size={18} aria-hidden /> : <Menu size={18} aria-hidden />}
         </button>
@@ -124,15 +134,19 @@ export function SiteHeader() {
         <nav
           id="site-mobile-menu"
           aria-label="Mobile"
-          className="animate-panel-in border-t border-line-subtle bg-white px-4 pb-4 pt-2 motion-reduce:animate-none md:hidden"
+          className="animate-panel-in border-t border-line-subtle bg-white px-4 pb-4 pt-2 motion-reduce:animate-none lg:hidden"
         >
           <ul className="m-0 flex list-none flex-col p-0">
             {[...LINKS, ...RESOURCES].map((l) => (
               <li key={l.href}>
                 <a
                   href={l.href}
+                  aria-current={l.href === pathname ? 'page' : undefined}
                   onClick={() => setOpen(false)}
-                  className="block rounded-lg px-3 py-3 text-[15px] font-medium text-ink no-underline hover:bg-wash hover:no-underline"
+                  className={cn(
+                    'block rounded-lg px-3 py-3 text-[15px] font-medium text-ink no-underline hover:bg-wash hover:no-underline',
+                    l.href === pathname && 'bg-primary-soft text-primary-hover',
+                  )}
                 >
                   {l.label}
                 </a>

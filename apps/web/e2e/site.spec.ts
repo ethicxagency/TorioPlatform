@@ -262,4 +262,134 @@ test.describe('account deletion page', () => {
     await page.getByRole('button', { name: 'Check status' }).click();
     await expect(page.getByText('No request with that reference.')).toBeVisible();
   });
+
+  test('Torio Brain page: server-rendered at /brain for visitors with SEO metadata, one h1, and the version from the release config', async ({
+    page,
+    request,
+  }) => {
+    const html = await (await request.get('/brain')).text();
+    expect(html).toContain('Your Business.');
+    expect(html).toContain('Understood.');
+    expect(html).toMatch(/<title>Torio Brain: Your Business\. Understood\.<\/title>/);
+    expect(html).toMatch(/<link rel="canonical" href="https:\/\/torio\.nextupglobal\.net\/brain"/);
+    expect(html).toContain('property="og:title"');
+    expect(html).toContain('property="og:image"');
+    expect(html).toContain('name="twitter:card"');
+    expect((html.match(/<h1/g) ?? []).length).toBe(1);
+    // the internal path is not a second public address
+    const r = await request.get('/torio-brain', { maxRedirects: 0 });
+    expect([r.status(), r.headers().location]).toEqual([308, expect.stringContaining('/brain')]);
+    await page.goto('/brain');
+    await expect(page).toHaveURL(/localhost:3100\/brain$/);
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Your Business.');
+    await expect(page.getByTestId('landing-brain-version')).toHaveText(/^v\d+\.\d+\.\d+$/);
+  });
+
+  test('Torio Brain page: navigation, CTAs and every section are present', async ({ page }) => {
+    await page.goto('/');
+    const nav = page.getByRole('navigation', { name: 'Primary' });
+    await nav.getByRole('link', { name: 'Brain' }).click();
+    await expect(page).toHaveURL(/\/brain$/);
+    await expect(nav.getByRole('link', { name: 'Brain' })).toHaveAttribute('aria-current', 'page');
+    const main = page.getByRole('main');
+    for (const h of [
+      'Not Just AI. Business Intelligence.',
+      'It Knows What Your Business Knows.',
+      'Generic Answers Are Not Enough.',
+      'Multiple AI Perspectives. One Intelligent Response.',
+      'Your Business. Your Rules.',
+      'Intelligence That Evolves With Your Business.',
+      'Give Your Business an Intelligence of Its Own.',
+    ])
+      await expect(main.getByRole('heading', { name: h })).toBeAttached();
+    await expect(main.getByRole('link', { name: 'Get Started', exact: true })).toHaveAttribute(
+      'href',
+      '/signup',
+    );
+    await expect(main.getByRole('link', { name: 'Get Started with Torio' })).toHaveAttribute(
+      'href',
+      '/signup',
+    );
+    await expect(main.getByRole('link', { name: 'Explore Torio', exact: true })).toHaveAttribute(
+      'href',
+      '/',
+    );
+    await expect(main.getByRole('link', { name: /Explore Torio Brain/ })).toHaveAttribute(
+      'href',
+      '#intelligence',
+    );
+    // only providers Torio supports are named
+    await expect(main.getByText('OpenAI', { exact: true })).toBeVisible();
+    await expect(main.getByText('Gemini', { exact: true })).toBeVisible();
+    for (const never of ['Claude', 'Anthropic', 'Llama', 'Mistral'])
+      await expect(main.getByText(never)).toHaveCount(0);
+  });
+
+  test('Torio Brain page: the interactive demos respond', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('/brain');
+    // intelligence map: focusing a node shows its explanation
+    const node = page.getByRole('button', { name: 'Rules & Behavior' });
+    await node.scrollIntoViewIfNeeded();
+    await node.hover();
+    await expect(page.getByRole('tooltip').filter({ hasText: /never do/ })).toHaveCSS(
+      'opacity',
+      '1',
+    );
+    // generic vs Torio Brain: the toggle swaps the answer and labels it as an example
+    const compare = page.getByRole('tablist', { name: 'Compare answers' });
+    await compare.scrollIntoViewIfNeeded();
+    await compare.getByRole('tab', { name: 'Torio Brain' }).click();
+    await expect(page.getByRole('tabpanel')).toContainText('Chattogram in 2–3 working days');
+    await compare.getByRole('tab', { name: 'Generic AI' }).click();
+    await expect(page.getByRole('tabpanel')).toContainText('Please check the website');
+    await expect(page.getByText(/An illustrative example/)).toBeVisible();
+    // rules: choosing a rule shows the rule and a reply within it
+    await page.getByRole('button', { name: 'Escalation Rules' }).click();
+    await expect(page.getByText('Refund disputes go to the team.')).toBeVisible();
+    await expect(page.getByText(/ask my teammate/)).toBeVisible();
+    // multi-AI: the pipeline stages are described, and the page does not promise a perfect answer
+    await expect(page.getByText('A draft, reviewed by a person before it is sent.')).toBeVisible();
+    await expect(page.getByText(/does not guarantee a perfect answer/)).toBeVisible();
+  });
+
+  test('Torio Brain page: no horizontal overflow from phone to wide desktop, and the mobile menu lists Brain', async ({
+    page,
+  }) => {
+    for (const [w, h] of [
+      [390, 844],
+      [768, 1024],
+      [1280, 800],
+      [1920, 1080],
+    ] as const) {
+      await page.setViewportSize({ width: w, height: h });
+      await page.goto('/brain');
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+        w,
+      );
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/brain');
+    await page.getByRole('button', { name: 'Open menu' }).click();
+    await expect(
+      page.getByRole('navigation', { name: 'Mobile' }).getByRole('link', { name: 'Brain' }),
+    ).toHaveAttribute('aria-current', 'page');
+  });
+
+  test('Torio Brain page: decorative motion stops when the visitor prefers reduced motion', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/brain');
+    const anim = await page
+      .locator('svg.bl-float')
+      .first()
+      .evaluate((e) => getComputedStyle(e).animationName);
+    expect(anim).toBe('none');
+    // content is visible without scrolling it into view
+    await expect(
+      page.getByRole('heading', { name: 'Not Just AI. Business Intelligence.' }),
+    ).toBeVisible();
+  });
 });

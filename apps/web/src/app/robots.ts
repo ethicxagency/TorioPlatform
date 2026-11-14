@@ -6,7 +6,8 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: ['/', '/privacy-policy', '/delete-account'],
+        // `/brain` is the public Torio Brain page for visitors (and the editor for signed-in customers, who are not crawlers).
+        allow: ['/', '/brain$', '/privacy-policy', '/delete-account'],
         // The API, the admin console and the signed-in app are not for search engines.
         disallow: [
           '/api/',
