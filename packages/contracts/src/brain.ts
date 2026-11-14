@@ -38,6 +38,9 @@ export const SCOPES = [
   'Internal reference only',
 ] as const;
 export const STOCK_STATES = ['In stock', 'Low stock', 'Out of stock', 'Pre-order'] as const;
+export const MAX_PRODUCTS = 1000;
+export const PRODUCT_STATUSES = ['ACTIVE', 'DRAFT', 'ARCHIVED'] as const;
+export const PRODUCT_SOURCES = ['MANUAL', 'XML_IMPORT', 'FEED', 'INTELLIGENT', 'CHANNEL'] as const;
 export const PRIORITIES = ['High', 'Medium', 'Low'] as const;
 export const ACTION_TYPES = [
   'Ask the customer',
@@ -97,6 +100,25 @@ export const brainProductSchema = z.object({
   limitations: text(1000),
   faqs: text(2000),
   updatedAt: text(40).optional(),
+  // ---- Products & Catalog fields. All optional: a product written before the catalog existed is a valid, active product
+  // that came from the Intelligent (Brain) page. The catalog and Brain read and write the same record.
+  sku: text(80).optional(),
+  compareAtPrice: text(20).optional(),
+  status: z.enum(PRODUCT_STATUSES).optional(),
+  source: z.enum(PRODUCT_SOURCES).optional(),
+  /** The import source or feed that last wrote this product. */
+  sourceId: text(40).optional(),
+  /** The product's own ID in the external feed, so a re-import updates it instead of duplicating it. */
+  externalId: text(120).optional(),
+  images: z.array(text(500)).max(10).optional(),
+  url: text(500).optional(),
+  brand: text(120).optional(),
+  gtin: text(40).optional(),
+  mpn: text(60).optional(),
+  stockQty: z.number().int().min(0).max(1_000_000).nullable().optional(),
+  createdAt: text(40).optional(),
+  /** Fields a person changed by hand. A scheduled feed sync never overwrites these. */
+  edited: z.array(text(30)).max(30).optional(),
 });
 
 export const brainCustomFieldSchema = z.object({
@@ -179,7 +201,7 @@ export const brainConfigSchema = z.object({
     positioning: text(300),
     usp: text(300),
   }),
-  products: z.array(brainProductSchema).max(300),
+  products: z.array(brainProductSchema).max(MAX_PRODUCTS),
   shipping: z.object({
     /** Couriers the store has added and left enabled: the ones the AI may name. */
     providers: z.array(text(60)).max(20),

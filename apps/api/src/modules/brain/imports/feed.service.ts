@@ -306,6 +306,8 @@ export class FeedService {
     });
     let started = 0;
     for (const s of sources) {
+      // Catalog feeds (config.direct) apply straight to the catalog and are scheduled by the catalog module, not here.
+      if ((s.config as { direct?: boolean } | null)?.direct) continue;
       const f = (s.config as unknown as FeedConfig | null)?.frequency;
       const every = f === 'daily' ? DAY : f === 'weekly' ? 7 * DAY : 0;
       if (!every || (s.lastSyncedAt && Date.now() - s.lastSyncedAt.getTime() < every - 600_000))

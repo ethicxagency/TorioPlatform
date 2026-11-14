@@ -9,6 +9,9 @@ const notMigrated = (e: unknown) =>
   e !== null &&
   ['P2021', 'P2022'].includes((e as { code?: string }).code ?? '');
 
+/** Catalog feeds apply straight to the catalog; they are managed on the Products page, not in Brain's review flow. */
+const isDirect = (config: unknown) => !!(config as { direct?: boolean } | null)?.direct;
+
 /**
  * Import sources and their recent jobs for one store. The tables arrive with a migration the operator applies on their own
  * schedule, so a database without them is a normal state: the overview is then empty and says it is not ready, instead of
@@ -48,6 +51,7 @@ export class ImportsService {
           },
         }),
       ]);
+      const directIds = new Set(sources.filter((s) => isDirect(s.config)).map((s) => s.id));
       return {
         ready: true,
         totals: {
@@ -56,28 +60,33 @@ export class ImportsService {
           pendingReview: pending,
           failedImports: failed,
         },
-        sources: sources.map((s) => ({
-          id: s.id,
-          kind: s.kind,
-          name: s.name,
-          url: s.url,
-          status: s.status,
-          lastSyncedAt: s.lastSyncedAt?.toISOString() ?? null,
-          lastError: s.lastError,
-          frequency:
-            ((s.config as { frequency?: string } | null)?.frequency as string | undefined) ?? null,
-        })),
-        jobs: jobs.map((j) => ({
-          id: j.id,
-          sourceId: j.sourceId,
-          kind: j.kind,
-          status: j.status,
-          stats: (j.stats as Record<string, number> | null) ?? null,
-          error: j.error,
-          startedAt: j.startedAt?.toISOString() ?? null,
-          finishedAt: j.finishedAt?.toISOString() ?? null,
-          createdAt: j.createdAt.toISOString(),
-        })),
+        sources: sources
+          .filter((s) => !isDirect(s.config))
+          .map((s) => ({
+            id: s.id,
+            kind: s.kind,
+            name: s.name,
+            url: s.url,
+            status: s.status,
+            lastSyncedAt: s.lastSyncedAt?.toISOString() ?? null,
+            lastError: s.lastError,
+            frequency:
+              ((s.config as { frequency?: string } | null)?.frequency as string | undefined) ??
+              null,
+          })),
+        jobs: jobs
+          .filter((j) => !j.sourceId || !directIds.has(j.sourceId))
+          .map((j) => ({
+            id: j.id,
+            sourceId: j.sourceId,
+            kind: j.kind,
+            status: j.status,
+            stats: (j.stats as Record<string, number> | null) ?? null,
+            error: j.error,
+            startedAt: j.startedAt?.toISOString() ?? null,
+            finishedAt: j.finishedAt?.toISOString() ?? null,
+            createdAt: j.createdAt.toISOString(),
+          })),
       };
     } catch (e) {
       if (!notMigrated(e)) throw e;

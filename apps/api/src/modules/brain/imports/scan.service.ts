@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import {
   FAQ_CATS,
+  MAX_PRODUCTS,
   STOCK_STATES,
   type BrainConfig,
   type ImportCategory,
@@ -740,7 +741,7 @@ export class ScanService {
           skipped++;
           continue;
         }
-        if (cfg.products.length >= 300) {
+        if (cfg.products.length >= MAX_PRODUCTS) {
           capped++;
           continue;
         }
@@ -762,6 +763,10 @@ export class ScanService {
           usage: '',
           limitations: '',
           faqs: '',
+          status: 'ACTIVE',
+          source: 'FEED',
+          ...(d['externalId'] && { externalId: d['externalId'].slice(0, 120) }),
+          createdAt: new Date().toISOString(),
         });
         done.push(r.id);
       } else if (r.category === 'faq' || r.category === 'policy') {
@@ -836,7 +841,7 @@ export class ScanService {
     if (skipped) notes.push(`${skipped} already in your Brain, so they were left alone.`);
     if (updated)
       notes.push(`${updated} existing product${updated === 1 ? ' was' : 's were'} updated.`);
-    if (capped) notes.push(`${capped} not added: Brain holds up to 300 products.`);
+    if (capped) notes.push(`${capped} not added: Brain holds up to ${MAX_PRODUCTS} products.`);
     if (replaced)
       notes.push(
         `${replaced} business detail${replaced === 1 ? ' was' : 's were'} replaced as you chose.`,

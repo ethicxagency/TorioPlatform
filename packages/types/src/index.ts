@@ -22,6 +22,11 @@ export const PERMISSIONS = [
   'leads:delete',
   'brain:read',
   'brain:write',
+  'catalog:read',
+  'catalog:write',
+  'catalog:delete',
+  'catalog:import',
+  'catalog:feeds',
   'channels:read',
   'channels:manage',
   'orders:read',
@@ -58,6 +63,7 @@ export const ROLE_PERMISSIONS: Record<WorkspaceRole, ReadonlySet<Permission>> = 
     'leads:read',
     'leads:write',
     'brain:read',
+    'catalog:read',
     'channels:read',
     'orders:read',
     'orders:write',
@@ -339,6 +345,39 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
+    key: 'catalog',
+    label: 'Products & Catalog',
+    permissions: [
+      {
+        key: 'catalog:read',
+        label: 'View products',
+        description: 'See the product catalog, imports, feeds and sync activity.',
+      },
+      {
+        key: 'catalog:write',
+        label: 'Create and edit products',
+        description: 'Add products, change prices, stock and status.',
+      },
+      {
+        key: 'catalog:delete',
+        label: 'Delete and archive products',
+        description: 'Archive or permanently delete products.',
+        sensitive: true,
+      },
+      {
+        key: 'catalog:import',
+        label: 'Import products',
+        description: 'Import from XML links, files and the Intelligent page, and run syncs.',
+      },
+      {
+        key: 'catalog:feeds',
+        label: 'Manage feeds and sales channels',
+        description: 'Create, pause, rotate and delete product feeds and channel links.',
+        sensitive: true,
+      },
+    ],
+  },
+  {
     key: 'billing',
     label: 'Billing & Subscription',
     permissions: [
@@ -411,6 +450,11 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       'automation:activate',
       'brain:read',
       'brain:write',
+      'catalog:read',
+      'catalog:write',
+      'catalog:delete',
+      'catalog:import',
+      'catalog:feeds',
       'billing:read',
       'audit:read',
     ],
@@ -432,6 +476,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       'channels:read',
       'automation:read',
       'brain:read',
+      'catalog:read',
     ],
   },
   {
@@ -449,6 +494,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       'customers:update',
       'leads:read',
       'brain:read',
+      'catalog:read',
     ],
   },
   {

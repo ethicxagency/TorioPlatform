@@ -99,6 +99,12 @@ function children(body: string): RawItem {
     const key = local(name);
     // nested sections (shipping, tax, additional images) keep only their own first scalar; the parent tag's text is used
     if (!(key in out)) out[key] = text(inner);
+    else if (/image|picture|photo/.test(key)) {
+      // repeated image tags (Google's additional_image_link): kept as key#2, key#3 so a catalog import can read them all
+      let n = 2;
+      while (`${key}#${n}` in out) n++;
+      if (n <= 11) out[`${key}#${n}`] = text(inner);
+    }
     re.lastIndex = end + name.length + 3;
   }
   return out;
@@ -148,7 +154,7 @@ export function parseFeed(xml: string): ParsedFeed {
 export function detectedTags(items: RawItem[]): string[] {
   const n = new Map<string, number>();
   for (const it of items.slice(0, 200))
-    for (const k of Object.keys(it)) n.set(k, (n.get(k) ?? 0) + 1);
+    for (const k of Object.keys(it)) if (!k.includes('#')) n.set(k, (n.get(k) ?? 0) + 1);
   return [...n.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => k);
 }
 

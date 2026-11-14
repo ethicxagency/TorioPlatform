@@ -18,6 +18,7 @@ import { EmailModule } from './modules/email/email.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { TeamModule } from './modules/team/team.module';
 import { BrainModule } from './modules/brain/brain.module';
+import { CatalogModule } from './modules/catalog/catalog.module';
 import { PlatformModule } from './modules/platform/platform-settings.service';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AdminModule } from './modules/admin/admin.module';
@@ -90,6 +91,7 @@ const REQUEST_ID = /^[A-Za-z0-9._-]{8,64}$/;
     EmailModule,
     TrackingModule,
     BrainModule,
+    CatalogModule,
     ChannelsModule,
     WhatsAppModule,
     MetaConfigModule,

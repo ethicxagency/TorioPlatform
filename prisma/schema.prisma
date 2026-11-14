@@ -308,6 +308,7 @@ model Workspace {
   teams                Team[]
   brainConfig          BrainConfig?
   importSources        ImportSource[]
+  catalogFeeds         CatalogFeed[]
   importJobs           ImportJob[]
   importRecords        ImportRecord[]
   automations          Automation[]
@@ -1467,6 +1468,42 @@ enum ImportJobStatus {
   COMPLETED
   FAILED
   CANCELLED
+}
+
+enum CatalogFeedChannel {
+  GOOGLE
+  META
+  TIKTOK
+  CUSTOM
+}
+
+enum CatalogFeedStatus {
+  ACTIVE
+  PAUSED
+}
+
+/// A product feed Torio publishes for a sales channel (Google Merchant Center, Meta Commerce, TikTok, custom XML). The feed
+/// address carries a random secret token: only its hash is used to look the feed up, and the token itself is kept encrypted
+/// so a manager can copy the address again. Rotating the token stops the old address working at once.
+model CatalogFeed {
+  id           String                 @id @default(uuid(7)) @db.Uuid
+  workspaceId  String                 @db.Uuid
+  name         String
+  channel      CatalogFeedChannel
+  status       CatalogFeedStatus      @default(ACTIVE)
+  inStockOnly  Boolean                @default(false)
+  tokenHash    String                 @unique
+  tokenCipher  String
+  lastServedAt DateTime?
+  servedCount  Int                    @default(0)
+  createdById  String?                @db.Uuid
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("catalog_feeds")
 }
 
 /// A place business knowledge can be imported from (a website, a product feed, a catalog). One workspace may have several

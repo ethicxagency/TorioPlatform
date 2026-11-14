@@ -125,4 +125,60 @@ export class BrainService {
     }
     return this.view(workspaceId);
   }
+
+  /**
+   * Changes the product list on its own, under the same version counter as Brain, so the catalog and the Intelligent page
+   * can never overwrite each other: a clash is retried against the fresh document, never written over. `fn` edits the
+   * product array in place and may throw to refuse. The rest of the document is saved exactly as it was read, and the
+   * incomplete-configuration rules that gate a full Brain save do not apply to a product edit.
+   */
+  async mutateProducts<T>(
+    workspaceId: string,
+    userId: string | null,
+    description: string,
+    fn: (products: BrainConfig['products']) => T,
+  ): Promise<T> {
+    const db = this.prisma.client;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const before = await this.view(workspaceId);
+      const cfg: BrainConfig = structuredClone(before.config);
+      const result = fn(cfg.products);
+      const checked = brainConfigSchema.safeParse(cfg);
+      if (!checked.success)
+        throw new BadRequestException(
+          `That change is not valid: ${checked.error.issues[0]?.message ?? 'check the product details'}.`,
+        );
+      try {
+        await db.$transaction(async (tx) => {
+          if (before.version === 0) {
+            await tx.brainConfig.create({
+              data: { workspaceId, data: checked.data, version: 1, updatedById: userId },
+              select: { id: true },
+            });
+          } else {
+            const res = await tx.brainConfig.updateMany({
+              where: { workspaceId, version: before.version },
+              data: { data: checked.data, version: before.version + 1, updatedById: userId },
+            });
+            if (res.count !== 1) throw new ConflictException('retry');
+          }
+          await tx.auditLog.create({
+            data: {
+              workspaceId,
+              actorId: userId,
+              action: 'catalog.update',
+              entityType: 'catalog',
+              entityId: workspaceId,
+              metadata: { description },
+            },
+          });
+        });
+        return result;
+      } catch (e) {
+        if (e instanceof ConflictException || (e as { code?: string }).code === 'P2002') continue;
+        throw e;
+      }
+    }
+    throw new ConflictException('The catalog is being changed by someone else. Try again.');
+  }
 }
