@@ -198,6 +198,17 @@ export class MetaGraph {
     });
   }
 
+  /**
+   * The hostnames listed under the app's Settings → Basic → App Domains. Meta rejects a login whose redirect_uri host is not
+   * one of them (or a subdomain of one). Null when Meta does not return the field (a restricted app), never a guess.
+   */
+  async appDomains(appId: string, appSecret: string): Promise<string[] | null> {
+    const r = await this.call<{ app_domains?: string[] }>(appId, {
+      query: { fields: 'app_domains', access_token: `${appId}|${appSecret}` },
+    });
+    return Array.isArray(r.app_domains) ? r.app_domains.map((d) => d.trim().toLowerCase()) : null;
+  }
+
   /** The webhook subscriptions registered for the app at Meta (object, callback URL, fields). */
   async appSubscriptions(appId: string, appSecret: string) {
     const r = await this.call<{

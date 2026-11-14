@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- private method and loose details are read directly */
 import { describe, expect, it } from 'vitest';
 import type { AppConfig } from '../../config/config.module';
 import { MetaAuthConfigService } from './meta-auth-config.service';
@@ -81,5 +82,77 @@ describe('Torio Auth app configuration', () => {
     expect(channel.redirect().problems.join(' ')).toMatch(
       /exactly \/api\/v1\/auth\/oauth\/facebook\/callback/,
     );
+  });
+});
+
+describe('customer Facebook login checks (beyond the credentials)', () => {
+  const mk = (domains: string[] | null | Error, over: Partial<AppConfig> = {}) =>
+    new MetaAuthConfigService(
+      {} as never,
+      { configured: true, decrypt: (x: string) => x } as never,
+      {} as never,
+      business('3850545818418490'),
+      {
+        get: () => ({
+          appDomains: async () => {
+            if (domains instanceof Error) throw domains;
+            return domains;
+          },
+        }),
+      } as never,
+      {
+        ...base,
+        JWT_ACCESS_SECRET: 'test-secret-test-secret-test-secret-123456',
+        API_URL: 'https://torio.nextupglobal.net',
+        FACEBOOK_APP_ID: '2321020315413901',
+        FACEBOOK_APP_SECRET: 'env-secret-value',
+        ...over,
+      } as AppConfig,
+    );
+  const run = (s: MetaAuthConfigService) => (s as any).loginChecks(s.current);
+  const val = (r: any, label: string) => r.details.find((d: any) => d.label === label)?.value;
+
+  it('fails, naming the hostname, when it is not in the app’s App Domains (the Meta "Can’t load URL" error)', async () => {
+    const r = await run(mk(['torioplatform.vercel.app']));
+    expect(r.ok).toBe(false);
+    expect(r.message).toContain('torio.nextupglobal.net is not in the app’s App Domains');
+    expect(r.resolution).toMatch(/add torio\.nextupglobal\.net/);
+    expect(r.resolution).toMatch(/no https:\/\//);
+    expect(val(r, 'OAuth hostname')).toBe('torio.nextupglobal.net');
+    expect(val(r, 'Redirect URI sent to Meta')).toBe(`https://torio.nextupglobal.net${ROUTE}`);
+    expect(val(r, 'Hostname allowed by App Domains')).toBe('No');
+    expect(val(r, 'Active App ID')).toContain('Torio Auth');
+  });
+  it('passes when the host, or its parent domain, is listed, and still reminds about the redirect URIs Meta does not expose', async () => {
+    for (const d of ['torio.nextupglobal.net', 'nextupglobal.net']) {
+      const r = await run(mk([d]));
+      expect(r.ok).toBe(true);
+      expect(val(r, 'Hostname allowed by App Domains')).toBe('Yes');
+      expect(r.resolution).toMatch(/Valid OAuth Redirect URIs|registered under Facebook Login/);
+    }
+    // a lookalike is not a parent domain
+    expect((await run(mk(['xnextupglobal.net']))).ok).toBe(false);
+  });
+  it('does not guess when Meta does not return the domains', async () => {
+    for (const d of [null, new Error('boom')]) {
+      const r = await run(mk(d));
+      expect(r.ok).toBe(true);
+      expect(val(r, 'App Domains at Meta')).toBe('Meta did not return them');
+      expect(r.resolution).toMatch(/confirm torio\.nextupglobal\.net is listed/);
+    }
+  });
+  it('refuses the Torio Platform app for customer sign-in, and verifies the signed OAuth state', async () => {
+    const wrong = await run(
+      mk(['torio.nextupglobal.net'], { FACEBOOK_APP_ID: '3850545818418490' }),
+    );
+    expect(wrong.ok).toBe(false);
+    expect(wrong.message).toMatch(/Torio Platform app/);
+    const r = await run(mk(['torio.nextupglobal.net']));
+    expect(val(r, 'OAuth state check')).toMatch(/verifies/);
+    expect(val(r, 'Callback route')).toBe(ROUTE);
+  });
+  it('never includes the App Secret in the result', async () => {
+    const r = await run(mk(['torioplatform.vercel.app']));
+    expect(JSON.stringify(r)).not.toContain('env-secret-value');
   });
 });

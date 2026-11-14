@@ -9,6 +9,7 @@ import {
   type MetaAuthPatch,
 } from '@torio/contracts';
 import { Prisma } from '@torio/database';
+import { signCookie, verifyCookie, randomToken } from '../auth/oauth-cookie';
 import { APP_CONFIG, type AppConfig } from '../../config/config.module';
 import { PrismaService } from '../../database/prisma.service';
 import { AdminAudit } from '../admin/admin-audit.service';
@@ -525,6 +526,105 @@ export class MetaAuthConfigService {
     return this.adminView();
   }
 
+  /**
+   * The parts of customer Facebook Login that credentials alone do not prove, checked for the app in use: which Meta app it is,
+   * the exact redirect URI and its hostname, whether Meta lists that hostname under App Domains (read from Meta), and whether Torio's
+   * signed OAuth state round-trips. No App Secret or token is ever included in the result.
+   */
+  private async loginChecks(rt: AuthRuntime): Promise<{
+    ok: boolean;
+    message: string;
+    resolution: string | null;
+    details: { label: string; value: string }[];
+  }> {
+    const details: { label: string; value: string }[] = [];
+    const which =
+      rt.appId === META_APP_IDS.AUTH
+        ? 'Torio Auth'
+        : rt.appId === META_APP_IDS.BUSINESS_MESSAGING
+          ? 'Torio Platform (wrong app for customer sign-in)'
+          : 'another app';
+    details.push({ label: 'Active App ID', value: `${rt.appId} (${which})` });
+    const r = this.redirect(rt);
+    details.push({
+      label: 'Redirect URI sent to Meta',
+      value: r.uri ?? `not usable: ${r.problems.join(' ')}`,
+    });
+    let host: string | null = null;
+    try {
+      host = r.uri ? new URL(r.uri).hostname.toLowerCase() : null;
+    } catch {
+      host = null;
+    }
+    details.push(
+      { label: 'OAuth hostname', value: host ?? '—' },
+      { label: 'Callback route', value: FACEBOOK_LOGIN_CALLBACK_PATH },
+    );
+
+    // Signed state: what the callback relies on to refuse forged or replayed requests.
+    const secret = this.env.JWT_ACCESS_SECRET;
+    const state = randomToken(12);
+    const cookie = signCookie('state', { s: state, p: 'facebook' }, secret, 60_000);
+    const good = verifyCookie<{ s: string }>('state', cookie, secret)?.s === state;
+    const forged = verifyCookie('state', `${cookie.slice(0, -2)}xx`, secret) === null;
+    const stateOk = good && forged;
+    details.push({
+      label: 'OAuth state check',
+      value: stateOk ? 'Signed state verifies; a tampered one is refused' : 'Failed',
+    });
+
+    if (rt.appId === META_APP_IDS.BUSINESS_MESSAGING)
+      return {
+        ok: false,
+        message: 'Customer Facebook sign-in is configured with the Torio Platform app.',
+        resolution: `Use the Torio Auth app (${META_APP_IDS.AUTH}) here. Torio Platform is only for business channels.`,
+        details,
+      };
+    if (!host)
+      return {
+        ok: false,
+        message: 'Customer Facebook sign-in has no usable redirect URI.',
+        resolution: r.problems.join(' ') || null,
+        details,
+      };
+
+    let domains: string[] | null = null;
+    try {
+      domains = await this.graph.get().appDomains(rt.appId!, rt.appSecret!);
+    } catch {
+      domains = null;
+    }
+    if (domains === null) {
+      details.push({ label: 'App Domains at Meta', value: 'Meta did not return them' });
+      return {
+        ok: true,
+        message: '',
+        resolution: `Meta did not return this app’s App Domains, so confirm ${host} is listed under App Domains (Meta → Torio Auth → Settings → Basic).`,
+        details,
+      };
+    }
+    const covered = domains.some((d) => host === d || host!.endsWith(`.${d}`));
+    details.push(
+      { label: 'App Domains at Meta', value: domains.length ? domains.join(', ') : '(none)' },
+      { label: 'Hostname allowed by App Domains', value: covered ? 'Yes' : 'No' },
+    );
+    if (!covered)
+      return {
+        ok: false,
+        message: `Meta will reject customer Facebook sign-in: ${host} is not in the app’s App Domains.`,
+        resolution: `In Meta → Torio Auth → Settings → Basic → App Domains, add ${host} (the hostname only: no https://, no path). Then save. Facebook Login → Settings must also list ${r.uri} under Valid OAuth Redirect URIs, which Meta does not let Torio read.`,
+        details,
+      };
+    return {
+      ok: stateOk,
+      message: stateOk ? '' : 'The OAuth state check failed.',
+      resolution: stateOk
+        ? `App Domains cover ${host}. Meta does not expose Valid OAuth Redirect URIs, so confirm ${r.uri} is registered under Facebook Login → Settings.`
+        : null,
+      details,
+    };
+  }
+
   /** Asks Meta whether the App ID and App Secret in use are a valid pair. A real call; nothing is inferred from the fields. */
   async test(admin: AdminContext, ip?: string) {
     const rt = await this.load(true);
@@ -553,6 +653,15 @@ export class MetaAuthConfigService {
         );
         if (rt.appName && info.name && rt.appName !== info.name)
           resolution = `Meta calls this app “${info.name}”, not “${rt.appName}”.`;
+        // Credentials being valid does not mean the login redirect will load: Meta also checks the redirect hostname against the
+        // app's App Domains. Check that too, with what Meta actually has for this app.
+        const login = await this.loginChecks(rt);
+        details.push(...login.details);
+        if (!login.ok) {
+          ok = false;
+          message = login.message;
+          resolution = login.resolution;
+        } else if (login.resolution) resolution = login.resolution;
       } catch (e) {
         if (e instanceof GraphError) {
           httpStatus = e.status;
