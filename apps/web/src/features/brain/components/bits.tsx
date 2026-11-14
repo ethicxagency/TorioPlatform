@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { Check, Plus, X } from 'lucide-react';
 import { useId, useState } from 'react';
 import { AREA, controlCls } from '@/components/ui/input';
@@ -122,13 +123,18 @@ export const SelectField = ({
 }) => (
   <Field label={label} hint={hint} className={className}>
     {(id) => (
-      <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={inputCls}>
+      <FieldSelect
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={inputCls}
+      >
         {options.map((o) => (
           <option key={o} value={o}>
             {o}
           </option>
         ))}
-      </select>
+      </FieldSelect>
     )}
   </Field>
 );

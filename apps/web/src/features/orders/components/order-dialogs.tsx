@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { outstandingMinor } from '@torio/contracts';
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -113,7 +114,7 @@ export function PaymentDialog({
         </label>
         <label className="flex flex-col gap-1 text-[11.5px] text-faint">
           Method
-          <select
+          <FieldSelect
             value={method}
             onChange={(e) => setMethod(e.target.value as PaymentMethod)}
             className={field}
@@ -123,7 +124,7 @@ export function PaymentDialog({
                 {METHOD_LABEL[m]}
               </option>
             ))}
-          </select>
+          </FieldSelect>
         </label>
         <label className="flex flex-col gap-1 text-[11.5px] text-faint">
           Reference (optional, never a card number)
@@ -204,7 +205,7 @@ export function FulfillmentDialog({
         </div>
         <label className="flex flex-col gap-1 text-[11.5px] text-faint">
           Update to
-          <select
+          <FieldSelect
             value={status}
             onChange={(e) => setStatus(e.target.value as typeof status)}
             className={field}
@@ -213,7 +214,7 @@ export function FulfillmentDialog({
               <option value="PROCESSING">Processing</option>
             )}
             <option value="FULFILLED">Fulfilled (shipped or handed over)</option>
-          </select>
+          </FieldSelect>
         </label>
         <label className="flex flex-col gap-1 text-[11.5px] text-faint">
           Shipping method (optional)

@@ -50,7 +50,7 @@ test.describe('toast notifications', () => {
     await page.getByLabel('Business Name').fill('UrbanNest HQ');
     await page.getByRole('button', { name: 'Save changes' }).click();
     await expect(page.getByText('Business information updated successfully.')).toBeVisible();
-    await page.getByLabel('Job title (optional)').fill('Head of Support');
+    await page.getByLabel('Job title', { exact: true }).fill('Head of Support');
     await page.getByRole('button', { name: 'Save changes' }).click();
     const region = page.getByRole('region', { name: 'Notifications' });
     await expect(region.getByRole('status')).toHaveCount(2);

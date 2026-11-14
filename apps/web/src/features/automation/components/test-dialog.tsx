@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { triggerOf, type Definition } from '@torio/contracts';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -72,7 +73,7 @@ export function TestDialog({
           <label key={f.key} className="flex flex-col gap-1 text-[12px] font-medium">
             {f.label}
             {f.kind === 'enum' || f.kind === 'flag' ? (
-              <select
+              <FieldSelect
                 value={vals[f.key] ?? ''}
                 onChange={(e) => setVals((v) => ({ ...v, [f.key]: e.target.value }))}
                 className={field}
@@ -86,7 +87,7 @@ export function TestDialog({
                 ) : (
                   f.options!.map((o) => <option key={o}>{o}</option>)
                 )}
-              </select>
+              </FieldSelect>
             ) : (
               <input
                 value={vals[f.key] ?? ''}

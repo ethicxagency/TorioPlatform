@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { choose } from './select';
 import {
   areas,
   emptyBrainConfig,
@@ -227,7 +228,7 @@ test.describe('brain (admin)', () => {
     const drawer = page.getByRole('dialog', { name: 'Add custom field' });
     await drawer.getByLabel('Field name *').fill('Warranty Period');
     await expect(drawer.getByLabel('Machine key *')).toHaveValue('warranty_period');
-    await drawer.getByLabel('Type').selectOption('Single select');
+    await choose(drawer.getByLabel('Type'), 'Single select');
     await drawer.getByRole('button', { name: 'Save field' }).click();
     await expect(drawer.getByText(/Add at least one option/)).toBeVisible();
     await drawer.getByLabel('Options *').fill('3 months, 6 months');

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { choose } from './select';
 import {
   aiState,
   channelState,
@@ -582,7 +583,7 @@ test.describe('inbox', () => {
 
     await drawer.getByRole('combobox', { name: 'Search catalog' }).fill('vase');
     await drawer.getByRole('option', { name: /Nordic Ceramic Vase/ }).click();
-    await drawer.getByRole('combobox', { name: 'Colour' }).selectOption('Sage');
+    await choose(drawer.getByRole('combobox', { name: 'Colour' }), 'Sage');
     await drawer.getByRole('button', { name: 'Add to order' }).click();
     await expect(drawer.getByRole('textbox', { name: /Product name/ })).toHaveValue(
       'Nordic Ceramic Vase (Sage)',

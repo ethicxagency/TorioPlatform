@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { AREA, CONTROL } from '@/components/ui/input';
 import { DEFAULT_CURRENCY, formatCurrencyMajor } from '@torio/contracts';
 import {
@@ -101,7 +102,7 @@ export function LeadDrawer({
         onClose={onClose}
         badges={
           <>
-            <select
+            <FieldSelect
               aria-label="Lead status"
               disabled={!canWrite || m.update.isPending}
               value={lead.stage}
@@ -113,7 +114,7 @@ export function LeadDrawer({
                   {s.label}
                 </option>
               ))}
-            </select>
+            </FieldSelect>
             <ScoreIndicator score={lead.score} />
           </>
         }

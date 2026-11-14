@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   customerInputSchema,
@@ -154,34 +155,37 @@ export function CustomerFormDialog({ customer, owners, onClose, onSubmit }: Prop
         </label>
         <label className={label}>
           Source
-          <select className={selectCls} {...register('source')}>
+          <FieldSelect className={selectCls} {...register('source')}>
             {SOURCES.map((s) => (
               <option key={s.key} value={s.key}>
                 {s.label}
               </option>
             ))}
-          </select>
+          </FieldSelect>
         </label>
         <label className={label}>
           Status
-          <select className={selectCls} {...register('status')}>
+          <FieldSelect className={selectCls} {...register('status')}>
             {STATUSES.map((s) => (
               <option key={s.key} value={s.key}>
                 {s.label}
               </option>
             ))}
-          </select>
+          </FieldSelect>
         </label>
         <label className={`${label} sm:col-span-2`}>
           Owner
-          <select className={selectCls} {...register('ownerId', { setValueAs: (v) => v || null })}>
+          <FieldSelect
+            className={selectCls}
+            {...register('ownerId', { setValueAs: (v) => v || null })}
+          >
             <option value="">Unassigned</option>
             {owners.map((o) => (
               <option key={o.id} value={o.id}>
                 {o.name}
               </option>
             ))}
-          </select>
+          </FieldSelect>
         </label>
         <div className={`${label} sm:col-span-2`}>
           <label htmlFor="customer-tags">Tags</label>

@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { MetricCard } from '@/components/ui/card';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -49,7 +50,7 @@ function RevenueChart({ d }: { d: Dashboard }) {
   return (
     <div>
       {d.revenue.length > 1 && (
-        <select
+        <FieldSelect
           aria-label="Currency"
           value={series.currency}
           onChange={(e) => setCur(e.target.value)}
@@ -58,7 +59,7 @@ function RevenueChart({ d }: { d: Dashboard }) {
           {d.revenue.map((r) => (
             <option key={r.currency}>{r.currency}</option>
           ))}
-        </select>
+        </FieldSelect>
       )}
       <ul
         className="m-0 flex h-36 list-none items-end gap-2 p-0"
@@ -265,7 +266,7 @@ export function CustomersPage() {
       <PageHead title="Customers" description="Every customer account on the platform." />
       <div className="mb-3 flex flex-wrap gap-2">
         <SearchBox value={search} onChange={reset(setSearch)} label="Search by name or email" />
-        <select
+        <FieldSelect
           aria-label="Account status"
           value={status}
           onChange={(e) => reset(setStatus)(e.target.value)}
@@ -274,8 +275,8 @@ export function CustomersPage() {
           <option value="">Any account status</option>
           <option value="ACTIVE">Active</option>
           <option value="DISABLED">Suspended</option>
-        </select>
-        <select
+        </FieldSelect>
+        <FieldSelect
           aria-label="Subscription status"
           value={sub}
           onChange={(e) => reset(setSub)(e.target.value)}
@@ -288,7 +289,7 @@ export function CustomersPage() {
               {s.replace('_', ' ').toLowerCase()}
             </option>
           ))}
-        </select>
+        </FieldSelect>
       </div>
       <Panel>
         {list.isPending ? (
@@ -532,7 +533,7 @@ export function WorkspacesPage() {
           }}
           label="Search workspaces"
         />
-        <select
+        <FieldSelect
           aria-label="Workspace status"
           value={status}
           onChange={(e) => {
@@ -544,7 +545,7 @@ export function WorkspacesPage() {
           <option value="">Any status</option>
           <option value="ACTIVE">Active</option>
           <option value="SUSPENDED">Suspended</option>
-        </select>
+        </FieldSelect>
       </div>
       <Panel>
         {list.isPending ? (

@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { formatMoney } from '../money';
 import { Check, Search } from 'lucide-react';
 import Link from 'next/link';
@@ -218,7 +219,7 @@ export function CreateOrderDialog({ customer: initial, onClose, onCreate }: Prop
         <div className="flex flex-col gap-3">
           <label className="flex w-[140px] flex-col gap-1 text-[11.5px] text-faint">
             Currency
-            <select
+            <FieldSelect
               aria-label="Currency"
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
@@ -227,7 +228,7 @@ export function CreateOrderDialog({ customer: initial, onClose, onCreate }: Prop
               {currencyChoices.map((c) => (
                 <option key={c}>{c}</option>
               ))}
-            </select>
+            </FieldSelect>
           </label>
           <LinesEditor
             lines={lines}
@@ -284,7 +285,7 @@ export function CreateOrderDialog({ customer: initial, onClose, onCreate }: Prop
           {(convs.data?.length ?? 0) > 0 && (
             <label className="flex flex-col gap-1 text-[11.5px] text-faint">
               Link to a conversation (optional)
-              <select
+              <FieldSelect
                 value={conversationId}
                 onChange={(e) => setConversationId(e.target.value)}
                 className={field}
@@ -295,7 +296,7 @@ export function CreateOrderDialog({ customer: initial, onClose, onCreate }: Prop
                     {CHANNEL_LABEL[c.provider]} · {c.preview.slice(0, 40) || 'Conversation'}
                   </option>
                 ))}
-              </select>
+              </FieldSelect>
             </label>
           )}
           <label className="flex flex-col gap-1 text-[11.5px] text-faint">

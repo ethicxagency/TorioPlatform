@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { choose } from './select';
 import {
   adminState,
   aiState,
@@ -199,10 +200,10 @@ test.describe('super admin', () => {
     await page.getByLabel('Search by name or email').fill('karim');
     await expect(page.getByRole('row', { name: /Nadia Rahman/ })).toHaveCount(0);
     await page.getByLabel('Search by name or email').fill('');
-    await page.getByLabel('Subscription status').selectOption('NONE');
+    await choose(page.getByLabel('Subscription status'), 'NONE');
     await expect(page.getByRole('row', { name: /Karim Hossain/ })).toBeVisible();
     await expect(page.getByRole('row', { name: /Nadia Rahman/ })).toHaveCount(0);
-    await page.getByLabel('Subscription status').selectOption('');
+    await choose(page.getByLabel('Subscription status'), '');
     await page.getByRole('button', { name: 'View Karim Hossain' }).click();
     const d = page.getByRole('dialog', { name: 'Karim Hossain' });
     await expect(
@@ -247,9 +248,9 @@ test.describe('super admin', () => {
     await page.getByRole('link', { name: 'Subscriptions & Billing' }).click();
     await expect(page.getByRole('row', { name: /Acme Store/ })).toContainText('$49.00');
     await expect(page.getByRole('row', { name: /Beta Shop/ })).toContainText('Manual grant');
-    await page.getByLabel('Subscription status').selectOption('TRIALING');
+    await choose(page.getByLabel('Subscription status'), 'TRIALING');
     await expect(page.getByText('No subscriptions match.')).toBeVisible();
-    await page.getByLabel('Subscription status').selectOption('');
+    await choose(page.getByLabel('Subscription status'), '');
     await page.getByRole('button', { name: 'View subscription for Acme Store' }).click();
     const d = page.getByRole('dialog', { name: /Acme Store/ });
     await expect(d.getByText('invoice.paid')).toBeVisible();

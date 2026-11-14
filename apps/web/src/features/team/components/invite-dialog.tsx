@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { controlCls } from '@/components/ui/input';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { invitationInputSchema, type InvitationInput } from '@torio/contracts';
@@ -130,19 +131,19 @@ export function InviteDialog({ actorRole, teams, onClose, onInvite }: Props) {
           </label>
           <label className={label}>
             Role *
-            <select className={controlCls} {...register('role')}>
+            <FieldSelect className={controlCls} {...register('role')}>
               {roles.map((r) => (
                 <option key={r} value={r}>
                   {ROLE_INFO[r].label}
                 </option>
               ))}
-            </select>
+            </FieldSelect>
             <span className="text-xs font-normal text-muted">{ROLE_INFO[role].description}</span>
           </label>
           {teams.length > 0 && (
             <label className={label}>
               Team (optional)
-              <select
+              <FieldSelect
                 className={controlCls}
                 {...register('teamId', { setValueAs: (v) => v || null })}
               >
@@ -152,7 +153,7 @@ export function InviteDialog({ actorRole, teams, onClose, onInvite }: Props) {
                     {t.name}
                   </option>
                 ))}
-              </select>
+              </FieldSelect>
             </label>
           )}
           {errors.root && (

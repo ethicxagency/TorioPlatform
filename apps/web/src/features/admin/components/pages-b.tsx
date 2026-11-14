@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { DEFAULT_CURRENCY } from '@torio/contracts';
 import { USAGE_LABEL, USAGE_METRICS } from '@torio/contracts';
 import { useSearchParams } from 'next/navigation';
@@ -73,7 +74,7 @@ export function SubscriptionsPage() {
           }}
           label="Search workspace or owner email"
         />
-        <select
+        <FieldSelect
           aria-label="Subscription status"
           value={status}
           onChange={(e) => {
@@ -88,7 +89,7 @@ export function SubscriptionsPage() {
               {s === 'PAST_DUE' ? 'Past due' : s.charAt(0) + s.slice(1).toLowerCase()}
             </option>
           ))}
-        </select>
+        </FieldSelect>
       </div>
       <Panel>
         {list.isPending ? (
@@ -352,7 +353,7 @@ function AssignDialog({ onClose }: { onClose: () => void }) {
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-[12.5px] font-medium sm:col-span-2">
             Workspace
-            <select
+            <FieldSelect
               aria-label="Workspace"
               value={wsId}
               onChange={(e) => setWsId(e.target.value)}
@@ -365,11 +366,11 @@ function AssignDialog({ onClose }: { onClose: () => void }) {
                   {w.owner ? ` (${w.owner.email})` : ''}
                 </option>
               ))}
-            </select>
+            </FieldSelect>
           </label>
           <label className="flex flex-col gap-1 text-[12.5px] font-medium">
             Plan
-            <select
+            <FieldSelect
               aria-label="Plan"
               value={planKey}
               onChange={(e) => setPlanKey(e.target.value)}
@@ -382,11 +383,11 @@ function AssignDialog({ onClose }: { onClose: () => void }) {
                   {p.status === 'DISABLED' ? ' (disabled)' : ''}
                 </option>
               ))}
-            </select>
+            </FieldSelect>
           </label>
           <label className="flex flex-col gap-1 text-[12.5px] font-medium">
             Billing cycle
-            <select
+            <FieldSelect
               aria-label="Billing cycle"
               value={interval}
               onChange={(e) => setInterval(e.target.value as 'MONTH' | 'YEAR')}
@@ -394,7 +395,7 @@ function AssignDialog({ onClose }: { onClose: () => void }) {
             >
               <option value="MONTH">Monthly</option>
               <option value="YEAR">Yearly</option>
-            </select>
+            </FieldSelect>
           </label>
           <label className="flex flex-col gap-1 text-[12.5px] font-medium sm:col-span-2">
             Grant ends (optional, complimentary plans only)
@@ -769,7 +770,7 @@ function PlanDialog({ plan, onClose }: { plan: PlanItem | null; onClose: () => v
         </label>
         <label className={fld}>
           Currency
-          <select
+          <FieldSelect
             aria-label="Currency"
             value={f.currency}
             onChange={(e) => set('currency', e.target.value)}
@@ -778,7 +779,7 @@ function PlanDialog({ plan, onClose }: { plan: PlanItem | null; onClose: () => v
             {['BDT', 'USD', 'EUR', 'GBP', 'INR', 'AED'].map((c) => (
               <option key={c}>{c}</option>
             ))}
-          </select>
+          </FieldSelect>
         </label>
         <label className={fld}>
           Order (higher = bigger plan)

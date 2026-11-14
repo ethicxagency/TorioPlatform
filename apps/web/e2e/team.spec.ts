@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { choose } from './select';
 import { mockApi } from './mocks';
 
 test.describe('team (owner)', () => {
@@ -30,7 +31,7 @@ test.describe('team (owner)', () => {
     await expect(drawer).toBeVisible();
     await expect(drawer.getByLabel('Role')).toBeVisible();
     await expect(drawer.getByRole('option', { name: 'Owner' })).toHaveCount(0); // owner can never be granted
-    await drawer.getByLabel('Role').selectOption('ADMIN');
+    await choose(drawer.getByLabel('Role'), 'ADMIN');
     await expect(page.getByRole('alertdialog')).toContainText("Change Nadia Islam's role?");
     await page.getByRole('button', { name: 'Cancel' }).click();
     await page.keyboard.press('Escape');

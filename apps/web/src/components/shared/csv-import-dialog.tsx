@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { FileUp } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -147,7 +148,7 @@ export function CsvImportDialog({
                 {fields.map((f) => (
                   <label key={f} className="flex items-center justify-between gap-2 text-[13px]">
                     {labels[f]}
-                    <select
+                    <FieldSelect
                       value={mapping[f]}
                       onChange={(e) => setMapping({ ...mapping, [f]: Number(e.target.value) })}
                       className="h-8 w-[170px] rounded-lg border border-line bg-white px-2 text-[13px]"
@@ -158,7 +159,7 @@ export function CsvImportDialog({
                           {h || `Column ${i + 1}`}
                         </option>
                       ))}
-                    </select>
+                    </FieldSelect>
                   </label>
                 ))}
               </fieldset>

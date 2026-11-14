@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { AREA, controlCls } from '@/components/ui/input';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { teamInputSchema, type TeamInput } from '@torio/contracts';
@@ -145,14 +146,17 @@ function TeamForm({
         </label>
         <label className="flex flex-col gap-1.5 text-[13px] font-medium">
           Team lead
-          <select className={controlCls} {...register('leadId', { setValueAs: (v) => v || null })}>
+          <FieldSelect
+            className={controlCls}
+            {...register('leadId', { setValueAs: (v) => v || null })}
+          >
             <option value="">No lead</option>
             {people.map((p) => (
               <option key={p.userId} value={p.userId}>
                 {p.name}
               </option>
             ))}
-          </select>
+          </FieldSelect>
         </label>
         <fieldset className="m-0 border-0 p-0">
           <legend className="mb-1.5 text-[13px] font-medium">Members</legend>

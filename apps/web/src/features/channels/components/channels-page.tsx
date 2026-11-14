@@ -1,6 +1,8 @@
 'use client';
 
-import { LayoutGrid, List, Plus, Search, X } from 'lucide-react';
+import { ChannelIcon } from '@/components/channel-icon';
+import { Select } from '@/components/ui/select';
+import { ArrowDownUp, LayoutGrid, List, Plus, Search, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -112,47 +114,45 @@ export function ChannelsPage() {
             </button>
           )}
         </label>
-        <select
+        <Select
           aria-label="Filter by platform"
           value={filters.provider}
-          onChange={(e) =>
-            setFilters({ ...filters, provider: e.target.value as ChannelFilters['provider'] })
-          }
-          className="h-9 rounded-[10px] border border-line bg-white px-2.5 text-[13px]"
-        >
-          <option value="">All platforms</option>
-          {(Object.keys(CHANNELS) as (keyof typeof CHANNELS)[]).map((p) => (
-            <option key={p} value={p}>
-              {CHANNELS[p].label}
-            </option>
-          ))}
-        </select>
-        <select
+          onChange={(v) => setFilters({ ...filters, provider: v as ChannelFilters['provider'] })}
+          className="h-9 min-w-[160px]"
+          options={[
+            { value: '', label: 'All platforms' },
+            ...(Object.keys(CHANNELS) as (keyof typeof CHANNELS)[]).map((p) => ({
+              value: p,
+              label: CHANNELS[p].label,
+              lead: <ChannelIcon channel={p} size={16} decorative />,
+            })),
+          ]}
+        />
+        <Select
           aria-label="Filter by status"
           value={filters.status}
-          onChange={(e) =>
-            setFilters({ ...filters, status: e.target.value as ChannelFilters['status'] })
-          }
-          className="h-9 rounded-[10px] border border-line bg-white px-2.5 text-[13px]"
-        >
-          <option value="">Any status</option>
-          {(Object.keys(STATUS_INFO) as (keyof typeof STATUS_INFO)[]).map((k) => (
-            <option key={k} value={k}>
-              {STATUS_INFO[k].label}
-            </option>
-          ))}
-        </select>
-        <select
+          onChange={(v) => setFilters({ ...filters, status: v as ChannelFilters['status'] })}
+          className="h-9 min-w-[170px]"
+          options={[
+            { value: '', label: 'Any status' },
+            ...(Object.keys(STATUS_INFO) as (keyof typeof STATUS_INFO)[]).map((k) => ({
+              value: k,
+              label: STATUS_INFO[k].label,
+              dot: STATUS_INFO[k].tone,
+            })),
+          ]}
+        />
+        <Select
           aria-label="Sort channels"
           value={filters.sort}
-          onChange={(e) =>
-            setFilters({ ...filters, sort: e.target.value as ChannelFilters['sort'] })
-          }
-          className="h-9 rounded-[10px] border border-line bg-white px-2.5 text-[13px]"
-        >
-          <option value="name">Name</option>
-          <option value="activity">Last activity</option>
-        </select>
+          onChange={(v) => setFilters({ ...filters, sort: v as ChannelFilters['sort'] })}
+          className="h-9 min-w-[150px]"
+          icon={<ArrowDownUp size={14} />}
+          options={[
+            { value: 'name', label: 'Name' },
+            { value: 'activity', label: 'Last activity' },
+          ]}
+        />
         {filtered && (
           <button
             type="button"

@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { currencyDef, MAX_ORDER_LINES } from '@torio/contracts';
 import { Loader2, Minus, Package, Plus, Search, Trash2, X } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
@@ -356,7 +357,7 @@ export function CreateOrderModal({ c, offerSummary, onClose, onCreate }: Props) 
                 {picking.p.options.map((o) => (
                   <label key={o.label} className="text-xs text-muted">
                     {o.label}
-                    <select
+                    <FieldSelect
                       value={picking.choice[o.label]}
                       onChange={(e) =>
                         setPicking({
@@ -369,7 +370,7 @@ export function CreateOrderModal({ c, offerSummary, onClose, onCreate }: Props) 
                       {o.values.map((val) => (
                         <option key={val}>{val}</option>
                       ))}
-                    </select>
+                    </FieldSelect>
                   </label>
                 ))}
               </div>
@@ -505,7 +506,7 @@ export function CreateOrderModal({ c, offerSummary, onClose, onCreate }: Props) 
             </label>
             <label className={label}>
               Currency
-              <select
+              <FieldSelect
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
                 className={cn(input, 'mt-1.5 font-normal')}
@@ -515,7 +516,7 @@ export function CreateOrderModal({ c, offerSummary, onClose, onCreate }: Props) 
                     {code}
                   </option>
                 ))}
-              </select>
+              </FieldSelect>
             </label>
           </div>
 

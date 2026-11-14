@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { Pagination } from '@/components/ui/pagination';
 import { X } from 'lucide-react';
 import { triggerOf } from '@torio/contracts';
@@ -36,7 +37,7 @@ export function HistoryView(p: Props) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap gap-2">
-        <select
+        <FieldSelect
           aria-label="Filter by automation"
           value={p.automationId}
           onChange={(e) => p.onAutomation(e.target.value)}
@@ -48,8 +49,8 @@ export function HistoryView(p: Props) {
               {a.name}
             </option>
           ))}
-        </select>
-        <select
+        </FieldSelect>
+        <FieldSelect
           aria-label="Filter by run status"
           value={p.status}
           onChange={(e) => p.onStatus(e.target.value as ExecutionStatus | '')}
@@ -61,7 +62,7 @@ export function HistoryView(p: Props) {
               {EXEC_INFO[s].label}
             </option>
           ))}
-        </select>
+        </FieldSelect>
       </div>
       <p className="m-0 text-xs text-faint">
         Production runs only. Tests are simulations and are listed on each automation&apos;s editor.

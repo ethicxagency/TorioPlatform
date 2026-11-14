@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { useState } from 'react';
 import { fmtAgo, initialsOf } from '@/features/inbox/format';
 import { cn } from '@/lib/utils';
@@ -116,7 +117,7 @@ export function PipelineBoard({ leads, total, canWrite, now, onOpen, onMove }: P
                       <span className="flex-1 text-right">{fmtAgo(l.lastActivityAt, now)}</span>
                     </div>
                     {canWrite && (
-                      <select
+                      <FieldSelect
                         aria-label={`Move ${l.name} to stage`}
                         value={l.stage}
                         onChange={(e) => onMove(l, e.target.value as LeadStage)}
@@ -127,7 +128,7 @@ export function PipelineBoard({ leads, total, canWrite, now, onOpen, onMove }: P
                             {x.label}
                           </option>
                         ))}
-                      </select>
+                      </FieldSelect>
                     )}
                   </article>
                 ))}

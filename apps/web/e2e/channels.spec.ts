@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { choose } from './select';
 import { channelState, mockApi, resetChannels } from './mocks';
 
 test.describe('channels (owner)', () => {
@@ -29,7 +30,7 @@ test.describe('channels (owner)', () => {
   });
 
   test('search and platform filter narrow the list', async ({ page }) => {
-    await page.getByLabel('Filter by platform').selectOption('INSTAGRAM');
+    await choose(page.getByLabel('Filter by platform'), 'INSTAGRAM');
     await expect.poll(() => page.getByRole('button', { name: 'Brand Instagram' }).count()).toBe(1);
   });
 

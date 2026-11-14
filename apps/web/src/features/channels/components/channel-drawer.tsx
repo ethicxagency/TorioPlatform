@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { Ban, Check, CircleHelp, Inbox as InboxIcon, Minus, RefreshCw, X } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
@@ -349,7 +350,7 @@ export function ChannelDrawer({ channel: c, canManage, canAudit, onClose, onReco
               </div>
               <label className="flex flex-col gap-1.5 text-[13px] font-medium">
                 Default assignee
-                <select
+                <FieldSelect
                   value={c.defaultAssignee?.id ?? ''}
                   onChange={(e) =>
                     patch({ defaultAssigneeId: e.target.value || null }, 'Default assignee updated')
@@ -362,11 +363,11 @@ export function ChannelDrawer({ channel: c, canManage, canAudit, onClose, onReco
                       {m.name}
                     </option>
                   ))}
-                </select>
+                </FieldSelect>
               </label>
               <label className="flex flex-col gap-1.5 text-[13px] font-medium">
                 Default team
-                <select
+                <FieldSelect
                   value={c.defaultTeam?.id ?? ''}
                   onChange={(e) =>
                     patch({ defaultTeamId: e.target.value || null }, 'Default team updated')
@@ -379,7 +380,7 @@ export function ChannelDrawer({ channel: c, canManage, canAudit, onClose, onReco
                       {t.name}
                     </option>
                   ))}
-                </select>
+                </FieldSelect>
               </label>
               <p className="m-0 text-xs text-faint">
                 Defaults are stored now and will be applied to new conversations once messages

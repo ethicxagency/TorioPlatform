@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ApiSchemas } from '@torio/api-client';
 import {
@@ -891,7 +892,7 @@ export function MetaDeveloperPage() {
                   hint="Mirror the mode shown in Meta’s dashboard."
                   source={c.sources.appMode}
                 >
-                  <select
+                  <FieldSelect
                     value={(draft.appMode as string) ?? ''}
                     onChange={(e) => set('appMode', (e.target.value || null) as Values['appMode'])}
                     className={controlCls}
@@ -899,7 +900,7 @@ export function MetaDeveloperPage() {
                     <option value="">Not set</option>
                     <option value="DEVELOPMENT">Development</option>
                     <option value="LIVE">Live</option>
-                  </select>
+                  </FieldSelect>
                 </Field>
                 <Field label="App domain" source={c.sources.appDomain} error={err('appDomain')}>
                   <input
@@ -1451,7 +1452,7 @@ function ActivityTab() {
     <Panel
       title="Configuration history"
       action={
-        <select
+        <FieldSelect
           aria-label="Filter activity"
           value={action}
           onChange={(e) => {
@@ -1465,7 +1466,7 @@ function ActivityTab() {
           <option value="meta.secret">Secrets</option>
           <option value="meta.test">Tests</option>
           <option value="meta.security">Security</option>
-        </select>
+        </FieldSelect>
       }
     >
       {q.isPending ? (

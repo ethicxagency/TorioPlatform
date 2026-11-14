@@ -37,12 +37,42 @@ test.describe('customers', () => {
     expect(await box.evaluate((e) => getComputedStyle(e).overflowY)).toBe('auto');
   });
 
-  test('native selects in forms share one chrome: no OS arrow, one chevron', async ({ page }) => {
+  test('form selects are the shared dropdown: no native control, keyboard, Escape and outside click', async ({
+    page,
+  }) => {
     await page.getByRole('button', { name: 'Add Customer' }).first().click();
-    const sel = page.getByRole('dialog').locator('select').first();
-    await expect(sel).toBeVisible();
-    expect(await sel.evaluate((e) => getComputedStyle(e).appearance)).toBe('none');
-    expect(await sel.evaluate((e) => getComputedStyle(e).backgroundImage)).toContain('svg');
+    const dlg = page.getByRole('dialog');
+    await expect(dlg.locator('select')).toHaveCount(0);
+    const trigger = dlg.getByRole('combobox').first();
+    await expect(trigger).toBeVisible();
+    await trigger.focus();
+    await page.keyboard.press('ArrowDown');
+    const list = page.getByRole('listbox');
+    await expect(list).toBeVisible();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    // the list is a floating panel above the dialog: never clipped, never wider than the viewport
+    const box = await list.boundingBox();
+    const vp = page.viewportSize()!;
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(vp.width);
+    expect(box!.y).toBeGreaterThanOrEqual(0);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(vp.height);
+    await page.keyboard.press('Escape');
+    await expect(list).toHaveCount(0);
+    await expect(dlg).toBeVisible(); // Escape closed only the list
+    await expect(trigger).toBeFocused();
+    await trigger.click();
+    await expect(list).toBeVisible();
+    await dlg.getByRole('heading').first().click(); // outside the list, inside the dialog
+    await expect(list).toHaveCount(0);
+    await trigger.click();
+    const second = page.getByRole('option').nth(1);
+    const value = await second.getAttribute('data-value');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await expect(list).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    expect(value).not.toBeNull();
   });
 
   test('page size: choosing rows per page asks the API for it, and is remembered', async ({

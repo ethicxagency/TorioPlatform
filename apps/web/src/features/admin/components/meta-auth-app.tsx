@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ApiSchemas } from '@torio/api-client';
 import { useMemo, useState } from 'react';
@@ -144,7 +145,7 @@ export function CustomerAuthApp() {
               />
             </Field>
             <Field label="App Mode" source={c.sources.appMode}>
-              <select
+              <FieldSelect
                 value={draft.appMode ?? ''}
                 onChange={(e) => set('appMode', (e.target.value || null) as Values['appMode'])}
                 className={controlCls}
@@ -152,7 +153,7 @@ export function CustomerAuthApp() {
                 <option value="">Not set</option>
                 <option value="DEVELOPMENT">Development</option>
                 <option value="LIVE">Live</option>
-              </select>
+              </FieldSelect>
             </Field>
             <Field label="App Domain" source={c.sources.appDomain}>
               <input

@@ -12,7 +12,24 @@ export interface SelectOption {
   /** Optional second line. */
   description?: string;
   disabled?: boolean;
+  /** A leading mark, e.g. a channel icon. */
+  lead?: React.ReactNode;
+  /** A small semantic status dot, for options that are states (never a coloured row). */
+  dot?: 'ok' | 'warn' | 'bad' | 'neutral';
 }
+
+const DOT: Record<NonNullable<SelectOption['dot']>, string> = {
+  ok: 'bg-success',
+  warn: 'bg-warning',
+  bad: 'bg-danger',
+  neutral: 'bg-faint',
+};
+const Mark = ({ o }: { o: SelectOption }) => (
+  <>
+    {o.dot && <span aria-hidden className={cn('h-2 w-2 shrink-0 rounded-full', DOT[o.dot])} />}
+    {o.lead && <span className="flex shrink-0 items-center">{o.lead}</span>}
+  </>
+);
 
 /** Lists longer than this get a search box. */
 const SEARCH_FROM = 10;
@@ -35,6 +52,8 @@ export function Select({
   className,
   panelMinWidth = 180,
   tone = 'light',
+  id: triggerId,
+  icon,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -47,6 +66,10 @@ export function Select({
   panelMinWidth?: number;
   /** `dark` for triggers on a dark bar. */
   tone?: 'light' | 'dark';
+  /** Lets an external <label htmlFor> name the trigger. */
+  id?: string;
+  /** A quiet icon before the label, e.g. for a sort control. */
+  icon?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
@@ -192,6 +215,7 @@ export function Select({
       <button
         ref={trigger}
         type="button"
+        id={triggerId}
         role="combobox"
         aria-label={ariaLabel}
         aria-haspopup="listbox"
@@ -214,7 +238,13 @@ export function Select({
           className,
         )}
       >
-        <span className={cn('min-w-0 truncate', !current && 'text-faint')}>
+        {icon && (
+          <span aria-hidden className="flex shrink-0 items-center text-faint">
+            {icon}
+          </span>
+        )}
+        {current && !(placeholder && !value) && <Mark o={current} />}
+        <span className={cn('min-w-0 flex-1 truncate', !current && 'text-faint')}>
           {placeholder && !value ? placeholder : (current?.label ?? placeholder ?? '')}
         </span>
         <ChevronDown
@@ -272,11 +302,12 @@ export function Select({
                     tabIndex={-1}
                     onClick={() => choose(o)}
                     className={cn(
-                      'flex min-h-9 cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] text-ink transition-colors duration-150 hover:bg-wash focus-visible:bg-wash focus-visible:outline-none motion-reduce:transition-none',
-                      on && 'bg-primary-soft/60 font-medium',
+                      'flex min-h-10 cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] text-ink transition-colors duration-150 hover:bg-wash focus-visible:bg-wash focus-visible:outline-none motion-reduce:transition-none',
+                      on && 'bg-primary-soft/70 font-semibold text-primary-hover',
                       o.disabled && 'cursor-not-allowed opacity-50 hover:bg-transparent',
                     )}
                   >
+                    <Mark o={o} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate">{o.label}</span>
                       {o.description && (

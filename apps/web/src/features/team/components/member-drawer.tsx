@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { assignableRoles, canManageMember } from '@torio/types';
 import { Trash2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -154,7 +155,7 @@ export function MemberDrawer({ member: initial, meId, actorRole, canAudit, onClo
             {manageable ? (
               <label className="flex flex-col gap-1.5 text-[13px] font-medium">
                 Role
-                <select
+                <FieldSelect
                   value={m.role}
                   disabled={mut.updateMember.isPending}
                   onChange={(e) =>
@@ -168,7 +169,7 @@ export function MemberDrawer({ member: initial, meId, actorRole, canAudit, onClo
                       {ROLE_INFO[r].label}
                     </option>
                   ))}
-                </select>
+                </FieldSelect>
                 <span className="text-xs font-normal text-muted">
                   {ROLE_INFO[m.role].description}
                 </span>

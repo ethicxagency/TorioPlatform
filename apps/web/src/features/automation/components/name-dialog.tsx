@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { TRIGGERS } from '@torio/contracts';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -66,13 +67,17 @@ export function NameDialog({
         {mode === 'create' && (
           <label className="flex flex-col gap-1 text-[12.5px] font-medium">
             When this happens
-            <select value={trigger} onChange={(e) => setTrigger(e.target.value)} className={field}>
+            <FieldSelect
+              value={trigger}
+              onChange={(e) => setTrigger(e.target.value)}
+              className={field}
+            >
               {TRIGGERS.map((x) => (
                 <option key={x.type} value={x.type}>
                   {x.label}
                 </option>
               ))}
-            </select>
+            </FieldSelect>
             <span className="text-xs font-normal text-faint">{t.description}</span>
           </label>
         )}

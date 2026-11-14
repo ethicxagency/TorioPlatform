@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { choose } from './select';
 import { autoState, mockApi, resetAutomation } from './mocks';
 
 test.describe('automation (owner)', () => {
@@ -88,7 +89,7 @@ test.describe('automation (owner)', () => {
     await d.getByRole('button', { name: 'Create draft' }).click();
     await expect(d.getByText('Name is required')).toBeVisible();
     await d.getByLabel('Name').fill('Welcome');
-    await d.getByLabel('When this happens').selectOption('lead.created');
+    await choose(d.getByLabel('When this happens'), 'lead.created');
     await d.getByRole('button', { name: 'Create draft' }).click();
     await expect.poll(() => autoState.created.length).toBe(1);
     expect(autoState.created[0]).toMatchObject({ name: 'Welcome', trigger: 'lead.created' });

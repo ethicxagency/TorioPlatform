@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { CURRENCY_DEFS, DEFAULT_CURRENCY } from '@torio/contracts';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { leadInputSchema, type LeadInput, type LeadInputParsed } from '@torio/contracts';
@@ -167,34 +168,37 @@ export function LeadFormDialog({ lead, owners, onClose, onSubmit }: Props) {
         </label>
         <label className={label}>
           Source
-          <select className={selectCls} {...register('source')}>
+          <FieldSelect className={selectCls} {...register('source')}>
             {SOURCES.map((s) => (
               <option key={s.key} value={s.key}>
                 {s.label}
               </option>
             ))}
-          </select>
+          </FieldSelect>
         </label>
         <label className={label}>
           Status
-          <select className={selectCls} {...register('stage')}>
+          <FieldSelect className={selectCls} {...register('stage')}>
             {STAGES.map((s) => (
               <option key={s.key} value={s.key}>
                 {s.label}
               </option>
             ))}
-          </select>
+          </FieldSelect>
         </label>
         <label className={label}>
           Owner
-          <select className={selectCls} {...register('ownerId', { setValueAs: (v) => v || null })}>
+          <FieldSelect
+            className={selectCls}
+            {...register('ownerId', { setValueAs: (v) => v || null })}
+          >
             <option value="">Unassigned</option>
             {owners.map((o) => (
               <option key={o.id} value={o.id}>
                 {o.name}
               </option>
             ))}
-          </select>
+          </FieldSelect>
         </label>
         <label className={label}>
           Estimated deal value ({CURRENCY_DEFS[DEFAULT_CURRENCY].symbol})

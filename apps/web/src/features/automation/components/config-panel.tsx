@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { Plus, Trash2, X } from 'lucide-react';
 import {
   actionOf,
@@ -73,7 +74,7 @@ export function ConfigPanel(p: Props) {
           <div className="flex flex-col gap-3">
             <label className={label}>
               When this happens
-              <select
+              <FieldSelect
                 aria-label="Trigger"
                 value={p.def.trigger.type}
                 disabled={p.readOnly}
@@ -85,7 +86,7 @@ export function ConfigPanel(p: Props) {
                     {t.label}
                   </option>
                 ))}
-              </select>
+              </FieldSelect>
             </label>
             <p className="m-0 text-[12.5px] text-muted">{trig?.description}</p>
             <div>
@@ -134,7 +135,7 @@ function WaitForm({ s, p }: { s: Extract<Step, { type: 'wait' }>; p: Props }) {
         </label>
         <label className={label}>
           Unit
-          <select
+          <FieldSelect
             disabled={p.readOnly}
             value={unit}
             onChange={(e) => set(amount, Number(e.target.value))}
@@ -143,7 +144,7 @@ function WaitForm({ s, p }: { s: Extract<Step, { type: 'wait' }>; p: Props }) {
             <option value={1}>minutes</option>
             <option value={60}>hours</option>
             <option value={1440}>days</option>
-          </select>
+          </FieldSelect>
         </label>
       </div>
       <p className="m-0 text-xs text-faint">
@@ -172,7 +173,7 @@ function ConditionForm({ s, p }: { s: Extract<Step, { type: 'condition' }>; p: P
         return (
           <fieldset key={i} className="m-0 flex flex-col gap-2 rounded-xl border border-line p-3">
             <legend className="px-1 text-[11.5px] text-faint">Condition {i + 1}</legend>
-            <select
+            <FieldSelect
               aria-label={`Condition ${i + 1} field`}
               disabled={p.readOnly}
               value={c.field}
@@ -188,8 +189,8 @@ function ConditionForm({ s, p }: { s: Extract<Step, { type: 'condition' }>; p: P
                   {x.label}
                 </option>
               ))}
-            </select>
-            <select
+            </FieldSelect>
+            <FieldSelect
               aria-label={`Condition ${i + 1} operator`}
               disabled={p.readOnly || !f}
               value={c.op}
@@ -203,11 +204,11 @@ function ConditionForm({ s, p }: { s: Extract<Step, { type: 'condition' }>; p: P
                   {OPERATOR_LABEL[o]}
                 </option>
               ))}
-            </select>
+            </FieldSelect>
             {f &&
               needsValue(c.op) &&
               (f.kind === 'enum' ? (
-                <select
+                <FieldSelect
                   aria-label={`Condition ${i + 1} value`}
                   disabled={p.readOnly}
                   value={c.value}
@@ -218,7 +219,7 @@ function ConditionForm({ s, p }: { s: Extract<Step, { type: 'condition' }>; p: P
                   {f.options!.map((o) => (
                     <option key={o}>{o}</option>
                   ))}
-                </select>
+                </FieldSelect>
               ) : (
                 <input
                   aria-label={`Condition ${i + 1} value`}
@@ -314,7 +315,7 @@ function ActionForm({ s, p }: { s: Extract<Step, { type: 'action' }>; p: Props }
       {(s.action === 'assign_conversation' || s.action === 'assign_lead_owner') && (
         <label className={label}>
           Assign to
-          <select
+          <FieldSelect
             aria-label="Assign to"
             disabled={p.readOnly}
             value={s.config.userId ?? ''}
@@ -327,7 +328,7 @@ function ActionForm({ s, p }: { s: Extract<Step, { type: 'action' }>; p: Props }
                 {m.name}
               </option>
             ))}
-          </select>
+          </FieldSelect>
           <span className="text-xs font-normal text-faint">
             Checked again every time it runs: if they are suspended or removed, the run fails
             instead.
@@ -337,7 +338,7 @@ function ActionForm({ s, p }: { s: Extract<Step, { type: 'action' }>; p: Props }
       {s.action === 'set_conversation_status' && (
         <label className={label}>
           Set status to
-          <select
+          <FieldSelect
             aria-label="Status"
             disabled={p.readOnly}
             value={s.config.status ?? ''}
@@ -347,7 +348,7 @@ function ActionForm({ s, p }: { s: Extract<Step, { type: 'action' }>; p: Props }
             <option value="">Choose…</option>
             <option value="OPEN">Open</option>
             <option value="RESOLVED">Resolved</option>
-          </select>
+          </FieldSelect>
         </label>
       )}
       {(s.action === 'add_customer_tag' || s.action === 'remove_customer_tag') && (
@@ -366,7 +367,7 @@ function ActionForm({ s, p }: { s: Extract<Step, { type: 'action' }>; p: Props }
       {s.action === 'set_lead_stage' && (
         <label className={label}>
           Move lead to
-          <select
+          <FieldSelect
             aria-label="Stage"
             disabled={p.readOnly}
             value={s.config.stage ?? ''}
@@ -377,7 +378,7 @@ function ActionForm({ s, p }: { s: Extract<Step, { type: 'action' }>; p: Props }
             {STAGES.map((x) => (
               <option key={x}>{x}</option>
             ))}
-          </select>
+          </FieldSelect>
         </label>
       )}
     </div>

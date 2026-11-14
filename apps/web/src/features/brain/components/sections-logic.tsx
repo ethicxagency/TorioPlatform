@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import {
   areas,
   ACTION_TYPES,
@@ -351,7 +352,7 @@ function CondRow({
         invalid && 'rounded-lg ring-1 ring-danger/40',
       )}
     >
-      <select
+      <FieldSelect
         aria-label="Condition subject"
         value={c.s}
         onChange={(e) => {
@@ -370,9 +371,9 @@ function CondRow({
             {s.l}
           </option>
         ))}
-      </select>
+      </FieldSelect>
       {c.s === 'field' && (
-        <select
+        <FieldSelect
           aria-label="Custom field"
           value={c.fk ?? ''}
           onChange={(e) => onChange({ ...c, fk: e.target.value })}
@@ -384,9 +385,9 @@ function CondRow({
               {f.name}
             </option>
           ))}
-        </select>
+        </FieldSelect>
       )}
-      <select
+      <FieldSelect
         aria-label="Operator"
         value={c.op}
         onChange={(e) => onChange({ ...c, op: e.target.value })}
@@ -397,10 +398,10 @@ function CondRow({
             {o}
           </option>
         ))}
-      </select>
+      </FieldSelect>
       {c.s === 'field' && (c.op === 'is set' || c.op === 'is not set') ? null : sj.values ===
         'fieldNum' ? (
-        <select
+        <FieldSelect
           aria-label="Number field"
           value={c.val}
           onChange={(e) => onChange({ ...c, val: e.target.value })}
@@ -412,9 +413,9 @@ function CondRow({
               {f.name}
             </option>
           ))}
-        </select>
+        </FieldSelect>
       ) : Array.isArray(sj.values) ? (
-        <select
+        <FieldSelect
           aria-label="Value"
           value={c.val}
           onChange={(e) => onChange({ ...c, val: e.target.value })}
@@ -425,7 +426,7 @@ function CondRow({
               {v}
             </option>
           ))}
-        </select>
+        </FieldSelect>
       ) : (
         <input
           aria-label="Value"
@@ -611,7 +612,7 @@ function RuleEditor({
         <div className="text-[12px] font-semibold uppercase tracking-[0.04em] text-faint">Then</div>
         {r.actions.map((a, idx) => (
           <div key={a.id} className="flex flex-wrap items-center gap-1.5">
-            <select
+            <FieldSelect
               aria-label="Action type"
               value={a.type}
               onChange={(e) =>
@@ -626,7 +627,7 @@ function RuleEditor({
                   {t}
                 </option>
               ))}
-            </select>
+            </FieldSelect>
             <input
               aria-label="Action text"
               value={a.text}
@@ -671,7 +672,7 @@ function RuleEditor({
         </div>
         {r.otherwise ? (
           <div className="flex flex-wrap items-center gap-1.5">
-            <select
+            <FieldSelect
               aria-label="Otherwise type"
               value={r.otherwise.type}
               onChange={(e) =>
@@ -686,7 +687,7 @@ function RuleEditor({
                   {t}
                 </option>
               ))}
-            </select>
+            </FieldSelect>
             <input
               aria-label="Otherwise text"
               value={r.otherwise.text}

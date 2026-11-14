@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { ChannelIcon } from '@/components/channel-icon';
 import {
   ContactRow,
@@ -199,7 +200,7 @@ export function CustomerDrawer({
               {detailRow(
                 'Status',
                 canWrite ? (
-                  <select
+                  <FieldSelect
                     aria-label="Customer status"
                     disabled={m.update.isPending}
                     value={c.status}
@@ -213,7 +214,7 @@ export function CustomerDrawer({
                         {s.label}
                       </option>
                     ))}
-                  </select>
+                  </FieldSelect>
                 ) : (
                   <CustomerStatusBadge status={c.status} />
                 ),

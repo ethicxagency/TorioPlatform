@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { choose } from './select';
 import { mockApi, orderState, resetOrders } from './mocks';
 
 test.describe('orders (owner)', () => {
@@ -372,7 +373,7 @@ test.describe('orders (owner)', () => {
     await p.getByRole('button', { name: 'Record payment' }).click();
     await expect(p.getByRole('alert')).toContainText(/more than the balance/);
     await p.getByLabel(/Amount/).fill('100.00');
-    await p.getByLabel('Method').selectOption('BANK_TRANSFER');
+    await choose(p.getByLabel('Method'), 'BANK_TRANSFER');
     await p.getByRole('button', { name: 'Record payment' }).click();
     await expect.poll(() => orderState.payments.length).toBe(1);
     expect(orderState.payments[0]).toMatchObject({ amountMinor: 10_000, method: 'BANK_TRANSFER' });

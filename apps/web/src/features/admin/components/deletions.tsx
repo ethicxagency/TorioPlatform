@@ -1,5 +1,6 @@
 'use client';
 
+import { FieldSelect } from '@/components/ui/field-select';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -83,7 +84,7 @@ export function DeletionRequestsPage() {
           <label htmlFor="del-filter" className="font-medium">
             Status
           </label>
-          <select
+          <FieldSelect
             id="del-filter"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
@@ -95,7 +96,7 @@ export function DeletionRequestsPage() {
                 {v}
               </option>
             ))}
-          </select>
+          </FieldSelect>
         </div>
         {rows.length === 0 ? (
           <p className="m-0 py-6 text-center text-[13px] text-muted">No deletion requests.</p>
