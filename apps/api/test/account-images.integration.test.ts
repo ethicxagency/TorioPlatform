@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
@@ -86,7 +87,7 @@ describe.skipIf(!url)('sign-in methods and pictures (real PostgreSQL)', () => {
       await db.session.create({
         data: {
           userId: u.id,
-          familyId: `fam-${u.id}`,
+          familyId: randomUUID(),
           refreshTokenHash: `${u.id}-${sfx}`,
           expiresAt: new Date(Date.now() + 86_400_000),
         },

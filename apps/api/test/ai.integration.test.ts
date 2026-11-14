@@ -229,7 +229,7 @@ describe.skipIf(!url)('AI infrastructure (real PostgreSQL, fake providers)', () 
     b.shipping.timeInside = '2-3 days';
     b.products = [
       {
-        id: 'p1',
+        id: randomUUID(),
         name: 'Linen sofa',
         category: '',
         description: '',
