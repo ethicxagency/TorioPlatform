@@ -82,15 +82,16 @@ export function TeamPage() {
       ? 'error'
       : 'ready';
   const filtered = !!q || !!filters.role || !!filters.status || !!filters.team;
-  const tabs: { key: Tab; label: string; show: boolean }[] = [
+  const tabs: { key: Tab; label: string; count?: number; show: boolean }[] = [
     { key: 'members', label: 'Members', show: true },
     { key: 'teams', label: 'Teams', show: true },
     {
       key: 'invitations',
-      label: `Invitations${summary.data && canManage ? ` (${summary.data.pendingInvitations})` : ''}`,
+      label: 'Invitations',
+      count: summary.data && canManage ? summary.data.pendingInvitations : undefined,
       show: canManage,
     },
-    { key: 'roles', label: 'Roles & permissions', show: true },
+    { key: 'roles', label: 'Roles & Permissions', show: true },
   ];
 
   return (
@@ -123,7 +124,11 @@ export function TeamPage() {
         canSeeInvites={canManage}
       />
 
-      <div role="tablist" aria-label="Team sections" className="flex gap-1 border-b border-line">
+      <div
+        role="tablist"
+        aria-label="Team sections"
+        className="flex gap-1 overflow-x-auto border-b border-line"
+      >
         {tabs
           .filter((t) => t.show)
           .map((t) => (
@@ -134,13 +139,24 @@ export function TeamPage() {
               type="button"
               onClick={() => setTab(t.key)}
               className={cn(
-                '-mb-px cursor-pointer border-b-2 px-3 py-2 text-[13px] font-medium',
+                '-mb-px inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 bg-transparent px-3 py-2.5 text-[13px] font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary motion-reduce:transition-none',
                 tab === t.key
                   ? 'border-primary text-primary-hover'
-                  : 'border-transparent text-muted hover:text-ink',
+                  : 'border-transparent text-muted hover:border-line-input hover:text-ink',
               )}
             >
               {t.label}
+              {t.count !== undefined && (
+                <span
+                  aria-label={`${t.count} pending`}
+                  className={cn(
+                    'inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold tabular-nums transition-colors duration-150',
+                    tab === t.key ? 'bg-primary-soft text-primary-hover' : 'bg-wash-2 text-muted',
+                  )}
+                >
+                  {t.count}
+                </span>
+              )}
             </button>
           ))}
       </div>

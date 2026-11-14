@@ -68,6 +68,77 @@ test.describe('team (owner)', () => {
     await expect(page.getByText(/Custom roles aren.t supported/)).toBeVisible();
   });
 
+  test('the toolbar is one compact row: search, role, status and team side by side', async ({
+    page,
+  }) => {
+    await expect(page.getByRole('row', { name: /Nadia Islam/ })).toBeVisible();
+    const search = page.getByRole('searchbox', { name: 'Search members' });
+    const role = page.getByRole('combobox', { name: 'Filter by role' });
+    const status = page.getByRole('combobox', { name: 'Filter by status' });
+    const boxes = await Promise.all([search, role, status].map((l) => l.boundingBox()));
+    const [s, r, st] = boxes;
+    expect(Math.abs(s!.y - r!.y)).toBeLessThan(12); // same row
+    expect(Math.abs(r!.y - st!.y)).toBeLessThan(4);
+    expect(r!.width).toBeGreaterThanOrEqual(180);
+    expect(r!.width).toBeLessThanOrEqual(200);
+    expect(r!.height).toBeGreaterThanOrEqual(40);
+    expect(st!.width).toBeLessThanOrEqual(180);
+  });
+
+  test('filters ask the API, show removable chips, and Clear all resets them', async ({ page }) => {
+    await expect(page.getByRole('row', { name: /Nadia Islam/ })).toBeVisible();
+    await choose(page.getByRole('combobox', { name: 'Filter by role' }), 'ADMIN');
+    const chips = page.getByLabel('Active filters');
+    await expect(chips).toContainText('Admin');
+    await expect(page.getByRole('row', { name: /Nadia Islam/ })).toHaveCount(0);
+    await page.getByRole('searchbox', { name: 'Search members' }).fill('farid');
+    await expect(chips).toContainText('“farid”');
+    await expect(chips.getByRole('button', { name: 'Clear all' })).toBeVisible();
+    await chips.getByRole('button', { name: 'Remove filter Admin' }).click();
+    await expect(page.getByRole('row', { name: /Farid Ahmed/ })).toBeVisible();
+    await expect(chips).not.toContainText('Admin');
+    await chips.getByRole('button', { name: 'Remove filter “farid”' }).click();
+    await expect(chips).toHaveCount(0);
+    await expect(page.getByRole('row', { name: /Nadia Islam/ })).toBeVisible();
+  });
+
+  test('empty results say what was filtered, and Clear filters brings everyone back', async ({
+    page,
+  }) => {
+    await page.getByRole('searchbox', { name: 'Search members' }).fill('zzz');
+    await expect(page.getByText('No members match “zzz”')).toBeVisible();
+    await page.getByRole('searchbox', { name: 'Search members' }).fill('');
+    await choose(page.getByRole('combobox', { name: 'Filter by status' }), 'SUSPENDED');
+    await expect(page.getByText('No suspended members')).toBeVisible();
+    await page.getByRole('button', { name: 'Clear filters' }).click();
+    await expect(page.getByRole('row', { name: /Nadia Islam/ })).toBeVisible();
+  });
+
+  test('tabs show the pending invitation count and move with the keyboard-visible active state', async ({
+    page,
+  }) => {
+    const tabs = page.getByRole('tablist', { name: 'Team sections' });
+    await expect(tabs.getByRole('tab', { name: /Invitations/ })).toContainText('1');
+    await expect(tabs.getByRole('tab', { name: 'Members' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await tabs.getByRole('tab', { name: 'Teams' }).click();
+    await expect(tabs.getByRole('tab', { name: 'Teams' })).toHaveAttribute('aria-selected', 'true');
+    await expect(tabs.getByRole('tab', { name: 'Members' })).toHaveAttribute(
+      'aria-selected',
+      'false',
+    );
+  });
+
+  test('the row menu opens the member, and the table has the new columns', async ({ page }) => {
+    for (const h of ['Member', 'Role', 'Team', 'Status', 'Last active'])
+      await expect(page.getByRole('columnheader', { name: h, exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Actions for Nadia Islam' }).click();
+    await page.getByRole('menuitem', { name: 'View details' }).click();
+    await expect(page.getByRole('dialog', { name: /Member: Nadia Islam/ })).toBeVisible();
+  });
+
   test('no horizontal overflow on a phone', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/team');

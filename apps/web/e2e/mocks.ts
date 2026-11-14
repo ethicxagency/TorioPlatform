@@ -1841,8 +1841,19 @@ export async function mockApi(
         ],
         meta: { page: 1, pageSize: 200, total: 2, totalPages: 1 },
       });
-    if (p === `/workspaces/${WS}/members`)
-      return reply({ data: MEMBERS, meta: { page: 1, pageSize: 100, total: 2, totalPages: 1 } });
+    if (p === `/workspaces/${WS}/members`) {
+      const u = new URL(req.url());
+      const q = (u.searchParams.get('q') ?? '').toLowerCase();
+      const role = u.searchParams.get('role');
+      const status = u.searchParams.get('status');
+      const data = MEMBERS.filter(
+        (m) =>
+          (!q || m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q)) &&
+          (!role || m.role === role) &&
+          (!status || m.status === status),
+      );
+      return reply({ data, meta: { page: 1, pageSize: 100, total: data.length, totalPages: 1 } });
+    }
     if (p === `/workspaces/${WS}/team/summary`)
       return reply({
         totalMembers: 2,

@@ -1,7 +1,8 @@
 'use client';
 
 import { Select } from '@/components/ui/select';
-import { Search, X } from 'lucide-react';
+import { ListFilter, Search, X } from 'lucide-react';
+import { ActionMenu } from '@/components/ui/menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { fmtAgo, initialsOf } from '@/features/inbox/format';
@@ -9,7 +10,6 @@ import { Pagination } from '@/components/ui/pagination';
 import { cn } from '@/lib/utils';
 import { ROLE_INFO, type Member, type MemberFilters, type TeamItem } from '../types';
 import { RoleBadge, StatusBadge } from './role-badge';
-import { fmtDate } from '@/lib/datetime';
 
 interface Props {
   members: Member[];
@@ -40,10 +40,38 @@ interface Props {
 const th = 'px-3 py-2.5 text-left text-[12px] font-semibold text-muted whitespace-nowrap';
 
 export function MembersTab(p: Props) {
+  const teamName = p.teams.find((t) => t.id === p.filters.team)?.name;
+  const chips = [
+    p.search.trim() && { key: 'q', label: `“${p.search.trim()}”`, clear: () => p.onSearch('') },
+    p.filters.role && {
+      key: 'role',
+      label: ROLE_INFO[p.filters.role].label,
+      clear: () => p.onFilters({ role: '' }),
+    },
+    p.filters.status && {
+      key: 'status',
+      label: p.filters.status === 'ACTIVE' ? 'Active' : 'Suspended',
+      clear: () => p.onFilters({ status: '' }),
+    },
+    p.filters.team && {
+      key: 'team',
+      label: teamName ?? 'Team',
+      clear: () => p.onFilters({ team: '' }),
+    },
+  ].filter(Boolean) as { key: string; label: string; clear: () => void }[];
+  const none = p.search.trim()
+    ? `No members match “${p.search.trim()}”`
+    : p.filters.role
+      ? `No ${ROLE_INFO[p.filters.role].label.toLowerCase()} members`
+      : p.filters.status
+        ? `No ${p.filters.status === 'ACTIVE' ? 'active' : 'suspended'} members`
+        : p.filters.team
+          ? 'No members in this team'
+          : 'No members match your filters';
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="flex h-9 min-w-[200px] flex-1 items-center gap-2 rounded-[var(--radius-control)] border border-line bg-white px-2.5 sm:max-w-[320px]">
+      <div className="flex flex-wrap items-center gap-2" role="search" aria-label="Filter members">
+        <label className="flex h-10 min-w-[220px] flex-[1_1_260px] items-center gap-2 rounded-[var(--radius-control)] border border-line bg-white px-3 transition-colors duration-150 focus-within:border-primary focus-within:ring-[3px] focus-within:ring-primary/15 hover:border-line-input sm:max-w-[480px]">
           <Search size={15} className="shrink-0 text-faint" aria-hidden />
           <input
             type="search"
@@ -51,14 +79,14 @@ export function MembersTab(p: Props) {
             placeholder="Search name or email"
             value={p.search}
             onChange={(e) => p.onSearch(e.target.value)}
-            className="min-w-0 flex-1 border-none bg-transparent text-[13px]"
+            className="min-w-0 flex-1 border-none bg-transparent text-[13px] outline-none"
           />
           {p.search && (
             <button
               type="button"
               aria-label="Clear search"
               onClick={() => p.onSearch('')}
-              className="cursor-pointer text-faint"
+              className="cursor-pointer text-faint hover:text-ink"
             >
               <X size={14} />
             </button>
@@ -75,7 +103,8 @@ export function MembersTab(p: Props) {
               label: ROLE_INFO[r].label,
             })),
           ]}
-          className="w-full"
+          className="h-10 w-[190px] max-sm:w-full"
+          icon={<ListFilter size={14} />}
         />
         <Select
           aria-label="Filter by status"
@@ -83,10 +112,10 @@ export function MembersTab(p: Props) {
           onChange={(v) => p.onFilters({ status: v as MemberFilters['status'] })}
           options={[
             { value: '', label: 'Any status' },
-            { value: 'ACTIVE', label: 'Active' },
-            { value: 'SUSPENDED', label: 'Suspended' },
+            { value: 'ACTIVE', label: 'Active', dot: 'ok' },
+            { value: 'SUSPENDED', label: 'Suspended', dot: 'warn' },
           ]}
-          className="w-full"
+          className="h-10 w-[170px] max-sm:w-full"
         />
         {p.teams.length > 0 && (
           <Select
@@ -97,19 +126,48 @@ export function MembersTab(p: Props) {
               { value: '', label: 'All teams' },
               ...p.teams.map((t) => ({ value: t.id, label: t.name })),
             ]}
-            className="w-full"
+            className="h-10 w-[180px] max-sm:w-full"
           />
         )}
         {p.filtered && (
           <button
             type="button"
             onClick={p.onClear}
-            className="cursor-pointer text-xs font-medium text-primary"
+            className="inline-flex h-10 cursor-pointer items-center gap-1 rounded-[var(--radius-control)] border-none bg-transparent px-2 text-[13px] font-medium text-primary transition-colors duration-150 hover:text-primary-hover"
           >
-            Clear filters
+            Clear
           </button>
         )}
       </div>
+      {chips.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5" aria-label="Active filters">
+          {chips.map((c) => (
+            <span
+              key={c.key}
+              className="inline-flex h-7 items-center gap-1 rounded-full bg-primary-soft pl-2.5 pr-1 text-xs font-medium text-primary-hover"
+            >
+              {c.label}
+              <button
+                type="button"
+                aria-label={`Remove filter ${c.label}`}
+                onClick={c.clear}
+                className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-primary-hover hover:bg-primary/10"
+              >
+                <X size={12} aria-hidden />
+              </button>
+            </span>
+          ))}
+          {chips.length > 1 && (
+            <button
+              type="button"
+              onClick={p.onClear}
+              className="ml-1 cursor-pointer border-none bg-transparent text-xs font-medium text-muted hover:text-ink"
+            >
+              Clear all
+            </button>
+          )}
+        </div>
+      )}
 
       {p.state === 'error' ? (
         <div
@@ -141,9 +199,7 @@ export function MembersTab(p: Props) {
         </div>
       ) : p.members.length === 0 ? (
         <div className="rounded-card border border-line bg-white px-6 py-14 text-center">
-          <div className="text-[14.5px] font-semibold">
-            {p.filtered ? 'No members match your filters' : 'No members'}
-          </div>
+          <div className="text-[14.5px] font-semibold">{p.filtered ? none : 'No members yet'}</div>
           {p.filtered ? (
             <Button className="mt-3" variant="outline" size="sm" onClick={p.onClear}>
               Clear filters
@@ -174,19 +230,16 @@ export function MembersTab(p: Props) {
                     Role
                   </th>
                   <th scope="col" className={cn(th, 'max-lg:hidden')}>
-                    Teams
-                  </th>
-                  <th scope="col" className={cn(th, 'max-lg:hidden')}>
-                    Open assigned
-                  </th>
-                  <th scope="col" className={cn(th, 'max-xl:hidden')}>
-                    Last sign-in
-                  </th>
-                  <th scope="col" className={cn(th, 'max-xl:hidden')}>
-                    Joined
+                    Team
                   </th>
                   <th scope="col" className={th}>
                     Status
+                  </th>
+                  <th scope="col" className={cn(th, 'max-xl:hidden')}>
+                    Last active
+                  </th>
+                  <th scope="col" className={cn(th, 'w-12')}>
+                    <span className="sr-only">Actions</span>
                   </th>
                 </tr>
               </thead>
@@ -201,13 +254,13 @@ export function MembersTab(p: Props) {
                       if (e.key === 'Enter') p.onOpen(m);
                     }}
                     className={cn(
-                      'cursor-pointer border-b border-line-subtle last:border-0 focus-visible:outline-offset-[-2px]',
+                      'cursor-pointer border-b border-line-subtle transition-colors duration-150 last:border-0 focus-visible:outline-offset-[-2px]',
                       p.activeId === m.id ? 'bg-[#F1F1FF]' : 'hover:bg-[#F7F7F9]',
                     )}
                   >
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-3">
                       <div className="flex items-center gap-2.5">
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-line-subtle text-[11px] font-semibold text-muted">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-[11px] font-semibold text-primary-hover">
                           {initialsOf(m.name)}
                         </span>
                         <span className="min-w-0">
@@ -221,29 +274,31 @@ export function MembersTab(p: Props) {
                         </span>
                       </div>
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-3">
                       <RoleBadge role={m.role} />
                     </td>
-                    <td className="max-w-[180px] px-3 py-2.5 max-lg:hidden">
+                    <td className="max-w-[180px] px-3 py-3 max-lg:hidden">
                       <span className="block truncate text-muted">
                         {m.teams.map((t) => t.name).join(', ') || '—'}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 tabular-nums max-lg:hidden">
-                      {m.assignedOpenConversations}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2.5 text-muted max-xl:hidden">
-                      {m.lastSignInAt ? `${fmtAgo(m.lastSignInAt, p.now)} ago` : '—'}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2.5 text-muted max-xl:hidden">
-                      {fmtDate(m.createdAt, {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-3">
                       <StatusBadge status={m.status} />
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3 text-muted max-xl:hidden">
+                      {m.lastSignInAt ? `${fmtAgo(m.lastSignInAt, p.now)} ago` : 'Not yet'}
+                    </td>
+                    <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
+                      <ActionMenu
+                        label={`Actions for ${m.name}`}
+                        items={[
+                          { label: 'View details', onSelect: () => p.onOpen(m) },
+                          {
+                            label: 'Copy email',
+                            onSelect: () => void navigator.clipboard?.writeText(m.email),
+                          },
+                        ]}
+                      />
                     </td>
                   </tr>
                 ))}
