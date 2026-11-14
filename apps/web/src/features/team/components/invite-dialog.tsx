@@ -93,8 +93,15 @@ export function InviteDialog({ actorRole, teams, onClose, onInvite }: Props) {
         <div className="flex flex-col gap-3 text-[13px]" role="status">
           <p className="m-0">
             Invitation for <b>{created.email}</b> ({ROLE_INFO[created.role].label}) is ready.{' '}
-            <b>Torio doesn&apos;t send email yet</b>, so share this one-time link with them
-            yourself. It expires {fmtDate(created.expiresAt)}.
+            {created.emailSent ? (
+              <>We emailed them the invitation. You can also share this one-time link yourself.</>
+            ) : (
+              <>
+                <b>No email was sent</b> (email isn&apos;t set up, or the provider refused it), so
+                share this one-time link with them yourself.
+              </>
+            )}{' '}
+            It expires {fmtDate(created.expiresAt)}.
           </p>
           <div className="flex items-center gap-2 rounded-lg border border-line bg-[#FBFBFC] p-2">
             <input

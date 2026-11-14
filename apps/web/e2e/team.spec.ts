@@ -55,7 +55,7 @@ test.describe('team (owner)', () => {
     await dialog.getByLabel('Email address *').fill('new.hire@example.test');
     await dialog.getByRole('button', { name: 'Create invitation' }).click();
     await expect(page.getByRole('dialog', { name: 'Invitation created' })).toContainText(
-      "Torio doesn't send email yet",
+      'No email was sent',
     );
     await expect(page.getByLabel('Invitation link')).toHaveValue(/accept-invite\?token=/);
   });

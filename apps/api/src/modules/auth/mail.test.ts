@@ -210,6 +210,23 @@ describe('email templates', () => {
     expect(evil.text).not.toContain('javascript:');
   });
 
+  it('the team invitation names who invited you, the store and the role, and escapes them', () => {
+    const r = renderMail(
+      'team_invitation',
+      {
+        inviter: 'Nadia <b>',
+        workspace: 'Urban & Nest',
+        role: 'an Agent',
+        link: 'https://app.test/accept-invite?token=x',
+      },
+      TORIO_BRAND('https://app.test'),
+    );
+    expect(r.subject).toBe('Nadia <b> invited you to Urban & Nest on Torio');
+    expect(r.text).toContain('https://app.test/accept-invite?token=x');
+    expect(r.html).toContain('Urban &amp; Nest');
+    expect(r.html).not.toContain('<b>');
+  });
+
   it('customer-facing mail carries the workspace identity, platform mail keeps Torio’s', () => {
     const ws = renderMail('workspace_notice', SAMPLE_VARS.workspace_notice, {
       name: 'Urban Nest',

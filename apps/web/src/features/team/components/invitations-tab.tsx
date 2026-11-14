@@ -91,8 +91,11 @@ export function InvitationsTab({
             </Button>
           </div>
           <p className="m-0 mt-1.5 text-xs text-muted">
-            Shown once. Torio doesn&apos;t send email yet — share it yourself. The previous link no
-            longer works.
+            Shown once.{' '}
+            {fresh.emailSent
+              ? 'We emailed it to them too.'
+              : 'No email was sent, so share it yourself.'}{' '}
+            The previous link no longer works.
           </p>
         </div>
       )}

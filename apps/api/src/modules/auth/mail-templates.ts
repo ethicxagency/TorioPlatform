@@ -9,6 +9,7 @@ export type TemplateKey =
   | 'password_code'
   | 'social_confirm'
   | 'account_deletion'
+  | 'team_invitation'
   | 'workspace_notice'
   | 'test';
 
@@ -106,6 +107,18 @@ const specs: Record<TemplateKey, (v: Vars) => Spec> = {
     ],
     scope: 'platform',
   }),
+  team_invitation: (v) => ({
+    subject: `${v.inviter ?? 'Someone'} invited you to ${v.workspace ?? 'a workspace'} on Torio`,
+    heading: `Join ${v.workspace ?? 'a workspace'} on Torio`,
+    before: [
+      `${v.inviter ?? 'A teammate'} invited you to join ${v.workspace ?? 'their workspace'} on Torio as ${v.role ?? 'a member'}.`,
+    ],
+    button: { label: 'Accept invitation', url: v.link },
+    after: [
+      "The link works once and expires in 7 days. If you weren't expecting this, you can ignore this message.",
+    ],
+    scope: 'platform',
+  }),
   workspace_notice: (v) => ({
     subject: v.subject ?? 'A message from your store',
     heading: v.title ?? 'A message from your store',
@@ -163,6 +176,12 @@ export const SAMPLE_VARS: Record<TemplateKey, Vars> = {
   password_code: { name: 'Alex', code: '482913' },
   social_confirm: { link: 'https://app.example.com/auth/complete?token=sample' },
   account_deletion: { name: 'Alex', link: 'https://app.example.com/delete-account?token=sample' },
+  team_invitation: {
+    inviter: 'Nadia',
+    workspace: 'Urban Nest',
+    role: 'an Agent',
+    link: 'https://app.example.com/accept-invite?token=sample',
+  },
   workspace_notice: {
     subject: 'Your order is on its way',
     title: 'Your order is on its way',

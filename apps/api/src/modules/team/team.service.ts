@@ -23,6 +23,7 @@ import {
 import { createHash, randomBytes } from 'node:crypto';
 import { APP_CONFIG, type AppConfig } from '../../config/config.module';
 import { PrismaService } from '../../database/prisma.service';
+import { MailService } from '../auth/mail.service';
 import { PasswordService } from '../auth/password.service';
 
 const INVITE_TTL_MS = 7 * 86_400_000;
@@ -46,6 +47,7 @@ export class TeamService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly passwords: PasswordService,
+    private readonly mail: MailService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -397,6 +399,39 @@ export class TeamService {
     return `${this.config.WEB_URL.replace(/\/$/, '')}/accept-invite?token=${encodeURIComponent(token)}`;
   }
 
+  /**
+   * Emails the invitation link when an email provider is configured. The link is still returned to the inviter either way, and a
+   * failed email never fails the invitation.
+   */
+  private async emailInvitation(
+    ws: string,
+    actorId: string,
+    email: string,
+    role: WorkspaceRole,
+    url: string,
+  ) {
+    if (!this.mail.configured) return false;
+    try {
+      const [w, who] = await Promise.all([
+        this.prisma.client.workspace.findUnique({ where: { id: ws }, select: { name: true } }),
+        this.prisma.client.user.findUnique({ where: { id: actorId }, select: { name: true } }),
+      ]);
+      return await this.mail.sendTemplate(
+        'team_invitation',
+        email,
+        {
+          inviter: who?.name,
+          workspace: w?.name,
+          role: `${role === 'ADMIN' ? 'an' : 'a'} ${ROLE_LABEL[role]}`,
+          link: url,
+        },
+        { workspaceId: ws, userId: actorId },
+      );
+    } catch {
+      return false;
+    }
+  }
+
   async createInvitation(ws: string, actor: Actor, input: InvitationInput) {
     const role = input.role ?? 'AGENT';
     if (!assignableRoles(actor.role).includes(role))
@@ -457,7 +492,12 @@ export class TeamService {
         });
         return created;
       });
-      return { ...this.inviteDto(inv), inviteUrl: this.inviteUrl(token), emailSent: false };
+      const inviteUrl = this.inviteUrl(token);
+      return {
+        ...this.inviteDto(inv),
+        inviteUrl,
+        emailSent: await this.emailInvitation(ws, actor.userId, email, role, inviteUrl),
+      };
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002')
         throw new ConflictException('A pending invitation for this email already exists.');
@@ -485,7 +525,12 @@ export class TeamService {
         metadata: { description: `Resent invitation to ${inv.email}` },
       },
     });
-    return { ...this.inviteDto(updated), inviteUrl: this.inviteUrl(token), emailSent: false };
+    const inviteUrl = this.inviteUrl(token);
+    return {
+      ...this.inviteDto(updated),
+      inviteUrl,
+      emailSent: await this.emailInvitation(ws, actor.userId, inv.email, inv.role, inviteUrl),
+    };
   }
 
   async revokeInvitation(ws: string, actor: Actor, id: string) {
