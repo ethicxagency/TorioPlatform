@@ -13,6 +13,7 @@ import { DetailsNotice } from './details-notice';
 import { OverviewTab } from './overview-tab';
 import { UsageSection } from './usage-section';
 import { PlansTab } from './plans-tab';
+import { PlanSummary } from './plan-summary';
 
 /**
  * Settings → Subscription: the plan (with its actions), usage against its limits, and choosing a plan. Invoices, payment
@@ -65,9 +66,14 @@ export function SubscriptionPage() {
   return (
     <div className="flex flex-col gap-5">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="m-0 flex flex-wrap items-center gap-2.5 font-page-title">
-          Subscription {o && <SubscriptionBadge o={o} />}
-        </h1>
+        <div className="min-w-0">
+          <h1 className="m-0 flex flex-wrap items-center gap-2.5 font-page-title">
+            Subscription &amp; Billing {o && <SubscriptionBadge o={o} />}
+          </h1>
+          <p className="m-0 mt-1 text-sm text-muted">
+            Manage your plan, explore available features and control your workspace subscription.
+          </p>
+        </div>
         {plansView && (
           <Button variant="outline" onClick={() => go('overview')}>
             <ArrowLeft size={16} aria-hidden /> Back to subscription
@@ -79,6 +85,7 @@ export function SubscriptionPage() {
       {q.isError && !o && (
         <Notice tone="bad">Couldn&apos;t load your subscription. {q.error?.message}</Notice>
       )}
+      {o && plansView && <PlanSummary o={o} />}
       {plansView && <DetailsNotice ws={ws} />}
       {o && !o.providerConfigured && (
         <Notice tone="warn" icon={Info}>

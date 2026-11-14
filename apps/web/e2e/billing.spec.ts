@@ -99,6 +99,46 @@ test.describe('billing (owner)', () => {
     ).toBe(true);
   });
 
+  test('the page names itself, summarises the subscription, and highlights the recommended plan column', async ({
+    page,
+  }) => {
+    await open(page, 'plans');
+    await expect(
+      page.getByRole('heading', { name: /Subscription & Billing/, level: 1 }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        'Manage your plan, explore available features and control your workspace subscription.',
+      ),
+    ).toBeVisible();
+    const summary = page.getByRole('term').first().locator('xpath=ancestor::dl[1]');
+    for (const l of ['Current plan', 'Status', 'Billing cycle'])
+      await expect(summary.getByText(l, { exact: true })).toBeVisible();
+    const t = page
+      .getByRole('table', { name: /./ })
+      .first()
+      .or(page.getByRole('region', { name: 'Plan comparison table' }));
+    const head = t.getByRole('columnheader', { name: /Growth/ });
+    await expect(head).toContainText('৳4,500');
+    await expect(head).toContainText('/ month');
+    // the recommended column is tinted in every row, and the others are not
+    const rows = t.getByRole('row', { name: /Team members|Contacts/ });
+    const growthCell = rows.first().getByRole('cell').nth(2);
+    const freeCell = rows.first().getByRole('cell').nth(0);
+    expect(await growthCell.evaluate((e) => getComputedStyle(e).backgroundColor)).not.toBe(
+      'rgba(0, 0, 0, 0)',
+    );
+    expect(await freeCell.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe(
+      'rgba(0, 0, 0, 0)',
+    );
+    // hovering a feature row highlights it without moving any column
+    const before = await t.getByRole('columnheader', { name: /Scale/ }).boundingBox();
+    await rows.first().hover();
+    const after = await t.getByRole('columnheader', { name: /Scale/ }).boundingBox();
+    expect(after!.x).toBe(before!.x);
+    expect(after!.width).toBe(before!.width);
+  });
+
   test('free → paid goes to hosted checkout; the browser never sends a price or status', async ({
     page,
   }) => {

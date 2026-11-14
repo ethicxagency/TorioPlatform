@@ -141,7 +141,8 @@ export function ComparePlans({
     },
   ];
 
-  const colBg = (key: string) => (hot === key ? 'bg-primary-soft/60' : '');
+  const rec = (p: Plan) => p.recommended;
+  const colBg = (p: Plan) => (hot === p.key ? 'bg-primary-soft/70' : rec(p) ? 'bg-[#F7F7FF]' : '');
 
   return (
     <div className="relative">
@@ -171,9 +172,10 @@ export function ComparePlans({
                     onMouseEnter={() => setHot(p.key)}
                     onMouseLeave={() => setHot(null)}
                     className={cn(
-                      'sticky top-0 z-10 min-w-[120px] border-b px-3 py-3 text-left align-bottom transition-colors duration-150 motion-reduce:transition-none',
+                      'sticky top-0 z-10 min-w-[128px] border-b-2 px-3 py-3 text-left align-bottom transition-colors duration-150 motion-reduce:transition-none',
                       current ? 'border-primary' : 'border-line',
-                      hot === p.key ? 'bg-[#F7F7FF]' : 'bg-white',
+                      p.recommended && 'rounded-t-xl border-t-2 border-t-primary',
+                      hot === p.key ? 'bg-[#F4F4FF]' : p.recommended ? 'bg-[#F7F7FF]' : 'bg-white',
                     )}
                   >
                     <span className="flex items-center gap-2">
@@ -191,14 +193,22 @@ export function ComparePlans({
                         {p.name}
                       </span>
                     </span>
-                    <span className="mt-1 flex min-h-[18px] flex-wrap gap-1">
+                    <span className="mt-1.5 flex items-baseline gap-1 tabular-nums">
+                      <span className="text-[17px] font-semibold leading-none text-ink">
+                        {p.key === 'free' ? money(0, p.currency) : money(priceOf(p), p.currency)}
+                      </span>
+                      <span className="text-[11px] font-normal text-faint">
+                        {p.key === 'free' ? 'forever' : interval === 'YEAR' ? '/ year' : '/ month'}
+                      </span>
+                    </span>
+                    <span className="mt-1.5 flex min-h-[18px] flex-wrap gap-1">
                       {current && (
                         <span className="rounded bg-primary-soft px-1.5 py-0.5 text-[10.5px] font-medium text-primary-hover">
                           Current
                         </span>
                       )}
                       {p.recommended && (
-                        <span className="rounded bg-success-soft px-1.5 py-0.5 text-[10.5px] font-medium text-success">
+                        <span className="rounded bg-primary px-1.5 py-0.5 text-[10.5px] font-medium text-white">
                           Recommended
                         </span>
                       )}
@@ -246,8 +256,8 @@ export function ComparePlans({
                         onMouseLeave={() => setHot(null)}
                         className={cn(
                           'border-b border-line-subtle px-3 py-3 transition-colors duration-150 group-hover/row:bg-wash motion-reduce:transition-none',
-                          colBg(p.key),
-                          price && 'bg-[#FAFAFF]',
+                          colBg(p),
+                          rec(p) && 'border-x border-x-[#E4E4FB]',
                         )}
                       >
                         {r.value(p)}
