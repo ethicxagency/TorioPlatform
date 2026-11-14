@@ -166,3 +166,34 @@ export const emailPreviewSchema = z.object({
   text: z.string(),
   html: z.string(),
 });
+
+// ---------- Meta tracking events (Super Admin) ----------
+
+export const metaEventQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(10),
+  status: z.enum(['PENDING', 'SENT', 'FAILED', 'DEAD']).optional(),
+});
+export const metaEventListSchema = z.object({
+  data: z.array(
+    z.object({
+      id: z.uuid(),
+      eventName: z.string(),
+      eventId: z.string(),
+      status: z.enum(['PENDING', 'SENT', 'FAILED', 'DEAD']),
+      attempts: z.number().int(),
+      lastError: z.string().describe('Why the last attempt failed, or null').nullable(),
+      eventTime: z.iso.datetime(),
+      sentAt: z.iso.datetime().describe('When Meta accepted it, or null').nullable(),
+      nextTryAt: z.iso.datetime().describe('When the next automatic attempt is due, or null').nullable(),
+    }),
+  ),
+  meta: z.object({ page: z.number().int(), pageSize: z.number().int(), total: z.number().int(), totalPages: z.number().int() }),
+  summary: z.object({
+    counts: z.record(z.string(), z.number().int()),
+    lastSentAt: z.iso.datetime().describe('Last event Meta accepted, or null').nullable(),
+    serverTrackingOn: z.boolean(),
+    browserTrackingOn: z.boolean(),
+  }),
+});
+export const metaRetryResultSchema = z.object({ retried: z.number().int() });

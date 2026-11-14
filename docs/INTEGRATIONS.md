@@ -45,7 +45,7 @@ sandbox verification never carries over to live.
 
 ## Not done yet (later phases)
 
-- Phase 3/4: Meta browser pixel on the public marketing site, server events with deduplication, workspace pixels, Inbox/manual purchases.
+- Phase 4: workspace Pixels and Inbox/manual purchase events (the sender below is built to be reused: events are keyed per owner).
 - Phase 5: SSLCommerz checkout, success/fail/cancel/IPN routes and server-side validation. The addresses shown on the SSLCommerz page
   are labelled "Not active yet" because those routes do not exist until then.
 - Real connectivity to Mailgun, Meta and SSLCommerz has not been exercised: tests use mocked providers. Verify with real sandbox
@@ -83,3 +83,32 @@ deploying: the sender writes to the log table (a failure to log never blocks an 
   when those flows send email.
 - Retries are an inline single retry, not a queue with backoff and a dead-letter state; the delivery log shows failures.
 - Real Mailgun connectivity and webhook delivery have not been exercised against a live account.
+
+## Phase 3: Torio Meta Pixel and Conversions API
+
+- **Separate from workspaces.** Torio's Pixel has its own credentials (Integrations → Torio Meta Pixel), its own `platform` owner key in
+  `meta_tracking_events`, and shares nothing with any store's Pixel. It is used only while the integration is verified, switched on, and the
+  relevant switch (browser or server tracking) is on.
+- **Server events** (`MetaEventsService`): an event is stored first, then sent; the caller never waits for Meta and a failure never
+  affects the action it describes. `(owner, event_id)` is unique, so a repeated action cannot create a second event. 2xx with an event
+  received is `SENT`; 429, 5xx and network errors are `FAILED` and retried in-process with growing delays (2s, 10s, 1m, 5m, up to five
+  attempts); other 4xx, an event older than seven days, or running out of attempts is `DEAD`. Super Admin can retry from the page.
+  The stored payload holds only hashed identifiers (SHA-256 of normalised email, phone, external id) plus the browser identifiers Meta
+  requires unhashed when the caller has them. The access token is sent in an `Authorization` header and never logged or stored in events.
+- **What fires today:** `CompleteRegistration` when an email address is verified for the first time (event id `registration-<userId>`),
+  from the verified server action, not from the browser. `Lead`, `InitiateCheckout`, `AddPaymentInfo`, `Purchase` and `Subscribe` need the
+  lead form, checkout and payment records that come with SSLCommerz (phase 5): `TorioTrackingService.track` is the single entry point they
+  will call, with an event id tied to the payment record so a retried callback cannot count twice.
+- **Browser Pixel** (`PublicTracking`): only on the public marketing pages (`/` and `/brain`; never the app, admin, account or privacy
+  pages), only when Super Admin turned browser tracking on, only after the visitor presses Accept (nothing loads from Meta before that),
+  never when the browser sends Global Privacy Control or Do Not Track, and the choice can be reopened from the "Analytics choice" button.
+  It sends `PageView` and, on `/brain`, `ViewContent`. The Pixel id is public by nature (`GET /api/v1/public/tracking`); the token never is.
+- **Deduplication:** every event has an `event_id`. Browser-only events (`PageView`, `ViewContent`) have no server twin. For an event the
+  browser and the server both report (Purchase, in phase 5) the success page will fire the same id the server used, so Meta counts it once.
+- **Not done:** browser/server `CompleteRegistration` pairing (the verify page is outside the public marketing site, so it is server-only), consent
+  captured at sign-up for server events (they carry hashed email and the request IP only), and a queue that survives a restart (retry timers
+  are in-process; after a restart the events stay `FAILED` for the manual retry).
+
+### Migration
+
+`20261127000000_meta_tracking_events` (additive). Apply with `pnpm db:deploy` before deploying.

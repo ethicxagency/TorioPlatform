@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { useAdminShell } from './admin-shell';
 import { fmtDateTime, Loading, Notice, PageHead, Panel } from './common';
 import { RecentEmails, TemplatePreview } from './email-panels';
+import { MetaEventsPanel } from './meta-events-panel';
 
 type View = ApiSchemas['IntegrationViewDto'];
 type Result = ApiSchemas['IntegrationTestResultDto'];
@@ -515,6 +516,7 @@ export function IntegrationPage({ k }: { k: 'mailgun' | 'torio_meta_pixel' | 'ss
         </Panel>
       )}
 
+      {k === 'torio_meta_pixel' && v.status !== 'NOT_CONFIGURED' && <MetaEventsPanel />}
       {k === 'mailgun' && v.status !== 'NOT_CONFIGURED' && (
         <>
           <RecentEmails />

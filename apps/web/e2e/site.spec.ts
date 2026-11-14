@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { deletionState, mockApi, resetAuth, resetDeletion } from './mocks';
+import { deletionState, mockApi, resetAuth, resetDeletion, trackingState } from './mocks';
 
 test.describe('public site', () => {
   test.beforeEach(async ({ page }) => {
@@ -391,5 +391,81 @@ test.describe('account deletion page', () => {
     await expect(
       page.getByRole('heading', { name: 'Not Just AI. Business Intelligence.' }),
     ).toBeVisible();
+  });
+
+  test('Torio Meta Pixel on the public site: nothing loads without a configured Pixel, and not before the visitor accepts', async ({
+    page,
+  }) => {
+    const meta: string[] = [];
+    await page.route('https://connect.facebook.net/**', (r) => {
+      meta.push(r.request().url());
+      return r.fulfill({ contentType: 'application/javascript', body: '' });
+    });
+    // no Pixel configured: no banner, no request
+    await page.goto('/brain');
+    await page.waitForTimeout(600);
+    await expect(page.getByRole('region', { name: 'Analytics choice' })).toHaveCount(0);
+    expect(meta).toHaveLength(0);
+    // configured: the visitor is asked first, and nothing is requested until they accept
+    trackingState.pixelId = '1234567890';
+    await page.goto('/brain');
+    const banner = page.getByRole('region', { name: 'Analytics choice' });
+    await expect(banner).toBeVisible();
+    expect(meta).toHaveLength(0);
+    await banner.getByRole('button', { name: 'Accept' }).click();
+    await expect.poll(() => meta.length).toBeGreaterThan(0);
+    expect(meta[0]).toContain('fbevents.js');
+    await expect(banner).toHaveCount(0);
+    // the choice is remembered and can be reopened
+    await page.reload();
+    await expect(page.getByRole('region', { name: 'Analytics choice' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Analytics choice' }).click();
+    await expect(page.getByRole('region', { name: 'Analytics choice' })).toBeVisible();
+  });
+
+  test('Torio Meta Pixel: declining loads nothing, and the privacy pages are never tracked', async ({
+    page,
+  }) => {
+    const meta: string[] = [];
+    await page.route('https://connect.facebook.net/**', (r) => {
+      meta.push(r.request().url());
+      return r.fulfill({ contentType: 'application/javascript', body: '' });
+    });
+    trackingState.pixelId = '1234567890';
+    await page.goto('/');
+    await page
+      .getByRole('region', { name: 'Analytics choice' })
+      .getByRole('button', { name: 'Decline' })
+      .click();
+    await page.goto('/brain');
+    await page.waitForTimeout(600);
+    expect(meta).toHaveLength(0);
+    await page.evaluate(() => window.localStorage.clear());
+    await page.goto('/privacy-policy');
+    await page.waitForTimeout(500);
+    await expect(page.getByRole('region', { name: 'Analytics choice' })).toHaveCount(0);
+    expect(meta).toHaveLength(0);
+  });
+
+  test('Torio Meta Pixel: a browser that asks not to be tracked is never asked or tracked', async ({
+    browser,
+  }) => {
+    const ctx = await browser.newContext({ extraHTTPHeaders: { DNT: '1' } });
+    const page = await ctx.newPage();
+    await page.addInitScript(() =>
+      Object.defineProperty(navigator, 'globalPrivacyControl', { value: true }),
+    );
+    await mockApi(page, { signedOut: true });
+    trackingState.pixelId = '1234567890';
+    const meta: string[] = [];
+    await page.route('https://connect.facebook.net/**', (r) => {
+      meta.push(r.request().url());
+      return r.fulfill({ body: '' });
+    });
+    await page.goto('/brain');
+    await page.waitForTimeout(700);
+    await expect(page.getByRole('region', { name: 'Analytics choice' })).toHaveCount(0);
+    expect(meta).toHaveLength(0);
+    await ctx.close();
   });
 });

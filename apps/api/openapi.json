@@ -10895,6 +10895,85 @@
         ]
       }
     },
+    "/api/v1/admin/integrations/platform/torio_meta_pixel/events": {
+      "get": {
+        "operationId": "AdminIntegrationsController_metaEventLog",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "SENT",
+                "FAILED",
+                "DEAD"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaEventListDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin integrations"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/platform/torio_meta_pixel/events/retry": {
+      "post": {
+        "operationId": "AdminIntegrationsController_retryMeta",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaRetryDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin integrations"
+        ]
+      }
+    },
     "/api/v1/admin/integrations/platform/mailgun/templates": {
       "get": {
         "operationId": "AdminIntegrationsController_templates",
@@ -31852,6 +31931,187 @@
           "data",
           "meta",
           "summary"
+        ]
+      },
+      "MetaEventListDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "eventName": {
+                  "type": "string"
+                },
+                "eventId": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "PENDING",
+                    "SENT",
+                    "FAILED",
+                    "DEAD"
+                  ]
+                },
+                "attempts": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "lastError": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "description": "Why the last attempt failed, or null"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "eventTime": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "sentAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "description": "When Meta accepted it, or null"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "nextTryAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "description": "When the next automatic attempt is due, or null"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "eventName",
+                "eventId",
+                "status",
+                "attempts",
+                "lastError",
+                "eventTime",
+                "sentAt",
+                "nextTryAt"
+              ]
+            }
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "page": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "pageSize": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "total": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "totalPages": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "page",
+              "pageSize",
+              "total",
+              "totalPages"
+            ]
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "counts": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "lastSentAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                    "description": "Last event Meta accepted, or null"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "serverTrackingOn": {
+                "type": "boolean"
+              },
+              "browserTrackingOn": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "counts",
+              "lastSentAt",
+              "serverTrackingOn",
+              "browserTrackingOn"
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "summary"
+        ]
+      },
+      "MetaRetryDto": {
+        "type": "object",
+        "properties": {
+          "retried": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "retried"
         ]
       },
       "EmailTemplateListDto": {

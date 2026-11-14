@@ -675,6 +675,45 @@ export const integrationsReply = (
         },
       },
     };
+  if (k === 'torio_meta_pixel' && parts[1] === 'events' && parts[2] === 'retry')
+    return { status: 200, body: { retried: 1 } };
+  if (k === 'torio_meta_pixel' && parts[1] === 'events')
+    return {
+      status: 200,
+      body: {
+        data: [
+          {
+            id: '33333333-3333-4333-8333-333333333333',
+            eventName: 'CompleteRegistration',
+            eventId: 'registration-u1',
+            status: 'SENT',
+            attempts: 1,
+            lastError: null,
+            eventTime: iso(30),
+            sentAt: iso(30),
+            nextTryAt: null,
+          },
+          {
+            id: '44444444-4444-4444-8444-444444444444',
+            eventName: 'CompleteRegistration',
+            eventId: 'registration-u2',
+            status: 'FAILED',
+            attempts: 2,
+            lastError: 'Meta could not be reached',
+            eventTime: iso(10),
+            sentAt: null,
+            nextTryAt: iso(-5),
+          },
+        ],
+        meta: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
+        summary: {
+          counts: { SENT: 1, FAILED: 1 },
+          lastSentAt: iso(30),
+          serverTrackingOn: true,
+          browserTrackingOn: true,
+        },
+      },
+    };
   if (k === 'mailgun' && parts[1] === 'templates' && parts[2])
     return {
       status: 200,
@@ -744,6 +783,8 @@ export const integrationsReply = (
   return { status: 404, body: { error: { message: 'Not found', statusCode: 404 } } };
 };
 resetIntegrations();
+
+export const trackingState = { pixelId: null as string | null };
 
 export const resetRoles = () => {
   for (const m of MEMBERS) m.customRole = null;
@@ -1780,6 +1821,7 @@ export async function mockApi(
       .addCookies([{ name: 'torio_authed', value: '1', url: 'http://localhost:3100' }]);
   inboxState.bulks = [];
   inboxState.empty = false;
+  trackingState.pixelId = null;
   resetRoles();
   resetIntegrations();
   searchState.requests = [];
@@ -1920,6 +1962,7 @@ export async function mockApi(
       return signedOut
         ? reply({ error: { message: 'Missing refresh token' } }, 401)
         : reply({ accessToken: 'test-token', expiresIn: 900, user: USER });
+    if (p === '/public/tracking') return reply({ metaPixelId: trackingState.pixelId });
     if (p === '/auth/logout') return reply({ ok: true });
     if (p === '/users/me/password/code') {
       settingsState.codes++;

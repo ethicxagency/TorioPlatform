@@ -3412,6 +3412,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/integrations/platform/torio_meta_pixel/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminIntegrationsController_metaEventLog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/platform/torio_meta_pixel/events/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminIntegrationsController_retryMeta"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/integrations/platform/mailgun/templates": {
         parameters: {
             query?: never;
@@ -7431,6 +7463,39 @@ export interface components {
                 } | null;
                 webhookReady: boolean;
             };
+        };
+        MetaEventListDto: {
+            data: {
+                /** Format: uuid */
+                id: string;
+                eventName: string;
+                eventId: string;
+                /** @enum {string} */
+                status: "PENDING" | "SENT" | "FAILED" | "DEAD";
+                attempts: number;
+                lastError: string | null;
+                /** Format: date-time */
+                eventTime: string;
+                sentAt: string | null;
+                nextTryAt: string | null;
+            }[];
+            meta: {
+                page: number;
+                pageSize: number;
+                total: number;
+                totalPages: number;
+            };
+            summary: {
+                counts: {
+                    [key: string]: number;
+                };
+                lastSentAt: string | null;
+                serverTrackingOn: boolean;
+                browserTrackingOn: boolean;
+            };
+        };
+        MetaRetryDto: {
+            retried: number;
         };
         EmailTemplateListDto: {
             data: {
@@ -13633,6 +13698,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EmailDeliveryListDto"];
+                };
+            };
+        };
+    };
+    AdminIntegrationsController_metaEventLog: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                status?: "PENDING" | "SENT" | "FAILED" | "DEAD";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaEventListDto"];
+                };
+            };
+        };
+    };
+    AdminIntegrationsController_retryMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetaRetryDto"];
                 };
             };
         };

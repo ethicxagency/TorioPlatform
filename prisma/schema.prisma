@@ -1753,3 +1753,29 @@ model IntegrationWebhookEvent {
   @@index([receivedAt])
   @@map("integration_webhook_events")
 }
+
+/// One Conversions API event Torio sent (or tried to send) to Meta. `ownerKey` is "platform" for Torio's own Pixel, or the workspace
+/// id for a workspace's Pixel, so the two never share rows. (ownerKey, eventId) is unique: a retried or repeated action cannot create a
+/// second event. The stored payload holds only hashed identifiers, never raw email, phone or tokens.
+model MetaTrackingEvent {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  ownerKey  String
+  eventName String
+  eventId   String
+  /// PENDING | SENT | FAILED (will be retried) | DEAD (will not be retried: too old, refused, or out of attempts)
+  status    String    @default("PENDING")
+  attempts  Int       @default(0)
+  lastError String?
+  /// The event as sent: event_name, event_time, event_id, action_source, hashed user_data, custom_data.
+  payload   Json
+  eventTime DateTime
+  sentAt    DateTime?
+  nextTryAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([ownerKey, eventId])
+  @@index([ownerKey, createdAt(sort: Desc)])
+  @@index([ownerKey, status])
+  @@map("meta_tracking_events")
+}

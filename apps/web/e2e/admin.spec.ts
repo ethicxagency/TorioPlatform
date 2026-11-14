@@ -645,6 +645,31 @@ test.describe('super admin', () => {
     expect(put.body).toMatchObject({ confirmLive: true, values: { environment: 'live' } });
   });
 
+  test('Integrations: the Meta Pixel page lists server events with failures and a manual retry', async ({
+    page,
+  }) => {
+    await signIn(page);
+    await page.getByRole('link', { name: 'Torio Meta Pixel' }).click();
+    await page.getByLabel('pixelId').fill('1234567890');
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await page
+      .getByRole('region', { name: 'Credentials' })
+      .getByRole('button', { name: 'Add' })
+      .first()
+      .click();
+    await page.getByLabel('New accessToken').fill('EAAB-secret-token-123456');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    const ev = page.getByRole('region', { name: 'Recent events' });
+    await expect(ev.getByRole('row', { name: /registration-u1/ })).toContainText('Sent');
+    await expect(ev.getByRole('row', { name: /registration-u2/ })).toContainText(
+      'Meta could not be reached',
+    );
+    await expect(ev.getByText(/hashed identifiers/)).toBeVisible();
+    await expect(page.getByText('EAAB-secret-token-123456')).toHaveCount(0);
+    await ev.getByRole('button', { name: 'Retry failed' }).click();
+    await expect(page.getByText('Retried 1 event')).toBeVisible();
+  });
+
   test('Integrations: the Meta Pixel needs a verified connection before a test event can be sent', async ({
     page,
   }) => {

@@ -1,3 +1,4 @@
+import { PublicTracking } from '@/features/site/public-tracking';
 import { SiteFooter } from '@/features/site/site-footer';
 import { SiteHeader } from '@/features/site/site-header';
 
@@ -13,6 +14,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       <SiteHeader />
       <main id="content">{children}</main>
       <SiteFooter />
+      <PublicTracking />
     </div>
   );
 }

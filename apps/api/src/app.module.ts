@@ -13,6 +13,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { AuthorizationModule } from './modules/authorization/authorization.module';
 import { InboxModule } from './modules/inbox/inbox.module';
 import { CustomersModule } from './modules/customers/customers.module';
+import { TrackingModule } from './modules/tracking/tracking.module';
 import { EmailModule } from './modules/email/email.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { TeamModule } from './modules/team/team.module';
@@ -87,6 +88,7 @@ const REQUEST_ID = /^[A-Za-z0-9._-]{8,64}$/;
     TeamModule,
     RolesModule,
     EmailModule,
+    TrackingModule,
     BrainModule,
     ChannelsModule,
     WhatsAppModule,

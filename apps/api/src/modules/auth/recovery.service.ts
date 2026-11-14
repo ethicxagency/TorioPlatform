@@ -10,6 +10,7 @@ import { APP_CONFIG, type AppConfig } from '../../config/config.module';
 import { PrismaService } from '../../database/prisma.service';
 import { hashToken } from './auth.service';
 import { MailService } from './mail.service';
+import { TorioTrackingService } from '../tracking/torio-tracking.service';
 import { randomToken } from './oauth-cookie';
 import { PasswordService } from './password.service';
 
@@ -23,6 +24,7 @@ export class RecoveryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
+    private readonly tracking: TorioTrackingService,
     private readonly passwords: PasswordService,
     @Inject(APP_CONFIG) private readonly c: AppConfig,
   ) {}
@@ -60,6 +62,23 @@ export class RecoveryService {
     );
   }
 
+  /** Tells Torio's marketing tracking about a verified registration. Best effort: it can never affect the verification. */
+  private async reportRegistration(userId: string, ip?: string) {
+    const user = await this.prisma.client.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    });
+    if (!user) return;
+    await this.tracking.track({
+      eventName: 'CompleteRegistration',
+      eventId: `registration-${userId}`,
+      eventTime: new Date(),
+      actionSource: 'website',
+      sourceUrl: `${this.c.WEB_URL.replace(/\/$/, '')}/verify-email`,
+      user: { email: user.email, externalId: userId, ip: ip ?? null },
+    });
+  }
+
   async resendVerification(userId: string) {
     if (!this.mail.configured)
       throw new ServiceUnavailableException(
@@ -89,7 +108,7 @@ export class RecoveryService {
     });
     if (!row || row.type !== 'EMAIL_VERIFICATION' || row.usedAt || row.expiresAt <= new Date())
       throw new BadRequestException('This verification link is invalid or has expired.');
-    await this.prisma.client.$transaction([
+    const [, verifiedNow] = await this.prisma.client.$transaction([
       this.prisma.client.emailToken.update({ where: { id: row.id }, data: { usedAt: new Date() } }),
       this.prisma.client.user.updateMany({
         where: { id: row.userId, emailVerifiedAt: null },
@@ -105,6 +124,8 @@ export class RecoveryService {
         },
       }),
     ]);
+    // A verified registration is the conversion. The event id is fixed per person, so verifying twice never counts twice.
+    if (verifiedNow.count > 0) void this.reportRegistration(row.userId, ip);
     return { verified: true as const };
   }
 

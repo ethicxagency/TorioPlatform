@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -19,6 +20,9 @@ import {
   emailPreviewSchema,
   emailTemplateListSchema,
   integrationEnableSchema,
+  metaEventListSchema,
+  metaEventQuerySchema,
+  metaRetryResultSchema,
   integrationListSchema,
   integrationSaveSchema,
   integrationSecretValueSchema,
@@ -30,12 +34,17 @@ import { createZodDto } from 'nestjs-zod';
 import { Public } from '../../common/decorators';
 import { AdminGuard, CurrentAdmin, type AdminContext } from './admin-auth';
 import { EmailEventsService } from '../email/email-events.service';
+import { MetaEventsService } from '../tracking/meta-events.service';
+import { PLATFORM_OWNER, TorioTrackingService } from '../tracking/torio-tracking.service';
 import { IntegrationsService } from './integrations/integrations.service';
 
 class EmailDeliveryQueryDto extends createZodDto(emailDeliveryQuerySchema) {}
 class EmailDeliveryListDto extends createZodDto(emailDeliveryListSchema) {}
 class EmailTemplateListDto extends createZodDto(emailTemplateListSchema) {}
 class EmailPreviewDto extends createZodDto(emailPreviewSchema) {}
+class MetaEventQueryDto extends createZodDto(metaEventQuerySchema) {}
+class MetaEventListDto extends createZodDto(metaEventListSchema) {}
+class MetaRetryDto extends createZodDto(metaRetryResultSchema) {}
 class IntegrationListDto extends createZodDto(integrationListSchema) {}
 class IntegrationViewDto extends createZodDto(integrationViewSchema) {}
 class IntegrationSaveDto extends createZodDto(integrationSaveSchema) {}
@@ -56,6 +65,8 @@ export class AdminIntegrationsController {
   constructor(
     private readonly integrations: IntegrationsService,
     private readonly emails: EmailEventsService,
+    private readonly metaEvents: MetaEventsService,
+    private readonly torio: TorioTrackingService,
   ) {}
 
   @Get()
@@ -68,6 +79,35 @@ export class AdminIntegrationsController {
   @ApiOkResponse({ type: EmailDeliveryListDto })
   deliveries(@Query() q: EmailDeliveryQueryDto) {
     return this.emails.deliveries(q);
+  }
+
+  @Get('torio_meta_pixel/events')
+  @ApiOkResponse({ type: MetaEventListDto })
+  async metaEventLog(@Query() q: MetaEventQueryDto) {
+    const [list, pub, server] = await Promise.all([
+      this.metaEvents.list(PLATFORM_OWNER, q.page, q.pageSize, q.status),
+      this.torio.publicConfig(),
+      this.torio.serverTarget(),
+    ]);
+    return {
+      ...list,
+      summary: {
+        ...list.summary,
+        serverTrackingOn: !!server,
+        browserTrackingOn: !!pub.metaPixelId,
+      },
+    } as never;
+  }
+
+  @Post('torio_meta_pixel/events/retry')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOkResponse({ type: MetaRetryDto })
+  async retryMeta() {
+    const target = await this.torio.serverTarget();
+    if (!target)
+      throw new BadRequestException('Server-side tracking is off or the Pixel is not verified.');
+    return this.metaEvents.retry(target);
   }
 
   @Get('mailgun/templates')
