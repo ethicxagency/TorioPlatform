@@ -203,7 +203,8 @@ export function GeneralPage() {
     // Validate everything before anything is sent, so a typo never causes a half-save.
     const v: Record<string, string> = {};
     if (profileDirty && !pf.name.trim()) v.name = 'Name is required';
-    if (workspaceDirty && wf.name.trim().length < 2)
+    if (workspaceDirty && !wf.name.trim()) v['ws-name'] = 'Business name is required';
+    else if (workspaceDirty && wf.name.trim().length < 2)
       v['ws-name'] = 'Business name needs at least 2 characters';
     if (Object.keys(v).length) return setErrs(v);
 
@@ -285,6 +286,7 @@ export function GeneralPage() {
                 <Field label="Full name" htmlFor="pf-name" required error={errs.name}>
                   <input
                     id="pf-name"
+                    aria-required="true"
                     value={pf.name}
                     maxLength={100}
                     placeholder="Your name"
@@ -300,7 +302,7 @@ export function GeneralPage() {
                 >
                   <input id="pf-email" value={p.email} disabled className={inputCls} />
                 </Field>
-                <Field label="Phone (optional)" htmlFor="pf-phone" error={errs.phone}>
+                <Field label="Phone" htmlFor="pf-phone" error={errs.phone}>
                   <input
                     id="pf-phone"
                     type="tel"
@@ -312,7 +314,7 @@ export function GeneralPage() {
                     className={inputCls}
                   />
                 </Field>
-                <Field label="Job title (optional)" htmlFor="pf-job" error={errs.jobTitle}>
+                <Field label="Job title" htmlFor="pf-job" error={errs.jobTitle}>
                   <input
                     id="pf-job"
                     value={pf.jobTitle}
@@ -352,6 +354,7 @@ export function GeneralPage() {
               <Field label="Business Name" htmlFor="ws-name" required error={errs['ws-name']}>
                 <input
                   id="ws-name"
+                  aria-required="true"
                   value={wf.name}
                   maxLength={80}
                   disabled={!canEdit}
@@ -360,7 +363,7 @@ export function GeneralPage() {
                   className={`${inputCls} h-10 text-sm font-medium`}
                 />
               </Field>
-              <Field label="Contact email (optional)" htmlFor="ws-email" error={errs['ws-email']}>
+              <Field label="Contact email" htmlFor="ws-email" error={errs['ws-email']}>
                 <input
                   id="ws-email"
                   type="email"
@@ -373,11 +376,7 @@ export function GeneralPage() {
                   className={inputCls}
                 />
               </Field>
-              <Field
-                label="Description (optional)"
-                htmlFor="ws-desc"
-                error={errs['ws-description']}
-              >
+              <Field label="Description" htmlFor="ws-desc" error={errs['ws-description']}>
                 <textarea
                   id="ws-desc"
                   rows={3}
@@ -414,7 +413,7 @@ export function GeneralPage() {
                     }}
                   />
                 </Field>
-                <Field label="Phone number (optional)" htmlFor="ws-phone" error={errs['ws-phone']}>
+                <Field label="Phone number" htmlFor="ws-phone" error={errs['ws-phone']}>
                   <input
                     id="ws-phone"
                     type="tel"
@@ -446,7 +445,7 @@ export function GeneralPage() {
                   />
                 </Field>
               </div>
-              <Field label="Address (optional)" htmlFor="ws-address" error={errs['ws-addressLine']}>
+              <Field label="Address" htmlFor="ws-address" error={errs['ws-addressLine']}>
                 <input
                   id="ws-address"
                   value={wf.addressLine}
@@ -457,7 +456,7 @@ export function GeneralPage() {
                 />
               </Field>
               <div className="grid gap-4 sm:grid-cols-3">
-                <Field label="City (optional)" htmlFor="ws-city" error={errs['ws-city']}>
+                <Field label="City" htmlFor="ws-city" error={errs['ws-city']}>
                   <input
                     id="ws-city"
                     value={wf.city}
@@ -467,11 +466,7 @@ export function GeneralPage() {
                     className={inputCls}
                   />
                 </Field>
-                <Field
-                  label="State / Region (optional)"
-                  htmlFor="ws-state"
-                  error={errs['ws-state']}
-                >
+                <Field label="State / Region" htmlFor="ws-state" error={errs['ws-state']}>
                   <input
                     id="ws-state"
                     value={wf.state}
@@ -481,11 +476,7 @@ export function GeneralPage() {
                     className={inputCls}
                   />
                 </Field>
-                <Field
-                  label="Postal Code (optional)"
-                  htmlFor="ws-postal"
-                  error={errs['ws-postalCode']}
-                >
+                <Field label="Postal Code" htmlFor="ws-postal" error={errs['ws-postalCode']}>
                   <input
                     id="ws-postal"
                     value={wf.postalCode}

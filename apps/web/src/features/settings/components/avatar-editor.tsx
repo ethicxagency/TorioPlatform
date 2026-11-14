@@ -136,16 +136,16 @@ export function AvatarEditor({ profile, name }: { profile: Profile; name: string
             </Button>
           )}
         </div>
-        <p className="m-0 flex items-center gap-1.5 text-xs text-muted">
-          <ImageOff size={12} aria-hidden className="shrink-0" />
-          {src === 'CUSTOM'
-            ? 'Your own picture. Sign-ins will not replace it.'
-            : src === 'PROVIDER'
-              ? `From ${providerName}. Upload your own to replace it.`
+        {src !== 'PROVIDER' && (
+          <p className="m-0 flex items-center gap-1.5 text-xs text-muted">
+            <ImageOff size={12} aria-hidden className="shrink-0" />
+            {src === 'CUSTOM'
+              ? 'Your own picture. Sign-ins will not replace it.'
               : src === 'NONE'
                 ? 'No picture. Your initials are shown.'
                 : 'PNG, JPG or WebP. Your initials are shown until you add one.'}
-        </p>
+          </p>
+        )}
         {fileError && (
           <p role="alert" className="m-0 text-xs text-danger">
             {fileError}

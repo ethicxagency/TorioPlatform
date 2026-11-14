@@ -70,8 +70,8 @@ test.describe('store dropdown and Add Store (existing user)', () => {
     await page.goto('/settings/general');
     await expect(page.getByLabel('Business Name')).toHaveValue('Fashion BD');
     await expect(page.getByLabel('Store URL')).toHaveValue('fashion-bd');
-    await expect(page.getByLabel('City (optional)')).toHaveValue('Dhaka');
-    await expect(page.getByLabel('Phone number (optional)')).toHaveValue('+8801712345678');
+    await expect(page.getByLabel('City', { exact: true })).toHaveValue('Dhaka');
+    await expect(page.getByLabel('Phone number', { exact: true })).toHaveValue('+8801712345678');
     expect(settingsState.workspace.name).toBe('UrbanNest');
     expect(settingsState.workspacePatches).toHaveLength(0);
   });
@@ -144,7 +144,7 @@ test.describe('store dropdown and Add Store (existing user)', () => {
   });
 
   test('General Settings edits go to the active store only', async ({ page }) => {
-    await page.getByLabel('City (optional)').fill('Chattogram');
+    await page.getByLabel('City', { exact: true }).fill('Chattogram');
     await page.getByRole('button', { name: 'Save changes' }).click();
     await expect(page.getByText('Saved', { exact: true })).toBeVisible();
     expect(settingsState.workspacePatches).toEqual([{ city: 'Chattogram' }]);

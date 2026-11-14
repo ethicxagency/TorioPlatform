@@ -34,7 +34,7 @@ test.describe('settings (owner)', () => {
     await expect(page.getByText('Name is required')).toBeVisible();
     expect(settingsState.profilePatches).toHaveLength(0);
     await name.fill('Farid A. Ahmed');
-    await page.getByLabel('Phone (optional)').fill('+8801700000000');
+    await page.getByLabel('Phone', { exact: true }).fill('+8801700000000');
     await page.getByRole('button', { name: 'Save changes' }).click();
     await expect(page.getByText('Saved', { exact: true })).toBeVisible();
     // Only the changed fields are sent, and the workspace endpoint is not called at all.
@@ -50,7 +50,7 @@ test.describe('settings (owner)', () => {
   }) => {
     await page.goto('/settings/general');
     await expect(page.getByRole('button', { name: 'Save changes' })).toHaveCount(1);
-    await page.getByLabel('Job title (optional)').fill('Head of Support');
+    await page.getByLabel('Job title', { exact: true }).fill('Head of Support');
     await page.getByLabel('Business Name').fill('UrbanNest HQ');
     await page.getByRole('button', { name: /^Currency:/ }).click();
     await page.getByRole('combobox', { name: 'Search currency' }).fill('dollar');
@@ -72,7 +72,7 @@ test.describe('settings (owner)', () => {
 
   test('general: validation stops everything before anything is sent', async ({ page }) => {
     await page.goto('/settings/general');
-    await page.getByLabel('Job title (optional)').fill('Lead');
+    await page.getByLabel('Job title', { exact: true }).fill('Lead');
     await page.getByLabel('Business Name').fill('x');
     await page.getByRole('button', { name: 'Save changes' }).click();
     await expect(page.getByText('at least 2 characters')).toBeVisible();
@@ -96,7 +96,7 @@ test.describe('settings (owner)', () => {
     page,
   }) => {
     await page.goto('/settings/general');
-    await page.getByLabel('Job title (optional)').fill('Head of Support');
+    await page.getByLabel('Job title', { exact: true }).fill('Head of Support');
     const crumb = page.getByRole('navigation', { name: 'Settings' }).getByRole('link', {
       name: /Security/,
     });
@@ -331,7 +331,10 @@ test.describe('sign-in methods and pictures (owner)', () => {
     });
     await page.goto('/settings/general');
     const profile = page.getByRole('region', { name: 'Your profile' });
-    await expect(profile.getByText(/From Google/)).toBeVisible();
+    await expect(profile.getByText(/From Google/)).toHaveCount(0);
+    await expect(page.getByText(/\(optional\)/i)).toHaveCount(0);
+    await expect(page.getByLabel('Full name')).toHaveAttribute('aria-required', 'true');
+    await expect(page.getByLabel(/^Business Name/)).toHaveAttribute('aria-required', 'true');
     await profile
       .getByLabel('Choose a profile picture')
       .setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: PNG });
@@ -344,7 +347,7 @@ test.describe('sign-in methods and pictures (owner)', () => {
     expect(settingsState.uploads[0]).toMatchObject({ path: '/users/me/avatar' });
     expect(settingsState.uploads[0]!.type).toMatch(/multipart\/form-data/);
     await profile.getByRole('button', { name: /Use Google picture/ }).click();
-    await expect(profile.getByText(/From Google/)).toBeVisible();
+    await expect(profile.getByText(/From Google/)).toHaveCount(0);
     await profile.getByRole('button', { name: 'Remove' }).click();
     await page.getByRole('alertdialog').getByRole('button', { name: 'Remove picture' }).click();
     await expect(profile.getByText('No picture. Your initials are shown.')).toBeVisible();
@@ -431,7 +434,7 @@ test.describe('settings (agent)', () => {
     await expect(page.getByRole('button', { name: /^Currency:/ })).toBeDisabled();
     await expect(page.getByText(/Owner or Admin permissions/)).toBeVisible();
     // Personal fields stay editable, and an agent's save sends no workspace change.
-    await page.getByLabel('Job title (optional)').fill('Agent');
+    await page.getByLabel('Job title', { exact: true }).fill('Agent');
     await page.getByRole('button', { name: 'Save changes' }).click();
     await expect(page.getByText('Saved', { exact: true })).toBeVisible();
     expect(settingsState.workspacePatches).toHaveLength(0);
