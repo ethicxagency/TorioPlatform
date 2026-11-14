@@ -103,7 +103,10 @@ export const setPasswordSchema = z
   });
 export type SetPasswordInput = z.infer<typeof setPasswordSchema>;
 
-export const passwordCodeResultSchema = z.object({ sent: z.literal(true), expiresInMinutes: z.number().int() });
+export const passwordCodeResultSchema = z.object({
+  sent: z.literal(true),
+  expiresInMinutes: z.number().int(),
+});
 
 /** Largest accepted upload, and the pictures the server accepts. Everything is re-encoded, so these are limits on input only. */
 export const IMAGE_MAX_BYTES = 2 * 1024 * 1024;
