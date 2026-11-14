@@ -162,6 +162,10 @@ export const workspaceSchema = z.object({
   defaultCurrency: z.string().describe('ISO currency code, or null when not set').nullable(),
   contactEmail: z.string().describe('Text, or null when not set').nullable(),
   logo: z.string().describe('Image URL, or null when not set').nullable(),
+  logoLight: z
+    .string()
+    .describe('Image URL of the logo for dark backgrounds, or null when not set')
+    .nullable(),
   phone: z.string().describe('E.164 number, or null when not set').nullable(),
   industry: z.string().describe('Text, or null when not set').nullable(),
   country: z.string().describe('ISO 3166-1 alpha-2, or null when not set').nullable(),

@@ -501,6 +501,7 @@ export function GeneralPage() {
               workspaceId={w.id}
               name={w.name}
               logo={w.logo ?? null}
+              logoLight={w.logoLight ?? null}
               canEdit={canEdit}
             />
           </Section>

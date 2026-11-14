@@ -37,8 +37,9 @@ export class WorkspacesService {
     const activeId =
       rows.find((m) => m.workspaceId === prefs?.lastActiveWorkspaceId)?.workspaceId ??
       rows[0]?.workspaceId;
+    const lights = await this.lightLogos(rows.map((m) => m.workspaceId));
     const list = rows.map((m) => ({
-      ...this.toDto(m.workspace),
+      ...this.toDto(m.workspace, lights.get(m.workspaceId) ?? null),
       role: m.role,
       active: m.workspaceId === activeId,
     }));
@@ -152,7 +153,7 @@ export class WorkspacesService {
 
   async get(workspaceId: string, role: 'OWNER' | 'ADMIN' | 'AGENT') {
     const w = await this.prisma.client.workspace.findUniqueOrThrow({ where: { id: workspaceId } });
-    return { ...this.toDto(w), role, active: true };
+    return { ...(await this.dto(w)), role, active: true };
   }
 
   /**
@@ -184,7 +185,7 @@ export class WorkspacesService {
       });
       return updated;
     });
-    return { ...this.toDto(w), role, active: true };
+    return { ...(await this.dto(w)), role, active: true };
   }
 
   async removeLogo(workspaceId: string, actorId: string, role: 'OWNER' | 'ADMIN' | 'AGENT') {
@@ -206,7 +207,7 @@ export class WorkspacesService {
       });
       return updated;
     });
-    return { ...this.toDto(w), role, active: true };
+    return { ...(await this.dto(w)), role, active: true };
   }
 
   /** Workspace profile only. The slug (and so URLs/identity) never changes here. */
@@ -268,7 +269,44 @@ export class WorkspacesService {
         });
       return updated;
     });
-    return { ...this.toDto(w), role, active: true };
+    return { ...(await this.dto(w)), role, active: true };
+  }
+
+  /** The logo for dark backgrounds, an optional second picture of the same brand. Never replaces the main logo. */
+  async setLogoLight(
+    workspaceId: string,
+    actorId: string,
+    role: 'OWNER' | 'ADMIN' | 'AGENT',
+    file: UploadedFile | undefined,
+  ) {
+    const processed = await this.images.process('WORKSPACE_LOGO_LIGHT', file);
+    await this.images.save('WORKSPACE_LOGO_LIGHT', workspaceId, processed, actorId);
+    await this.prisma.client.auditLog.create({
+      data: {
+        workspaceId,
+        actorId,
+        action: 'workspace.logo_light_update',
+        entityType: 'workspace',
+        entityId: workspaceId,
+        metadata: { description: 'Logo for dark backgrounds uploaded' },
+      },
+    });
+    return this.get(workspaceId, role);
+  }
+
+  async removeLogoLight(workspaceId: string, actorId: string, role: 'OWNER' | 'ADMIN' | 'AGENT') {
+    await this.images.remove('WORKSPACE_LOGO_LIGHT', workspaceId);
+    await this.prisma.client.auditLog.create({
+      data: {
+        workspaceId,
+        actorId,
+        action: 'workspace.logo_light_remove',
+        entityType: 'workspace',
+        entityId: workspaceId,
+        metadata: { description: 'Logo for dark backgrounds removed' },
+      },
+    });
+    return this.get(workspaceId, role);
   }
 
   async audit(workspaceId: string, q: AuditQuery) {
@@ -305,25 +343,41 @@ export class WorkspacesService {
     };
   }
 
-  private toDto(w: {
-    id: string;
-    name: string;
-    slug: string;
-    description: string | null;
-    status?: 'ACTIVE' | 'SUSPENDED';
-    reportingTimeZone?: string;
-    defaultCurrency: string | null;
-    contactEmail: string | null;
-    logo?: string | null;
-    phone?: string | null;
-    industry?: string | null;
-    country?: string | null;
-    addressLine?: string | null;
-    city?: string | null;
-    state?: string | null;
-    postalCode?: string | null;
-    createdAt: Date;
-  }) {
+  /** Store id -> address of its logo for dark backgrounds, for the stores that have one. */
+  private async lightLogos(ids: string[]): Promise<Map<string, string>> {
+    const rows = await this.prisma.client.storedImage.findMany({
+      where: { kind: 'WORKSPACE_LOGO_LIGHT', ownerId: { in: ids } },
+      select: { id: true, ownerId: true },
+    });
+    return new Map(rows.map((r) => [r.ownerId, this.images.url(r.id)]));
+  }
+
+  private async dto(w: Parameters<WorkspacesService['toDto']>[0]) {
+    return this.toDto(w, (await this.lightLogos([w.id])).get(w.id) ?? null);
+  }
+
+  private toDto(
+    w: {
+      id: string;
+      name: string;
+      slug: string;
+      description: string | null;
+      status?: 'ACTIVE' | 'SUSPENDED';
+      reportingTimeZone?: string;
+      defaultCurrency: string | null;
+      contactEmail: string | null;
+      logo?: string | null;
+      phone?: string | null;
+      industry?: string | null;
+      country?: string | null;
+      addressLine?: string | null;
+      city?: string | null;
+      state?: string | null;
+      postalCode?: string | null;
+      createdAt: Date;
+    },
+    logoLight: string | null = null,
+  ) {
     return {
       id: w.id,
       name: w.name,
@@ -334,6 +388,7 @@ export class WorkspacesService {
       defaultCurrency: w.defaultCurrency,
       contactEmail: w.contactEmail,
       logo: w.logo ?? null,
+      logoLight,
       phone: w.phone ?? null,
       industry: w.industry ?? null,
       country: w.country ?? null,

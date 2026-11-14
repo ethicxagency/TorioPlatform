@@ -605,6 +605,8 @@ export const settingsState = {
   passwords: [] as unknown[],
   /** Files sent to the avatar and logo endpoints: where, the content type and its size. */
   uploads: [] as { path: string; type: string; size: number }[],
+  /** When set, the next logo upload is refused with this message. */
+  logoFail: null as string | null,
   codes: 0,
   sessions: [] as { id: string; device: string; current: boolean }[],
   revoked: [] as string[],
@@ -627,6 +629,7 @@ export const resetSettings = () => {
     landingPage: 'dashboard',
   };
   settingsState.uploads = [];
+  settingsState.logoFail = null;
   settingsState.codes = 0;
   settingsState.profilePatches = [];
   settingsState.passwords = [];
@@ -644,6 +647,7 @@ export const resetSettings = () => {
     defaultCurrency: null,
     contactEmail: null,
     logo: null,
+    logoLight: null,
     phone: null,
     industry: null,
     country: null,
@@ -1635,7 +1639,19 @@ export async function mockApi(
       });
       return reply(settingsState.profile);
     }
+    if (p === `/workspaces/${WS}/logo-light`) {
+      if (req.method() === 'PUT') {
+        settingsState.uploads.push({ path: p, type: req.headers()['content-type'] ?? '', size: 1 });
+        settingsState.workspace.logoLight = 'https://api.test/api/v1/images/new-light';
+      } else settingsState.workspace.logoLight = null;
+      return reply({ ...settingsState.workspace, role: 'OWNER', active: true });
+    }
     if (p === `/workspaces/${WS}/logo`) {
+      if (req.method() === 'PUT' && settingsState.logoFail) {
+        const message = settingsState.logoFail;
+        settingsState.logoFail = null;
+        return reply({ error: { message, statusCode: 400 }, message }, 400);
+      }
       if (req.method() === 'PUT') {
         const body = req.postDataBuffer();
         settingsState.uploads.push({

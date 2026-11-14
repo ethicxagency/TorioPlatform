@@ -295,4 +295,58 @@ describe.skipIf(!url)('sign-in methods and pictures (real PostgreSQL)', () => {
       }),
     ).toBe(2);
   });
+
+  it('the dark-background logo and the sized variants: separate record, same permissions, replace keeps the old logo on failure', async () => {
+    const owner = await auth(ids.owner!);
+    const L = `/api/v1/workspaces/${ids.ws}/logo`;
+    const LL = `/api/v1/workspaces/${ids.ws}/logo-light`;
+    const wide = await sharp({
+      create: { width: 1000, height: 250, channels: 4, background: '#5B5CE2' },
+    })
+      .png()
+      .toBuffer();
+    const main = await http().put(L).set(owner).attach('file', wide, 'logo.png').expect(200);
+    expect(main.body.logoLight).toBeNull();
+    // a failed replacement leaves the saved logo exactly as it was
+    await http().put(L).set(owner).attach('file', Buffer.from('nope'), 'x.png').expect(400);
+    const still = await http().get(`/api/v1/workspaces/${ids.ws}`).set(owner).expect(200);
+    expect(still.body.logo).toBe(main.body.logo);
+
+    await http()
+      .put(LL)
+      .set(await auth(ids.agent!))
+      .attach('file', wide, 'light.png')
+      .expect(403);
+    await http()
+      .put(LL)
+      .set(await auth(ids.outsider!))
+      .attach('file', wide, 'light.png')
+      .expect(404);
+    const light = await http().put(LL).set(owner).attach('file', wide, 'light.png').expect(200);
+    expect(light.body.logoLight).toMatch(/\/api\/v1\/images\//);
+    expect(light.body.logo).toBe(main.body.logo); // the main logo is untouched
+    expect(
+      await db.storedImage.count({ where: { kind: 'WORKSPACE_LOGO_LIGHT', ownerId: ids.ws! } }),
+    ).toBe(1);
+    expect(
+      await db.storedImage.count({ where: { kind: 'WORKSPACE_LOGO_LIGHT', ownerId: ids.wsB! } }),
+    ).toBe(0);
+
+    const id = main.body.logo.split('/').pop();
+    const small = await http().get(`/api/v1/images/${id}?w=360`).expect(200);
+    expect(small.headers['cache-control']).toContain('immutable');
+    const dims = await sharp(small.body as Buffer).metadata();
+    expect(dims.width).toBe(360);
+    const odd = await http().get(`/api/v1/images/${id}?w=77`).expect(200);
+    expect((await sharp(odd.body as Buffer).metadata()).width).toBe(1000);
+
+    const list = await http().get('/api/v1/workspaces').set(owner).expect(200);
+    expect(list.body.data.find((w: { id: string }) => w.id === ids.ws).logoLight).toBe(
+      light.body.logoLight,
+    );
+    const off = await http().delete(LL).set(owner).expect(200);
+    expect(off.body.logoLight).toBeNull();
+    expect(off.body.logo).toBe(main.body.logo);
+    await http().delete(L).set(owner).expect(200);
+  });
 });

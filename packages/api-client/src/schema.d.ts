@@ -548,6 +548,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/logo-light": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["WorkspacesController_setLogoLight"];
+        post?: never;
+        delete: operations["WorkspacesController_removeLogoLight"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/audit": {
         parameters: {
             query?: never;
@@ -3647,6 +3663,7 @@ export interface components {
             defaultCurrency: string | null;
             contactEmail: string | null;
             logo: string | null;
+            logoLight: string | null;
             phone: string | null;
             industry: string | null;
             country: string | null;
@@ -8158,6 +8175,48 @@ export interface operations {
         };
     };
     WorkspacesController_removeLogo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceDto"];
+                };
+            };
+        };
+    };
+    WorkspacesController_setLogoLight: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceDto"];
+                };
+            };
+        };
+    };
+    WorkspacesController_removeLogoLight: {
         parameters: {
             query?: never;
             header?: never;

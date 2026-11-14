@@ -12,17 +12,21 @@ export function uploadFile<T>(
   file: Blob,
   filename: string,
   onProgress?: (fraction: number) => void,
+  signal?: AbortSignal,
+  method: 'PUT' | 'POST' = 'PUT',
 ): Promise<T> {
   const send = (token: string | null) =>
     new Promise<{ status: number; body: string }>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('PUT', `${env.NEXT_PUBLIC_API_URL}${path}`);
+      xhr.open(method, `${env.NEXT_PUBLIC_API_URL}${path}`);
       xhr.withCredentials = true;
       if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       xhr.upload.onprogress = (e) => e.lengthComputable && onProgress?.(e.loaded / e.total);
       xhr.onload = () => resolve({ status: xhr.status, body: xhr.responseText });
       xhr.onerror = () =>
         reject(new UploadError('Could not reach the server. Check your connection and try again.'));
+      xhr.onabort = () => reject(new UploadError('Upload cancelled.'));
+      signal?.addEventListener('abort', () => xhr.abort(), { once: true });
       xhr.ontimeout = () => reject(new UploadError('The upload took too long. Try again.'));
       xhr.timeout = 60_000;
       const form = new FormData();

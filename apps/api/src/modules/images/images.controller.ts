@@ -4,6 +4,7 @@ import {
   Header,
   Param,
   ParseUUIDPipe,
+  Query,
   Req,
   Res,
   StreamableFile,
@@ -32,16 +33,18 @@ export class ImagesController {
   @Header('Cache-Control', 'public, max-age=31536000, immutable')
   async get(
     @Param('id', ParseUUIDPipe) id: string,
+    @Query('w') w: string | undefined,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     const img = await this.images.get(id);
-    const etag = `"${createHash('sha1').update(img.bytes).digest('hex')}"`;
+    const bytes = await this.images.sized(img, w ? Number.parseInt(w, 10) : undefined);
+    const etag = `"${createHash('sha1').update(bytes).digest('hex')}"`;
     res.set({ 'Content-Type': img.contentType, ETag: etag });
     if (req.headers['if-none-match'] === etag) {
       res.status(304);
       return;
     }
-    return new StreamableFile(Buffer.from(img.bytes));
+    return new StreamableFile(bytes);
   }
 }

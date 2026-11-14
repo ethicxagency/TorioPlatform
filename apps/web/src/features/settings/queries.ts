@@ -261,3 +261,21 @@ export function useRemoveLogo(ws: string | null) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['workspaces'] }),
   });
 }
+
+export function useRemoveLogoLight(ws: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error, response } = await api.DELETE(
+        '/api/v1/workspaces/{workspaceId}/logo-light',
+        {
+          params: { path: { workspaceId: ws! } },
+        },
+      );
+      if (!data)
+        throw fail(error, 'Could not remove the logo for dark backgrounds', response.status);
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['workspaces'] }),
+  });
+}

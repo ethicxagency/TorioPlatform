@@ -123,6 +123,32 @@ export class WorkspacesController {
     return this.workspaces.removeLogo(workspaceId, user.id, m.role);
   }
 
+  @Put(':workspaceId/logo-light')
+  @UseGuards(WorkspaceAccessGuard)
+  @RequirePermission('workspace:update')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: IMAGE_MAX_BYTES, files: 1 } }))
+  @ApiOkResponse({ type: WorkspaceDto })
+  setLogoLight(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @CurrentUser() user: AuthUser,
+    @CurrentMembership() m: WorkspaceMembershipContext,
+    @UploadedFile() file: Express.Multer.File | undefined,
+  ) {
+    return this.workspaces.setLogoLight(workspaceId, user.id, m.role, file);
+  }
+
+  @Delete(':workspaceId/logo-light')
+  @UseGuards(WorkspaceAccessGuard)
+  @RequirePermission('workspace:update')
+  @ApiOkResponse({ type: WorkspaceDto })
+  removeLogoLight(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @CurrentUser() user: AuthUser,
+    @CurrentMembership() m: WorkspaceMembershipContext,
+  ) {
+    return this.workspaces.removeLogoLight(workspaceId, user.id, m.role);
+  }
+
   @Get(':workspaceId/audit')
   @UseGuards(WorkspaceAccessGuard)
   @RequirePermission('audit:read')

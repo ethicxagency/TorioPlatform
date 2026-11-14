@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { logoSrc } from '@/components/workspace-logo';
 import { cn } from '@/lib/utils';
 
 const initialsOf = (name: string) =>
@@ -50,9 +51,9 @@ export function StoreAvatar({
       {logo && !broken ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={logo}
+          src={logoSrc(logo, 160)}
           alt=""
-          className="h-full w-full object-cover"
+          className="h-full w-full bg-white object-contain p-[3px]"
           onError={() => setBroken(true)}
         />
       ) : (

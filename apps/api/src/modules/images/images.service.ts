@@ -3,7 +3,11 @@ import { AVATAR_TYPES, IMAGE_MAX_BYTES, LOGO_TYPES } from '@torio/contracts';
 import { APP_CONFIG, type AppConfig } from '../../config/config.module';
 import { PrismaService } from '../../database/prisma.service';
 
-export type ImageKind = 'USER_AVATAR' | 'WORKSPACE_LOGO';
+export type ImageKind = 'USER_AVATAR' | 'WORKSPACE_LOGO' | 'WORKSPACE_LOGO_LIGHT';
+/** Logos share one processing path; the light one is the same logo drawn for dark backgrounds. */
+const isLogo = (k: ImageKind) => k !== 'USER_AVATAR';
+/** The widths a picture can be served at (display contexts top out near 180px, so 2x is 360). Anything else is the original. */
+export const IMAGE_WIDTHS = [160, 360, 720] as const;
 export interface UploadedFile {
   buffer: Buffer;
   mimetype: string;
@@ -63,14 +67,12 @@ export class ImagesService {
     if (!file?.buffer?.length) throw new BadRequestException('Choose an image to upload.');
     if (file.size > IMAGE_MAX_BYTES)
       throw new BadRequestException('That image is larger than 2 MB.');
-    const allowed: readonly string[] = kind === 'USER_AVATAR' ? AVATAR_TYPES : LOGO_TYPES;
+    const allowed: readonly string[] = isLogo(kind) ? LOGO_TYPES : AVATAR_TYPES;
     const type = sniff(file.buffer);
     const typeMime = type === 'svg' ? 'image/svg+xml' : type ? `image/${type}` : null;
     if (!typeMime || !allowed.includes(typeMime))
       throw new BadRequestException(
-        kind === 'USER_AVATAR'
-          ? 'Use a PNG, JPG or WebP image.'
-          : 'Use a PNG, JPG, WebP or SVG image.',
+        isLogo(kind) ? 'Use a PNG, JPG, WebP or SVG image.' : 'Use a PNG, JPG or WebP image.',
       );
     if (type === 'svg') assertSafeSvg(file.buffer.toString('utf8'));
     // sharp is loaded here, not at start-up, so a missing native build can only affect uploads, never the whole API.
@@ -81,13 +83,31 @@ export class ImagesService {
         failOn: 'error',
         density: type === 'svg' ? 300 : undefined,
       }).rotate();
-      img =
-        kind === 'USER_AVATAR'
-          ? img.resize(AVATAR_SIZE, AVATAR_SIZE, { fit: 'cover', position: 'centre' })
-          : img.resize(LOGO_MAX.width, LOGO_MAX.height, {
-              fit: 'inside',
-              withoutEnlargement: true,
-            });
+      if (isLogo(kind)) {
+        // Drop empty margins (transparent, or the flat colour around the artwork) at full resolution, before scaling, so no
+        // content is touched and the logo stays sharp. A result that is nearly nothing means the logo is the whole image.
+        const full = await img.png().toBuffer({ resolveWithObject: true });
+        let source = full.data;
+        try {
+          const t = await sharp(full.data)
+            .trim({ threshold: 8 })
+            .toBuffer({ resolveWithObject: true });
+          if (
+            t.info.width >= 8 &&
+            t.info.height >= 8 &&
+            t.info.width * t.info.height >= full.info.width * full.info.height * 0.02
+          )
+            source = t.data;
+        } catch {
+          /* a flat image cannot be trimmed: keep it whole */
+        }
+        img = sharp(source).resize(LOGO_MAX.width, LOGO_MAX.height, {
+          fit: 'inside',
+          withoutEnlargement: true,
+        });
+      } else {
+        img = img.resize(AVATAR_SIZE, AVATAR_SIZE, { fit: 'cover', position: 'centre' });
+      }
       const { data, info } = await img
         .webp({ quality: 88, alphaQuality: 100 })
         .toBuffer({ resolveWithObject: true });
@@ -125,6 +145,28 @@ export class ImagesService {
 
   async remove(kind: ImageKind, ownerId: string) {
     await this.prisma.client.storedImage.deleteMany({ where: { kind, ownerId } });
+  }
+
+  private readonly resized = new Map<string, Buffer>();
+
+  /**
+   * The picture scaled down to one of the standard widths (never up), so a 120px header does not download a 1024px logo.
+   * Results are small and kept in memory by id, which only ever names one immutable picture.
+   */
+  async sized(row: { id: string; bytes: Uint8Array; width: number }, w: number | undefined) {
+    const width = IMAGE_WIDTHS.find((x) => x === w);
+    if (!width || width >= row.width) return Buffer.from(row.bytes);
+    const key = `${row.id}:${width}`;
+    const hit = this.resized.get(key);
+    if (hit) return hit;
+    const sharp = (await import('sharp')).default;
+    const out = await sharp(Buffer.from(row.bytes))
+      .resize(width, undefined, { fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 88, alphaQuality: 100 })
+      .toBuffer();
+    if (this.resized.size >= 200) this.resized.delete(this.resized.keys().next().value!);
+    this.resized.set(key, out);
+    return out;
   }
 
   async get(id: string) {

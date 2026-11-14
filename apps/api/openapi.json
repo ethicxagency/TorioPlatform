@@ -1159,6 +1159,74 @@
         ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/logo-light": {
+      "put": {
+        "operationId": "WorkspacesController_setLogoLight",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "workspaces"
+        ]
+      },
+      "delete": {
+        "operationId": "WorkspacesController_removeLogoLight",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/audit": {
       "get": {
         "operationId": "WorkspacesController_audit",
@@ -12018,6 +12086,17 @@
               }
             ]
           },
+          "logoLight": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Image URL of the logo for dark backgrounds, or null when not set"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "phone": {
             "anyOf": [
               {
@@ -12122,6 +12201,7 @@
           "defaultCurrency",
           "contactEmail",
           "logo",
+          "logoLight",
           "phone",
           "industry",
           "country",

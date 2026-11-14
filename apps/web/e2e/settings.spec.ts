@@ -375,23 +375,65 @@ test.describe('sign-in methods and pictures (owner)', () => {
       brand.getByText('Manage your workspace logo and brand identity across Torio.'),
     ).toBeVisible();
     await expect(brand.getByText('Where it appears')).toBeVisible();
+    await expect(brand.getByText('Logo for dark backgrounds')).toHaveCount(0); // only once there is a logo
     await brand
       .getByLabel('Choose a brand logo')
       .setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: PNG });
-    await expect(brand.getByRole('img', { name: 'Logo on a light background' })).toBeVisible();
-    await expect(brand.getByRole('img', { name: 'Logo on a dark background' })).toBeVisible();
+    await expect(brand.getByRole('img', { name: 'UrbanNest logo' })).toHaveCount(2); // light and dark previews
+    await expect(brand.getByText(/never stretched or cropped/).first()).toBeVisible();
     expect(settingsState.uploads).toHaveLength(0); // previewing sends nothing
     await brand.getByRole('button', { name: 'Save logo' }).click();
     await expect.poll(() => settingsState.uploads.length).toBe(1);
     expect(settingsState.uploads[0]).toMatchObject({
       path: expect.stringMatching(/\/workspaces\/.+\/logo$/),
     });
-    await expect(brand.getByRole('button', { name: 'Replace logo' })).toBeVisible();
+    await expect(brand.getByRole('button', { name: 'Replace' }).first()).toBeVisible();
     expect(settingsState.profile.image).toBeNull(); // a personal picture was not touched
-    await brand.getByRole('button', { name: 'Remove' }).click();
+    await brand.getByRole('button', { name: 'Remove' }).first().click();
     await page.getByRole('alertdialog').getByRole('button', { name: 'Remove logo' }).click();
-    await expect(brand.getByRole('button', { name: 'Upload logo' })).toBeVisible();
+    await expect(brand.getByRole('button', { name: 'Upload' })).toBeVisible();
     expect(settingsState.workspace.logo).toBeNull();
+  });
+
+  test('a cancelled or failed upload keeps the saved logo; the dark-background logo is separate', async ({
+    page,
+  }) => {
+    settingsState.workspace.logo =
+      'https://api.test/api/v1/images/0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b';
+    await page.route('https://api.test/api/v1/images/**', (r) =>
+      r.fulfill({ contentType: 'image/png', body: PNG }),
+    );
+    await page.goto('/settings/general');
+    const brand = page.getByRole('region', { name: 'Brand Identity' });
+    const choose = brand.getByLabel('Choose a brand logo');
+    // cancel before saving: nothing is sent, the saved logo stays
+    await choose.setInputFiles({ name: 'a.png', mimeType: 'image/png', buffer: PNG });
+    await brand.getByRole('button', { name: 'Cancel' }).click();
+    expect(settingsState.uploads).toHaveLength(0);
+    await expect(brand.getByRole('img', { name: 'UrbanNest logo' }).first()).toHaveAttribute(
+      'src',
+      /0192a3b4.*\?w=720/,
+    );
+    // a refused upload shows the reason and keeps the saved logo
+    settingsState.logoFail = 'That image could not be read.';
+    await choose.setInputFiles({ name: 'b.png', mimeType: 'image/png', buffer: PNG });
+    await brand.getByRole('button', { name: 'Save logo' }).click();
+    await expect(brand.getByRole('alert')).toContainText('could not be read');
+    expect(settingsState.workspace.logo).toContain('0192a3b4');
+    await brand.getByRole('button', { name: 'Cancel' }).click();
+    // a wrong file type is refused before anything is sent
+    await choose.setInputFiles({ name: 'c.gif', mimeType: 'image/gif', buffer: PNG });
+    await expect(brand.getByRole('alert')).toContainText('PNG, JPG, WebP or SVG');
+    // the dark-background logo has its own upload and leaves the main logo alone
+    await expect(brand.getByText('Logo for dark backgrounds')).toBeVisible();
+    await brand
+      .getByLabel('Choose a logo for dark backgrounds')
+      .setInputFiles({ name: 'light.png', mimeType: 'image/png', buffer: PNG });
+    await brand.getByRole('button', { name: 'Save dark-background logo' }).click();
+    await expect.poll(() => settingsState.uploads.length).toBe(1);
+    expect(settingsState.uploads[0]!.path).toMatch(/\/logo-light$/);
+    expect(settingsState.workspace.logo).toContain('0192a3b4');
+    expect(settingsState.workspace.logoLight).toContain('new-light');
   });
 });
 

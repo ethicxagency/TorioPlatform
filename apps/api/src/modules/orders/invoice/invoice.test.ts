@@ -203,4 +203,37 @@ describe('InvoiceService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(invoices).toHaveLength(0); // no number is issued for a refused request
   });
+
+  it('embeds the stored workspace logo (a transparent WebP becomes PNG) in the PDF, and falls back to the store name without one', async () => {
+    const sharp = (await import('sharp')).default;
+    const webp = await sharp({
+      create: {
+        width: 400,
+        height: 100,
+        channels: 4,
+        background: { r: 91, g: 92, b: 226, alpha: 0.5 },
+      },
+    })
+      .webp()
+      .toBuffer();
+    const { prisma } = fakeDb();
+    const withLogo = await new InvoiceService(prisma, {
+      logoOf: async () => ({ bytes: new Uint8Array(webp) }),
+    } as never).data('wsA', 'o1', 'u1');
+    expect(withLogo.seller.logo).not.toBeNull();
+    const m = await sharp(withLogo.seller.logo!).metadata();
+    expect([m.format, m.width, m.height, m.hasAlpha]).toEqual(['png', 400, 100, true]);
+    const pdf = await renderOrderInvoicePdf(withLogo);
+    expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
+    const plain = await renderOrderInvoicePdf({
+      ...withLogo,
+      seller: { ...withLogo.seller, logo: null },
+    });
+    expect(pdf.length).toBeGreaterThan(plain.length); // the logo really is in the file
+    // a logo that cannot be read never breaks the invoice
+    const broken = await new InvoiceService(prisma, {
+      logoOf: async () => ({ bytes: new Uint8Array(Buffer.from('garbage')) }),
+    } as never).data('wsA', 'o1', 'u1');
+    expect(broken.seller.logo).toBeNull();
+  });
 });

@@ -40,6 +40,57 @@ describe('picture processing', () => {
     const big = await svc.process('WORKSPACE_LOGO', file(await png(3000, 1000), 'image/png'));
     expect((await meta(big.bytes)).width).toBeLessThanOrEqual(1024);
   });
+  it('trims transparent padding around a logo without touching its artwork or its shape', async () => {
+    // 600x300 transparent canvas with a 200x80 solid block in the middle
+    const block = await sharp({
+      create: {
+        width: 200,
+        height: 80,
+        channels: 4,
+        background: { r: 200, g: 30, b: 30, alpha: 1 },
+      },
+    })
+      .png()
+      .toBuffer();
+    const padded = await sharp({
+      create: { width: 600, height: 300, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+    })
+      .composite([{ input: block, left: 200, top: 110 }])
+      .png()
+      .toBuffer();
+    const out = await svc.process('WORKSPACE_LOGO', file(padded, 'image/png'));
+    expect([out.width, out.height]).toEqual([200, 80]);
+    const { data, info } = await sharp(out.bytes).raw().toBuffer({ resolveWithObject: true });
+    const last = (info.width * info.height - 1) * info.channels;
+    expect([data[0], data[last]]).toEqual([200, 200]); // artwork at both corners: no margin left
+    expect(out.width / out.height).toBeCloseTo(2.5, 1);
+  });
+  it('keeps a logo that has no margin to trim exactly as it is, and a flat image whole', async () => {
+    const solid = await svc.process('WORKSPACE_LOGO', file(await png(300, 120), 'image/png'));
+    expect([solid.width, solid.height]).toEqual([300, 120]);
+    const clear = await svc.process('WORKSPACE_LOGO', file(await png(64, 64, 0), 'image/png'));
+    expect([clear.width, clear.height]).toEqual([64, 64]);
+  });
+  it('processes the dark-background logo exactly like the main logo, and refuses unsafe files for it', async () => {
+    const out = await svc.process('WORKSPACE_LOGO_LIGHT', file(await png(400, 100), 'image/png'));
+    expect([out.width, out.height]).toEqual([400, 100]);
+    await expect(
+      svc.process('WORKSPACE_LOGO_LIGHT', file(Buffer.from('<script>x</script>'), 'image/png')),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+  it('serves standard smaller widths, never enlarges, and ignores other widths', async () => {
+    const big = await sharp({
+      create: { width: 1000, height: 250, channels: 4, background: '#5B5CE2' },
+    })
+      .webp()
+      .toBuffer();
+    const row = { id: 'x1', bytes: new Uint8Array(big), width: 1000 };
+    expect((await meta(await svc.sized(row, 360))).width).toBe(360);
+    expect((await meta(await svc.sized(row, 360))).height).toBe(90);
+    expect((await meta(await svc.sized(row, 123))).width).toBe(1000);
+    expect((await meta(await svc.sized(row, undefined))).width).toBe(1000);
+    expect((await meta(await svc.sized({ ...row, id: 'x2', width: 200 }, 360))).width).toBe(1000);
+  });
   it('refuses files that are too big, not images, or the wrong kind for the place', async () => {
     const small = await png(10, 10);
     await expect(
