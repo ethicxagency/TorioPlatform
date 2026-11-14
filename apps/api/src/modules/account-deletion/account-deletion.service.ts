@@ -71,11 +71,10 @@ export class AccountDeletionService {
       where: { id: req.id },
       data: { tokenHash: hashToken(token), tokenExpiresAt: new Date(Date.now() + TOKEN_TTL_MS) },
     });
-    const sent = await this.mail.send(
-      req.email,
-      'Confirm your Torio account deletion request',
-      `Hi ${name},\n\nWe received a request to permanently delete your Torio account. To confirm it was you, open:\n${this.c.WEB_URL.replace(/\/$/, '')}/delete-account?token=${token}\n\nThe link works once and expires in 24 hours. If you didn't ask for this, ignore this message: nothing will be deleted.`,
-    );
+    const sent = await this.mail.sendTemplate('account_deletion', req.email, {
+      name,
+      link: `${this.c.WEB_URL.replace(/\/$/, '')}/delete-account?token=${token}`,
+    });
     if (!sent)
       throw new ServiceUnavailableException(
         'The confirmation email could not be sent. Try again shortly.',
@@ -336,6 +335,7 @@ export class AccountDeletionService {
         r.email,
         'Your Torio account was deleted',
         `Your Torio account deletion (reference ${r.reference}) is complete. Access to the account has been removed and personal information deleted or anonymized according to our retention policy.`,
+        { kind: 'account_deleted' },
       );
     } catch (e) {
       // Nothing is left half-done: processing runs in one transaction, so the request returns to VERIFIED to retry.

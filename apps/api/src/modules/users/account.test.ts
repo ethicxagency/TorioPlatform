@@ -5,6 +5,7 @@ import {
   HttpException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { renderMail, type TemplateKey } from '../auth/mail-templates';
 import { describe, expect, it } from 'vitest';
 import { hashToken } from '../auth/auth.service';
 import { UsersService } from './users.service';
@@ -95,6 +96,11 @@ function setup(over: Record<string, any> = {}, opts: { mail?: boolean; sendOk?: 
     configured: opts.mail ?? true,
     send: async (to: string, subject: string, text: string) => {
       mails.push({ to, subject, text });
+      return opts.sendOk ?? true;
+    },
+    sendTemplate: async (key: TemplateKey, to: string, vars: Record<string, string>) => {
+      const r = renderMail(key, vars, { name: 'Torio', logoUrl: null });
+      mails.push({ to, subject: r.subject, text: r.text });
       return opts.sendOk ?? true;
     },
   };

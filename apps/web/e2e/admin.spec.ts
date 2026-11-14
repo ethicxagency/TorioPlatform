@@ -588,6 +588,39 @@ test.describe('super admin', () => {
     expect(bodies).not.toContain('key-0123456789abcdef');
   });
 
+  test('Integrations: Mailgun shows what the provider reported for recent emails, and previews the templates', async ({
+    page,
+  }) => {
+    await signIn(page);
+    await page.getByRole('link', { name: 'Mailgun (Email)' }).click();
+    await page.getByLabel('domain').fill('mg.example.com');
+    await page.getByLabel('fromName').fill('Torio');
+    await page.getByLabel('fromEmail').fill('no-reply@mg.example.com');
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await page
+      .getByRole('region', { name: 'Credentials' })
+      .getByRole('button', { name: 'Add' })
+      .first()
+      .click();
+    await page.getByLabel('New apiKey').fill('key-0123456789abcdef');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    const recent = page.getByRole('region', { name: 'Recent emails' });
+    await expect(recent.getByText(/Delivery tracking is off/)).toBeVisible();
+    // accepted is not delivered, and a failure shows its reason
+    await expect(recent.getByRole('row', { name: /alex@example.com/ })).toContainText(
+      'Accepted (not yet delivered)',
+    );
+    await expect(recent.getByRole('row', { name: /bounce@example.com/ })).toContainText(
+      'Mailbox does not exist',
+    );
+    await expect(recent.getByText('Message bodies are never stored')).toBeVisible();
+    const tpl = page.getByRole('region', { name: 'Email templates' });
+    await expect(tpl.getByText('Verify your email for Torio').first()).toBeVisible();
+    await expect(tpl.locator('iframe[title="Email preview"]')).toHaveAttribute('sandbox', '');
+    await tpl.getByRole('button', { name: 'Plain text' }).click();
+    await expect(tpl.getByText(/Verify email: https/)).toBeVisible();
+  });
+
   test('Integrations: SSLCommerz asks for explicit confirmation before Live, and shows the callback addresses', async ({
     page,
   }) => {

@@ -101,48 +101,6 @@ export async function checkMailgun(f: Fetch, v: Vals, apiKey: string): Promise<C
   };
 }
 
-/** Submits one message. Mailgun accepting it is NOT delivery: only Mailgun's webhook can say it arrived. */
-export async function sendMailgunTest(
-  f: Fetch,
-  v: Vals,
-  apiKey: string,
-  to: string,
-): Promise<{ accepted: boolean; messageId: string | null; message: string }> {
-  const form = new URLSearchParams({
-    from: `${s(v.fromName)} <${s(v.fromEmail)}>`,
-    to,
-    subject: 'Torio email test',
-    text: 'This is a test email from your Torio Super Admin. If you received it, sending through Mailgun works.',
-  });
-  if (s(v.replyTo)) form.set('h:Reply-To', s(v.replyTo));
-  const r = await call(
-    f,
-    `${mailgunBase(v.region)}/v3/${encodeURIComponent(s(v.domain))}/messages`,
-    {
-      method: 'POST',
-      headers: {
-        authorization: basic(apiKey),
-        'content-type': 'application/x-www-form-urlencoded',
-      },
-      body: form,
-    },
-  );
-  if (!r) return { accepted: false, messageId: null, message: 'Could not reach Mailgun.' };
-  const body = await json(r);
-  if (!r.ok)
-    return {
-      accepted: false,
-      messageId: null,
-      message: `Mailgun refused the message (HTTP ${r.status}): ${String(body.message ?? 'no reason given')}`,
-    };
-  return {
-    accepted: true,
-    messageId: typeof body.id === 'string' ? body.id : null,
-    message:
-      'Mailgun accepted the message for delivery. Whether it arrived is confirmed by Mailgun’s delivery events, not by this request.',
-  };
-}
-
 // ---------------------------------------------------------------- Meta Pixel
 
 const GRAPH = 'https://graph.facebook.com';

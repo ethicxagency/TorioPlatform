@@ -52,10 +52,11 @@ export class RecoveryService {
     const user = await this.prisma.client.user.findUnique({ where: { id: userId } });
     if (!user || user.emailVerifiedAt) return false;
     const token = await this.issue(userId, 'EMAIL_VERIFICATION', VERIFY_TTL_MS);
-    return this.mail.send(
+    return this.mail.sendTemplate(
+      'verify_email',
       user.email,
-      'Verify your email for Torio',
-      `Hi ${user.name},\n\nConfirm this email address to finish setting up your Torio account:\n${this.link('/verify-email', token)}\n\nThe link works once and expires in 24 hours. If you didn't create an account, ignore this message.`,
+      { name: user.name, link: this.link('/verify-email', token) },
+      { userId },
     );
   }
 
@@ -113,10 +114,11 @@ export class RecoveryService {
     const user = await this.prisma.client.user.findUnique({ where: { email } });
     if (!user || user.status !== 'ACTIVE') return;
     const token = await this.issue(user.id, 'PASSWORD_RESET', RESET_TTL_MS);
-    await this.mail.send(
+    await this.mail.sendTemplate(
+      'password_reset',
       user.email,
-      'Reset your Torio password',
-      `We received a request to reset your Torio password:\n${this.link('/reset-password', token)}\n\nThe link works once and expires in 1 hour. If you didn't ask for this, ignore this message; your password hasn't changed.`,
+      { link: this.link('/reset-password', token) },
+      { userId: user.id },
     );
   }
 

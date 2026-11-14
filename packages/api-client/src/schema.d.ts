@@ -3396,6 +3396,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/integrations/platform/mailgun/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminIntegrationsController_deliveries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/platform/mailgun/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminIntegrationsController_templates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations/platform/mailgun/templates/{template}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminIntegrationsController_preview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/integrations/platform/{key}": {
         parameters: {
             query?: never;
@@ -7343,6 +7391,58 @@ export interface components {
                 lastTestedAt: string | null;
                 lastSuccessAt: string | null;
             }[];
+        };
+        EmailDeliveryListDto: {
+            data: {
+                /** Format: uuid */
+                id: string;
+                provider: string;
+                kind: string;
+                to: string;
+                subject: string;
+                /** @enum {string} */
+                status: "QUEUED" | "ACCEPTED" | "DELIVERED" | "OPENED" | "CLICKED" | "TEMP_FAILED" | "FAILED" | "COMPLAINED" | "UNSUBSCRIBED";
+                error: string | null;
+                attempts: number;
+                /** Format: date-time */
+                createdAt: string;
+                acceptedAt: string | null;
+                deliveredAt: string | null;
+                lastEvent: string | null;
+                lastEventAt: string | null;
+            }[];
+            meta: {
+                page: number;
+                pageSize: number;
+                total: number;
+                totalPages: number;
+            };
+            summary: {
+                activeProvider: string | null;
+                last24h: {
+                    [key: string]: number;
+                };
+                lastDeliveredAt: string | null;
+                lastFailure: {
+                    /** Format: date-time */
+                    at: string;
+                    to: string;
+                    error: string | null;
+                } | null;
+                webhookReady: boolean;
+            };
+        };
+        EmailTemplateListDto: {
+            data: {
+                key: string;
+                subject: string;
+            }[];
+        };
+        EmailPreviewDto: {
+            key: string;
+            subject: string;
+            text: string;
+            html: string;
         };
         IntegrationViewDto: {
             /** @enum {string} */
@@ -13510,6 +13610,69 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IntegrationListDto"];
+                };
+            };
+        };
+    };
+    AdminIntegrationsController_deliveries: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                status?: "QUEUED" | "ACCEPTED" | "DELIVERED" | "OPENED" | "CLICKED" | "TEMP_FAILED" | "FAILED" | "COMPLAINED" | "UNSUBSCRIBED";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailDeliveryListDto"];
+                };
+            };
+        };
+    };
+    AdminIntegrationsController_templates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailTemplateListDto"];
+                };
+            };
+        };
+    };
+    AdminIntegrationsController_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailPreviewDto"];
                 };
             };
         };

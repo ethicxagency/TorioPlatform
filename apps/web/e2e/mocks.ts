@@ -625,6 +625,76 @@ export const integrationsReply = (
     body: { error: { message, statusCode: 400 } },
   });
   if (parts.length === 1) return { status: 200, body: integView(k) };
+  if (k === 'mailgun' && parts[1] === 'deliveries')
+    return {
+      status: 200,
+      body: {
+        data: [
+          {
+            id: '11111111-1111-4111-8111-111111111111',
+            provider: 'mailgun',
+            kind: 'verify_email',
+            to: 'alex@example.com',
+            subject: 'Verify your email for Torio',
+            status: 'ACCEPTED',
+            error: null,
+            attempts: 1,
+            createdAt: iso(5),
+            acceptedAt: iso(5),
+            deliveredAt: null,
+            lastEvent: null,
+            lastEventAt: null,
+          },
+          {
+            id: '22222222-2222-4222-8222-222222222222',
+            provider: 'mailgun',
+            kind: 'password_reset',
+            to: 'bounce@example.com',
+            subject: 'Reset your Torio password',
+            status: 'FAILED',
+            error: 'bounce: Mailbox does not exist',
+            attempts: 1,
+            createdAt: iso(9),
+            acceptedAt: iso(9),
+            deliveredAt: null,
+            lastEvent: 'failed',
+            lastEventAt: iso(8),
+          },
+        ],
+        meta: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
+        summary: {
+          activeProvider: integ('mailgun').enabled ? 'mailgun' : 'resend',
+          last24h: { ACCEPTED: 1, FAILED: 1 },
+          lastDeliveredAt: null,
+          lastFailure: {
+            at: iso(9),
+            to: 'bounce@example.com',
+            error: 'bounce: Mailbox does not exist',
+          },
+          webhookReady: false,
+        },
+      },
+    };
+  if (k === 'mailgun' && parts[1] === 'templates' && parts[2])
+    return {
+      status: 200,
+      body: {
+        key: parts[2],
+        subject: 'Verify your email for Torio',
+        text: 'Verify email: https://app.example.com/verify-email?token=sample',
+        html: '<!doctype html><html><body><h1>Verify your email</h1></body></html>',
+      },
+    };
+  if (k === 'mailgun' && parts[1] === 'templates')
+    return {
+      status: 200,
+      body: {
+        data: [
+          { key: 'verify_email', subject: 'Verify your email for Torio' },
+          { key: 'test', subject: 'Torio email test' },
+        ],
+      },
+    };
   if (parts[1] === 'config') {
     const before = integFingerprint(k);
     const v = (body?.values ?? {}) as Record<string, unknown>;

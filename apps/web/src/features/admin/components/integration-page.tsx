@@ -12,6 +12,7 @@ import { adminRequest } from '@/lib/admin-api';
 import { cn } from '@/lib/utils';
 import { useAdminShell } from './admin-shell';
 import { fmtDateTime, Loading, Notice, PageHead, Panel } from './common';
+import { RecentEmails, TemplatePreview } from './email-panels';
 
 type View = ApiSchemas['IntegrationViewDto'];
 type Result = ApiSchemas['IntegrationTestResultDto'];
@@ -512,6 +513,13 @@ export function IntegrationPage({ k }: { k: 'mailgun' | 'torio_meta_pixel' | 'ss
             )}
           </div>
         </Panel>
+      )}
+
+      {k === 'mailgun' && v.status !== 'NOT_CONFIGURED' && (
+        <>
+          <RecentEmails />
+          <TemplatePreview />
+        </>
       )}
 
       {dirty && (

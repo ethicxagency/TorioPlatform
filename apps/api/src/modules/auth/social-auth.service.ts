@@ -271,11 +271,9 @@ export class SocialAuthService {
         expiresAt: new Date(Date.now() + COMPLETE_TTL),
       },
     });
-    const sent = await this.mail.send(
-      email,
-      'Confirm your email to finish signing in to Torio',
-      `Confirm this email address to finish signing in to Torio:\n${this.c.WEB_URL.replace(/\/$/, '')}/auth/complete?token=${token}\n\nThe link works once and expires in 30 minutes. If this wasn't you, ignore this message.`,
-    );
+    const sent = await this.mail.sendTemplate('social_confirm', email, {
+      link: `${this.c.WEB_URL.replace(/\/$/, '')}/auth/complete?token=${token}`,
+    });
     if (!sent) throw new SocialAuthError('mail_not_configured');
   }
 

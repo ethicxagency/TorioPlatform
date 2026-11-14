@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { APP_CONFIG, type AppConfig } from '../../config/config.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { ChannelCryptoService } from '../whatsapp/channel-crypto.service';
 import { MailService } from './mail.service';
 import { RecoveryService } from './recovery.service';
 import { SocialAuthController } from './social-auth.controller';
@@ -26,6 +27,7 @@ import { PasswordService } from './password.service';
     AuthService,
     PasswordService,
     MailService,
+    ChannelCryptoService,
     RecoveryService,
     SocialProviders,
     SocialAuthService,

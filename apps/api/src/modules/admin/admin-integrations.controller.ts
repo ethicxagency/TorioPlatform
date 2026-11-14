@@ -8,11 +8,16 @@ import {
   Param,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import {
+  emailDeliveryListSchema,
+  emailDeliveryQuerySchema,
+  emailPreviewSchema,
+  emailTemplateListSchema,
   integrationEnableSchema,
   integrationListSchema,
   integrationSaveSchema,
@@ -24,8 +29,13 @@ import {
 import { createZodDto } from 'nestjs-zod';
 import { Public } from '../../common/decorators';
 import { AdminGuard, CurrentAdmin, type AdminContext } from './admin-auth';
+import { EmailEventsService } from '../email/email-events.service';
 import { IntegrationsService } from './integrations/integrations.service';
 
+class EmailDeliveryQueryDto extends createZodDto(emailDeliveryQuerySchema) {}
+class EmailDeliveryListDto extends createZodDto(emailDeliveryListSchema) {}
+class EmailTemplateListDto extends createZodDto(emailTemplateListSchema) {}
+class EmailPreviewDto extends createZodDto(emailPreviewSchema) {}
 class IntegrationListDto extends createZodDto(integrationListSchema) {}
 class IntegrationViewDto extends createZodDto(integrationViewSchema) {}
 class IntegrationSaveDto extends createZodDto(integrationSaveSchema) {}
@@ -43,12 +53,33 @@ class IntegrationTestResultDto extends createZodDto(integrationTestResultSchema)
 @UseGuards(AdminGuard)
 @Controller('admin/integrations/platform')
 export class AdminIntegrationsController {
-  constructor(private readonly integrations: IntegrationsService) {}
+  constructor(
+    private readonly integrations: IntegrationsService,
+    private readonly emails: EmailEventsService,
+  ) {}
 
   @Get()
   @ApiOkResponse({ type: IntegrationListDto })
   list() {
     return this.integrations.list();
+  }
+
+  @Get('mailgun/deliveries')
+  @ApiOkResponse({ type: EmailDeliveryListDto })
+  deliveries(@Query() q: EmailDeliveryQueryDto) {
+    return this.emails.deliveries(q);
+  }
+
+  @Get('mailgun/templates')
+  @ApiOkResponse({ type: EmailTemplateListDto })
+  templates() {
+    return this.emails.templates();
+  }
+
+  @Get('mailgun/templates/:template')
+  @ApiOkResponse({ type: EmailPreviewDto })
+  preview(@Param('template') template: string) {
+    return this.emails.preview(template);
   }
 
   @Get(':key')

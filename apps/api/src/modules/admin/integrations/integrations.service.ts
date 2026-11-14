@@ -11,44 +11,31 @@ import {
   type IntegrationSaveInput,
   type IntegrationStatus,
 } from '@torio/contracts';
-import { createHash } from 'node:crypto';
 import { APP_CONFIG, type AppConfig } from '../../../config/config.module';
 import { PrismaService } from '../../../database/prisma.service';
+import { MailService } from '../../auth/mail.service';
 import { ChannelCryptoService } from '../../whatsapp/channel-crypto.service';
 import { AdminAudit } from '../admin-audit.service';
 import type { AdminContext } from '../admin-auth';
-import { INTEGRATIONS, type FieldDef } from './definitions';
+import { INTEGRATIONS } from './definitions';
+import {
+  fingerprintOf,
+  loadStored,
+  problemsOf,
+  settingKey,
+  statusOf,
+  type Stored,
+  type Val,
+} from './state';
 import {
   checkMailgun,
   checkMetaPixel,
   checkSslcommerz,
-  sendMailgunTest,
   sendMetaTestEvent,
   type Fetch,
 } from './provider-checks';
 
-type Val = string | boolean | null;
-interface Stored {
-  values: Record<string, Val>;
-  /** Encrypted with the same AES-256-GCM service as channel tokens. Never returned, never logged. */
-  secrets: Record<string, string>;
-  /** Bumped whenever a secret changes, so "tested" can be tied to exactly this credential without decrypting it. */
-  secretVersions: Record<string, number>;
-  enabled: boolean;
-  verification?: {
-    status: 'VERIFIED' | 'FAILED';
-    at: string;
-    fingerprint: string;
-    error: string | null;
-  };
-  lastSuccessAt?: string;
-  lastTestedAt?: string;
-  extra?: Record<string, string | number | boolean | null>;
-  updatedAt?: string;
-}
-
-const KEY = (k: IntegrationKey) => `integration.${k}`;
-const isBool = (f: FieldDef) => f.kind === 'boolean';
+const KEY = settingKey;
 
 /**
  * Platform integration settings for Super Admin: one record per integration with plain settings, encrypted secrets and the
@@ -64,6 +51,7 @@ export class IntegrationsService {
     private readonly prisma: PrismaService,
     private readonly crypto: ChannelCryptoService,
     private readonly audit: AdminAudit,
+    private readonly mail: MailService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -78,20 +66,8 @@ export class IntegrationsService {
     return d;
   }
 
-  private async load(key: IntegrationKey): Promise<Stored> {
-    const row = await this.prisma.client.platformSetting.findUnique({ where: { key: KEY(key) } });
-    const v = (row?.value ?? {}) as Partial<Stored>;
-    return {
-      values: v.values ?? {},
-      secrets: v.secrets ?? {},
-      secretVersions: v.secretVersions ?? {},
-      enabled: v.enabled ?? false,
-      verification: v.verification,
-      lastSuccessAt: v.lastSuccessAt,
-      lastTestedAt: v.lastTestedAt,
-      extra: v.extra,
-      updatedAt: row?.updatedAt.toISOString(),
-    };
+  private load(key: IntegrationKey): Promise<Stored> {
+    return loadStored(this.prisma, key);
   }
 
   private async store(key: IntegrationKey, s: Stored) {
@@ -103,33 +79,16 @@ export class IntegrationsService {
     });
   }
 
-  /** What the provider is asked with. A boolean switch (e.g. turning browser tracking on) is not part of it. */
   private fingerprint(key: IntegrationKey, s: Stored) {
-    const d = this.def(key);
-    const vals = Object.fromEntries(
-      d.fields.filter((f) => !isBool(f)).map((f) => [f.key, s.values[f.key] ?? null]),
-    );
-    return createHash('sha256')
-      .update(JSON.stringify({ vals, sv: s.secretVersions }))
-      .digest('hex');
+    return fingerprintOf(key, s);
   }
 
   private problems(key: IntegrationKey, s: Stored): string[] {
-    const d = this.def(key);
-    return [
-      ...d.fields
-        .filter((f) => f.required && !(s.values[f.key] ?? f.default))
-        .map((f) => `${f.label} is required`),
-      ...d.secrets
-        .filter((x) => x.required && !s.secrets[x.key])
-        .map((x) => `${x.label} is required`),
-    ];
+    return problemsOf(key, s);
   }
 
   private statusOf(key: IntegrationKey, s: Stored): IntegrationStatus {
-    if (this.problems(key, s).length) return 'NOT_CONFIGURED';
-    const v = s.verification;
-    return v && v.fingerprint === this.fingerprint(key, s) ? v.status : 'UNVERIFIED';
+    return statusOf(key, s);
   }
 
   async list() {
@@ -438,15 +397,12 @@ export class IntegrationsService {
     const s = await this.load('mailgun');
     if (this.statusOf('mailgun', s) !== 'VERIFIED')
       throw new BadRequestException('Test the Mailgun connection successfully first.');
-    const v = Object.fromEntries(
-      INTEGRATIONS.mailgun.fields.map((f) => [f.key, s.values[f.key] ?? f.default ?? null]),
-    );
-    const r = await sendMailgunTest(this.fetch, v, this.secretOf(s, 'apiKey'), to);
+    // Goes through the same sender (and delivery log) as every other email, so delivery shows up when Mailgun reports it.
+    const accepted = await this.mail.sendTemplate('test', to, {}, { force: 'mailgun' });
     s.extra = {
       ...s.extra,
       lastTestEmailAt: new Date().toISOString(),
-      lastTestEmailAccepted: r.accepted,
-      lastTestEmailMessageId: r.messageId,
+      lastTestEmailAccepted: accepted,
     };
     await this.store('mailgun', s);
     await this.audit.log({
@@ -455,14 +411,16 @@ export class IntegrationsService {
       targetType: 'integration',
       targetId: 'mailgun',
       targetLabel: 'Mailgun',
-      metadata: { accepted: r.accepted },
+      metadata: { accepted },
       ip,
     });
     return {
-      ok: r.accepted,
+      ok: accepted,
       status: this.statusOf('mailgun', s),
-      message: r.message,
-      checks: [{ label: 'Accepted by Mailgun', ok: r.accepted, detail: r.messageId }],
+      message: accepted
+        ? 'Mailgun accepted the message for delivery. Whether it arrived is confirmed by Mailgun’s delivery events (see Recent emails), not by this request.'
+        : 'Mailgun refused the message or could not be reached.',
+      checks: [{ label: 'Accepted by Mailgun', ok: accepted, detail: null }],
     };
   }
 

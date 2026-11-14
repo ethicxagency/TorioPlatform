@@ -97,3 +97,72 @@ export const integrationTestResultSchema = z.object({
   message: z.string(),
   checks: z.array(z.object({ label: z.string(), ok: z.boolean(), detail: z.string().nullable() })),
 });
+
+// ---------- Email delivery (Super Admin) ----------
+
+export const EMAIL_STATUSES = [
+  'QUEUED',
+  'ACCEPTED',
+  'DELIVERED',
+  'OPENED',
+  'CLICKED',
+  'TEMP_FAILED',
+  'FAILED',
+  'COMPLAINED',
+  'UNSUBSCRIBED',
+] as const;
+export const emailStatusSchema = z.enum(EMAIL_STATUSES);
+
+export const emailDeliveryQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+  status: emailStatusSchema.optional(),
+});
+export const emailDeliverySchema = z.object({
+  id: z.uuid(),
+  provider: z.string(),
+  kind: z.string(),
+  to: z.string(),
+  subject: z.string(),
+  status: emailStatusSchema,
+  error: z.string().describe('Why it failed, or null').nullable(),
+  attempts: z.number().int(),
+  createdAt: z.iso.datetime(),
+  acceptedAt: z.iso.datetime().describe('When the provider accepted it, or null').nullable(),
+  deliveredAt: z.iso.datetime().describe('When the provider reported delivery, or null').nullable(),
+  lastEvent: z.string().describe('The last provider event, or null').nullable(),
+  lastEventAt: z.iso.datetime().describe('When it happened, or null').nullable(),
+});
+export const emailDeliveryListSchema = z.object({
+  data: z.array(emailDeliverySchema),
+  meta: z.object({
+    page: z.number().int(),
+    pageSize: z.number().int(),
+    total: z.number().int(),
+    totalPages: z.number().int(),
+  }),
+  summary: z.object({
+    activeProvider: z
+      .string()
+      .describe('mailgun, resend, or null when nothing can send')
+      .nullable(),
+    last24h: z.record(z.string(), z.number().int()),
+    lastDeliveredAt: z.iso
+      .datetime()
+      .describe('Last delivery the provider reported, or null')
+      .nullable(),
+    lastFailure: z
+      .object({ at: z.iso.datetime(), to: z.string(), error: z.string().nullable() })
+      .nullable(),
+    webhookReady: z.boolean(),
+  }),
+});
+export const emailTemplateListSchema = z.object({
+  data: z.array(z.object({ key: z.string(), subject: z.string() })),
+});
+export const emailPreviewSchema = z.object({
+  key: z.string(),
+  subject: z.string(),
+  text: z.string(),
+  html: z.string(),
+});

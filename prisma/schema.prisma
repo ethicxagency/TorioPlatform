@@ -1708,3 +1708,48 @@ model StoredImage {
   @@unique([kind, ownerId])
   @@map("stored_images")
 }
+
+/// One row per email Torio asked a provider to send. It records that the provider ACCEPTED the message and then what the provider
+/// reported (delivered, failed, ...). The message itself is never stored: it can contain one-time links.
+model EmailDeliveryLog {
+  id                String    @id @default(uuid(7)) @db.Uuid
+  /// mailgun | resend
+  provider          String
+  /// The provider's own id for the message (Mailgun's Message-Id without brackets), used to match its events.
+  providerMessageId String?
+  /// The template: verify_email, password_reset, ...
+  kind              String
+  toAddress         String
+  subject           String
+  workspaceId       String?   @db.Uuid
+  userId            String?   @db.Uuid
+  /// QUEUED | ACCEPTED | DELIVERED | OPENED | CLICKED | TEMP_FAILED | FAILED | COMPLAINED | UNSUBSCRIBED. ACCEPTED is not delivery.
+  status            String    @default("QUEUED")
+  error             String?
+  attempts          Int       @default(1)
+  acceptedAt        DateTime?
+  deliveredAt       DateTime?
+  lastEvent         String?
+  lastEventAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([providerMessageId])
+  @@index([workspaceId, createdAt(sort: Desc)])
+  @@map("email_delivery_logs")
+}
+
+/// Provider webhook events already processed. The unique key makes a repeated delivery of the same event a no-op.
+model IntegrationWebhookEvent {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  provider   String
+  eventId    String
+  type       String
+  receivedAt DateTime @default(now())
+
+  @@unique([provider, eventId])
+  @@index([receivedAt])
+  @@map("integration_webhook_events")
+}

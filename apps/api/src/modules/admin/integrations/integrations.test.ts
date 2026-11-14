@@ -39,10 +39,19 @@ function setup(over: { key?: boolean } = {}) {
       over.key === false ? undefined : 'test-encryption-key-for-integrations-32+',
   } as never);
   const audit = { log: async (e: Record<string, unknown>) => void audits.push(e) };
+  const mails: { key: string; to: string; opts: unknown }[] = [];
+  const mailState = { accept: true };
+  const mail = {
+    sendTemplate: async (key: string, to: string, _v: unknown, opts: unknown) => {
+      mails.push({ key, to, opts });
+      return mailState.accept;
+    },
+  };
   const svc = new IntegrationsService(
     prisma as never,
     crypto,
     audit as never,
+    mail as never,
     {
       WEB_URL: 'https://app.test',
       API_URL: 'https://api.test/',
@@ -56,7 +65,7 @@ function setup(over: { key?: boolean } = {}) {
     calls.push({ url: String(url), init });
     return reply(String(url), init);
   }) as never;
-  return { svc, rows, audits, calls, on: (f: typeof reply) => (reply = f) };
+  return { svc, rows, audits, calls, mails, mailState, on: (f: typeof reply) => (reply = f) };
 }
 const J = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { 'content-type': 'application/json' } });
@@ -198,25 +207,22 @@ describe('Mailgun', () => {
     expect(t.audits.map((a) => a.action)).toContain('integration.secret_replaced');
   });
 
-  it('a test email says it was accepted, never that it was delivered', async () => {
+  it('a test email goes through the shared sender, and says accepted, never delivered', async () => {
     const t = setup();
     await mailgun(t);
     await expect(t.svc.sendTestEmail(admin, 'me@example.com')).rejects.toThrow(
       /Test the Mailgun connection/,
     );
-    t.on((url) =>
-      url.includes('/messages')
-        ? J({ id: '<abc@mg>', message: 'Queued' })
-        : J({ domain: { state: 'active' } }),
-    );
+    t.on(() => J({ domain: { state: 'active' } }));
     await t.svc.test(admin, 'mailgun');
     const r = await t.svc.sendTestEmail(admin, 'me@example.com');
     expect(r.ok).toBe(true);
     expect(r.message).toMatch(/accepted the message/);
     expect(r.message).toMatch(/not by this request/);
     expect(r.message).not.toMatch(/delivered successfully/i);
-    const sent = t.calls.at(-1)!;
-    expect(String(sent.init.body)).toContain('to=me%40example.com');
+    expect(t.mails).toEqual([{ key: 'test', to: 'me@example.com', opts: { force: 'mailgun' } }]);
+    t.mailState.accept = false;
+    expect((await t.svc.sendTestEmail(admin, 'me@example.com')).ok).toBe(false);
   });
 });
 

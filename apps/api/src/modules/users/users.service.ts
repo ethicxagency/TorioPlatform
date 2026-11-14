@@ -182,10 +182,11 @@ export class UsersService {
         },
       }),
     ]);
-    const sent = await this.mail.send(
+    const sent = await this.mail.sendTemplate(
+      'password_code',
       user.email,
-      'Your Torio code',
-      `Hi ${user.name},\n\nYour code to set a password for your Torio account is ${code}. It works once and expires in 10 minutes.\n\nIf you didn't ask for this, you can ignore this message; nothing changes without the code.`,
+      { name: user.name, code },
+      { userId: user.id },
     );
     if (!sent)
       throw new ServiceUnavailableException('The email could not be sent. Try again shortly.');

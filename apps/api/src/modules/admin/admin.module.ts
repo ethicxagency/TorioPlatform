@@ -6,11 +6,13 @@ import { AdminAuthService, AdminGuard } from './admin-auth';
 import { AdminIntegrationsController } from './admin-integrations.controller';
 import { IntegrationsService } from './integrations/integrations.service';
 import { ChannelCryptoService } from '../whatsapp/channel-crypto.service';
+import { EmailModule } from '../email/email.module';
 import { AdminAudit } from './admin-audit.service';
 import { AdminBillingService } from './admin-billing.service';
 import { AdminDataService } from './admin-data.service';
 
 @Module({
+  imports: [EmailModule],
   controllers: [
     AdminController,
     AdminMetaController,
