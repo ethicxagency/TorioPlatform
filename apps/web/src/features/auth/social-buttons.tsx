@@ -42,7 +42,7 @@ export const GoogleG = () => (
 );
 
 /** Official Facebook "f" mark in Facebook blue. */
-const FacebookF = () => (
+export const FacebookF = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden>
     <path
       fill="#1877F2"

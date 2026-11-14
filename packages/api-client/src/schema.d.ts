@@ -340,6 +340,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/me/password/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["UsersController_passwordCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/password/set": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["UsersController_setPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["UsersController_uploadAvatar"];
+        post?: never;
+        delete: operations["UsersController_removeAvatar"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/avatar/provider": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["UsersController_useProviderAvatar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me/sessions": {
         parameters: {
             query?: never;
@@ -466,6 +530,22 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["WorkspacesController_update"];
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["WorkspacesController_setLogo"];
+        post?: never;
+        delete: operations["WorkspacesController_removeLogo"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/workspaces/{workspaceId}/audit": {
@@ -3268,6 +3348,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/ai/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AiController_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/dashboard/analytics": {
         parameters: {
             query?: never;
@@ -3438,6 +3534,17 @@ export interface components {
             landingPage: "dashboard" | "inbox" | "leads" | "customers" | "orders";
             image: string | null;
             providers: ("GOOGLE" | "FACEBOOK")[];
+            hasPassword: boolean;
+            passwordSetAt: string | null;
+            identities: {
+                /** @enum {string} */
+                provider: "GOOGLE" | "FACEBOOK";
+                email: string | null;
+                /** Format: date-time */
+                connectedAt: string;
+            }[];
+            imageSource: ("CUSTOM" | "PROVIDER" | "NONE") | null;
+            hasProviderImage: boolean;
         };
         UpdateProfileDto: {
             name?: string;
@@ -3453,6 +3560,16 @@ export interface components {
         };
         RevokedDto: {
             revoked: number;
+        };
+        PasswordCodeDto: {
+            /** @constant */
+            sent: true;
+            expiresInMinutes: number;
+        };
+        SetPasswordDto: {
+            code: string;
+            newPassword: unknown & unknown & unknown;
+            confirmPassword: string;
         };
         SessionListDto: {
             data: {
@@ -3486,6 +3603,17 @@ export interface components {
                 landingPage: "dashboard" | "inbox" | "leads" | "customers" | "orders";
                 image: string | null;
                 providers: ("GOOGLE" | "FACEBOOK")[];
+                hasPassword: boolean;
+                passwordSetAt: string | null;
+                identities: {
+                    /** @enum {string} */
+                    provider: "GOOGLE" | "FACEBOOK";
+                    email: string | null;
+                    /** Format: date-time */
+                    connectedAt: string;
+                }[];
+                imageSource: ("CUSTOM" | "PROVIDER" | "NONE") | null;
+                hasProviderImage: boolean;
             };
             workspaces: {
                 name: string;
@@ -6888,6 +7016,209 @@ export interface components {
             refine?: "shorter" | "detailed" | "tone" | "translate_en" | "translate_bn";
             previousDraft?: string;
         };
+        TestInputDto: {
+            /** Format: uuid */
+            requestId: string;
+            /** @enum {string} */
+            mode: "auto" | "openai" | "gemini" | "synthesis";
+            config: {
+                identity: {
+                    name: string;
+                    category: string;
+                    website: string;
+                    country: string;
+                    market: string;
+                    languages: string[];
+                    currency: string;
+                    description: string;
+                    audience: string;
+                    positioning: string;
+                    usp: string;
+                };
+                products: {
+                    id: string;
+                    name: string;
+                    category: string;
+                    description: string;
+                    price: string;
+                    variants: string;
+                    sizes: string;
+                    colors: string;
+                    /** @enum {string} */
+                    stock: "In stock" | "Low stock" | "Out of stock" | "Pre-order";
+                    benefits: string;
+                    usage: string;
+                    limitations: string;
+                    faqs: string;
+                    updatedAt?: string;
+                }[];
+                shipping: {
+                    providers: string[];
+                    /** @default [] */
+                    providersOff: string[];
+                    /** @default {} */
+                    providerNotes: {
+                        [key: string]: string;
+                    };
+                    coverage: string;
+                    feeInside: string;
+                    feeOutside: string;
+                    timeInside: string;
+                    timeOutside: string;
+                    cod: boolean;
+                    payments: string[];
+                    /** @default [] */
+                    paymentsOff: string[];
+                    /** @default {} */
+                    paymentNotes: {
+                        [key: string]: string;
+                    };
+                    freeShip: boolean;
+                    threshold: string;
+                    processing: string;
+                    tracking: string;
+                };
+                returns: {
+                    eligibility: string;
+                    window: string;
+                    exchange: string;
+                    refundTime: string;
+                    damaged: string;
+                    wrong: string;
+                    shippingResp: string;
+                    proof: string;
+                    escalation: string;
+                };
+                voice: {
+                    /** @enum {string} */
+                    tone: "Friendly" | "Professional" | "Casual" | "Premium" | "Playful";
+                    /** @enum {string} */
+                    language: "Bengali" | "English" | "Mixed";
+                    formality: number;
+                    /** @enum {string} */
+                    length: "Concise" | "Balanced" | "Detailed";
+                    /** @enum {string} */
+                    emoji: "None" | "Minimal" | "Moderate";
+                    greeting: string;
+                    terms: string;
+                    avoid: string;
+                    examples: string;
+                };
+                rules: {
+                    always: string;
+                    never: string;
+                    approvalTopics: string[];
+                    escalate: string;
+                    discount: string;
+                    alternatives: boolean;
+                    competitors: boolean;
+                    promises: boolean;
+                    angry: string;
+                    /** @enum {string} */
+                    fallback: "human" | "clarify" | "plain";
+                    sensitive: {
+                        refund: boolean;
+                        payment: boolean;
+                        complaint: boolean;
+                        delivery: boolean;
+                    };
+                };
+                cfCats: string[];
+                customFields: {
+                    id: string;
+                    name: string;
+                    key: string;
+                    desc: string;
+                    /** @enum {string} */
+                    type: "Short text" | "Long text" | "Number" | "Currency" | "Boolean" | "Single select" | "Multi-select" | "Date" | "URL" | "Structured list";
+                    value: string | boolean | string[];
+                    options: string;
+                    category: string;
+                    required: boolean;
+                    /** @enum {string} */
+                    scope: "AI replies & Inbox suggestions" | "AI replies only" | "Internal reference only";
+                    min: string;
+                    max: string;
+                    maxLen: string;
+                    def: string;
+                    unit: string;
+                    enabled: boolean;
+                }[];
+                instructions: {
+                    id: string;
+                    title: string;
+                    content: string;
+                    category: string;
+                    /** @enum {string} */
+                    priority: "High" | "Medium" | "Low";
+                    enabled: boolean;
+                    conditions: string;
+                    example: string;
+                    expected: string;
+                }[];
+                logic: {
+                    id: string;
+                    name: string;
+                    enabled: boolean;
+                    /** @enum {string} */
+                    priority: "High" | "Medium" | "Low";
+                    /** @enum {string} */
+                    join: "and" | "or";
+                    items: ({
+                        id: string;
+                        /** @constant */
+                        group: true;
+                        /** @enum {string} */
+                        join: "and" | "or";
+                        conds: {
+                            id: string;
+                            /** @enum {string} */
+                            s: "intent" | "location" | "discount" | "stock" | "tag" | "amount" | "field";
+                            op: string;
+                            val: string;
+                            fk?: string;
+                        }[];
+                    } | {
+                        id: string;
+                        /** @enum {string} */
+                        s: "intent" | "location" | "discount" | "stock" | "tag" | "amount" | "field";
+                        op: string;
+                        val: string;
+                        fk?: string;
+                    })[];
+                    actions: {
+                        id: string;
+                        /** @enum {string} */
+                        type: "Ask the customer" | "Reply using knowledge" | "Follow a policy" | "Request information" | "Do not promise" | "Offer human assistance" | "Escalate for review";
+                        text: string;
+                    }[];
+                    otherwise?: {
+                        /** @enum {string} */
+                        type: "Ask the customer" | "Reply using knowledge" | "Follow a policy" | "Request information" | "Do not promise" | "Offer human assistance" | "Escalate for review";
+                        text: string;
+                    };
+                    test: string;
+                }[];
+                faqs: {
+                    id: string;
+                    q: string;
+                    a: string;
+                    /** @enum {string} */
+                    cat: "Products" | "Pricing" | "Delivery" | "Returns" | "Payments" | "Orders" | "General";
+                    active: boolean;
+                }[];
+            };
+            lines: {
+                /** @enum {string} */
+                from: "customer" | "agent";
+                text: string;
+            }[];
+            /**
+             * @default WHATSAPP
+             * @enum {string}
+             */
+            channel: "WHATSAPP" | "INSTAGRAM" | "MESSENGER";
+        };
         DashboardAnalyticsDto: {
             range: {
                 from: string;
@@ -7496,6 +7827,105 @@ export interface operations {
             };
         };
     };
+    UsersController_passwordCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasswordCodeDto"];
+                };
+            };
+        };
+    };
+    UsersController_setPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetPasswordDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileDto"];
+                };
+            };
+        };
+    };
+    UsersController_uploadAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileDto"];
+                };
+            };
+        };
+    };
+    UsersController_removeAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileDto"];
+                };
+            };
+        };
+    };
+    UsersController_useProviderAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileDto"];
+                };
+            };
+        };
+    };
     UsersController_sessions: {
         parameters: {
             query?: never;
@@ -7695,6 +8125,48 @@ export interface operations {
                 "application/json": components["schemas"]["UpdateWorkspaceDto"];
             };
         };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceDto"];
+                };
+            };
+        };
+    };
+    WorkspacesController_setLogo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceDto"];
+                };
+            };
+        };
+    };
+    WorkspacesController_removeLogo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {
@@ -12458,6 +12930,29 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["DraftInputDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AiController_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestInputDto"];
             };
         };
         responses: {

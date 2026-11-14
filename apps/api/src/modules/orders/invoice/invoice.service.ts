@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ServiceUnavailableException } from '@nes
 import { Prisma } from '@torio/database';
 import { outstandingMinor } from '@torio/contracts';
 import { PrismaService } from '../../../database/prisma.service';
+import { ImagesService } from '../../images/images.service';
 import { amountInWords } from './amount-words';
 import type { InvoiceData } from './invoice-types';
 import { renderOrderInvoicePdf } from './invoice-pdf';
@@ -54,7 +55,27 @@ const isMissingTable = (e: unknown) =>
  */
 @Injectable()
 export class InvoiceService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly images: ImagesService,
+  ) {}
+
+  /**
+   * The logo for the invoice header: the picture saved as the workspace's brand logo (PDFs need PNG or JPEG, so the stored WebP is
+   * converted), else an older embedded one. Nothing is fetched from a URL.
+   */
+  private async logo(workspaceId: string, legacy: string | null): Promise<Buffer | null> {
+    try {
+      const stored = await this.images.logoOf(workspaceId);
+      if (stored) {
+        const sharp = (await import('sharp')).default;
+        return await sharp(Buffer.from(stored.bytes)).png().toBuffer();
+      }
+    } catch {
+      /* fall back to the store name */
+    }
+    return logoBytes(legacy);
+  }
 
   /** The order's invoice identity, issued once. Concurrent first requests produce exactly one number. */
   private async identity(ws: string, orderId: string, userId: string) {
@@ -130,7 +151,7 @@ export class InvoiceService {
         ],
         email: w.contactEmail,
         phone: w.phone,
-        logo: logoBytes(w.logo),
+        logo: await this.logo(order.workspaceId, w.logo),
       },
       billTo: {
         name: c.name,

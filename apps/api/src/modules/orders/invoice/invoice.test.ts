@@ -179,7 +179,7 @@ function fakeDb() {
 describe('InvoiceService', () => {
   it('uses the order, the store and the stored totals, and keeps one number per order', async () => {
     const { prisma, invoices } = fakeDb();
-    const svc = new InvoiceService(prisma);
+    const svc = new InvoiceService(prisma, { logoOf: async () => null } as never);
     const a = await svc.data('wsA', 'o1', 'u1');
     expect(a.number).toBe('INV-00001');
     expect(a.seller.name).toBe('Store A');
@@ -198,9 +198,9 @@ describe('InvoiceService', () => {
   });
   it("never reads another store's order", async () => {
     const { prisma, invoices } = fakeDb();
-    await expect(new InvoiceService(prisma).data('wsB', 'o1', 'u1')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      new InvoiceService(prisma, { logoOf: async () => null } as never).data('wsB', 'o1', 'u1'),
+    ).rejects.toBeInstanceOf(NotFoundException);
     expect(invoices).toHaveLength(0); // no number is issued for a refused request
   });
 });

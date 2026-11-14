@@ -131,7 +131,7 @@ export class RecoveryService {
       this.prisma.client.emailToken.update({ where: { id: row.id }, data: { usedAt: new Date() } }),
       this.prisma.client.user.update({
         where: { id: row.userId },
-        data: { passwordHash },
+        data: { passwordHash, passwordSetAt: new Date() },
       }),
       // Every signed-in device is signed out: whoever knew the old password loses access.
       this.prisma.client.session.updateMany({

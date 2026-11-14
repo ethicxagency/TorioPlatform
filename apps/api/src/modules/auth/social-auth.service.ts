@@ -235,6 +235,12 @@ export class SocialAuthService {
   private async syncImage(userId: string, image: string | null | undefined) {
     if (!image) return;
     try {
+      // The provider's picture is always remembered (so it can be restored), whatever picture is in use.
+      await this.prisma.client.user.updateMany({
+        where: { id: userId, NOT: { providerImage: image } },
+        data: { providerImage: image },
+      });
+      // It becomes the picture in use only when the person has not chosen their own or chosen none.
       await this.prisma.client.user.updateMany({
         where: {
           id: userId,

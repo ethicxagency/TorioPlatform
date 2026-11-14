@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -8,13 +9,17 @@ import {
   Post,
   Put,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import {
   auditListSchema,
   auditQuerySchema,
   createStoreSchema,
+  IMAGE_MAX_BYTES,
   setActiveWorkspaceSchema,
   storeSlugCheckQuerySchema,
   storeSlugCheckSchema,
@@ -90,6 +95,32 @@ export class WorkspacesController {
     @Body() body: UpdateWorkspaceDto,
   ) {
     return this.workspaces.update(workspaceId, user.id, m.role, body);
+  }
+
+  @Put(':workspaceId/logo')
+  @UseGuards(WorkspaceAccessGuard)
+  @RequirePermission('workspace:update')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: IMAGE_MAX_BYTES, files: 1 } }))
+  @ApiOkResponse({ type: WorkspaceDto })
+  setLogo(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @CurrentUser() user: AuthUser,
+    @CurrentMembership() m: WorkspaceMembershipContext,
+    @UploadedFile() file: Express.Multer.File | undefined,
+  ) {
+    return this.workspaces.setLogo(workspaceId, user.id, m.role, file);
+  }
+
+  @Delete(':workspaceId/logo')
+  @UseGuards(WorkspaceAccessGuard)
+  @RequirePermission('workspace:update')
+  @ApiOkResponse({ type: WorkspaceDto })
+  removeLogo(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @CurrentUser() user: AuthUser,
+    @CurrentMembership() m: WorkspaceMembershipContext,
+  ) {
+    return this.workspaces.removeLogo(workspaceId, user.id, m.role);
   }
 
   @Get(':workspaceId/audit')

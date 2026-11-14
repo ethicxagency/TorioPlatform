@@ -114,7 +114,9 @@ test.describe('settings (owner)', () => {
     page,
   }) => {
     await page.goto('/settings/security');
-    const change = page.getByRole('button', { name: 'Change password' });
+    await page.getByRole('button', { name: 'Change password' }).click();
+    const dlg = page.getByRole('dialog', { name: 'Change password' });
+    const change = dlg.getByRole('button', { name: 'Change password' });
     await change.click();
     await expect(page.getByText('Enter your current password')).toBeVisible();
     await page.locator('#pw-cur').fill('wrong');
@@ -130,7 +132,7 @@ test.describe('settings (owner)', () => {
     await page.locator('#pw-cur').fill('Old-pass-123');
     await change.click();
     await expect.poll(() => settingsState.passwords.length).toBe(2);
-    await expect(page.locator('#pw-cur')).toHaveValue('');
+    await expect(dlg).toHaveCount(0); // the dialog closes once the password is changed
 
     await expect(page.getByText('This device', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Sign out Safari on iOS' }).click();
@@ -230,8 +232,9 @@ test.describe('settings (owner)', () => {
     await page.goto('/settings/general');
     await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Business Information' })).toBeVisible();
-    await expect(page.getByText('Sign-in methods')).toBeVisible();
-    await expect(page.getByText('Password', { exact: true })).toBeVisible();
+    // sign-in methods live in Security; General only points there
+    await expect(page.getByRole('link', { name: 'Security' }).first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Brand Identity' })).toBeVisible();
     const y = async (n: string) => (await page.getByRole('heading', { name: n }).boundingBox())!.y;
     expect(await y('Your profile')).toBeLessThan(await y('Business Information'));
   });
@@ -243,6 +246,149 @@ test.describe('settings (owner)', () => {
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
     ).toBe(false);
+  });
+});
+
+// A 2x2 PNG, so the browser can decode it and the crop step can draw it.
+const PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR4nGNkYGD4z8DAwMDEgAAAAA8AAQc0xz4AAAAASUVORK5CYII=',
+  'base64',
+);
+
+test.describe('sign-in methods and pictures (owner)', () => {
+  test.beforeEach(async ({ page }) => {
+    resetSettings();
+    await mockApi(page, { role: 'OWNER' });
+  });
+
+  test('shows each method from what the server holds: connected only when it really is', async ({
+    page,
+  }) => {
+    Object.assign(settingsState.profile, {
+      providers: ['GOOGLE'],
+      identities: [
+        { provider: 'GOOGLE', email: 'g@example.com', connectedAt: '2026-02-03T10:00:00.000Z' },
+      ],
+    });
+    await page.goto('/settings/security');
+    const list = page.getByRole('list', { name: 'Sign-in methods' });
+    await expect(list.getByRole('listitem').filter({ hasText: 'Email & password' })).toContainText(
+      'Set',
+    );
+    const google = list.getByRole('listitem').filter({ hasText: 'Google' });
+    await expect(google).toContainText('Connected');
+    await expect(google).toContainText('g@example.com');
+    const fb = list.getByRole('listitem').filter({ hasText: 'Facebook' });
+    await expect(fb).toContainText('Not connected');
+  });
+
+  test('a Google-only account sets a first password with an emailed code and stays connected to Google', async ({
+    page,
+  }) => {
+    Object.assign(settingsState.profile, {
+      hasPassword: false,
+      passwordSetAt: null,
+      providers: ['GOOGLE'],
+      identities: [
+        { provider: 'GOOGLE', email: 'g@example.com', connectedAt: '2026-02-03T10:00:00.000Z' },
+      ],
+    });
+    await page.goto('/settings/security');
+    const pw = page.getByRole('listitem').filter({ hasText: 'Email & password' });
+    await expect(pw).toContainText('Password not set');
+    await expect(page.getByRole('button', { name: 'Change password' })).toHaveCount(0);
+    await pw.getByRole('button', { name: 'Set password' }).click();
+    const dlg = page.getByRole('dialog', { name: 'Set a password' });
+    await dlg.getByRole('button', { name: 'Send code' }).click();
+    await expect.poll(() => settingsState.codes).toBe(1);
+    await dlg.locator('#sp-code').fill('111111');
+    await dlg.locator('#sp-new').fill('Valid-pass-123');
+    await dlg.locator('#sp-confirm').fill('Different-pass-1');
+    await dlg.getByRole('button', { name: 'Set password' }).click();
+    await expect(dlg.getByText('The passwords do not match')).toBeVisible();
+    expect(settingsState.passwords).toHaveLength(0); // nothing is sent until it validates
+    await dlg.locator('#sp-confirm').fill('Valid-pass-123');
+    await dlg.getByRole('button', { name: 'Set password' }).click();
+    await expect(dlg.getByText('That code is not right.')).toBeVisible(); // the server's answer
+    await dlg.locator('#sp-code').fill('123456');
+    await dlg.getByRole('button', { name: 'Set password' }).click();
+    await expect(dlg).toHaveCount(0);
+    await expect(pw).toContainText('Set');
+    await expect(pw.getByRole('button', { name: 'Change password' })).toBeVisible();
+    await expect(page.getByRole('listitem').filter({ hasText: 'Google' })).toContainText(
+      'Connected',
+    );
+  });
+
+  test('uploads a cropped profile picture, can remove it, and can restore the provider picture', async ({
+    page,
+  }) => {
+    Object.assign(settingsState.profile, {
+      providers: ['GOOGLE'],
+      image: 'https://lh3.googleusercontent.com/provider',
+      imageSource: 'PROVIDER',
+      hasProviderImage: true,
+    });
+    await page.goto('/settings/general');
+    const profile = page.getByRole('region', { name: 'Your profile' });
+    await expect(profile.getByText(/From Google/)).toBeVisible();
+    await profile
+      .getByLabel('Choose a profile picture')
+      .setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: PNG });
+    const crop = page.getByRole('dialog', { name: 'Adjust your picture' });
+    await expect(crop.getByRole('slider', { name: 'Zoom' })).toBeVisible();
+    await crop.getByRole('button', { name: 'Save picture' }).click();
+    await expect(crop).toHaveCount(0);
+    await expect(profile.getByText(/Your own picture/)).toBeVisible();
+    expect(settingsState.uploads).toHaveLength(1);
+    expect(settingsState.uploads[0]).toMatchObject({ path: '/users/me/avatar' });
+    expect(settingsState.uploads[0]!.type).toMatch(/multipart\/form-data/);
+    await profile.getByRole('button', { name: /Use Google picture/ }).click();
+    await expect(profile.getByText(/From Google/)).toBeVisible();
+    await profile.getByRole('button', { name: 'Remove' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Remove picture' }).click();
+    await expect(profile.getByText('No picture. Your initials are shown.')).toBeVisible();
+    await expect(profile.getByRole('button', { name: /Restore Google picture/ })).toBeVisible();
+  });
+
+  test('refuses a file that is not an allowed image before uploading', async ({ page }) => {
+    await page.goto('/settings/general');
+    const profile = page.getByRole('region', { name: 'Your profile' });
+    await profile.getByLabel('Choose a profile picture').setInputFiles({
+      name: 'a.gif',
+      mimeType: 'image/gif',
+      buffer: Buffer.from('GIF89a'),
+    });
+    await expect(profile.getByRole('alert')).toContainText('PNG, JPG or WebP');
+    expect(settingsState.uploads).toHaveLength(0);
+  });
+
+  test('the brand logo is its own setting: upload, preview on light and dark, remove', async ({
+    page,
+  }) => {
+    await page.goto('/settings/general');
+    const brand = page.getByRole('region', { name: 'Brand Identity' });
+    await expect(
+      brand.getByText('Manage your workspace logo and brand identity across Torio.'),
+    ).toBeVisible();
+    await expect(brand.getByText('Where it appears')).toBeVisible();
+    await brand
+      .getByLabel('Choose a brand logo')
+      .setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: PNG });
+    await expect(brand.getByRole('img', { name: 'Logo on a light background' })).toBeVisible();
+    await expect(brand.getByRole('img', { name: 'Logo on a dark background' })).toBeVisible();
+    expect(settingsState.uploads).toHaveLength(0); // previewing sends nothing
+    await brand.getByRole('button', { name: 'Save logo' }).click();
+    await expect.poll(() => settingsState.uploads.length).toBe(1);
+    expect(settingsState.uploads[0]).toMatchObject({
+      path: expect.stringMatching(/\/workspaces\/.+\/logo$/),
+    });
+    await expect(brand.getByRole('button', { name: 'Replace logo' })).toBeVisible();
+    expect(settingsState.profile.image).toBeNull(); // a personal picture was not touched
+    await brand.getByRole('button', { name: 'Remove' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Remove logo' }).click();
+    await expect(brand.getByRole('button', { name: 'Upload logo' })).toBeVisible();
+    expect(settingsState.workspace.logo).toBeNull();
   });
 });
 
@@ -263,6 +409,20 @@ test.describe('settings (agent)', () => {
   test.beforeEach(async ({ page }) => {
     resetSettings();
     await mockApi(page, { role: 'AGENT' });
+  });
+
+  test('an agent cannot change the brand logo, but still manages their own picture', async ({
+    page,
+  }) => {
+    await page.goto('/settings/general');
+    const brand = page.getByRole('region', { name: 'Brand Identity' });
+    await expect(brand.getByText('Only an Owner or Admin can change the logo.')).toBeVisible();
+    await expect(brand.getByLabel('Choose a brand logo')).toHaveCount(0);
+    await expect(
+      brand.getByRole('button', { name: /Upload logo|Replace logo|Remove/ }),
+    ).toHaveCount(0);
+    const profile = page.getByRole('region', { name: 'Your profile' });
+    await expect(profile.getByRole('button', { name: 'Upload picture' })).toBeVisible();
   });
 
   test('workspace is read-only and the audit log is hidden', async ({ page }) => {

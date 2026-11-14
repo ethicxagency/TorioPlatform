@@ -51,7 +51,7 @@ describe.skipIf(!url)('settings (real PostgreSQL)', () => {
     passwords = app.get(PasswordService);
     const hash = await passwords.hash(OLD);
     const mk = (n: string) =>
-      db.user.create({ data: { email: `${n}-${sfx}@t.co`, name: n, passwordHash: hash } });
+      db.user.create({ data: { email: `${n}-${sfx}@t.co`, name: n, passwordHash: hash, passwordSetAt: new Date() } });
     const [owner, admin, agent, outsider] = await Promise.all([
       mk('owner'),
       mk('admin'),

@@ -19,6 +19,7 @@ import { PlatformModule } from './modules/platform/platform-settings.service';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AiModule } from './modules/ai/ai.module';
+import { ImagesModule } from './modules/images/images.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { AutomationModule } from './modules/automation/automation.module';
 import { OrdersModule } from './modules/orders/orders.module';
@@ -93,6 +94,7 @@ const REQUEST_ID = /^[A-Za-z0-9._-]{8,64}$/;
     BillingModule,
     AdminModule,
     AiModule,
+    ImagesModule,
     DashboardModule,
     RealtimeModule,
   ],

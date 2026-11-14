@@ -603,6 +603,9 @@ export const settingsState = {
   profile: {} as Record<string, unknown>,
   profilePatches: [] as unknown[],
   passwords: [] as unknown[],
+  /** Files sent to the avatar and logo endpoints: where, the content type and its size. */
+  uploads: [] as { path: string; type: string; size: number }[],
+  codes: 0,
   sessions: [] as { id: string; device: string; current: boolean }[],
   revoked: [] as string[],
   workspace: {} as Record<string, unknown>,
@@ -613,11 +616,18 @@ export const resetSettings = () => {
     ...USER,
     image: null,
     providers: [],
+    hasPassword: true,
+    passwordSetAt: '2026-01-05T10:00:00.000Z',
+    identities: [],
+    imageSource: null,
+    hasProviderImage: false,
     phone: null,
     jobTitle: null,
     timeZone: null,
     landingPage: 'dashboard',
   };
+  settingsState.uploads = [];
+  settingsState.codes = 0;
   settingsState.profilePatches = [];
   settingsState.passwords = [];
   settingsState.sessions = [
@@ -1581,6 +1591,61 @@ export async function mockApi(
         ? reply({ error: { message: 'Missing refresh token' } }, 401)
         : reply({ accessToken: 'test-token', expiresIn: 900, user: USER });
     if (p === '/auth/logout') return reply({ ok: true });
+    if (p === '/users/me/password/code') {
+      settingsState.codes++;
+      if (settingsState.profile.hasPassword)
+        return reply(
+          { error: { message: 'This account already has a password. Use Change password.' } },
+          409,
+        );
+      return reply({ sent: true, expiresInMinutes: 10 });
+    }
+    if (p === '/users/me/password/set') {
+      const b = req.postDataJSON() as { code: string };
+      settingsState.passwords.push(b);
+      if (b.code !== '123456')
+        return reply(
+          { error: { code: 'BAD_REQUEST', message: 'That code is not right.', statusCode: 400 } },
+          400,
+        );
+      settingsState.profile.hasPassword = true;
+      settingsState.profile.passwordSetAt = iso(0);
+      return reply(settingsState.profile);
+    }
+    if (p === '/users/me/avatar' && ['PUT', 'DELETE'].includes(req.method())) {
+      if (req.method() === 'PUT') {
+        const body = req.postDataBuffer();
+        settingsState.uploads.push({
+          path: p,
+          type: req.headers()['content-type'] ?? '',
+          size: body?.length ?? 0,
+        });
+        Object.assign(settingsState.profile, {
+          image: 'https://api.test/api/v1/images/new-avatar',
+          imageSource: 'CUSTOM',
+        });
+      } else Object.assign(settingsState.profile, { image: null, imageSource: 'NONE' });
+      return reply(settingsState.profile);
+    }
+    if (p === '/users/me/avatar/provider') {
+      Object.assign(settingsState.profile, {
+        image: 'https://lh3.googleusercontent.com/provider',
+        imageSource: 'PROVIDER',
+      });
+      return reply(settingsState.profile);
+    }
+    if (p === `/workspaces/${WS}/logo`) {
+      if (req.method() === 'PUT') {
+        const body = req.postDataBuffer();
+        settingsState.uploads.push({
+          path: p,
+          type: req.headers()['content-type'] ?? '',
+          size: body?.length ?? 0,
+        });
+        settingsState.workspace.logo = 'https://api.test/api/v1/images/new-logo';
+      } else settingsState.workspace.logo = null;
+      return reply({ ...settingsState.workspace, role: 'OWNER', active: true });
+    }
     if (p === '/users/me/password') {
       const b = req.postDataJSON() as { currentPassword: string };
       settingsState.passwords.push(b);

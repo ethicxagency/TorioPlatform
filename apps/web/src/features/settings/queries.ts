@@ -195,3 +195,69 @@ export function useRequestDeletion() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['privacy-requests'] }),
   });
 }
+
+// ---------- sign-in methods and pictures ----------
+
+export function useRequestPasswordCode() {
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error, response } = await api.POST('/api/v1/users/me/password/code');
+      if (!data) throw fail(error, 'Could not send the code', response.status);
+      return data;
+    },
+  });
+}
+
+export function useSetPassword() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { code: string; newPassword: string; confirmPassword: string }) => {
+      const { data, error, response } = await api.POST('/api/v1/users/me/password/set', { body });
+      if (!data) throw fail(error, 'Could not set your password', response.status);
+      return data;
+    },
+    onSuccess: (p) => {
+      qc.setQueryData(settingsKeys.profile, p);
+      void qc.invalidateQueries({ queryKey: settingsKeys.sessions });
+    },
+  });
+}
+
+/** Avatar actions that need no file: remove, or go back to the Google/Facebook picture. */
+export function useAvatarActions() {
+  const qc = useQueryClient();
+  const done = (p: Profile) => qc.setQueryData(settingsKeys.profile, p);
+  return {
+    remove: useMutation({
+      mutationFn: async () => {
+        const { data, error, response } = await api.DELETE('/api/v1/users/me/avatar');
+        if (!data) throw fail(error, 'Could not remove your picture', response.status);
+        return data;
+      },
+      onSuccess: done,
+    }),
+    useProvider: useMutation({
+      mutationFn: async () => {
+        const { data, error, response } = await api.POST('/api/v1/users/me/avatar/provider');
+        if (!data) throw fail(error, 'Could not restore your picture', response.status);
+        return data;
+      },
+      onSuccess: done,
+    }),
+    uploaded: done,
+  };
+}
+
+export function useRemoveLogo(ws: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error, response } = await api.DELETE('/api/v1/workspaces/{workspaceId}/logo', {
+        params: { path: { workspaceId: ws! } },
+      });
+      if (!data) throw fail(error, 'Could not remove the logo', response.status);
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['workspaces'] }),
+  });
+}

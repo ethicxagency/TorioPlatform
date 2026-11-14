@@ -197,6 +197,8 @@ enum AuthProvider {
 enum EmailTokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
+  /// A short numeric code, emailed to prove ownership before a social-only account sets its first password.
+  PASSWORD_SET_CODE
 }
 
 model User {
@@ -205,6 +207,8 @@ model User {
   email           String     @unique
   name            String
   passwordHash    String
+  /// When the person chose a password. Null means none: the stored hash of a social-only account is a random unusable value.
+  passwordSetAt   DateTime?
   status          UserStatus @default(ACTIVE)
   emailVerifiedAt DateTime?
   phone           String?
@@ -217,6 +221,8 @@ model User {
   image           String?
   /// Where `image` came from: PROVIDER (re-synced on each social sign-in) or CUSTOM (never overwritten by a sync).
   imageSource     String?
+  /// The provider's own picture, kept even while a custom one is in use, so it can be restored.
+  providerImage   String?
   suspendedAt     DateTime?
   suspendedReason String?
   createdAt       DateTime   @default(now())
@@ -387,6 +393,8 @@ model EmailToken {
   tokenHash String         @unique
   expiresAt DateTime
   usedAt    DateTime?
+  /// Wrong guesses of a short code; the code is retired after a few.
+  attempts  Int            @default(0)
   createdAt DateTime       @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1648,4 +1656,23 @@ model AiCall {
   @@index([requestId])
   @@index([provider, model, createdAt(sort: Desc)])
   @@map("ai_calls")
+}
+
+/// An uploaded picture, always re-encoded by the server (so what is stored is a plain WebP). One row per owner and kind: replacing
+/// or removing a picture deletes the old row, so nothing is left behind. A user's avatar and a workspace's logo are separate kinds.
+model StoredImage {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  /// USER_AVATAR (ownerId = user) or WORKSPACE_LOGO (ownerId = workspace)
+  kind        String
+  ownerId     String   @db.Uuid
+  contentType String
+  bytes       Bytes
+  width       Int
+  height      Int
+  sizeBytes   Int
+  uploadedBy  String?  @db.Uuid
+  createdAt   DateTime @default(now())
+
+  @@unique([kind, ownerId])
+  @@map("stored_images")
 }

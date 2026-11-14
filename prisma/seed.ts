@@ -36,7 +36,7 @@ async function main() {
     const user = await prisma.user.upsert({
       where: { email: p.email },
       update: {},
-      create: { email: p.email, name: p.name, passwordHash, emailVerifiedAt: new Date() },
+      create: { email: p.email, name: p.name, passwordHash, passwordSetAt: new Date(), emailVerifiedAt: new Date() },
     });
     await prisma.workspaceMembership.upsert({
       where: { workspaceId_userId: { workspaceId: workspace.id, userId: user.id } },

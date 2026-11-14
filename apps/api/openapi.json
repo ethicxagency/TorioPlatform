@@ -624,6 +624,144 @@
         ]
       }
     },
+    "/api/v1/users/me/password/code": {
+      "post": {
+        "operationId": "UsersController_passwordCode",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordCodeDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/users/me/password/set": {
+      "post": {
+        "operationId": "UsersController_setPassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetPasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/users/me/avatar": {
+      "put": {
+        "operationId": "UsersController_uploadAvatar",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "users"
+        ]
+      },
+      "delete": {
+        "operationId": "UsersController_removeAvatar",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/users/me/avatar/provider": {
+      "post": {
+        "operationId": "UsersController_useProviderAvatar",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "users"
+        ]
+      }
+    },
     "/api/v1/users/me/sessions": {
       "get": {
         "operationId": "UsersController_sessions",
@@ -931,6 +1069,74 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/logo": {
+      "put": {
+        "operationId": "WorkspacesController_setLogo",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "workspaces"
+        ]
+      },
+      "delete": {
+        "operationId": "WorkspacesController_removeLogo",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -10347,6 +10553,39 @@
         ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/ai/test": {
+      "post": {
+        "operationId": "AiController_test",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestInputDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ai"
+        ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/dashboard/analytics": {
       "get": {
         "operationId": "DashboardController_analytics",
@@ -11134,6 +11373,75 @@
                 "FACEBOOK"
               ]
             }
+          },
+          "hasPassword": {
+            "type": "boolean"
+          },
+          "passwordSetAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "identities": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "provider": {
+                  "type": "string",
+                  "enum": [
+                    "GOOGLE",
+                    "FACEBOOK"
+                  ]
+                },
+                "email": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "description": "Text, or null when not set"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "connectedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "provider",
+                "email",
+                "connectedAt"
+              ]
+            }
+          },
+          "imageSource": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "CUSTOM",
+                  "PROVIDER",
+                  "NONE"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hasProviderImage": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -11147,7 +11455,12 @@
           "timeZone",
           "landingPage",
           "image",
-          "providers"
+          "providers",
+          "hasPassword",
+          "passwordSetAt",
+          "identities",
+          "imageSource",
+          "hasProviderImage"
         ]
       },
       "UpdateProfileDto": {
@@ -11252,6 +11565,57 @@
         },
         "required": [
           "revoked"
+        ]
+      },
+      "PasswordCodeDto": {
+        "type": "object",
+        "properties": {
+          "sent": {
+            "type": "boolean",
+            "const": true
+          },
+          "expiresInMinutes": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "sent",
+          "expiresInMinutes"
+        ]
+      },
+      "SetPasswordDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          },
+          "newPassword": {
+            "minLength": 10,
+            "maxLength": 128,
+            "allOf": [
+              {
+                "pattern": "[a-z]"
+              },
+              {
+                "pattern": "[A-Z]"
+              },
+              {
+                "pattern": "[0-9]"
+              }
+            ]
+          },
+          "confirmPassword": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "code",
+          "newPassword",
+          "confirmPassword"
         ]
       },
       "SessionListDto": {
@@ -11405,6 +11769,75 @@
                     "FACEBOOK"
                   ]
                 }
+              },
+              "hasPassword": {
+                "type": "boolean"
+              },
+              "passwordSetAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "identities": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "provider": {
+                      "type": "string",
+                      "enum": [
+                        "GOOGLE",
+                        "FACEBOOK"
+                      ]
+                    },
+                    "email": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "description": "Text, or null when not set"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "connectedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "provider",
+                    "email",
+                    "connectedAt"
+                  ]
+                }
+              },
+              "imageSource": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "CUSTOM",
+                      "PROVIDER",
+                      "NONE"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "hasProviderImage": {
+                "type": "boolean"
               }
             },
             "required": [
@@ -11418,7 +11851,12 @@
               "timeZone",
               "landingPage",
               "image",
-              "providers"
+              "providers",
+              "hasPassword",
+              "passwordSetAt",
+              "identities",
+              "imageSource",
+              "hasProviderImage"
             ]
           },
           "workspaces": {
@@ -29686,6 +30124,1021 @@
         "required": [
           "requestId",
           "mode"
+        ]
+      },
+      "TestInputDto": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "openai",
+              "gemini",
+              "synthesis"
+            ]
+          },
+          "config": {
+            "type": "object",
+            "properties": {
+              "identity": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "category": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "website": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "country": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "market": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "languages": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 40
+                    }
+                  },
+                  "currency": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "audience": {
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  "positioning": {
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  "usp": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "name",
+                  "category",
+                  "website",
+                  "country",
+                  "market",
+                  "languages",
+                  "currency",
+                  "description",
+                  "audience",
+                  "positioning",
+                  "usp"
+                ]
+              },
+              "products": {
+                "maxItems": 300,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40
+                    },
+                    "name": {
+                      "type": "string",
+                      "maxLength": 120
+                    },
+                    "category": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "description": {
+                      "type": "string",
+                      "maxLength": 1000
+                    },
+                    "price": {
+                      "type": "string",
+                      "maxLength": 20
+                    },
+                    "variants": {
+                      "type": "string",
+                      "maxLength": 300
+                    },
+                    "sizes": {
+                      "type": "string",
+                      "maxLength": 300
+                    },
+                    "colors": {
+                      "type": "string",
+                      "maxLength": 300
+                    },
+                    "stock": {
+                      "type": "string",
+                      "enum": [
+                        "In stock",
+                        "Low stock",
+                        "Out of stock",
+                        "Pre-order"
+                      ]
+                    },
+                    "benefits": {
+                      "type": "string",
+                      "maxLength": 1000
+                    },
+                    "usage": {
+                      "type": "string",
+                      "maxLength": 1000
+                    },
+                    "limitations": {
+                      "type": "string",
+                      "maxLength": 1000
+                    },
+                    "faqs": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "maxLength": 40
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "category",
+                    "description",
+                    "price",
+                    "variants",
+                    "sizes",
+                    "colors",
+                    "stock",
+                    "benefits",
+                    "usage",
+                    "limitations",
+                    "faqs"
+                  ]
+                }
+              },
+              "shipping": {
+                "type": "object",
+                "properties": {
+                  "providers": {
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 60
+                    }
+                  },
+                  "providersOff": {
+                    "default": [],
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 60
+                    }
+                  },
+                  "providerNotes": {
+                    "default": {},
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "additionalProperties": {
+                      "type": "string",
+                      "maxLength": 300
+                    }
+                  },
+                  "coverage": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "feeInside": {
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "feeOutside": {
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "timeInside": {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  "timeOutside": {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  "cod": {
+                    "type": "boolean"
+                  },
+                  "payments": {
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 60
+                    }
+                  },
+                  "paymentsOff": {
+                    "default": [],
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 60
+                    }
+                  },
+                  "paymentNotes": {
+                    "default": {},
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "additionalProperties": {
+                      "type": "string",
+                      "maxLength": 300
+                    }
+                  },
+                  "freeShip": {
+                    "type": "boolean"
+                  },
+                  "threshold": {
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "processing": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "tracking": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                },
+                "required": [
+                  "providers",
+                  "coverage",
+                  "feeInside",
+                  "feeOutside",
+                  "timeInside",
+                  "timeOutside",
+                  "cod",
+                  "payments",
+                  "freeShip",
+                  "threshold",
+                  "processing",
+                  "tracking"
+                ]
+              },
+              "returns": {
+                "type": "object",
+                "properties": {
+                  "eligibility": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "window": {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  "exchange": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "refundTime": {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  "damaged": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "wrong": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "shippingResp": {
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  "proof": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "escalation": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                },
+                "required": [
+                  "eligibility",
+                  "window",
+                  "exchange",
+                  "refundTime",
+                  "damaged",
+                  "wrong",
+                  "shippingResp",
+                  "proof",
+                  "escalation"
+                ]
+              },
+              "voice": {
+                "type": "object",
+                "properties": {
+                  "tone": {
+                    "type": "string",
+                    "enum": [
+                      "Friendly",
+                      "Professional",
+                      "Casual",
+                      "Premium",
+                      "Playful"
+                    ]
+                  },
+                  "language": {
+                    "type": "string",
+                    "enum": [
+                      "Bengali",
+                      "English",
+                      "Mixed"
+                    ]
+                  },
+                  "formality": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  "length": {
+                    "type": "string",
+                    "enum": [
+                      "Concise",
+                      "Balanced",
+                      "Detailed"
+                    ]
+                  },
+                  "emoji": {
+                    "type": "string",
+                    "enum": [
+                      "None",
+                      "Minimal",
+                      "Moderate"
+                    ]
+                  },
+                  "greeting": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "terms": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "avoid": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "examples": {
+                    "type": "string",
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "tone",
+                  "language",
+                  "formality",
+                  "length",
+                  "emoji",
+                  "greeting",
+                  "terms",
+                  "avoid",
+                  "examples"
+                ]
+              },
+              "rules": {
+                "type": "object",
+                "properties": {
+                  "always": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "never": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "approvalTopics": {
+                    "maxItems": 30,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 60
+                    }
+                  },
+                  "escalate": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "discount": {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  "alternatives": {
+                    "type": "boolean"
+                  },
+                  "competitors": {
+                    "type": "boolean"
+                  },
+                  "promises": {
+                    "type": "boolean"
+                  },
+                  "angry": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "fallback": {
+                    "type": "string",
+                    "enum": [
+                      "human",
+                      "clarify",
+                      "plain"
+                    ]
+                  },
+                  "sensitive": {
+                    "type": "object",
+                    "properties": {
+                      "refund": {
+                        "type": "boolean"
+                      },
+                      "payment": {
+                        "type": "boolean"
+                      },
+                      "complaint": {
+                        "type": "boolean"
+                      },
+                      "delivery": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "refund",
+                      "payment",
+                      "complaint",
+                      "delivery"
+                    ]
+                  }
+                },
+                "required": [
+                  "always",
+                  "never",
+                  "approvalTopics",
+                  "escalate",
+                  "discount",
+                  "alternatives",
+                  "competitors",
+                  "promises",
+                  "angry",
+                  "fallback",
+                  "sensitive"
+                ]
+              },
+              "cfCats": {
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 60
+                }
+              },
+              "customFields": {
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40
+                    },
+                    "name": {
+                      "type": "string",
+                      "maxLength": 80
+                    },
+                    "key": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "desc": {
+                      "type": "string",
+                      "maxLength": 300
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "Short text",
+                        "Long text",
+                        "Number",
+                        "Currency",
+                        "Boolean",
+                        "Single select",
+                        "Multi-select",
+                        "Date",
+                        "URL",
+                        "Structured list"
+                      ]
+                    },
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 4000
+                        },
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "maxItems": 100,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 100
+                          }
+                        }
+                      ]
+                    },
+                    "options": {
+                      "type": "string",
+                      "maxLength": 1000
+                    },
+                    "category": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "required": {
+                      "type": "boolean"
+                    },
+                    "scope": {
+                      "type": "string",
+                      "enum": [
+                        "AI replies & Inbox suggestions",
+                        "AI replies only",
+                        "Internal reference only"
+                      ]
+                    },
+                    "min": {
+                      "type": "string",
+                      "maxLength": 20
+                    },
+                    "max": {
+                      "type": "string",
+                      "maxLength": 20
+                    },
+                    "maxLen": {
+                      "type": "string",
+                      "maxLength": 10
+                    },
+                    "def": {
+                      "type": "string",
+                      "maxLength": 200
+                    },
+                    "unit": {
+                      "type": "string",
+                      "maxLength": 20
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "key",
+                    "desc",
+                    "type",
+                    "value",
+                    "options",
+                    "category",
+                    "required",
+                    "scope",
+                    "min",
+                    "max",
+                    "maxLen",
+                    "def",
+                    "unit",
+                    "enabled"
+                  ]
+                }
+              },
+              "instructions": {
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40
+                    },
+                    "title": {
+                      "type": "string",
+                      "maxLength": 160
+                    },
+                    "content": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "category": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "priority": {
+                      "type": "string",
+                      "enum": [
+                        "High",
+                        "Medium",
+                        "Low"
+                      ]
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "conditions": {
+                      "type": "string",
+                      "maxLength": 500
+                    },
+                    "example": {
+                      "type": "string",
+                      "maxLength": 500
+                    },
+                    "expected": {
+                      "type": "string",
+                      "maxLength": 500
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "title",
+                    "content",
+                    "category",
+                    "priority",
+                    "enabled",
+                    "conditions",
+                    "example",
+                    "expected"
+                  ]
+                }
+              },
+              "logic": {
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40
+                    },
+                    "name": {
+                      "type": "string",
+                      "maxLength": 160
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "priority": {
+                      "type": "string",
+                      "enum": [
+                        "High",
+                        "Medium",
+                        "Low"
+                      ]
+                    },
+                    "join": {
+                      "type": "string",
+                      "enum": [
+                        "and",
+                        "or"
+                      ]
+                    },
+                    "items": {
+                      "maxItems": 30,
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 40
+                              },
+                              "group": {
+                                "type": "boolean",
+                                "const": true
+                              },
+                              "join": {
+                                "type": "string",
+                                "enum": [
+                                  "and",
+                                  "or"
+                                ]
+                              },
+                              "conds": {
+                                "maxItems": 20,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 40
+                                    },
+                                    "s": {
+                                      "type": "string",
+                                      "enum": [
+                                        "intent",
+                                        "location",
+                                        "discount",
+                                        "stock",
+                                        "tag",
+                                        "amount",
+                                        "field"
+                                      ]
+                                    },
+                                    "op": {
+                                      "type": "string",
+                                      "maxLength": 30
+                                    },
+                                    "val": {
+                                      "type": "string",
+                                      "maxLength": 200
+                                    },
+                                    "fk": {
+                                      "type": "string",
+                                      "maxLength": 60
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "s",
+                                    "op",
+                                    "val"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "group",
+                              "join",
+                              "conds"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 40
+                              },
+                              "s": {
+                                "type": "string",
+                                "enum": [
+                                  "intent",
+                                  "location",
+                                  "discount",
+                                  "stock",
+                                  "tag",
+                                  "amount",
+                                  "field"
+                                ]
+                              },
+                              "op": {
+                                "type": "string",
+                                "maxLength": 30
+                              },
+                              "val": {
+                                "type": "string",
+                                "maxLength": 200
+                              },
+                              "fk": {
+                                "type": "string",
+                                "maxLength": 60
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "s",
+                              "op",
+                              "val"
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "actions": {
+                      "maxItems": 20,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 40
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "Ask the customer",
+                              "Reply using knowledge",
+                              "Follow a policy",
+                              "Request information",
+                              "Do not promise",
+                              "Offer human assistance",
+                              "Escalate for review"
+                            ]
+                          },
+                          "text": {
+                            "type": "string",
+                            "maxLength": 500
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type",
+                          "text"
+                        ]
+                      }
+                    },
+                    "otherwise": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "Ask the customer",
+                            "Reply using knowledge",
+                            "Follow a policy",
+                            "Request information",
+                            "Do not promise",
+                            "Offer human assistance",
+                            "Escalate for review"
+                          ]
+                        },
+                        "text": {
+                          "type": "string",
+                          "maxLength": 500
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "text"
+                      ]
+                    },
+                    "test": {
+                      "type": "string",
+                      "maxLength": 300
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "enabled",
+                    "priority",
+                    "join",
+                    "items",
+                    "actions",
+                    "test"
+                  ]
+                }
+              },
+              "faqs": {
+                "maxItems": 500,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40
+                    },
+                    "q": {
+                      "type": "string",
+                      "maxLength": 300
+                    },
+                    "a": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "cat": {
+                      "type": "string",
+                      "enum": [
+                        "Products",
+                        "Pricing",
+                        "Delivery",
+                        "Returns",
+                        "Payments",
+                        "Orders",
+                        "General"
+                      ]
+                    },
+                    "active": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "q",
+                    "a",
+                    "cat",
+                    "active"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "identity",
+              "products",
+              "shipping",
+              "returns",
+              "voice",
+              "rules",
+              "cfCats",
+              "customFields",
+              "instructions",
+              "logic",
+              "faqs"
+            ]
+          },
+          "lines": {
+            "minItems": 1,
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "string",
+                  "enum": [
+                    "customer",
+                    "agent"
+                  ]
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000
+                }
+              },
+              "required": [
+                "from",
+                "text"
+              ]
+            }
+          },
+          "channel": {
+            "default": "WHATSAPP",
+            "type": "string",
+            "enum": [
+              "WHATSAPP",
+              "INSTAGRAM",
+              "MESSENGER"
+            ]
+          }
+        },
+        "required": [
+          "requestId",
+          "mode",
+          "config",
+          "lines"
         ]
       },
       "DashboardAnalyticsDto": {

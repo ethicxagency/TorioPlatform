@@ -44,8 +44,23 @@ export const profileSchema = z.object({
   landingPage: landingPageSchema,
   /** Avatar URL (from the sign-in provider unless chosen by the person), or null. */
   image: nullableString,
-  /** Social accounts linked to this sign-in. Password sign-in is separate (every account has one). */
+  /** Social accounts linked to this sign-in. */
   providers: z.array(z.enum(['GOOGLE', 'FACEBOOK'])),
+  /** Derived from what the server really holds: true only when the person chose a password. */
+  hasPassword: z.boolean(),
+  passwordSetAt: z.iso.datetime().nullable(),
+  /** What each linked provider knows about this account. Tokens and provider ids are never returned. */
+  identities: z.array(
+    z.object({
+      provider: z.enum(['GOOGLE', 'FACEBOOK']),
+      email: nullableString,
+      connectedAt: z.iso.datetime(),
+    }),
+  ),
+  /** CUSTOM (uploaded), PROVIDER (from Google or Facebook), NONE (chose no picture) or null (never set). */
+  imageSource: z.enum(['CUSTOM', 'PROVIDER', 'NONE']).nullable(),
+  /** A provider picture exists to restore. */
+  hasProviderImage: z.boolean(),
 });
 
 /** Email, role and workspace membership can’t be changed here; unknown keys are rejected. */
@@ -74,6 +89,26 @@ export const changePasswordSchema = z
     message: 'Choose a password different from the current one',
   });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+/** First password for an account that has none: the emailed code proves the email, the confirmation catches typos. */
+export const setPasswordSchema = z
+  .object({
+    code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
+    newPassword: passwordSchema,
+    confirmPassword: z.string().max(128),
+  })
+  .refine((v) => v.newPassword === v.confirmPassword, {
+    path: ['confirmPassword'],
+    message: 'The passwords do not match',
+  });
+export type SetPasswordInput = z.infer<typeof setPasswordSchema>;
+
+export const passwordCodeResultSchema = z.object({ sent: z.literal(true), expiresInMinutes: z.number().int() });
+
+/** Largest accepted upload, and the pictures the server accepts. Everything is re-encoded, so these are limits on input only. */
+export const IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+export const AVATAR_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const;
+export const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'] as const;
 
 export const sessionInfoSchema = z.object({
   id: z.uuid(),

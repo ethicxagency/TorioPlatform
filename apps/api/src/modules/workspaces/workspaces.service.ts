@@ -8,13 +8,17 @@ import { SLUG_MAX, storeSlugSchema } from '@torio/contracts';
 import type { AuditQuery, CreateStoreInput, UpdateWorkspaceInput } from '@torio/contracts';
 import { Prisma } from '@torio/database';
 import { PrismaService } from '../../database/prisma.service';
+import { ImagesService, type UploadedFile } from '../images/images.service';
 
 /** Stops a runaway script from creating stores without bound. */
 const MAX_OWNED_STORES = 20;
 
 @Injectable()
 export class WorkspacesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly images: ImagesService,
+  ) {}
 
   /**
    * Only stores the user is an active member of. Exactly one is `active`: the last one they used (if they still belong
@@ -148,6 +152,60 @@ export class WorkspacesService {
 
   async get(workspaceId: string, role: 'OWNER' | 'ADMIN' | 'AGENT') {
     const w = await this.prisma.client.workspace.findUniqueOrThrow({ where: { id: workspaceId } });
+    return { ...this.toDto(w), role, active: true };
+  }
+
+  /**
+   * The workspace's brand logo, shared by everything that shows the workspace. Stored apart from any personal picture: its own
+   * kind and owner, and its own column. An SVG is accepted only when plain, and is drawn to pixels first.
+   */
+  async setLogo(
+    workspaceId: string,
+    actorId: string,
+    role: 'OWNER' | 'ADMIN' | 'AGENT',
+    file: UploadedFile | undefined,
+  ) {
+    const processed = await this.images.process('WORKSPACE_LOGO', file);
+    const saved = await this.images.save('WORKSPACE_LOGO', workspaceId, processed, actorId);
+    const w = await this.prisma.client.$transaction(async (tx) => {
+      const updated = await tx.workspace.update({
+        where: { id: workspaceId },
+        data: { logo: saved.url },
+      });
+      await tx.auditLog.create({
+        data: {
+          workspaceId,
+          actorId,
+          action: 'workspace.logo_update',
+          entityType: 'workspace',
+          entityId: workspaceId,
+          metadata: { description: 'Brand logo uploaded' },
+        },
+      });
+      return updated;
+    });
+    return { ...this.toDto(w), role, active: true };
+  }
+
+  async removeLogo(workspaceId: string, actorId: string, role: 'OWNER' | 'ADMIN' | 'AGENT') {
+    await this.images.remove('WORKSPACE_LOGO', workspaceId);
+    const w = await this.prisma.client.$transaction(async (tx) => {
+      const updated = await tx.workspace.update({
+        where: { id: workspaceId },
+        data: { logo: null },
+      });
+      await tx.auditLog.create({
+        data: {
+          workspaceId,
+          actorId,
+          action: 'workspace.logo_remove',
+          entityType: 'workspace',
+          entityId: workspaceId,
+          metadata: { description: 'Brand logo removed' },
+        },
+      });
+      return updated;
+    });
     return { ...this.toDto(w), role, active: true };
   }
 

@@ -1,17 +1,19 @@
 'use client';
 
 import { Check } from 'lucide-react';
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useShell } from '@/components/shell/shell-context';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { initialsOf } from '@/features/inbox/format';
 import { STORE_INDUSTRIES } from '@torio/contracts';
 import { SearchSelect } from '@/features/inbox/components/search-select';
 import { countryOptions } from '@/features/onboarding/store-options';
 import { useWorkspace } from '@/lib/workspace';
 import { useProfile, useUpdateProfile, useUpdateWorkspace } from '../queries';
 import type { ProfileBody, WorkspaceBody } from '../queries';
+import { AvatarEditor } from './avatar-editor';
+import { BrandIdentity } from './brand-identity';
 import { Field, fieldErrors, inputCls, Notice, PageHeader, Section } from './bits';
 import { CurrencySelect, TimeZoneSelect } from './regional';
 import { useDirty } from './guard';
@@ -272,24 +274,8 @@ export function GeneralPage() {
           )}
           {p && (
             <>
-              <div className="flex items-center gap-3">
-                <span
-                  aria-hidden
-                  className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-base font-semibold text-white"
-                >
-                  {p.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={p.image}
-                      alt=""
-                      referrerPolicy="no-referrer"
-                      className="h-full w-full object-cover"
-                      onError={(e) => (e.currentTarget.style.display = 'none')}
-                    />
-                  ) : (
-                    initialsOf(pf.name || p.name)
-                  )}
-                </span>
+              <div className="flex flex-col gap-3">
+                <AvatarEditor profile={p} name={pf.name || p.name} />
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold">{pf.name || p.name}</div>
                   <div className="truncate text-xs text-muted">{p.email}</div>
@@ -338,20 +324,13 @@ export function GeneralPage() {
                   />
                 </Field>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-[13px]">
-                <span className="text-muted">Sign-in methods</span>
-                {[
-                  'Password',
-                  ...(p.providers ?? []).map((x) => (x === 'GOOGLE' ? 'Google' : 'Facebook')),
-                ].map((m) => (
-                  <span
-                    key={m}
-                    className="rounded-full bg-primary-soft px-2.5 py-0.5 text-xs font-medium text-primary-hover"
-                  >
-                    {m}
-                  </span>
-                ))}
-              </div>
+              <p className="m-0 text-[13px] text-muted">
+                Sign-in methods and your password are in{' '}
+                <Link href="/settings/security#sign-in" className="font-medium text-primary">
+                  Security
+                </Link>
+                .
+              </p>
               {errs.form && <Notice tone="error">{errs.form}</Notice>}
             </>
           )}
@@ -521,6 +500,20 @@ export function GeneralPage() {
             </>
           )}
         </Section>
+        {w && (
+          <Section
+            id="brand"
+            title="Brand Identity"
+            description="Manage your workspace logo and brand identity across Torio."
+          >
+            <BrandIdentity
+              workspaceId={w.id}
+              name={w.name}
+              logo={w.logo ?? null}
+              canEdit={canEdit}
+            />
+          </Section>
+        )}
 
         <Section
           id="regional"

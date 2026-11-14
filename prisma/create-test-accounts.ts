@@ -61,8 +61,8 @@ async function main() {
     const existing = await prisma.user.findUnique({ where: { email } });
     const user = await prisma.user.upsert({
       where: { email },
-      create: { email, name: `QA ${label}`, passwordHash, emailVerifiedAt: new Date() },
-      update: { passwordHash },
+      create: { email, name: `QA ${label}`, passwordHash, passwordSetAt: new Date(), emailVerifiedAt: new Date() },
+      update: { passwordHash, passwordSetAt: new Date() },
     });
     if (existing) await prisma.session.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } });
     await prisma.workspaceMembership.upsert({

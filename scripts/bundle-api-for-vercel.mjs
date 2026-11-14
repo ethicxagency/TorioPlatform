@@ -18,6 +18,7 @@ await build({
   target: 'node20',
   external: [
     '@node-rs/argon2',
+    'sharp',
     '@nestjs/microservices*',
     '@nestjs/websockets/socket-module',
     'class-transformer*',

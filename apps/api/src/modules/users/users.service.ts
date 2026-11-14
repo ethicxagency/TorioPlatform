@@ -1,12 +1,19 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
-import type { ChangePasswordInput, UpdateProfileInput } from '@torio/contracts';
+import { randomInt } from 'node:crypto';
+import type { ChangePasswordInput, SetPasswordInput, UpdateProfileInput } from '@torio/contracts';
 import { PrismaService } from '../../database/prisma.service';
+import { hashToken } from '../auth/auth.service';
+import { MailService } from '../auth/mail.service';
 import { PasswordService } from '../auth/password.service';
+import { ImagesService, type UploadedFile } from '../images/images.service';
 import { describeDevice } from './device';
 
 type UserRow = {
@@ -20,14 +27,24 @@ type UserRow = {
   timeZone: string | null;
   landingPage: string;
   image: string | null;
-  identities?: { provider: 'GOOGLE' | 'FACEBOOK' }[];
+  imageSource: string | null;
+  providerImage: string | null;
+  passwordSetAt: Date | null;
+  identities?: { provider: 'GOOGLE' | 'FACEBOOK'; email: string | null; createdAt: Date }[];
 };
+
+const IDENTITY_SELECT = { provider: true, email: true, createdAt: true } as const;
+const CODE_TTL_MS = 10 * 60_000;
+const CODE_COOLDOWN_MS = 60_000;
+const CODE_MAX_ATTEMPTS = 5;
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly passwords: PasswordService,
+    private readonly mail: MailService,
+    private readonly images: ImagesService,
   ) {}
 
   private dto(u: UserRow) {
@@ -43,13 +60,26 @@ export class UsersService {
       landingPage: u.landingPage as 'dashboard' | 'inbox' | 'leads' | 'customers' | 'orders',
       image: u.image,
       providers: [...new Set((u.identities ?? []).map((i) => i.provider))],
+      hasPassword: u.passwordSetAt !== null,
+      passwordSetAt: u.passwordSetAt?.toISOString() ?? null,
+      identities: (u.identities ?? []).map((i) => ({
+        provider: i.provider,
+        email: i.email,
+        connectedAt: i.createdAt.toISOString(),
+      })),
+      imageSource: (u.imageSource === 'CUSTOM' ||
+      u.imageSource === 'PROVIDER' ||
+      u.imageSource === 'NONE'
+        ? u.imageSource
+        : null) as 'CUSTOM' | 'PROVIDER' | 'NONE' | null,
+      hasProviderImage: !!u.providerImage,
     };
   }
 
   async getProfile(userId: string) {
     const user = await this.prisma.client.user.findUnique({
       where: { id: userId },
-      include: { identities: { select: { provider: true } } },
+      include: { identities: { select: IDENTITY_SELECT } },
     });
     if (!user) throw new NotFoundException('User not found');
     return this.dto(user);
@@ -59,7 +89,7 @@ export class UsersService {
   async updateProfile(userId: string, input: UpdateProfileInput) {
     const user = await this.prisma.client.user.update({
       where: { id: userId },
-      include: { identities: { select: { provider: true } } },
+      include: { identities: { select: IDENTITY_SELECT } },
       data: {
         ...(input.name !== undefined && { name: input.name }),
         ...(input.phone !== undefined && { phone: input.phone }),
@@ -79,6 +109,8 @@ export class UsersService {
     const db = this.prisma.client;
     const user = await db.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
+    if (!user.passwordSetAt)
+      throw new BadRequestException('This account has no password yet. Set one first.');
     if (!(await this.passwords.verify(user.passwordHash, input.currentPassword)))
       // 400, not 401: a 401 makes clients treat it as an expired session and silently retry the request.
       throw new BadRequestException('Your current password is incorrect');
@@ -109,6 +141,142 @@ export class UsersService {
   }
 
   /** One row per signed-in device (token family). Raw tokens and hashes are never returned. */
+  // ---------- first password for a social-only account ----------
+
+  /**
+   * Emails a 6-digit code to the account's own address. It is the proof of identity for choosing a first password, so it only goes
+   * to an account that has none, expires in 10 minutes, can be asked for once a minute, and is stored only as a hash.
+   */
+  async requestPasswordCode(userId: string) {
+    const db = this.prisma.client;
+    const user = await db.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.passwordSetAt)
+      throw new ConflictException('This account already has a password. Use Change password.');
+    if (!this.mail.configured)
+      throw new ServiceUnavailableException(
+        'Email delivery isn’t set up for this Torio deployment, so a code can’t be sent.',
+      );
+    const last = await db.emailToken.findFirst({
+      where: { userId, type: 'PASSWORD_SET_CODE' },
+      orderBy: { createdAt: 'desc' },
+    });
+    const wait = last ? last.createdAt.getTime() + CODE_COOLDOWN_MS - Date.now() : 0;
+    if (wait > 0)
+      throw new HttpException(
+        `Please wait ${Math.ceil(wait / 1000)} seconds before asking for another code.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+    await db.$transaction([
+      db.emailToken.updateMany({
+        where: { userId, type: 'PASSWORD_SET_CODE', usedAt: null },
+        data: { usedAt: new Date() },
+      }),
+      db.emailToken.create({
+        data: {
+          userId,
+          type: 'PASSWORD_SET_CODE',
+          tokenHash: hashToken(`${userId}:${code}`),
+          expiresAt: new Date(Date.now() + CODE_TTL_MS),
+        },
+      }),
+    ]);
+    const sent = await this.mail.send(
+      user.email,
+      'Your Torio code',
+      `Hi ${user.name},\n\nYour code to set a password for your Torio account is ${code}. It works once and expires in 10 minutes.\n\nIf you didn't ask for this, you can ignore this message; nothing changes without the code.`,
+    );
+    if (!sent)
+      throw new ServiceUnavailableException('The email could not be sent. Try again shortly.');
+    return { sent: true as const, expiresInMinutes: CODE_TTL_MS / 60_000 };
+  }
+
+  /**
+   * Sets the first password of an account that has none, after the emailed code. The social sign-ins stay linked, the account,
+   * memberships and roles are untouched, and other devices are signed out like on any password change.
+   */
+  async setPassword(userId: string, currentSessionId: string, input: SetPasswordInput) {
+    const db = this.prisma.client;
+    const user = await db.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.passwordSetAt)
+      throw new ConflictException('This account already has a password. Use Change password.');
+    const row = await db.emailToken.findFirst({
+      where: { userId, type: 'PASSWORD_SET_CODE', usedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!row) throw new BadRequestException('That code has expired. Ask for a new one.');
+    if (row.attempts >= CODE_MAX_ATTEMPTS) {
+      await db.emailToken.update({ where: { id: row.id }, data: { usedAt: new Date() } });
+      throw new BadRequestException('Too many wrong codes. Ask for a new one.');
+    }
+    if (row.tokenHash !== hashToken(`${userId}:${input.code}`)) {
+      await db.emailToken.update({ where: { id: row.id }, data: { attempts: { increment: 1 } } });
+      throw new BadRequestException('That code is not right.');
+    }
+    const passwordHash = await this.passwords.hash(input.newPassword);
+    const current = await db.session.findFirst({ where: { id: currentSessionId, userId } });
+    await db.$transaction(async (tx) => {
+      await tx.emailToken.update({ where: { id: row.id }, data: { usedAt: new Date() } });
+      await tx.user.update({
+        where: { id: userId },
+        data: { passwordHash, passwordSetAt: new Date() },
+      });
+      await tx.session.updateMany({
+        where: { userId, revokedAt: null, ...(current && { familyId: { not: current.familyId } }) },
+        data: { revokedAt: new Date() },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: userId,
+          action: 'user.password_set',
+          entityType: 'user',
+          entityId: userId,
+          metadata: { description: 'A first password was set for a social sign-in account' },
+        },
+      });
+    });
+    return this.getProfile(userId);
+  }
+
+  // ---------- profile picture ----------
+
+  /** A picture the person uploaded. It wins over the provider's, and later social sign-ins never overwrite it. */
+  async uploadAvatar(userId: string, file: UploadedFile | undefined) {
+    const processed = await this.images.process('USER_AVATAR', file);
+    const saved = await this.images.save('USER_AVATAR', userId, processed, userId);
+    await this.prisma.client.user.update({
+      where: { id: userId },
+      data: { image: saved.url, imageSource: 'CUSTOM' },
+    });
+    return this.getProfile(userId);
+  }
+
+  /** No picture: initials are shown, and a social sign-in will not bring one back until the person asks. */
+  async removeAvatar(userId: string) {
+    await this.images.remove('USER_AVATAR', userId);
+    await this.prisma.client.user.update({
+      where: { id: userId },
+      data: { image: null, imageSource: 'NONE' },
+    });
+    return this.getProfile(userId);
+  }
+
+  /** Goes back to the picture Google or Facebook gave us, and deletes the uploaded one. */
+  async useProviderAvatar(userId: string) {
+    const user = await this.prisma.client.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    if (!user.providerImage)
+      throw new BadRequestException('There is no Google or Facebook picture to use.');
+    await this.images.remove('USER_AVATAR', userId);
+    await this.prisma.client.user.update({
+      where: { id: userId },
+      data: { image: user.providerImage, imageSource: 'PROVIDER' },
+    });
+    return this.getProfile(userId);
+  }
+
   async sessions(userId: string, currentSessionId: string) {
     const cur = await this.prisma.client.session.findFirst({
       where: { id: currentSessionId, userId },

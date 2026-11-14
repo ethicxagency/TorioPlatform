@@ -57,7 +57,7 @@ export class AuthService {
     // different things, and a person may own several.
     const user = await this.prisma.client.$transaction(async (tx) => {
       const created = await tx.user.create({
-        data: { email: input.email, name: input.name, passwordHash },
+        data: { email: input.email, name: input.name, passwordHash, passwordSetAt: new Date() },
       });
       let workspaceId: string | undefined;
       if (input.workspaceName) {
@@ -183,7 +183,11 @@ export class AuthService {
           name: input.name,
           passwordHash,
           emailVerifiedAt: input.emailVerified ? new Date() : null,
-          ...(input.image && { image: input.image, imageSource: 'PROVIDER' }),
+          ...(input.image && {
+            image: input.image,
+            imageSource: 'PROVIDER',
+            providerImage: input.image,
+          }),
         },
       });
       let workspaceId: string | undefined;
