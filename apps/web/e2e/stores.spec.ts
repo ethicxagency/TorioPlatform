@@ -218,6 +218,33 @@ test.describe('first-time store onboarding (no store yet)', () => {
     ]);
   });
 
+  test('the phone field shows Bangladesh (+880) in full and the number keeps the remaining width', async ({
+    page,
+  }) => {
+    await page.goto('/onboarding');
+    await pick(page, /^Country code:/, 'bangladesh', /Bangladesh/);
+    const code = page.getByRole('button', { name: /^Country code:/ });
+    await expect(code).toContainText('Bangladesh (+880)');
+    const [cw, sw] = await code.evaluate((el) => {
+      const t = el.querySelector('span.truncate') as HTMLElement;
+      return [el.getBoundingClientRect().width, t.scrollWidth - t.clientWidth];
+    });
+    expect(cw).toBeGreaterThanOrEqual(240);
+    expect(sw).toBeLessThanOrEqual(0);
+    const num = page.getByLabel('Phone number');
+    await num.fill('1712 345678');
+    expect(await num.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    // Phones stack the two controls at full width, with nothing running past the viewport.
+    await page.setViewportSize({ width: 375, height: 800 });
+    const [a, b] = await Promise.all([code.boundingBox(), num.boundingBox()]);
+    expect(b!.y).toBeGreaterThan(a!.y + a!.height - 1);
+    expect(a!.x + a!.width).toBeLessThanOrEqual(375);
+    expect(b!.x + b!.width).toBeLessThanOrEqual(375);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      375,
+    );
+  });
+
   test('step 1 unchanged saves nothing; step 2 is prefilled from it; Back keeps every value', async ({
     page,
   }) => {

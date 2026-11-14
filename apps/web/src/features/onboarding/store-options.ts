@@ -14,9 +14,16 @@ export const countryOptions = (locale = 'en') =>
     a.label.localeCompare(b.label),
   );
 
+/** The flag emoji for a country code (regional indicator letters); some systems show the two letters instead. */
+export const flagEmoji = (code: string): string =>
+  /^[A-Z]{2}$/.test(code)
+    ? String.fromCodePoint(...[...code].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65))
+    : '';
+
 export const dialOptions = (locale = 'en') =>
   DIAL_CODES.map((d) => ({
     value: d.code,
+    lead: flagEmoji(d.code),
     label: `${countryName(d.code, locale)} (+${d.dial})`,
     detail: `+${d.dial}`,
     keywords: `${d.code} ${d.dial}`,

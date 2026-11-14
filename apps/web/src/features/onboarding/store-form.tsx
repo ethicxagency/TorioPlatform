@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { controlCls } from '@/components/ui/input';
 import { SearchSelect } from '@/features/inbox/components/search-select';
+import { PhoneField } from './phone-field';
 import { CurrencySelect, TimeZoneSelect } from '@/features/settings/components/regional';
 import { useProfile, useUpdateProfile } from '@/features/settings/queries';
 import { useAuth } from '@/lib/auth';
@@ -396,30 +397,17 @@ export function StoreForm({ additional }: { additional?: boolean }) {
         </div>
         <div className="sm:col-span-2">
           <Field label="Phone number" htmlFor="pf-phone" error={err('pPhone')}>
-            <div className="grid grid-cols-[minmax(0,150px)_1fr] gap-2">
-              <SearchSelect
-                label="Country code"
-                hideLabel
-                searchPlaceholder="Search country or code"
-                emptyText="No codes."
-                options={dials}
-                value={v.pDial}
-                onChange={(d) => set('pDial', d)}
-                anyLabel="Code"
-                limit={80}
-              />
-              <input
-                id="pf-phone"
-                type="tel"
-                inputMode="tel"
-                className={controlCls}
-                autoComplete="tel-national"
-                placeholder="1712 345678"
-                value={v.pPhone}
-                aria-invalid={!!err('pPhone')}
-                onChange={(e) => set('pPhone', e.target.value)}
-              />
-            </div>
+            <PhoneField
+              id="pf-phone"
+              codeLabel="Country code"
+              options={dials}
+              dial={v.pDial}
+              onDial={(d) => set('pDial', d)}
+              national={v.pPhone}
+              onNational={(n) => set('pPhone', n)}
+              autoComplete="tel-national"
+              invalid={!!err('pPhone')}
+            />
           </Field>
         </div>
         <div className="sm:col-span-2">
@@ -567,36 +555,23 @@ export function StoreForm({ additional }: { additional?: boolean }) {
         </div>
         <div className="sm:col-span-2">
           <Field label="Business phone" htmlFor="st-phone" error={err('phone')}>
-            <div className="grid grid-cols-[minmax(0,150px)_1fr] gap-2">
-              <SearchSelect
-                label="Business country code"
-                hideLabel
-                searchPlaceholder="Search country or code"
-                emptyText="No codes."
-                options={dials}
-                value={v.dial}
-                onChange={(d) => {
-                  setBizPhoneEdited(true);
-                  set('dial', d);
-                }}
-                anyLabel="Code"
-                limit={80}
-              />
-              <input
-                id="st-phone"
-                type="tel"
-                inputMode="tel"
-                className={controlCls}
-                autoComplete="off"
-                placeholder="1712 345678"
-                value={v.phone}
-                aria-invalid={!!err('phone')}
-                onChange={(e) => {
-                  setBizPhoneEdited(true);
-                  set('phone', e.target.value);
-                }}
-              />
-            </div>
+            <PhoneField
+              id="st-phone"
+              codeLabel="Business country code"
+              options={dials}
+              dial={v.dial}
+              onDial={(d) => {
+                setBizPhoneEdited(true);
+                set('dial', d);
+              }}
+              national={v.phone}
+              onNational={(n) => {
+                setBizPhoneEdited(true);
+                set('phone', n);
+              }}
+              autoComplete="off"
+              invalid={!!err('phone')}
+            />
           </Field>
         </div>
       </Group>
