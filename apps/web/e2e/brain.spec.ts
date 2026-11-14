@@ -1116,11 +1116,32 @@ test.describe('brain (admin)', () => {
   }) => {
     const rec = summary(page).getByRole('region', { name: 'Recommended next' });
     await expect(rec.getByRole('listitem').first()).toContainText(/High|Medium|Low/);
-    await rec.getByRole('button', { name: 'Fix' }).first().click();
+    await expect(rec).toContainText(/\d+ recommendations?/);
+    // a card opens to say what was found, why it matters and the action; the action is the existing Fix
+    const first = rec.getByRole('listitem').first();
+    await first.getByRole('button', { expanded: false }).click();
+    await expect(first).toContainText('What we found');
+    await expect(first).toContainText('Why it matters');
+    await expect(first).toContainText('Suggested action');
+    await first.getByRole('button', { name: 'Fix this' }).click();
     await expect(page).toHaveURL(/tab=(knowledge|rules)/);
     await expect
       .poll(() => page.evaluate(() => document.activeElement?.closest('section')?.id ?? ''))
       .not.toBe('');
+  });
+
+  test('Recommended next: the severity filter narrows the list without changing it', async ({
+    page,
+  }) => {
+    const rec = summary(page).getByRole('region', { name: 'Recommended next' });
+    const filter = rec.getByRole('group', { name: 'Filter by severity' });
+    if ((await filter.count()) === 0) return; // only one severity present: nothing to filter
+    const total = await rec.getByRole('listitem').count();
+    await filter.getByRole('button', { name: /^High/ }).click();
+    const high = rec.getByRole('listitem');
+    for (const i of await high.all()) await expect(i).toContainText('High');
+    await filter.getByRole('button', { name: /^All/ }).click();
+    await expect(rec.getByRole('listitem')).toHaveCount(total);
   });
 
   test('a richer saved Brain moves the stage, and the journey reflects the server’s evaluation', async ({

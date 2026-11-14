@@ -26,6 +26,7 @@ import { useImports } from '../queries';
 import { cn } from '@/lib/utils';
 import { useWorkspace } from '@/lib/workspace';
 import { fmtAgoIso } from './bits';
+import { RecommendationList } from './recommendations';
 import {
   BrainIllustration,
   Journey,
@@ -134,7 +135,6 @@ export function fixItems(issues: BrainIssue[], cf: BrainConflict[]): FixItem[] {
 const priorityOf = (a: BrainArea): 'High' | 'Medium' | 'Low' =>
   a.review || a.pct === 0 ? 'High' : a.pct < 0.5 ? 'Medium' : 'Low';
 const PRIORITY_RANK = { High: 0, Medium: 1, Low: 2 } as const;
-const PRIORITY_DOT = { High: '#DC2626', Medium: '#D98A00', Low: '#2B8FD9' } as const;
 
 const SRC_KIND: Record<string, string> = {
   WEBSITE: 'Website',
@@ -271,8 +271,7 @@ export function SummaryTab({
   const recs = areaList
     .filter((a) => a.rec)
     .map((a) => ({ a, p: priorityOf(a) }))
-    .sort((x, y) => PRIORITY_RANK[x.p] - PRIORITY_RANK[y.p])
-    .slice(0, 5);
+    .sort((x, y) => PRIORITY_RANK[x.p] - PRIORITY_RANK[y.p]);
   const [first, ...rest] = fixes;
 
   return (
@@ -588,53 +587,17 @@ export function SummaryTab({
       </section>
 
       {/* 8. Recommended Next */}
-      <section aria-label="Recommended next" className="flex flex-col gap-2">
-        <Heading>Recommended next</Heading>
-        {recs.length === 0 ? (
-          <p className="m-0 rounded-xl bg-wash px-3 py-2.5 text-[13px] text-muted">
-            Nothing left to recommend. Your setup looks complete; new suggestions appear if
-            something changes.
-          </p>
-        ) : (
-          <ul className="m-0 flex list-none flex-col gap-2 p-0">
-            {recs.map(({ a, p }) => {
-              const c = CATEGORY[a.key];
-              return (
-                <li
-                  key={a.key}
-                  className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-white p-3"
-                >
-                  <span
-                    className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-muted"
-                    title={`${p} priority`}
-                  >
-                    <span
-                      aria-hidden
-                      className="h-2 w-2 rounded-full"
-                      style={{ backgroundColor: PRIORITY_DOT[p] }}
-                    />
-                    {p}
-                  </span>
-                  <div className="min-w-0 flex-1 basis-60">
-                    <div className="text-[13.5px] font-semibold text-ink">{a.rec}</div>
-                    {c && <p className="m-0 mt-0.5 text-[12.5px] text-muted">{c.why}</p>}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onGoTo(a.sec, true)}
-                    className={cn(
-                      'inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] border border-line bg-white px-3 text-[12.5px] font-semibold text-primary transition-colors duration-150 hover:bg-primary-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none',
-                    )}
-                  >
-                    Fix
-                    <ArrowRight size={13} aria-hidden />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+      <RecommendationList
+        items={recs.map(({ a, p }) => ({
+          id: a.key,
+          severity: p,
+          title: a.rec,
+          issue: `${a.label} is ${Math.round(a.pct * 100)}% set up${a.review ? ' and needs review' : ''}.`,
+          why: CATEGORY[a.key]?.why,
+          actionLabel: 'Fix this',
+          onAction: () => onGoTo(a.sec, true),
+        }))}
+      />
 
       {/* 7. Recent activity: moved here from Intelligence, which is now about importing knowledge */}
       {recent.length > 0 && (
