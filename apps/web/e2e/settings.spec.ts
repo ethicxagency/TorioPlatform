@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { mockApi, resetSettings, settingsState } from './mocks';
+import { mockApi, resetSettings, settingsState, wsPixelState } from './mocks';
 
 test.describe('settings (owner)', () => {
   test.beforeEach(async ({ page }) => {
@@ -488,5 +488,84 @@ test.describe('settings (agent)', () => {
     ).toHaveCount(0);
     await page.goto('/settings/audit');
     await expect(page.getByText('Only Owners and Admins can view the audit log.')).toBeVisible();
+  });
+});
+
+test.describe('workspace integrations: Meta Pixel (owner)', () => {
+  test.beforeEach(async ({ page }) => {
+    resetSettings();
+    await mockApi(page, { role: 'OWNER' });
+  });
+
+  test('it is Verified only after a passing test of exactly what is saved, the token is write-only, and any change needs a new test', async ({
+    page,
+  }) => {
+    await page.goto('/settings/integrations');
+    await expect(page.getByRole('heading', { name: 'Integrations', level: 1 })).toBeVisible();
+    await expect(page.getByText('Not connected')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Test connection' })).toBeDisabled();
+    await page.getByLabel('Meta Pixel ID').fill('1234567890');
+    await page
+      .getByRole('checkbox', { name: /Send purchases through the Conversions API/ })
+      .check();
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await page.getByRole('button', { name: 'Add' }).click();
+    await page.getByLabel('New access token').fill('EAAB-workspace-token-123456');
+    await page.getByRole('button', { name: 'Save token' }).click();
+    await expect(page.getByText('Saved (hidden)')).toBeVisible();
+    await expect(page.getByText('EAAB-workspace-token-123456')).toHaveCount(0);
+    await expect(page.getByText('Not verified')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Turn on' })).toBeDisabled();
+    // a failing test is reported and leaves it off
+    wsPixelState.passTest = false;
+    await page.getByRole('button', { name: 'Test connection' }).click();
+    await expect(
+      page.getByRole('status').filter({ hasText: 'invalid or expired' }).first(),
+    ).toBeVisible();
+    await expect(page.getByText('Test failed').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Turn on' })).toBeDisabled();
+    wsPixelState.passTest = true;
+    await page.getByRole('button', { name: 'Test connection' }).click();
+    await expect(page.getByText('Verified', { exact: true }).first()).toBeVisible();
+    await page.getByRole('button', { name: 'Turn on' }).click();
+    await expect(page.getByText(/Verified · On/)).toBeVisible();
+    // changing the Pixel switches it off and needs a new test
+    await page.getByLabel('Meta Pixel ID').fill('1234567891');
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await expect(page.getByText('Not verified')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Turn on' })).toBeDisabled();
+    // what is sent is stated honestly
+    await expect(page.getByText(/Only hashed customer email, phone and id are sent/)).toBeVisible();
+    await expect(page.getByText(/Refunds are not sent as events/)).toBeVisible();
+  });
+
+  test('the event log shows each order, what failed and why, and can retry', async ({ page }) => {
+    wsPixelState.pixelId = '1234567890';
+    wsPixelState.token = 1;
+    await page.goto('/settings/integrations');
+    const ev = page.getByRole('region', { name: 'Recent events' });
+    await expect(ev.getByRole('row', { name: /#1042/ })).toContainText('Sent');
+    await expect(ev.getByRole('row', { name: /#1043/ })).toContainText('Meta could not be reached');
+    await ev.getByRole('button', { name: 'Retry failed' }).click();
+    await expect(page.getByText('Retried 1 event')).toBeVisible();
+  });
+
+  test('disconnecting asks first, removes the token and switches it off', async ({ page }) => {
+    wsPixelState.pixelId = '1234567890';
+    wsPixelState.token = 1;
+    await page.goto('/settings/integrations');
+    await page.getByRole('button', { name: 'Disconnect' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Disconnect' }).click();
+    await expect(page.getByText('Not set')).toBeVisible();
+    expect(wsPixelState.calls.some((c) => c.method === 'DELETE')).toBe(true);
+  });
+});
+
+test.describe('workspace integrations: Meta Pixel (agent)', () => {
+  test('an agent has no Integrations page', async ({ page }) => {
+    await mockApi(page, { role: 'AGENT' });
+    await page.goto('/settings/integrations');
+    await expect(page.getByText('Only Owners and Admins can manage integrations.')).toBeVisible();
+    await expect(page.getByLabel('Meta Pixel ID')).toHaveCount(0);
   });
 });

@@ -180,6 +180,8 @@ export const metaEventListSchema = z.object({
       id: z.uuid(),
       eventName: z.string(),
       eventId: z.string(),
+      /** The order (or other record) the event is about, when it has one. */
+      reference: z.string().describe('The order reference, or null').nullable(),
       status: z.enum(['PENDING', 'SENT', 'FAILED', 'DEAD']),
       attempts: z.number().int(),
       lastError: z.string().describe('Why the last attempt failed, or null').nullable(),
@@ -256,4 +258,29 @@ export const gatewayTxQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(10),
   status: gatewayTxStatusSchema.optional(),
+});
+
+// ---------- Workspace Meta Pixel ----------
+
+export const workspacePixelSchema = z.object({
+  status: integrationStatusSchema,
+  enabled: z.boolean(),
+  encryptionReady: z.boolean(),
+  pixelId: z.string().describe('The Pixel id, or null').nullable(),
+  testEventCode: z.string().describe('The test event code, or null').nullable(),
+  /** Whether purchases are sent through the Conversions API (needs a verified connection). */
+  conversionsApi: z.boolean(),
+  hasToken: z.boolean(),
+  lastTestedAt: z.iso.datetime().describe('Time of the last test, or null').nullable(),
+  lastSuccessAt: z.iso.datetime().describe('Time of the last successful test, or null').nullable(),
+  lastError: z.string().describe('The last test failure, or null').nullable(),
+  problems: z.array(z.string()),
+  canTest: z.boolean(),
+  canEnable: z.boolean(),
+  extra: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])),
+});
+export const workspacePixelSaveSchema = z.strictObject({
+  pixelId: z.string().trim().max(30).nullable().optional(),
+  testEventCode: z.string().trim().max(40).nullable().optional(),
+  conversionsApi: z.boolean().optional(),
 });

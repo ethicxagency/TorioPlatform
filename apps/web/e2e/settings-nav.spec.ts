@@ -10,6 +10,7 @@ const TITLES = [
   'Notifications',
   'Teams',
   'Channels',
+  'Integrations',
   'Subscription',
   'Billing',
   'Data & Privacy',
@@ -29,7 +30,7 @@ test.describe('settings mode (dedicated sidebar)', () => {
     await expect(page.getByRole('heading', { name: 'General', level: 1 })).toBeVisible();
     await expect(main(page)).toHaveCount(0); // the dashboard navigation is replaced, not stacked
     const links = menu(page).getByRole('link');
-    await expect(links).toHaveCount(9);
+    await expect(links).toHaveCount(10);
     for (const [i, t] of TITLES.entries()) await expect(links.nth(i)).toContainText(t);
     await expect(menu(page).getByRole('link', { name: /General/ })).toHaveAttribute(
       'aria-current',
@@ -49,6 +50,7 @@ test.describe('settings mode (dedicated sidebar)', () => {
       ['Notifications', /\/settings\/notifications$/],
       ['Teams', /\/team$/],
       ['Channels', /\/channels$/],
+      ['Integrations', /\/settings\/integrations$/],
       ['Subscription', /\/billing\/subscription$/],
       ['Billing', /\/billing\/invoices$/],
       ['Data & Privacy', /\/settings\/privacy$/],
@@ -60,7 +62,7 @@ test.describe('settings mode (dedicated sidebar)', () => {
         .getByRole('link', { name: new RegExp(name) })
         .click();
       await expect(page).toHaveURL(url);
-      await expect(menu(page).getByRole('link')).toHaveCount(9);
+      await expect(menu(page).getByRole('link')).toHaveCount(10);
       await expect(menu(page).getByRole('link', { name: new RegExp(name) })).toHaveAttribute(
         'aria-current',
         'page',

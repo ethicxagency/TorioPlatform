@@ -153,6 +153,9 @@ export class MetaEventsService {
         id: r.id,
         eventName: r.eventName,
         eventId: r.eventId,
+        reference:
+          ((r.payload as { custom_data?: { order_id?: unknown } } | null)?.custom_data?.order_id as
+            string | undefined) ?? null,
         status: r.status,
         attempts: r.attempts,
         lastError: r.lastError,

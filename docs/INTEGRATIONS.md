@@ -45,7 +45,6 @@ sandbox verification never carries over to live.
 
 ## Not done yet (later phases)
 
-- Phase 4: workspace Pixels and Inbox/manual purchase events (the sender below is built to be reused: events are keyed per owner).
 - Real connectivity to Mailgun, Meta and SSLCommerz has not been exercised: tests use mocked providers. Verify with real sandbox
   credentials before relying on any of it.
 
@@ -167,3 +166,27 @@ of another workspace is a 404.
 - No automatic renewal or reminder emails: a term simply ends; a renewal reminder needs a scheduled job that does not exist yet.
 - Only the currencies configured for the store are accepted; amounts are in the plan's currency (BDT today), and prices are the plan catalog's, not negotiated per customer.
 - Never exercised against the real gateway: automated tests mock SSLCommerz. Verify with sandbox credentials, then a small live payment, before announcing it.
+
+## Phase 4: a workspace's own Meta Pixel and purchase events
+
+- **Where:** Settings → Integrations (Owner and Admin, permission `workspace:update`; everyone else sees a notice). Per workspace: Pixel ID, test
+  event code, a Conversions API switch and a write-only access token, with Test connection, Send test event, Turn on/off, Disconnect and an event
+  log with Retry failed. API: `/workspaces/:id/integrations/meta-pixel` (`GET`, `PUT`, `DELETE`, `PUT token|enabled`, `POST test|test-event|events/retry`,
+  `GET events`).
+- **Isolation:** stored in `workspace_integrations` (one row per workspace and integration, secrets encrypted with the same service), events are
+  keyed by the workspace id as owner in `meta_tracking_events`, and every route is workspace-guarded: another workspace gets 404. It shares nothing with
+  Torio's own Pixel.
+- **Verified means verified:** same rules as platform integrations: a real call to Meta with the saved Pixel and token; any change to the Pixel, test code or
+  token switches it off and needs a new test.
+- **Purchase events:** `WorkspacePixelService.trackOrderPaid` runs when a payment is recorded that brings an order to fully paid (the only place an order
+  becomes paid). It sends one `Purchase` per order, ever (event id `purchase-order-<orderId>`), so editing, reopening, repeated status changes, a retried request
+  or a second trigger cannot repeat it. Unpaid, part-paid, cancelled and sample orders never produce one. Orders created from a conversation use action source
+  `chat`; orders entered by hand use `system_generated`. User data is hashed email, phone and customer id; custom data is value, currency and the order number.
+  A failing Meta never affects the payment: the event is stored, retried with backoff, and can be retried by hand from the log.
+- **Not done:** browser tracking (Torio hosts no customer-facing store pages that could carry a workspace's Pixel), `_fbp`/`_fbc` and click attribution (Torio
+  does not collect them), refund events (not part of Meta's Purchase model; not sent), and events other than `Purchase` (`Lead`, `Contact`, `InitiateCheckout`,
+  `AddToCart` have no server-side source records yet).
+
+### Migration
+
+`20261129000000_workspace_integrations` (additive).

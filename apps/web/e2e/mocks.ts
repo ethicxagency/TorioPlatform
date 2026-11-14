@@ -796,6 +796,64 @@ resetIntegrations();
 
 export const trackingState = { pixelId: null as string | null };
 
+/** A workspace's own Meta Pixel: the rules of the real API (verified only after a passing test of exactly what is saved). */
+export const wsPixelState = {
+  pixelId: null as string | null,
+  testEventCode: null as string | null,
+  conversionsApi: false,
+  token: 0,
+  enabled: false,
+  verifiedFor: null as string | null,
+  testedAt: null as string | null,
+  passTest: true,
+  calls: [] as { method: string; path: string; body?: unknown }[],
+};
+export const resetWsPixel = () => {
+  Object.assign(wsPixelState, {
+    pixelId: null,
+    testEventCode: null,
+    conversionsApi: false,
+    token: 0,
+    enabled: false,
+    verifiedFor: null,
+    testedAt: null,
+    passTest: true,
+    calls: [],
+  });
+};
+const wsPixelFp = () =>
+  JSON.stringify([wsPixelState.pixelId, wsPixelState.testEventCode, wsPixelState.token]);
+const wsPixelView = () => {
+  const w = wsPixelState;
+  const problems = [
+    ...(w.pixelId ? [] : ['Meta Pixel ID is required']),
+    ...(w.token ? [] : ['Conversions API access token is required']),
+  ];
+  const status = problems.length
+    ? 'NOT_CONFIGURED'
+    : w.verifiedFor === wsPixelFp()
+      ? 'VERIFIED'
+      : w.testedAt && w.verifiedFor === 'failed:' + wsPixelFp()
+        ? 'FAILED'
+        : 'UNVERIFIED';
+  return {
+    status,
+    enabled: w.enabled && status === 'VERIFIED',
+    encryptionReady: true,
+    pixelId: w.pixelId,
+    testEventCode: w.testEventCode,
+    conversionsApi: w.conversionsApi,
+    hasToken: !!w.token,
+    lastTestedAt: w.testedAt,
+    lastSuccessAt: status === 'VERIFIED' ? w.testedAt : null,
+    lastError: status === 'FAILED' ? 'Meta rejected the access token (invalid or expired).' : null,
+    problems,
+    canTest: problems.length === 0,
+    canEnable: status === 'VERIFIED',
+    extra: {},
+  };
+};
+
 export const resetRoles = () => {
   for (const m of MEMBERS) m.customRole = null;
   rolesState.custom = [];
@@ -1859,6 +1917,7 @@ export async function mockApi(
   inboxState.bulks = [];
   inboxState.empty = false;
   trackingState.pixelId = null;
+  resetWsPixel();
   resetRoles();
   resetIntegrations();
   searchState.requests = [];
@@ -1999,6 +2058,107 @@ export async function mockApi(
       return signedOut
         ? reply({ error: { message: 'Missing refresh token' } }, 401)
         : reply({ accessToken: 'test-token', expiresIn: 900, user: USER });
+    if (p.startsWith(`/workspaces/${WS}/integrations/meta-pixel`)) {
+      const rest = p.slice(`/workspaces/${WS}/integrations/meta-pixel`.length);
+      const w = wsPixelState;
+      let b: Record<string, any> | null = null;
+      try {
+        b = req.method() === 'GET' ? null : (req.postDataJSON() as Record<string, any> | null);
+      } catch {
+        b = null;
+      }
+      if (req.method() !== 'GET')
+        w.calls.push({ method: req.method(), path: rest || '/', body: b });
+      if (rest === '' && req.method() === 'GET') return reply(wsPixelView());
+      if (rest === '' && req.method() === 'PUT') {
+        const before = wsPixelFp();
+        if (b && 'pixelId' in b) w.pixelId = b.pixelId || null;
+        if (b && 'testEventCode' in b) w.testEventCode = b.testEventCode || null;
+        if (b && 'conversionsApi' in b) w.conversionsApi = !!b.conversionsApi;
+        if (before !== wsPixelFp()) w.enabled = false;
+        return reply(wsPixelView());
+      }
+      if (rest === '' && req.method() === 'DELETE') {
+        Object.assign(w, { token: 0, enabled: false, verifiedFor: null });
+        return reply(wsPixelView());
+      }
+      if (rest === '/token') {
+        w.token += 1;
+        w.enabled = false;
+        return reply(wsPixelView());
+      }
+      if (rest === '/enabled') {
+        if (b?.enabled && wsPixelView().status !== 'VERIFIED')
+          return reply(
+            {
+              error: {
+                message: 'Test the connection successfully before turning this on.',
+                statusCode: 400,
+              },
+            },
+            400,
+          );
+        w.enabled = !!b?.enabled;
+        return reply(wsPixelView());
+      }
+      if (rest === '/test') {
+        w.testedAt = iso(0);
+        w.verifiedFor = w.passTest ? wsPixelFp() : 'failed:' + wsPixelFp();
+        if (!w.passTest) w.enabled = false;
+        return reply({
+          ok: w.passTest,
+          status: w.passTest ? 'VERIFIED' : 'FAILED',
+          message: w.passTest
+            ? 'Meta accepted the token and found the Pixel.'
+            : 'Meta rejected the access token (invalid or expired).',
+          checks: [{ label: 'Access token accepted', ok: w.passTest, detail: null }],
+        });
+      }
+      if (rest === '/test-event')
+        return reply({
+          ok: true,
+          status: 'VERIFIED',
+          message: 'Meta received the test event.',
+          checks: [{ label: 'Event received by Meta', ok: true, detail: 'evt' }],
+        });
+      if (rest === '/events/retry') return reply({ retried: 1 });
+      if (rest === '/events')
+        return reply({
+          data: [
+            {
+              id: '66666666-6666-4666-8666-666666666666',
+              eventName: 'Purchase',
+              eventId: 'purchase-order-1',
+              reference: '1042',
+              status: 'SENT',
+              attempts: 1,
+              lastError: null,
+              eventTime: iso(30),
+              sentAt: iso(30),
+              nextTryAt: null,
+            },
+            {
+              id: '77777777-7777-4777-8777-777777777778',
+              eventName: 'Purchase',
+              eventId: 'purchase-order-2',
+              reference: '1043',
+              status: 'FAILED',
+              attempts: 2,
+              lastError: 'Meta could not be reached',
+              eventTime: iso(10),
+              sentAt: null,
+              nextTryAt: iso(-5),
+            },
+          ],
+          meta: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
+          summary: {
+            counts: { SENT: 1, FAILED: 1 },
+            lastSentAt: iso(30),
+            serverTrackingOn: w.conversionsApi && wsPixelView().enabled,
+            browserTrackingOn: false,
+          },
+        });
+    }
     if (p === '/public/tracking') return reply({ metaPixelId: trackingState.pixelId });
     if (p === '/auth/logout') return reply({ ok: true });
     if (p === '/users/me/password/code') {

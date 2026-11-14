@@ -290,9 +290,10 @@ model Workspace {
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
-  createdBy            User?                 @relation("WorkspaceCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy            User?                  @relation("WorkspaceCreator", fields: [createdById], references: [id], onDelete: SetNull)
   memberships          WorkspaceMembership[]
   customRoles          WorkspaceRoleDef[]
+  integrations         WorkspaceIntegration[]
   preferredBy          UserPreferences[]
   auditLogs            AuditLog[]
   channels             Channel[]
@@ -318,9 +319,9 @@ model Workspace {
   orderNotes           OrderNote[]
   orderEvents          OrderEvent[]
   /// Last issued human-readable order number for this workspace.
-  orderSeq             Int                   @default(0)
+  orderSeq             Int                    @default(0)
   /// Last issued invoice number for this workspace (see OrderInvoice).
-  invoiceSeq           Int                   @default(0)
+  invoiceSeq           Int                    @default(0)
   orderInvoices        OrderInvoice[]
   aiRequests           AiRequest[]
   billingAccount       BillingAccount?
@@ -1817,4 +1818,21 @@ model PaymentGatewayTransaction {
   @@index([workspaceId, createdAt(sort: Desc)])
   @@index([status, createdAt(sort: Desc)])
   @@map("payment_gateway_transactions")
+}
+
+/// A workspace's own integration settings (today: its Meta Pixel and Conversions API). `data` has the same shape as a platform
+/// integration (settings, encrypted secrets, last test result) and is never shared across workspaces or with Torio's own Pixel.
+model WorkspaceIntegration {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  workspaceId String   @db.Uuid
+  /// meta_pixel
+  key         String
+  data        Json
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, key])
+  @@map("workspace_integrations")
 }

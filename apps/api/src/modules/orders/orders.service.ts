@@ -1,3 +1,4 @@
+import { WorkspacePixelService } from '../tracking/workspace-pixel.service';
 import {
   BadRequestException,
   ConflictException,
@@ -71,6 +72,7 @@ export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly automation: AutomationEngine,
+    private readonly pixel: WorkspacePixelService,
   ) {}
 
   private listDto(o: ListRow) {
@@ -632,6 +634,8 @@ export class OrdersService {
       throw e;
     }
     await this.automation.emitEvent('order.payment_recorded', ws, 'order', id, input.requestId);
+    // A fully paid order is a purchase: sent to the workspace's own Pixel (if connected), once per order, never blocking the payment.
+    if (paid >= cur.totalMinor) void this.pixel.trackOrderPaid(ws, id).catch(() => undefined);
     return this.get(ws, id);
   }
 

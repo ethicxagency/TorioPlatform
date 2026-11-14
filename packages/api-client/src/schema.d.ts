@@ -1524,6 +1524,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/integrations/meta-pixel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["WorkspacePixelController_view"];
+        put: operations["WorkspacePixelController_save"];
+        post?: never;
+        delete: operations["WorkspacePixelController_disconnect"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/integrations/meta-pixel/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["WorkspacePixelController_token"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/integrations/meta-pixel/enabled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["WorkspacePixelController_enable"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/integrations/meta-pixel/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["WorkspacePixelController_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/integrations/meta-pixel/test-event": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["WorkspacePixelController_testEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/integrations/meta-pixel/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["WorkspacePixelController_events"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/integrations/meta-pixel/events/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["WorkspacePixelController_retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/brain": {
         parameters: {
             query?: never;
@@ -5172,6 +5284,81 @@ export interface components {
         DeleteRoleDto: {
             reassignTo?: ("ADMIN" | "AGENT") | string;
         };
+        WorkspacePixelDto: {
+            /** @enum {string} */
+            status: "NOT_CONFIGURED" | "UNVERIFIED" | "VERIFIED" | "FAILED";
+            enabled: boolean;
+            encryptionReady: boolean;
+            pixelId: string | null;
+            testEventCode: string | null;
+            conversionsApi: boolean;
+            hasToken: boolean;
+            lastTestedAt: string | null;
+            lastSuccessAt: string | null;
+            lastError: string | null;
+            problems: string[];
+            canTest: boolean;
+            canEnable: boolean;
+            extra: {
+                [key: string]: string | number | boolean | null;
+            };
+        };
+        WorkspacePixelSaveDto: {
+            pixelId?: string | null;
+            testEventCode?: string | null;
+            conversionsApi?: boolean;
+        };
+        WorkspacePixelTokenDto: {
+            value: string;
+        };
+        WorkspacePixelEnableDto: {
+            enabled: boolean;
+        };
+        WorkspacePixelTestResultDto: {
+            ok: boolean;
+            /** @enum {string} */
+            status: "NOT_CONFIGURED" | "UNVERIFIED" | "VERIFIED" | "FAILED";
+            message: string;
+            checks: {
+                label: string;
+                ok: boolean;
+                detail: string | null;
+            }[];
+        };
+        WorkspacePixelEventListDto: {
+            data: {
+                /** Format: uuid */
+                id: string;
+                eventName: string;
+                eventId: string;
+                reference: string | null;
+                /** @enum {string} */
+                status: "PENDING" | "SENT" | "FAILED" | "DEAD";
+                attempts: number;
+                lastError: string | null;
+                /** Format: date-time */
+                eventTime: string;
+                sentAt: string | null;
+                nextTryAt: string | null;
+            }[];
+            meta: {
+                page: number;
+                pageSize: number;
+                total: number;
+                totalPages: number;
+            };
+            summary: {
+                counts: {
+                    [key: string]: number;
+                };
+                lastSentAt: string | null;
+                serverTrackingOn: boolean;
+                browserTrackingOn: boolean;
+            };
+        };
+        WorkspacePixelRetryDto: {
+            retried: number;
+        };
         BrainDocumentDto: {
             config: {
                 identity: {
@@ -7621,6 +7808,7 @@ export interface components {
                 id: string;
                 eventName: string;
                 eventId: string;
+                reference: string | null;
                 /** @enum {string} */
                 status: "PENDING" | "SENT" | "FAILED" | "DEAD";
                 attempts: number;
@@ -10849,6 +11037,211 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RoleDetailDto"];
+                };
+            };
+        };
+    };
+    WorkspacePixelController_view: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspacePixelDto"];
+                };
+            };
+        };
+    };
+    WorkspacePixelController_save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspacePixelSaveDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspacePixelDto"];
+                };
+            };
+        };
+    };
+    WorkspacePixelController_disconnect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspacePixelDto"];
+                };
+            };
+        };
+    };
+    WorkspacePixelController_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspacePixelTokenDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspacePixelDto"];
+                };
+            };
+        };
+    };
+    WorkspacePixelController_enable: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspacePixelEnableDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspacePixelDto"];
+                };
+            };
+        };
+    };
+    WorkspacePixelController_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspacePixelTestResultDto"];
+                };
+            };
+        };
+    };
+    WorkspacePixelController_testEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspacePixelTestResultDto"];
+                };
+            };
+        };
+    };
+    WorkspacePixelController_events: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                status?: "PENDING" | "SENT" | "FAILED" | "DEAD";
+            };
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspacePixelEventListDto"];
+                };
+            };
+        };
+    };
+    WorkspacePixelController_retry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspacePixelRetryDto"];
                 };
             };
         };

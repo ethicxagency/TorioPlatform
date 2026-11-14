@@ -94,6 +94,16 @@ export const SETTINGS: SettingsItem[] = [
     keywords: ['whatsapp', 'instagram', 'messenger', 'facebook', 'connect', 'integration'],
   },
   {
+    key: 'integrations',
+    href: '/settings/integrations',
+    title: 'Integrations',
+    description: 'Connect your own Meta Pixel to send purchases from paid orders.',
+    icon: Plug,
+    group: 'Workspace',
+    needs: 'workspace:update',
+    keywords: ['meta', 'pixel', 'facebook', 'conversions', 'tracking', 'ads', 'capi', 'purchase'],
+  },
+  {
     key: 'subscription',
     href: '/billing/subscription',
     title: 'Subscription',
