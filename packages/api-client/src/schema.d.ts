@@ -2228,6 +2228,310 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/catalog/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["CatalogController_list"];
+        put?: never;
+        post: operations["CatalogController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/catalog/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["CatalogController_stats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/catalog/products/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["CatalogController_get"];
+        put: operations["CatalogController_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/catalog/products/bulk-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["CatalogController_bulkStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/catalog/products/bulk-delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["CatalogController_bulkDelete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/catalog/import/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["CatalogController_preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/catalog/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["CatalogController_run"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/catalog/feeds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["CatalogController_feedList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/catalog/feeds/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["CatalogController_deleteFeed"];
+        options?: never;
+        head?: never;
+        patch: operations["CatalogController_feedUpdate"];
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/catalog/feeds/{id}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["CatalogController_feedPause"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/catalog/feeds/{id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["CatalogController_feedResume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/catalog/feeds/{id}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["CatalogController_feedSync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/catalog/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["CatalogController_activity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/catalog/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["CatalogController_channels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/catalog/channels/feeds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["CatalogController_channelCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/catalog/channels/feeds/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["CatalogController_channelDelete"];
+        options?: never;
+        head?: never;
+        patch: operations["CatalogController_channelUpdate"];
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/catalog/channels/feeds/{id}/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["CatalogController_channelRotate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/catalog/channels/feeds/{id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["CatalogController_channelPreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/internal/catalog/tick": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["CatalogTickController_tick"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/orders": {
         parameters: {
             query?: never;
@@ -5390,6 +5694,22 @@ export interface components {
                     limitations: string;
                     faqs: string;
                     updatedAt?: string;
+                    sku?: string;
+                    compareAtPrice?: string;
+                    /** @enum {string} */
+                    status?: "ACTIVE" | "DRAFT" | "ARCHIVED";
+                    /** @enum {string} */
+                    source?: "MANUAL" | "XML_IMPORT" | "FEED" | "INTELLIGENT" | "CHANNEL";
+                    sourceId?: string;
+                    externalId?: string;
+                    images?: string[];
+                    url?: string;
+                    brand?: string;
+                    gtin?: string;
+                    mpn?: string;
+                    stockQty?: number | null;
+                    createdAt?: string;
+                    edited?: string[];
                 }[];
                 shipping: {
                     providers: string[];
@@ -5642,6 +5962,22 @@ export interface components {
                     limitations: string;
                     faqs: string;
                     updatedAt?: string;
+                    sku?: string;
+                    compareAtPrice?: string;
+                    /** @enum {string} */
+                    status?: "ACTIVE" | "DRAFT" | "ARCHIVED";
+                    /** @enum {string} */
+                    source?: "MANUAL" | "XML_IMPORT" | "FEED" | "INTELLIGENT" | "CHANNEL";
+                    sourceId?: string;
+                    externalId?: string;
+                    images?: string[];
+                    url?: string;
+                    brand?: string;
+                    gtin?: string;
+                    mpn?: string;
+                    stockQty?: number | null;
+                    createdAt?: string;
+                    edited?: string[];
                 }[];
                 shipping: {
                     providers: string[];
@@ -6104,6 +6440,375 @@ export interface components {
             warnings: string[];
             /** @enum {string} */
             status: "PENDING" | "APPROVED" | "REJECTED" | "IMPORTED";
+        };
+        CatalogListDto: {
+            items: {
+                id: string;
+                name: string;
+                sku: string;
+                description: string;
+                price: number | null;
+                priceText: string;
+                compareAtPrice: number | null;
+                currency: string;
+                category: string;
+                brand: string;
+                url: string;
+                gtin: string;
+                mpn: string;
+                /** @enum {string} */
+                stock: "In stock" | "Low stock" | "Out of stock" | "Pre-order";
+                stockQty: number | null;
+                /** @enum {string} */
+                status: "ACTIVE" | "DRAFT" | "ARCHIVED";
+                /** @enum {string} */
+                source: "MANUAL" | "XML_IMPORT" | "FEED" | "INTELLIGENT" | "CHANNEL";
+                sourceName: string | null;
+                externalId: string;
+                images: string[];
+                variants: string;
+                sizes: string;
+                colors: string;
+                edited: string[];
+                createdAt: string | null;
+                updatedAt: string | null;
+            }[];
+            total: number;
+            page: number;
+            pageSize: number;
+            stats: {
+                total: number;
+                active: number;
+                draft: number;
+                archived: number;
+                outOfStock: number;
+                imported: number;
+                connectedFeeds: number;
+                limit: number;
+            };
+            version: number;
+        };
+        CatalogStatsDto: {
+            total: number;
+            active: number;
+            draft: number;
+            archived: number;
+            outOfStock: number;
+            imported: number;
+            connectedFeeds: number;
+            limit: number;
+        };
+        CatalogProductDto: {
+            id: string;
+            name: string;
+            sku: string;
+            description: string;
+            price: number[];
+            priceText: string;
+            compareAtPrice: number[];
+            currency: string;
+            category: string;
+            brand: string;
+            url: string;
+            gtin: string;
+            mpn: string;
+            /** @enum {string} */
+            stock: "In stock" | "Low stock" | "Out of stock" | "Pre-order";
+            stockQty: number | null;
+            /** @enum {string} */
+            status: "ACTIVE" | "DRAFT" | "ARCHIVED";
+            /** @enum {string} */
+            source: "MANUAL" | "XML_IMPORT" | "FEED" | "INTELLIGENT" | "CHANNEL";
+            sourceName: string[];
+            externalId: string;
+            images: string[];
+            variants: string;
+            sizes: string;
+            colors: string;
+            edited: string[];
+            createdAt: string[];
+            updatedAt: string[];
+        };
+        CatalogProductInputDto: {
+            name: string;
+            /** @default  */
+            description: string;
+            price: string;
+            compareAtPrice?: string | "";
+            currency?: string | "";
+            /** @default  */
+            sku: string;
+            /** @default  */
+            category: string;
+            /** @default  */
+            brand: string;
+            /** @default  */
+            url: string;
+            /** @default  */
+            gtin: string;
+            /** @default  */
+            mpn: string;
+            /**
+             * @default In stock
+             * @enum {string}
+             */
+            stock: "In stock" | "Low stock" | "Out of stock" | "Pre-order";
+            /** @default null */
+            stockQty: number | null;
+            /**
+             * @default ACTIVE
+             * @enum {string}
+             */
+            status: "ACTIVE" | "DRAFT" | "ARCHIVED";
+            /** @default [] */
+            images: string[];
+            /** @default  */
+            variants: string;
+            /** @default  */
+            sizes: string;
+            /** @default  */
+            colors: string;
+        };
+        CatalogProductUpdateDto: {
+            name: string;
+            /** @default  */
+            description: string;
+            price: string;
+            compareAtPrice?: string | "";
+            currency?: string | "";
+            /** @default  */
+            sku: string;
+            /** @default  */
+            category: string;
+            /** @default  */
+            brand: string;
+            /** @default  */
+            url: string;
+            /** @default  */
+            gtin: string;
+            /** @default  */
+            mpn: string;
+            /**
+             * @default In stock
+             * @enum {string}
+             */
+            stock: "In stock" | "Low stock" | "Out of stock" | "Pre-order";
+            /** @default null */
+            stockQty: number | null;
+            /**
+             * @default ACTIVE
+             * @enum {string}
+             */
+            status: "ACTIVE" | "DRAFT" | "ARCHIVED";
+            /** @default [] */
+            images: string[];
+            /** @default  */
+            variants: string;
+            /** @default  */
+            sizes: string;
+            /** @default  */
+            colors: string;
+            baseUpdatedAt: string[];
+        };
+        CatalogBulkStatusDto: {
+            ids: string[];
+            /** @enum {string} */
+            status: "ACTIVE" | "DRAFT" | "ARCHIVED";
+        };
+        CatalogBulkResultDto: {
+            changed: number;
+            archived: number;
+            missing: number;
+        };
+        CatalogBulkDeleteDto: {
+            ids: string[];
+        };
+        CatalogImportSourceDto: {
+            url?: string;
+            xml?: string;
+            mapping?: {
+                [key: string]: string;
+            };
+            currency?: string;
+        };
+        CatalogImportPreviewDto: {
+            format: string;
+            totalItems: number;
+            valid: number;
+            invalid: number;
+            duplicatesInFeed: number;
+            existing: number;
+            truncated: boolean;
+            tags: string[];
+            mapping: {
+                [key: string]: string;
+            };
+            issues: string[];
+            items: {
+                key: string;
+                externalId: string;
+                name: string;
+                price: string;
+                image: string;
+                sku: string;
+                /** @enum {string} */
+                match: "new" | "existing";
+                warnings: string[];
+            }[];
+        };
+        CatalogImportRunDto: {
+            url?: string;
+            xml?: string;
+            mapping?: {
+                [key: string]: string;
+            };
+            currency?: string;
+            keys?: string[];
+            /**
+             * @default skip
+             * @enum {string}
+             */
+            mode: "skip" | "update";
+            /**
+             * @default ACTIVE
+             * @enum {string}
+             */
+            status: "ACTIVE" | "DRAFT";
+            saveAsFeed?: {
+                name: string;
+                /**
+                 * @default daily
+                 * @enum {string}
+                 */
+                frequency: "manual" | "daily" | "weekly";
+            };
+        };
+        CatalogImportResultDto: {
+            jobId: string[];
+            created: number;
+            updated: number;
+            skipped: number;
+            failed: number;
+            capped: number;
+            notes: string[];
+            feedId: string[];
+        };
+        CatalogFeedListDto: {
+            id: string;
+            name: string;
+            url: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "PAUSED" | "ERROR" | "DISCONNECTED";
+            /** @enum {string} */
+            frequency: "manual" | "daily" | "weekly";
+            /** @enum {string} */
+            mode: "skip" | "update";
+            lastSyncedAt: string | null;
+            lastError: string | null;
+            productCount: number;
+            createdAt: string;
+        }[];
+        CatalogFeedUpdateDto: {
+            name?: string;
+            /** @enum {string} */
+            frequency?: "manual" | "daily" | "weekly";
+            /** @enum {string} */
+            mode?: "skip" | "update";
+            mapping?: {
+                [key: string]: string;
+            };
+            currency?: string;
+        };
+        CatalogFeedDto: {
+            id: string;
+            name: string;
+            url: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "PAUSED" | "ERROR" | "DISCONNECTED";
+            /** @enum {string} */
+            frequency: "manual" | "daily" | "weekly";
+            /** @enum {string} */
+            mode: "skip" | "update";
+            lastSyncedAt: string[];
+            lastError: string[];
+            productCount: number;
+            createdAt: string;
+        };
+        CatalogSyncActivityDto: {
+            id: string;
+            kind: string;
+            sourceName: string | null;
+            status: string;
+            startedAt: string | null;
+            finishedAt: string | null;
+            createdAt: string;
+            error: string | null;
+            stats: {
+                [key: string]: unknown;
+            } | null;
+        }[];
+        CatalogSalesChannelsDto: {
+            feeds: {
+                id: string;
+                name: string;
+                /** @enum {string} */
+                channel: "GOOGLE" | "META" | "TIKTOK" | "CUSTOM";
+                /** @enum {string} */
+                status: "ACTIVE" | "PAUSED";
+                inStockOnly: boolean;
+                url: string;
+                productCount: number;
+                lastServedAt: string | null;
+                servedCount: number;
+                createdAt: string;
+            }[];
+            connections: {
+                /** @enum {string} */
+                kind: "META_CATALOG" | "GOOGLE_MERCHANT";
+                label: string;
+                connected: boolean;
+                name: string | null;
+                lastSyncedAt: string | null;
+                lastError: string | null;
+            }[];
+        };
+        CatalogOutboundCreateDto: {
+            name: string;
+            /** @enum {string} */
+            channel: "GOOGLE" | "META" | "TIKTOK" | "CUSTOM";
+            /** @default false */
+            inStockOnly: boolean;
+        };
+        CatalogOutboundFeedDto: {
+            id: string;
+            name: string;
+            /** @enum {string} */
+            channel: "GOOGLE" | "META" | "TIKTOK" | "CUSTOM";
+            /** @enum {string} */
+            status: "ACTIVE" | "PAUSED";
+            inStockOnly: boolean;
+            url: string;
+            productCount: number;
+            lastServedAt: string[];
+            servedCount: number;
+            createdAt: string;
+        };
+        CatalogOutboundUpdateDto: {
+            name?: string;
+            /** @enum {string} */
+            status?: "ACTIVE" | "PAUSED";
+            inStockOnly?: boolean;
+        };
+        CatalogOutboundPreviewDto: {
+            included: number;
+            excludedCount: number;
+            notPublished: number;
+            excluded: {
+                id: string;
+                name: string;
+                reasons: string[];
+            }[];
+            sampleXml: string;
         };
         OrderListDto: {
             data: {
@@ -7971,6 +8676,22 @@ export interface components {
                     limitations: string;
                     faqs: string;
                     updatedAt?: string;
+                    sku?: string;
+                    compareAtPrice?: string;
+                    /** @enum {string} */
+                    status?: "ACTIVE" | "DRAFT" | "ARCHIVED";
+                    /** @enum {string} */
+                    source?: "MANUAL" | "XML_IMPORT" | "FEED" | "INTELLIGENT" | "CHANNEL";
+                    sourceId?: string;
+                    externalId?: string;
+                    images?: string[];
+                    url?: string;
+                    brand?: string;
+                    gtin?: string;
+                    mpn?: string;
+                    stockQty?: number | null;
+                    createdAt?: string;
+                    edited?: string[];
                 }[];
                 shipping: {
                     providers: string[];
@@ -12074,6 +12795,539 @@ export interface operations {
         };
     };
     ImportsTickController_tick: {
+        parameters: {
+            query?: never;
+            header: {
+                authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CatalogController_list: {
+        parameters: {
+            query?: {
+                q?: string;
+                status?: "ACTIVE" | "DRAFT" | "ARCHIVED";
+                source?: "MANUAL" | "XML_IMPORT" | "FEED" | "INTELLIGENT" | "CHANNEL";
+                stock?: "In stock" | "Low stock" | "Out of stock" | "Pre-order";
+                sort?: "name" | "price" | "updated" | "stock";
+                dir?: "asc" | "desc";
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogListDto"];
+                };
+            };
+        };
+    };
+    CatalogController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogProductInputDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogProductDto"];
+                };
+            };
+        };
+    };
+    CatalogController_stats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogStatsDto"];
+                };
+            };
+        };
+    };
+    CatalogController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogProductDto"];
+                };
+            };
+        };
+    };
+    CatalogController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogProductUpdateDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogProductDto"];
+                };
+            };
+        };
+    };
+    CatalogController_bulkStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogBulkStatusDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogBulkResultDto"];
+                };
+            };
+        };
+    };
+    CatalogController_bulkDelete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogBulkDeleteDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogBulkResultDto"];
+                };
+            };
+        };
+    };
+    CatalogController_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogImportSourceDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogImportPreviewDto"];
+                };
+            };
+        };
+    };
+    CatalogController_run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogImportRunDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogImportResultDto"];
+                };
+            };
+        };
+    };
+    CatalogController_feedList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogFeedListDto"];
+                };
+            };
+        };
+    };
+    CatalogController_deleteFeed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CatalogController_feedUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogFeedUpdateDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogFeedDto"];
+                };
+            };
+        };
+    };
+    CatalogController_feedPause: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogFeedDto"];
+                };
+            };
+        };
+    };
+    CatalogController_feedResume: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogFeedDto"];
+                };
+            };
+        };
+    };
+    CatalogController_feedSync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogImportResultDto"];
+                };
+            };
+        };
+    };
+    CatalogController_activity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogSyncActivityDto"];
+                };
+            };
+        };
+    };
+    CatalogController_channels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogSalesChannelsDto"];
+                };
+            };
+        };
+    };
+    CatalogController_channelCreate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogOutboundCreateDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogOutboundFeedDto"];
+                };
+            };
+        };
+    };
+    CatalogController_channelDelete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CatalogController_channelUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogOutboundUpdateDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogOutboundFeedDto"];
+                };
+            };
+        };
+    };
+    CatalogController_channelRotate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogOutboundFeedDto"];
+                };
+            };
+        };
+    };
+    CatalogController_channelPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogOutboundPreviewDto"];
+                };
+            };
+        };
+    };
+    CatalogTickController_tick: {
         parameters: {
             query?: never;
             header: {

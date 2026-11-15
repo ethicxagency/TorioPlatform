@@ -102,7 +102,8 @@ export function CreateOrderModal({ c, offerSummary, onClose, onCreate }: Props) 
   const products: Product[] = useMemo(
     () =>
       (brain.data?.config.products ?? [])
-        .filter((p) => p.name.trim())
+        // Draft and archived products are not for sale, so they are not offered on a new order.
+        .filter((p) => p.name.trim() && (p.status ?? 'ACTIVE') === 'ACTIVE')
         .map((p) => ({
           id: p.id,
           name: p.name.trim(),
