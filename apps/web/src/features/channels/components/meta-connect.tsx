@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, Check } from 'lucide-react';
+import { AlertTriangle, Check, CheckCircle2, Loader2, Search } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -53,34 +53,78 @@ const PRODUCT_TITLE = {
   INSTAGRAM: 'Instagram Messaging',
   WHATSAPP: 'WhatsApp Business',
 } as const;
+const PRODUCT_SHORT = {
+  MESSENGER: 'Messenger',
+  INSTAGRAM: 'Instagram',
+  WHATSAPP: 'WhatsApp',
+} as const;
 const PRODUCT_ORDER = ['MESSENGER', 'INSTAGRAM', 'WHATSAPP'] as const;
+
+const STEP_LABELS = ['Authorized with Facebook', 'Choose channels', 'Connecting', 'Done'];
 
 /** Real progress through the journey, derived from actual state (nothing here is a timer). */
 function Steps({ step }: { step: 0 | 1 | 2 | 3 }) {
-  const labels = ['Authorized with Facebook', 'Choose channels', 'Connecting', 'Done'];
   return (
-    <ol
-      className="m-0 mb-4 flex list-none flex-wrap gap-x-4 gap-y-1 p-0 text-xs"
-      aria-label="Progress"
-    >
-      {labels.map((l, i) => (
-        <li
-          key={l}
-          aria-current={i === step ? 'step' : undefined}
-          className={cn(
-            'flex items-center gap-1.5',
-            i < step ? 'text-success' : i === step ? 'font-semibold text-ink' : 'text-faint',
-          )}
-        >
-          {i < step ? (
-            <Check size={12} aria-hidden />
-          ) : (
-            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-current" />
-          )}
-          {l}
-        </li>
-      ))}
-    </ol>
+    <div className="mb-4">
+      {/* Phones: one compact line and a bar, so nothing overflows. */}
+      <div className="sm:hidden" role="group" aria-label="Progress">
+        <p className="m-0 text-xs font-medium text-ink">
+          Step {step + 1} of {STEP_LABELS.length}
+          <span className="font-normal text-muted"> · {STEP_LABELS[step]}</span>
+        </p>
+        <div className="mt-2 flex gap-1" aria-hidden>
+          {STEP_LABELS.map((l, i) => (
+            <span
+              key={l}
+              className={cn(
+                'h-1 flex-1 rounded-full transition-colors duration-200',
+                i <= step ? 'bg-primary' : 'bg-line',
+              )}
+            />
+          ))}
+        </div>
+      </div>
+      <ol className="m-0 hidden list-none items-center p-0 text-xs sm:flex" aria-label="Progress">
+        {STEP_LABELS.map((l, i) => (
+          <li
+            key={l}
+            aria-current={i === step ? 'step' : undefined}
+            className={cn('flex items-center', i < STEP_LABELS.length - 1 && 'flex-1')}
+          >
+            <span
+              className={cn(
+                'flex items-center gap-2 whitespace-nowrap',
+                i < step ? 'text-success' : i === step ? 'font-semibold text-ink' : 'text-faint',
+              )}
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  'flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10.5px] font-semibold transition-colors duration-200',
+                  i < step
+                    ? 'bg-success text-white'
+                    : i === step
+                      ? 'bg-primary text-white'
+                      : 'border border-line bg-white text-faint',
+                )}
+              >
+                {i < step ? <Check size={11} strokeWidth={3} /> : i + 1}
+              </span>
+              {l}
+            </span>
+            {i < STEP_LABELS.length - 1 && (
+              <span
+                aria-hidden
+                className={cn(
+                  'mx-3 h-px min-w-3 flex-1 transition-colors duration-200',
+                  i < step ? 'bg-success' : 'bg-line',
+                )}
+              />
+            )}
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
@@ -91,12 +135,48 @@ function Avatar({ c }: { c: SessionCandidate }) {
     <img
       src={c.imageUrl}
       alt=""
-      width={36}
-      height={36}
-      className="h-9 w-9 shrink-0 rounded-full object-cover"
+      width={40}
+      height={40}
+      className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-line-subtle"
     />
   ) : (
     <ProviderMark provider={c.provider} />
+  );
+}
+
+type StatusFilter = 'ALL' | 'AVAILABLE' | 'CONNECTED' | 'UNAVAILABLE';
+const STATUS_LABEL: Record<StatusFilter, string> = {
+  ALL: 'All',
+  AVAILABLE: 'Available',
+  CONNECTED: 'Already connected',
+  UNAVAILABLE: 'Unavailable',
+};
+/** Show the search box once the list is long enough that scanning stops being quicker. */
+const SEARCH_FROM = 6;
+
+function Chip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={cn(
+        'inline-flex min-h-8 cursor-pointer items-center rounded-full border px-3 text-xs font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+        active
+          ? 'border-primary bg-primary-soft text-primary'
+          : 'border-line bg-white text-muted hover:border-primary-line hover:bg-wash',
+      )}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -119,15 +199,50 @@ export function MetaSessionDialog({
   const q = useMetaSession(workspaceId, sessionId);
   const select = useMetaSelect(workspaceId);
   const cancel = useMetaCancel(workspaceId);
+  // Nothing is pre-selected: the person chooses every asset on purpose.
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [results, setResults] = useState<Record<string, Result>>({});
+  const [term, setTerm] = useState('');
+  const [platform, setPlatform] = useState<'ALL' | (typeof PRODUCT_ORDER)[number]>('ALL');
+  const [status, setStatus] = useState<StatusFilter>('ALL');
+  const allBox = useRef<HTMLInputElement>(null);
   const s = q.data;
+  const all = s?.candidates ?? [];
   const selectable = (c: SessionCandidate) =>
     c.eligible && !c.taken && results[c.key]?.status !== 'CONNECTED';
-  const eligible = (s?.candidates ?? []).filter(selectable);
+  const stateOf = (c: SessionCandidate): Exclude<StatusFilter, 'ALL'> =>
+    results[c.key]?.status === 'CONNECTED' || c.taken
+      ? 'CONNECTED'
+      : c.eligible
+        ? 'AVAILABLE'
+        : 'UNAVAILABLE';
+  const eligible = all.filter(selectable);
   const connected = Object.values(results).filter((r) => r.status === 'CONNECTED');
   const ran = Object.keys(results).length > 0;
   const step = select.isPending ? 2 : ran && !eligible.some((c) => !results[c.key]) ? 3 : 1;
+
+  const needle = term.trim().toLowerCase();
+  const visible = all.filter(
+    (c) =>
+      (platform === 'ALL' || c.provider === platform) &&
+      (status === 'ALL' || stateOf(c) === status) &&
+      (!needle ||
+        c.name.toLowerCase().includes(needle) ||
+        c.key.toLowerCase().includes(needle) ||
+        (c.detail ?? '').toLowerCase().includes(needle)),
+  );
+  const visibleEligible = visible.filter(selectable);
+  // The selection is the whole set, not just what the filters currently show.
+  const selectedHere = visibleEligible.filter((c) => sel.has(c.key)).length;
+  const filtering = platform !== 'ALL' || status !== 'ALL' || needle !== '';
+  const platforms = PRODUCT_ORDER.filter((p) => all.some((c) => c.provider === p));
+  const showStatus = all.some((c) => stateOf(c) !== 'AVAILABLE');
+
+  useEffect(() => {
+    if (allBox.current)
+      allBox.current.indeterminate = selectedHere > 0 && selectedHere < visibleEligible.length;
+  }, [selectedHere, visibleEligible.length]);
+
   const toggle = (k: string) =>
     setSel((p) => {
       const n = new Set(p);
@@ -135,7 +250,18 @@ export function MetaSessionDialog({
       else n.add(k);
       return n;
     });
-  const connect = () =>
+  const toggleAll = () =>
+    setSel((p) => {
+      const n = new Set(p);
+      const every = visibleEligible.length > 0 && visibleEligible.every((c) => n.has(c.key));
+      for (const c of visibleEligible) {
+        if (every) n.delete(c.key);
+        else n.add(c.key);
+      }
+      return n;
+    });
+  const connect = () => {
+    if (select.isPending || !sel.size) return;
     select.mutate(
       { sessionId, candidateKeys: [...sel] },
       {
@@ -145,6 +271,7 @@ export function MetaSessionDialog({
         },
       },
     );
+  };
   const close = () => {
     if (connected.length) onDone(connected.map((r) => r.name));
     else {
@@ -152,21 +279,36 @@ export function MetaSessionDialog({
       onClose();
     }
   };
-  const allDone =
-    ran &&
-    connected.length > 0 &&
-    !Object.values(results).some((r) => r.status !== 'CONNECTED' && sel.has(r.key));
+  const failed = Object.values(results).filter((r) => r.status !== 'CONNECTED');
+  const allDone = ran && connected.length > 0 && !failed.some((r) => sel.has(r.key));
+  const selectedNames = all.filter((c) => sel.has(c.key)).map((c) => c.name);
+  const total = eligible.length;
 
   return (
     <Modal
       title={allDone && step === 3 ? 'Your channels are connected' : 'Choose what to connect'}
-      description="Torio only lists what your Facebook login can access."
+      description="Select the Facebook Pages and messaging channels you want to connect to Torio."
       onClose={select.isPending ? () => undefined : close}
-      className="sm:max-w-[640px]"
+      className="sm:max-w-[680px]"
       footer={
         <>
+          <p
+            className="m-0 mr-auto min-w-0 basis-full text-xs text-muted sm:basis-auto"
+            aria-live="polite"
+          >
+            <span className="block text-[13px] font-medium text-ink">
+              {select.isPending
+                ? `Connecting ${sel.size} channel${sel.size === 1 ? '' : 's'}…`
+                : `${sel.size} channel${sel.size === 1 ? '' : 's'} selected`}
+            </span>
+            {select.isPending
+              ? 'Keep this window open until Meta confirms.'
+              : ran && failed.length
+                ? 'Connected channels stay connected. Retry only the ones that failed.'
+                : 'You can disconnect any channel later from Channels.'}
+          </p>
           <Button variant="outline" disabled={select.isPending} onClick={close}>
-            {connected.length ? 'Done' : 'Cancel'}
+            {connected.length ? 'Go to Channels' : 'Cancel'}
           </Button>
           {connected.length > 0 && (
             <Button variant="outline" asChild>
@@ -182,16 +324,21 @@ export function MetaSessionDialog({
               ? 'Connecting…'
               : ran && sel.size
                 ? `Retry ${sel.size}`
-                : `Connect ${sel.size || ''}`.trim()}
+                : sel.size
+                  ? `Connect ${sel.size} selected`
+                  : 'Connect selected'}
           </Button>
         </>
       }
     >
-      <Steps step={q.isPending ? 0 : step} />
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <Steps step={q.isPending ? 0 : step} />
+      </div>
       {q.isPending ? (
         <div className="flex flex-col gap-2" aria-busy="true">
-          <Skeleton className="h-14" />
-          <Skeleton className="h-14" />
+          <Skeleton className="h-16" />
+          <Skeleton className="h-16" />
+          <Skeleton className="h-16" />
         </div>
       ) : q.isError ? (
         <p role="alert" className="m-0 text-[13px] text-danger">
@@ -209,64 +356,203 @@ export function MetaSessionDialog({
               include them.
             </p>
           )}
-          {eligible.length > 1 && (
-            <button
-              type="button"
-              onClick={() => setSel(new Set(eligible.map((c) => c.key)))}
-              className="-mb-2 cursor-pointer self-start rounded border-none bg-transparent p-0 text-[12.5px] font-medium text-primary hover:underline"
+          {select.isPending && (
+            <div
+              role="status"
+              className="flex items-start gap-3 rounded-xl border border-primary-line bg-primary-tint px-3.5 py-3 text-[13px]"
             >
-              Select all eligible ({eligible.length})
-            </button>
+              <Loader2
+                size={16}
+                aria-hidden
+                className="mt-0.5 shrink-0 animate-spin text-primary"
+              />
+              <span>
+                <span className="block font-medium text-ink">
+                  Connecting {selectedNames.slice(0, 3).join(', ')}
+                  {selectedNames.length > 3 ? ` and ${selectedNames.length - 3} more` : ''}
+                </span>
+                <span className="text-muted">
+                  Torio is verifying access with Meta and subscribing to messages. Each channel
+                  shows its own result when this finishes.
+                </span>
+              </span>
+            </div>
+          )}
+          {!select.isPending && connected.length > 0 && (
+            <div
+              role="status"
+              className="flex items-start gap-3 rounded-xl border border-[#BFE5CC] bg-[#F1FAF4] px-3.5 py-3 text-[13px]"
+            >
+              <CheckCircle2 size={16} aria-hidden className="mt-0.5 shrink-0 text-success" />
+              <span>
+                <span className="block font-medium text-ink">
+                  {connected.length} channel{connected.length === 1 ? '' : 's'} connected
+                  {failed.length ? `, ${failed.length} failed` : ''}
+                </span>
+                <span className="text-muted">
+                  {connected.map((r) => r.name).join(', ')}
+                  {failed.length ? '. Retry the failed ones below; the rest stay connected.' : ''}
+                </span>
+              </span>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-3">
+            {(all.length >= SEARCH_FROM || filtering) && (
+              <div className="relative">
+                <Search
+                  size={15}
+                  aria-hidden
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-faint"
+                />
+                <input
+                  type="search"
+                  value={term}
+                  onChange={(e) => setTerm(e.target.value)}
+                  placeholder="Search by name or ID"
+                  aria-label="Search channels by name or ID"
+                  className="h-10 w-full rounded-lg border border-line bg-white pl-9 pr-3 text-sm outline-none transition-colors duration-150 placeholder:text-faint focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            )}
+            {(platforms.length > 1 || showStatus) && (
+              <div className="flex flex-wrap items-center gap-2">
+                {platforms.length > 1 && (
+                  <div
+                    className="flex flex-wrap gap-1.5"
+                    role="group"
+                    aria-label="Filter by platform"
+                  >
+                    <Chip active={platform === 'ALL'} onClick={() => setPlatform('ALL')}>
+                      All platforms
+                    </Chip>
+                    {platforms.map((p) => (
+                      <Chip key={p} active={platform === p} onClick={() => setPlatform(p)}>
+                        {PRODUCT_SHORT[p]}
+                      </Chip>
+                    ))}
+                  </div>
+                )}
+                {showStatus && (
+                  <div
+                    className="flex flex-wrap gap-1.5"
+                    role="group"
+                    aria-label="Filter by status"
+                  >
+                    {(Object.keys(STATUS_LABEL) as StatusFilter[]).map((k) => (
+                      <Chip key={k} active={status === k} onClick={() => setStatus(k)}>
+                        {STATUS_LABEL[k]}
+                      </Chip>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg bg-wash px-3 py-2">
+              <label
+                className={cn(
+                  'flex min-h-8 items-center gap-2 text-[13px] font-medium',
+                  visibleEligible.length ? 'cursor-pointer text-ink' : 'text-faint',
+                )}
+              >
+                <input
+                  ref={allBox}
+                  type="checkbox"
+                  checked={visibleEligible.length > 0 && selectedHere === visibleEligible.length}
+                  disabled={!visibleEligible.length || select.isPending}
+                  onChange={toggleAll}
+                  className="h-4 w-4 shrink-0 accent-[#5B5CE2]"
+                />
+                {filtering ? 'Select all shown' : 'Select all eligible'} ({visibleEligible.length})
+              </label>
+              <span className="ml-auto text-xs text-muted" aria-live="polite">
+                {sel.size} of {total} selected
+              </span>
+              <button
+                type="button"
+                onClick={() => setSel(new Set())}
+                disabled={!sel.size || select.isPending}
+                className="min-h-8 cursor-pointer rounded border-none bg-transparent p-0 text-xs font-medium text-primary hover:underline disabled:cursor-default disabled:text-faint disabled:no-underline"
+              >
+                Clear selection
+              </button>
+            </div>
+          </div>
+
+          {visible.length === 0 && (
+            <p className="m-0 rounded-xl border border-dashed border-line px-4 py-8 text-center text-[13px] text-muted">
+              No channels match.{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  setTerm('');
+                  setPlatform('ALL');
+                  setStatus('ALL');
+                }}
+                className="cursor-pointer border-none bg-transparent p-0 font-medium text-primary hover:underline"
+              >
+                Clear filters
+              </button>
+            </p>
           )}
           {PRODUCT_ORDER.map((prod) => {
-            const rows = s!.candidates.filter((c) => c.provider === prod);
+            const rows = visible.filter((c) => c.provider === prod);
             if (!rows.length) return null;
             return (
               <section key={prod} aria-label={PRODUCT_TITLE[prod]}>
-                <h3 className="m-0 mb-2 text-[12px] font-semibold uppercase tracking-[0.04em] text-faint">
+                <h3 className="m-0 mb-2 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.04em] text-faint">
                   {PRODUCT_TITLE[prod]}
+                  <span className="rounded-full bg-wash px-1.5 py-px text-[11px] font-medium normal-case tracking-normal text-muted">
+                    {rows.length}
+                  </span>
                 </h3>
                 <ul className="m-0 flex list-none flex-col gap-2 p-0">
                   {rows.map((c) => {
                     const r = results[c.key];
                     const can = selectable(c);
+                    const on = sel.has(c.key);
                     const note = r
                       ? r.status === 'CONNECTED'
-                        ? 'Connected'
+                        ? '' // the Connected pill says it
                         : (r.message ?? 'Couldn’t connect')
                       : c.taken
                         ? 'Already connected to a workspace'
                         : !c.eligible
                           ? c.reason
                           : c.detail;
+                    const bad = Boolean(r && r.status !== 'CONNECTED');
                     return (
                       <li key={c.key}>
                         <label
                           className={cn(
-                            'flex items-center gap-3 rounded-xl border p-3',
-                            can ? 'cursor-pointer' : 'opacity-90',
-                            sel.has(c.key) ? 'border-primary bg-primary-soft/60' : 'border-line',
+                            'flex items-center gap-3 rounded-xl border p-3 transition-colors duration-150 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary',
+                            can ? 'cursor-pointer' : 'cursor-default bg-wash/60',
+                            on
+                              ? 'border-primary bg-primary-soft/60'
+                              : can
+                                ? 'border-line bg-white hover:border-primary-line hover:bg-primary-tint'
+                                : 'border-line-subtle',
                           )}
                         >
                           <input
                             type="checkbox"
-                            checked={sel.has(c.key)}
+                            checked={on}
                             disabled={!can || select.isPending}
                             onChange={() => toggle(c.key)}
                             aria-label={`${c.name} (${PRODUCT_TITLE[c.provider]})`}
-                            className="h-4 w-4 shrink-0 accent-[#5B5CE2]"
+                            className="h-[18px] w-[18px] shrink-0 cursor-pointer accent-[#5B5CE2] disabled:cursor-default"
                           />
                           <Avatar c={c} />
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-medium">{c.name}</span>
                             {note && (
                               <span
-                                role={r && r.status !== 'CONNECTED' ? 'alert' : undefined}
+                                role={bad ? 'alert' : undefined}
                                 className={cn(
                                   'block text-xs',
                                   r?.status === 'CONNECTED'
                                     ? 'text-success'
-                                    : r || (!c.eligible && !c.taken)
+                                    : bad || (!c.eligible && !c.taken)
                                       ? 'text-[#8F2424]'
                                       : 'text-muted',
                                 )}
@@ -275,9 +561,24 @@ export function MetaSessionDialog({
                               </span>
                             )}
                           </span>
-                          {r?.status === 'CONNECTED' && (
-                            <Check size={16} aria-hidden className="shrink-0 text-success" />
-                          )}
+                          {select.isPending && on ? (
+                            <span className="flex shrink-0 items-center gap-1.5 text-xs text-primary">
+                              <Loader2 size={13} aria-hidden className="animate-spin" />
+                              Connecting
+                            </span>
+                          ) : r?.status === 'CONNECTED' ? (
+                            <span className="flex shrink-0 items-center gap-1 rounded-full bg-[#E8F6EE] px-2 py-0.5 text-xs font-medium text-success">
+                              <Check size={12} aria-hidden /> Connected
+                            </span>
+                          ) : c.taken ? (
+                            <span className="shrink-0 rounded-full bg-wash px-2 py-0.5 text-xs font-medium text-muted">
+                              Already connected
+                            </span>
+                          ) : on ? (
+                            <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">
+                              Selected
+                            </span>
+                          ) : null}
                         </label>
                       </li>
                     );
@@ -293,7 +594,7 @@ export function MetaSessionDialog({
           role="alert"
           className="mb-0 mt-3 rounded-lg bg-danger-soft px-3 py-2 text-[12.5px] text-[#8F2424]"
         >
-          {select.error.message}
+          {select.error.message} Nothing was marked connected; you can try again.
         </p>
       )}
     </Modal>

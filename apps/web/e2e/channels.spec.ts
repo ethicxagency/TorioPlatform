@@ -99,8 +99,9 @@ test.describe('channels (owner)', () => {
     await expect(dlg.getByText('Already connected to a workspace')).toBeVisible();
     await expect(dlg.getByRole('checkbox', { name: /\+880 1711-000002/ })).toBeDisabled();
     await expect(dlg.getByText(/Finish setup with WhatsApp Embedded Signup/)).toBeVisible();
-    await dlg.getByRole('button', { name: /Select all eligible \(3\)/ }).click();
-    await dlg.getByRole('button', { name: 'Connect 3' }).click();
+    await dlg.getByRole('checkbox', { name: /Select all eligible \(3\)/ }).check();
+    await expect(dlg.getByText('3 of 3 selected')).toBeVisible();
+    await dlg.getByRole('button', { name: 'Connect 3 selected' }).click();
     await expect.poll(() => channelState.selects.length).toBe(1);
     expect(channelState.selects[0]).toEqual({
       candidateKeys: ['MESSENGER:111', 'INSTAGRAM:222', 'WHATSAPP:444'],
@@ -114,7 +115,7 @@ test.describe('channels (owner)', () => {
     const done = page.getByRole('dialog', { name: 'Your channels are connected' });
     await expect(done).toBeVisible();
     await expect(done.getByRole('link', { name: 'Open Inbox' })).toHaveAttribute('href', '/inbox');
-    await done.getByRole('button', { name: 'Done' }).click();
+    await done.getByRole('button', { name: 'Go to Channels' }).click();
     await expect(page).toHaveURL(/\/channels$/);
     expect(channelState.cancels).toHaveLength(0);
   });
