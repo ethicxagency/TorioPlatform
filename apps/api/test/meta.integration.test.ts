@@ -178,7 +178,17 @@ describe.skipIf(!url)('meta channels (real PostgreSQL, fake Graph API)', () => {
           : json({ success: true });
       if (path === 'debug_token') return json({ data: { is_valid: true, expires_at: 0 } });
       if (path.endsWith('/messages')) return json({ message_id: `m_${sfx}_out_${calls.length}` });
-      if (path === PAGE) return json({ id: PAGE, name: 'Urban Nest Page' });
+      // Like real Meta without pages_read_engagement: reading the Page profile is refused (#100). Torio must not depend on it.
+      if (path === PAGE)
+        return json(
+          {
+            error: {
+              message: "This endpoint requires the 'pages_read_engagement' permission",
+              code: 100,
+            },
+          },
+          400,
+        );
       return json({
         name: 'Sara Ahmed',
         first_name: 'Sara',

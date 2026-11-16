@@ -272,12 +272,18 @@ export class MetaGraph {
     });
   }
 
-  /** Page name check used as the health probe for Messenger / Instagram channels. */
-  page(pageId: string, pageToken: string) {
-    return this.call<{ id: string; name?: string }>(pageId, {
-      token: pageToken,
-      query: { fields: 'id,name' },
-    });
+  /**
+   * Which apps are subscribed to the Page, read with the Page token. This is the health probe for Messenger and Instagram
+   * channels. It deliberately does not read the Page's profile fields (`GET /{page-id}?fields=name`): Meta requires
+   * `pages_read_engagement` (or Page Public Content/Metadata Access) for that, which Torio does not request, and the
+   * subscription state is the thing that actually matters. It needs only `pages_manage_metadata`.
+   */
+  async pageSubscriptions(pageId: string, pageToken: string) {
+    const r = await this.call<{ data?: { id?: string; subscribed_fields?: string[] }[] }>(
+      `${pageId}/subscribed_apps`,
+      { token: pageToken },
+    );
+    return r.data;
   }
 
   /** Reply inside the standard messaging window (RESPONSE). Works for Messenger and Instagram via the connected Page. */

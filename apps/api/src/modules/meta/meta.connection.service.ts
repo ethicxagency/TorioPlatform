@@ -92,6 +92,8 @@ export interface ProvisionResult {
 export function explain(e: unknown): string {
   if (e instanceof GraphError) {
     if (e.tokenExpired) return 'Meta authorization expired or was revoked. Reconnect to continue.';
+    if (e.code === 100 && /permission|feature/i.test(e.message))
+      return 'Meta says the app lacks a permission this Page needs (error #100). Reconnect and approve every permission; if it persists, the Page permissions must be approved for the Torio Platform app in Meta App Review.';
     if (e.code === 10 || e.code === 200 || e.code === 299)
       return 'A required Meta permission is missing. Reconnect and approve every permission.';
     if (e.transient) return 'Meta is rate-limiting or temporarily unavailable. Try again shortly.';
@@ -493,7 +495,8 @@ export class MetaConnectionService {
     const g = this.graph.get();
     let tokenExpiresAt: Date | null = null;
     try {
-      await g.page(cand.pageId!, token); // the Page token must really work
+      // The subscribe call itself proves the Page token and the Page access: Meta rejects it otherwise. (Reading the Page's
+      // profile first would need pages_read_engagement, which Torio does not request, and was what failed with error #100.)
       await g.subscribePage(cand.pageId!, token, SUBSCRIBED_FIELDS[provider]);
       tokenExpiresAt =
         (
@@ -752,7 +755,10 @@ export class MetaConnectionService {
         error: 'This channel has no live Meta connection.',
       };
     try {
-      await this.graph.get().page(cred.pageId, cred.token);
+      const subs = await this.graph.get().pageSubscriptions(cred.pageId, cred.token);
+      // When Meta lists the Page's subscriptions, Torio's app must be one of them; otherwise messages would not arrive.
+      if (subs && !subs.some((s) => s.id === this.mc.current.appId))
+        throw new GraphError('Torio is not subscribed to this Page’s messages.', 200, 200);
       await db.channel.update({
         where: { id: ch.id },
         data: { status: 'CONNECTED', lastHealthCheckAt: checkedAt, lastError: null },

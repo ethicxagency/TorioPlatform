@@ -71,6 +71,11 @@ describe('error messages', () => {
     expect(explain(new GraphError('x', 401, 190))).toMatch(/expired|revoked/);
     expect(explain(new GraphError('x', 403, 200))).toMatch(/permission/);
     expect(explain(new GraphError('x', 429))).toMatch(/try again/i);
+    expect(
+      explain(
+        new GraphError('This endpoint requires the pages_read_engagement permission', 400, 100),
+      ),
+    ).toMatch(/lacks a permission/);
     expect(explain(new Error('boom'))).toMatch(/Could not reach Meta/);
   });
 });
@@ -84,12 +89,16 @@ describe('Graph client', () => {
         ? new Response(JSON.stringify({ error: { message: 'nope', code: 100 } }), { status: 400 })
         : new Response(JSON.stringify({ id: '1', name: 'P' }));
     }) as typeof fetch);
-    expect(await g.page('123', 'tok')).toEqual({ id: '1', name: 'P' });
+    expect(await g.pageSubscriptions('123', 'tok')).toBeUndefined();
+    // Never reads the Page profile (that needs pages_read_engagement): only its app subscriptions.
     expect(seen[0]).toEqual({
-      url: 'https://graph.facebook.com/v21.0/123?fields=id%2Cname',
+      url: 'https://graph.facebook.com/v21.0/123/subscribed_apps',
       auth: 'Bearer tok',
     });
-    await expect(g.page('bad', 'tok')).rejects.toMatchObject({ status: 400, code: 100 });
+    await expect(g.pageSubscriptions('bad', 'tok')).rejects.toMatchObject({
+      status: 400,
+      code: 100,
+    });
   });
   it('keeps secrets out of the Authorization header and in the query only where Meta requires it', async () => {
     let url = '';
