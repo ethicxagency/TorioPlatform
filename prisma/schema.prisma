@@ -1357,6 +1357,8 @@ model PlanDefinition {
   /// Credits included per period. Stored and shown, but not enforced: AI usage isn't metered yet.
   aiCredits          Int?
   features           String[]   @default([])
+  /// Capability flags the server enforces ('courier', 'brands'). Unlike `features` (display text), these gate real access.
+  entitlements       String[]   @default([])
   /// Provider price ids. When null the BILLING_PRICE_IDS environment mapping is used.
   priceIdMonth       String?
   priceIdYear        String?

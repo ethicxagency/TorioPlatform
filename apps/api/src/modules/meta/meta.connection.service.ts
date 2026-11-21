@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   GoneException,
+  HttpException,
   Injectable,
   Logger,
   NotFoundException,
@@ -12,6 +13,7 @@ import { randomInt } from 'node:crypto';
 import type { MetaSelectInput, WhatsAppEmbeddedSignupInput } from '@torio/contracts';
 import { PrismaService } from '../../database/prisma.service';
 import { ChannelsService } from '../channels/channels.service';
+import { EntitlementsService } from '../billing/entitlements.service';
 import { MetaConfigService } from '../meta-config/meta-config.service';
 import { ChannelCryptoService } from '../whatsapp/channel-crypto.service';
 import { GraphError } from '../whatsapp/whatsapp.api';
@@ -113,6 +115,7 @@ export class MetaConnectionService {
     private readonly waGraph: WhatsAppGraphProvider,
     private readonly channels: ChannelsService,
     private readonly mc: MetaConfigService,
+    private readonly entitlements: EntitlementsService,
   ) {
     // Disconnecting a Page also removes Torio's webhook subscription on Meta's side (best effort).
     this.channels.onDisconnect(async (ch) => {
@@ -467,9 +470,7 @@ export class MetaConnectionService {
           : await this.provisionPage(ws, userId, cand);
       return { ...base, status: 'CONNECTED', channelId, message: null };
     } catch (e) {
-      if (e instanceof ConflictException)
-        return { ...base, status: 'FAILED', channelId: null, message: String(e.message) };
-      if (e instanceof BadRequestException)
+      if (e instanceof HttpException && e.getStatus() < 500)
         return { ...base, status: 'FAILED', channelId: null, message: String(e.message) };
       this.log.error(`provisioning ${cand.key} failed: ${String(e)}`);
       return { ...base, status: 'FAILED', channelId: null, message: explain(e) };
@@ -491,6 +492,7 @@ export class MetaConnectionService {
           : 'This account is already connected to another workspace.',
       );
     }
+    await this.entitlements.assertCanAdd(ws, 'channels'); // a new or revived channel counts against the plan
     const token = this.crypto.decrypt(cand.tokenCiphertext);
     const g = this.graph.get();
     let tokenExpiresAt: Date | null = null;
@@ -572,6 +574,7 @@ export class MetaConnectionService {
           : 'This number is already connected to another workspace.',
       );
     }
+    await this.entitlements.assertCanAdd(ws, 'channels');
     const token = this.crypto.decrypt(cand.tokenCiphertext);
     let display: string | null = null;
     let verifiedName: string | null = null;
@@ -650,6 +653,7 @@ export class MetaConnectionService {
           ? 'This WhatsApp number is already connected to this workspace.'
           : 'This WhatsApp number is already connected to another workspace.',
       );
+    await this.entitlements.assertCanAdd(ws, 'channels');
     let token: string;
     let expiresAt: Date | null = null;
     let verifiedName: string | null = null;

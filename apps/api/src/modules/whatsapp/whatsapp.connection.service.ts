@@ -1,3 +1,4 @@
+import { EntitlementsService } from '../billing/entitlements.service';
 import {
   BadRequestException,
   ConflictException,
@@ -21,6 +22,7 @@ export class WhatsAppConnectionService {
     private readonly crypto: ChannelCryptoService,
     private readonly graph: WhatsAppGraphProvider,
     private readonly channels: ChannelsService,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   /** Only a number Meta confirms with this token is connected; nothing is stored otherwise. */
@@ -44,6 +46,7 @@ export class WhatsAppConnectionService {
           ? 'This WhatsApp number is already connected to this workspace.'
           : 'This WhatsApp number is already connected to another workspace.',
       );
+    await this.entitlements.assertCanAdd(workspaceId, 'channels');
     let info;
     try {
       info = await this.graph.get().phoneNumber(input.phoneNumberId, input.accessToken);

@@ -47,6 +47,14 @@ export const USAGE_LABEL: Record<UsageMetric, string> = {
   messenger: 'Messenger conversations (this month)',
 };
 
+/** Capabilities a plan can switch on. Enforced server-side, not just shown. */
+export const PLAN_ENTITLEMENTS = ['courier', 'brands'] as const;
+export type PlanEntitlement = (typeof PLAN_ENTITLEMENTS)[number];
+export const ENTITLEMENT_LABEL: Record<PlanEntitlement, string> = {
+  courier: 'Courier Integration',
+  brands: 'Brand Management',
+};
+
 export interface PlanDef {
   key: string;
   name: string;
@@ -63,6 +71,8 @@ export interface PlanDef {
   /** null = unlimited. Keyed by usage metric. */
   limits: Record<UsageMetric, number | null>;
   features: string[];
+  /** Server-enforced capabilities this plan includes. */
+  entitlements: PlanEntitlement[];
 }
 
 export const planSchema = z.object({
@@ -81,6 +91,7 @@ export const planSchema = z.object({
   gatewayPurchasable: z.boolean().optional(),
   limits: z.record(z.string(), z.number().int().describe('Limit, or -1 for unlimited')),
   features: z.array(z.string()),
+  entitlements: z.array(z.enum(PLAN_ENTITLEMENTS)).default([]),
 });
 export const planListSchema = z.object({ data: z.array(planSchema) });
 

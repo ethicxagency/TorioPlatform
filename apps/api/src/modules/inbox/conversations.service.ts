@@ -1,3 +1,4 @@
+import { EntitlementsService } from '../billing/entitlements.service';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@torio/database';
 import type {
@@ -32,6 +33,7 @@ export class ConversationsService {
     private readonly automation: AutomationEngine,
     private readonly whatsapp: WhatsAppDeliveryService,
     private readonly meta: MetaDeliveryService,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   async list(workspaceId: string, userId: string, q: ConversationQuery) {
@@ -160,6 +162,7 @@ export class ConversationsService {
       if (!target) throw new BadRequestException('replyToId does not belong to this conversation');
     }
     const isNote = input.kind === 'NOTE';
+    if (!isNote) await this.entitlements.assertCanAdd(workspaceId, 'messages'); // internal notes are not messages sent
     const message = await db.$transaction(async (tx) => {
       const m = await tx.message.create({
         data: {

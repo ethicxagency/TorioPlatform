@@ -30141,6 +30141,17 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "entitlements": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "courier",
+                    "brands"
+                  ]
+                }
               }
             },
             "required": [
@@ -30466,6 +30477,17 @@
                   "type": "array",
                   "items": {
                     "type": "string"
+                  }
+                },
+                "entitlements": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "courier",
+                      "brands"
+                    ]
                   }
                 }
               },
@@ -33353,6 +33375,16 @@
                     "type": "string"
                   }
                 },
+                "entitlements": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "courier",
+                      "brands"
+                    ]
+                  }
+                },
                 "priceIdMonth": {
                   "anyOf": [
                     {
@@ -33403,6 +33435,7 @@
                 "limits",
                 "aiCredits",
                 "features",
+                "entitlements",
                 "priceIdMonth",
                 "priceIdYear",
                 "status",
@@ -33587,6 +33620,18 @@
               "maxLength": 120
             }
           },
+          "entitlements": {
+            "default": [],
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "courier",
+                "brands"
+              ]
+            }
+          },
           "priceIdMonth": {
             "anyOf": [
               {
@@ -33680,6 +33725,16 @@
               "type": "string"
             }
           },
+          "entitlements": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "courier",
+                "brands"
+              ]
+            }
+          },
           "priceIdMonth": {
             "anyOf": [
               {
@@ -33730,6 +33785,7 @@
           "limits",
           "aiCredits",
           "features",
+          "entitlements",
           "priceIdMonth",
           "priceIdYear",
           "status",
@@ -33902,6 +33958,18 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 120
+            }
+          },
+          "entitlements": {
+            "default": [],
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "courier",
+                "brands"
+              ]
             }
           },
           "priceIdMonth": {

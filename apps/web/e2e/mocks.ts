@@ -1224,6 +1224,7 @@ const PLAN = (
   purchasable: true,
   limits,
   features: [`${name} feature`],
+  entitlements: [],
   ...over,
 });
 const LIM = (m: number, c: number) => ({
@@ -1623,6 +1624,7 @@ export const resetAdmin = () => {
       limits: lim(2),
       aiCredits: -1,
       features: [],
+      entitlements: [],
       priceIdMonth: null,
       priceIdYear: null,
       status: 'ACTIVE',

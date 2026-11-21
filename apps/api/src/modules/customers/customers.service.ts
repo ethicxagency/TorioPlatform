@@ -1,3 +1,4 @@
+import { EntitlementsService } from '../billing/entitlements.service';
 import {
   BadRequestException,
   ConflictException,
@@ -28,6 +29,7 @@ export class CustomersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly automation: AutomationEngine,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   private buildWhere(workspaceId: string, f: CustomerFilter): Prisma.CustomerWhereInput {
@@ -163,6 +165,7 @@ export class CustomersService {
   }
 
   async create(workspaceId: string, input: CustomerInputParsed) {
+    await this.entitlements.assertCanAdd(workspaceId, 'contacts');
     await this.assertOwner(workspaceId, input.ownerId);
     const email = input.email?.toLowerCase();
     const phoneKey = input.phone ? digitsOnly(input.phone) : undefined;

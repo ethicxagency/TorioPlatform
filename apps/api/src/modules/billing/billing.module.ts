@@ -8,6 +8,7 @@ import {
   SslcommerzWorkspaceController,
 } from './sslcommerz/sslcommerz.controller';
 import { SslcommerzService } from './sslcommerz/sslcommerz.service';
+import { EntitlementsService } from './entitlements.service';
 import { PlansService } from './plans.service';
 import { BillingController } from './billing.controller';
 import { BillingService } from './billing.service';
@@ -23,13 +24,14 @@ import { UnconfiguredProvider } from './provider/unconfigured.provider';
     SslcommerzWorkspaceController,
     SslcommerzCallbackController,
   ],
-  exports: [PlansService, BillingService, BILLING_PROVIDER, SslcommerzService],
+  exports: [PlansService, EntitlementsService, BillingService, BILLING_PROVIDER, SslcommerzService],
   providers: [
     BillingService,
     SslcommerzService,
     ChannelCryptoService,
     BillingWebhookService,
     PlansService,
+    EntitlementsService,
     {
       provide: BILLING_PROVIDER,
       inject: [APP_CONFIG],

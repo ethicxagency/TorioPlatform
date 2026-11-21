@@ -1,3 +1,4 @@
+import { EntitlementsService } from '../billing/entitlements.service';
 import {
   BadRequestException,
   ConflictException,
@@ -49,6 +50,7 @@ export class TeamService {
     private readonly passwords: PasswordService,
     private readonly mail: MailService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   // ---------- members ----------
@@ -460,6 +462,11 @@ export class TeamService {
       throw new ConflictException(
         'A pending invitation for this email already exists. Resend or cancel it instead.',
       );
+    // Pending invitations will become members, so they count against the plan too.
+    const pending = await db.invitation.count({
+      where: { workspaceId: ws, acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } },
+    });
+    await this.entitlements.assertCanAdd(ws, 'members', { extra: pending });
     const token = randomBytes(32).toString('base64url');
     try {
       const inv = await db.$transaction(async (tx) => {
@@ -570,6 +577,7 @@ export class TeamService {
       throw new ConflictException(
         'An account with this email already exists. Sign in, then accept the invitation.',
       );
+    await this.entitlements.assertCanAdd(inv.workspaceId, 'members');
     const passwordHash = await this.passwords.hash(password);
     await db.$transaction(async (tx) => {
       const claimed = await tx.invitation.updateMany({
@@ -595,6 +603,7 @@ export class TeamService {
     });
     if (user.email.toLowerCase() !== inv.email)
       throw new ForbiddenException('This invitation was sent to a different email address');
+    await this.entitlements.assertCanAdd(inv.workspaceId, 'members');
     await db.$transaction(async (tx) => {
       const claimed = await tx.invitation.updateMany({
         where: { id: inv.id, acceptedAt: null, revokedAt: null },

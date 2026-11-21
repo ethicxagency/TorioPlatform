@@ -195,6 +195,7 @@ test.describe('dashboard smoke', () => {
       'Leads',
       'Customers',
       'Orders',
+      'Products',
       'Automation',
       'Brain',
       'Settings',

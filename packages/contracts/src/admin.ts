@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  PLAN_ENTITLEMENTS,
   USAGE_METRICS,
   billingIntervalSchema,
   subscriptionStatusSchema,
@@ -306,6 +307,7 @@ const planFields = {
   limits: planLimitsSchema,
   aiCredits: z.number().int().min(0).max(1_000_000_000).nullable().default(null),
   features: z.array(z.string().trim().min(1).max(120)).max(20).default([]),
+  entitlements: z.array(z.enum(PLAN_ENTITLEMENTS)).max(10).default([]),
   priceIdMonth: z
     .string()
     .trim()
@@ -350,6 +352,7 @@ export const adminPlanSchema = z.object({
   limits: z.record(z.string(), z.number().int().describe('Limit, or -1 for unlimited')),
   aiCredits: z.number().int().describe('Credits, or -1 when not set'),
   features: z.array(z.string()),
+  entitlements: z.array(z.enum(PLAN_ENTITLEMENTS)),
   priceIdMonth: nullableString,
   priceIdYear: nullableString,
   status: z.enum(['ACTIVE', 'DISABLED', 'ARCHIVED']),

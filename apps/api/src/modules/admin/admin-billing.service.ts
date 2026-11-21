@@ -369,6 +369,7 @@ export class AdminBillingService {
       >,
       aiCredits: p.aiCredits ?? -1,
       features: p.features,
+      entitlements: p.entitlements,
       priceIdMonth: p.priceIdMonth,
       priceIdYear: p.priceIdYear,
       status: p.status,

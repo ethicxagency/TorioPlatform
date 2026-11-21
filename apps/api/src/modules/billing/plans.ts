@@ -1,15 +1,30 @@
 import type { BillingInterval, PlanDef } from '@torio/contracts';
 
 /**
- * Plan catalog. No pricing existed in the project, so these are configurable placeholders: `placeholderPricing`
- * is true and the UI says so. Edit the numbers here, set `placeholderPricing: false`, and set the matching
- * provider price ids in `BILLING_PRICE_IDS` before selling anything.
+ * The official Torio plan catalog. The database (`plans` table) is the source of truth that Super Admin edits; this list
+ * seeds an empty database and is what `pnpm plans:apply` writes for the three paid plans. Amounts are BDT in minor units
+ * (poisha): BDT 500 = 50_000. Per-product conversation counts (whatsapp/instagram/messenger) are not part of the plans, so
+ * they are unlimited here; the four limits that matter are members, channels, contacts and messages.
  *
- * Amounts are BDT placeholders (৳1,500 / ৳4,500 / ৳12,000 a month; yearly = 10 months). They replaced earlier USD
- * placeholders and are not a conversion of them. Real prices still need to be decided and set with provider price ids. Prices shown are display values only: the
- * amount actually charged is always the provider price, and Torio never sends an amount to the provider.
+ * `placeholderPricing` is false: these are the real prices. Provider price ids are still configured separately
+ * (`BILLING_PRICE_IDS` or the plan editor); Torio never sends an amount to a provider, it only displays these.
  */
 const none = null;
+const CORE_FEATURES = [
+  'Unified Smart Inbox',
+  'Torio Brain',
+  'WhatsApp Integration',
+  'Instagram Integration',
+  'Facebook Messenger Integration',
+  'Customer Management',
+  'Lead Management',
+  'Conversation Assignment',
+  'Saved Replies',
+  'Customer Conversation History',
+  'Dashboard & Analytics',
+  'Smart Automation',
+];
+const perProduct = { whatsapp: none, instagram: none, messenger: none };
 export const PLANS: PlanDef[] = [
   {
     key: 'free',
@@ -31,78 +46,49 @@ export const PLANS: PlanDef[] = [
       messenger: 50,
     },
     features: ['Shared Inbox', 'Leads and Customers', 'Orders', 'Basic automations'],
+    entitlements: [],
   },
   {
     key: 'starter',
     name: 'Starter',
-    description: 'For small teams handling daily conversations.',
+    description: 'For one brand getting its conversations in one place.',
     rank: 1,
     recommended: false,
     currency: 'BDT',
-    monthlyMinor: 150_000,
-    yearlyMinor: 1_500_000,
-    placeholderPricing: true,
-    limits: {
-      members: 5,
-      channels: 2,
-      contacts: 2_000,
-      messages: 5_000,
-      whatsapp: 500,
-      instagram: 500,
-      messenger: 500,
-    },
-    features: [
-      'Everything in Free',
-      'More teammates and channels',
-      'Automation workflows',
-      'Audit log',
-    ],
+    monthlyMinor: 50_000,
+    yearlyMinor: 600_000,
+    placeholderPricing: false,
+    limits: { members: 1, channels: 3, contacts: 500, messages: 10_000, ...perProduct },
+    features: CORE_FEATURES,
+    entitlements: [],
   },
   {
     key: 'growth',
     name: 'Growth',
-    description: 'For growing teams that sell through chat.',
+    description: 'For growing teams that sell through chat and ship with couriers.',
     rank: 2,
     recommended: true,
     currency: 'BDT',
-    monthlyMinor: 450_000,
-    yearlyMinor: 4_500_000,
-    placeholderPricing: true,
-    limits: {
-      members: 15,
-      channels: 3,
-      contacts: 20_000,
-      messages: 50_000,
-      whatsapp: 5_000,
-      instagram: 5_000,
-      messenger: 5_000,
-    },
-    features: ['Everything in Starter', 'Higher volume limits', 'Priority support'],
+    monthlyMinor: 150_000,
+    yearlyMinor: 1_800_000,
+    placeholderPricing: false,
+    limits: { members: 10, channels: 3, contacts: 5_000, messages: 50_000, ...perProduct },
+    features: ['Everything in Starter', 'Courier Integration'],
+    entitlements: ['courier'],
   },
   {
     key: 'scale',
     name: 'Scale',
-    description: 'For large teams that need room to grow.',
+    description: 'Premium: more people, more channels and Brand Management.',
     rank: 3,
     recommended: false,
     currency: 'BDT',
-    monthlyMinor: 1_200_000,
-    yearlyMinor: 12_000_000,
-    placeholderPricing: true,
-    limits: {
-      members: none,
-      channels: none,
-      contacts: none,
-      messages: none,
-      whatsapp: none,
-      instagram: none,
-      messenger: none,
-    },
-    features: [
-      'Everything in Growth',
-      'Unlimited members, channels and contacts',
-      'Dedicated onboarding',
-    ],
+    monthlyMinor: 250_000,
+    yearlyMinor: 3_000_000,
+    placeholderPricing: false,
+    limits: { members: 20, channels: 10, contacts: 50_000, messages: 100_000, ...perProduct },
+    features: ['Everything in Growth', 'Brand Management'],
+    entitlements: ['courier', 'brands'],
   },
 ];
 export const FREE_PLAN = PLANS[0]!;

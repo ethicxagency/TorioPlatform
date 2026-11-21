@@ -1,3 +1,4 @@
+import type { PrismaClient } from '@torio/database';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
@@ -85,4 +86,42 @@ export async function createTestApp(
   await app.init();
   const jwt = app.get(JwtService);
   return { app, token: (userId) => jwt.signAsync({ sub: userId, sid: 'test-session' }) };
+}
+
+/**
+ * Puts a workspace on a subscription with no limits, so tests that are about something else (connecting many channels,
+ * inviting many people) are not stopped by the Free plan's caps. Plan limits have their own tests.
+ */
+export async function grantUnlimitedPlan(db: PrismaClient, workspaceId: string) {
+  await db.subscription.create({
+    data: {
+      workspaceId,
+      planKey: 'scale',
+      interval: 'MONTH',
+      status: 'ACTIVE',
+      source: 'MANUAL',
+      providerSubscriptionId: `manual_${workspaceId}`,
+      lastEventAt: new Date(),
+      planSnapshot: {
+        name: 'Test (unlimited)',
+        description: '',
+        limits: {
+          members: null,
+          channels: null,
+          contacts: null,
+          messages: null,
+          whatsapp: null,
+          instagram: null,
+          messenger: null,
+        },
+        features: [],
+        entitlements: ['courier', 'brands'],
+        aiCredits: null,
+        monthlyMinor: 0,
+        yearlyMinor: 0,
+        currency: 'BDT',
+        placeholderPricing: false,
+      },
+    },
+  });
 }

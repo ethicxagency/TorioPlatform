@@ -1,3 +1,4 @@
+import { grantUnlimitedPlan } from './helpers';
 import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
@@ -48,6 +49,8 @@ describe.skipIf(!url)('team management (real PostgreSQL)', () => {
     const wsA = await db.workspace.create({ data: { name: 'Team A', slug: `ta-${sfx}` } });
     const wsB = await db.workspace.create({ data: { name: 'Team B', slug: `tb-${sfx}` } });
     Object.assign(ids, { wsA: wsA.id, wsB: wsB.id });
+    await grantUnlimitedPlan(db, wsA.id);
+    await grantUnlimitedPlan(db, wsB.id);
     const m = (workspaceId: string, userId: string, role: 'OWNER' | 'ADMIN' | 'AGENT') => ({
       workspaceId,
       userId,

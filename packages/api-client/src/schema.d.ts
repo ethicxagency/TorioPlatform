@@ -7371,6 +7371,8 @@ export interface components {
                     [key: string]: number;
                 };
                 features: string[];
+                /** @default [] */
+                entitlements: ("courier" | "brands")[];
             };
             subscription: {
                 planKey: string;
@@ -7432,6 +7434,8 @@ export interface components {
                     [key: string]: number;
                 };
                 features: string[];
+                /** @default [] */
+                entitlements: ("courier" | "brands")[];
             }[];
         };
         BillingUsageDto: {
@@ -8002,6 +8006,7 @@ export interface components {
                 /** @description Credits, or -1 when not set */
                 aiCredits: number;
                 features: string[];
+                entitlements: ("courier" | "brands")[];
                 priceIdMonth: string | null;
                 priceIdYear: string | null;
                 /** @enum {string} */
@@ -8037,6 +8042,8 @@ export interface components {
             aiCredits: number | null;
             /** @default [] */
             features: string[];
+            /** @default [] */
+            entitlements: ("courier" | "brands")[];
             priceIdMonth?: string | null;
             priceIdYear?: string | null;
         };
@@ -8056,6 +8063,7 @@ export interface components {
             /** @description Credits, or -1 when not set */
             aiCredits: number;
             features: string[];
+            entitlements: ("courier" | "brands")[];
             priceIdMonth: string | null;
             priceIdYear: string | null;
             /** @enum {string} */
@@ -8089,6 +8097,8 @@ export interface components {
             aiCredits: number | null;
             /** @default [] */
             features: string[];
+            /** @default [] */
+            entitlements: ("courier" | "brands")[];
             priceIdMonth?: string | null;
             priceIdYear?: string | null;
         };

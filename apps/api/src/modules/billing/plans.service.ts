@@ -1,6 +1,12 @@
 import { Injectable, type OnModuleInit } from '@nestjs/common';
 import { Prisma } from '@torio/database';
-import { USAGE_METRICS, type PlanDef, type UsageMetric } from '@torio/contracts';
+import {
+  PLAN_ENTITLEMENTS,
+  USAGE_METRICS,
+  type PlanDef,
+  type PlanEntitlement,
+  type UsageMetric,
+} from '@torio/contracts';
 import { PrismaService } from '../../database/prisma.service';
 import { PLANS, type PriceIds } from './plans';
 
@@ -30,6 +36,9 @@ export function toCatalogPlan(r: Row): CatalogPlan {
       number | null
     >,
     features: r.features,
+    entitlements: (r.entitlements ?? []).filter((e): e is PlanEntitlement =>
+      (PLAN_ENTITLEMENTS as readonly string[]).includes(e),
+    ),
     status: r.status,
     aiCredits: r.aiCredits,
     priceIdMonth: r.priceIdMonth,
@@ -65,6 +74,7 @@ export class PlansService implements OnModuleInit {
         placeholderPricing: p.placeholderPricing,
         limits: p.limits as Prisma.InputJsonValue,
         features: p.features,
+        entitlements: p.entitlements,
       })),
       skipDuplicates: true,
     });
@@ -115,6 +125,7 @@ export function snapshotOf(p: CatalogPlan) {
     description: p.description,
     limits: p.limits,
     features: p.features,
+    entitlements: p.entitlements,
     aiCredits: p.aiCredits,
     monthlyMinor: p.monthlyMinor,
     yearlyMinor: p.yearlyMinor,
@@ -142,6 +153,8 @@ export function effectivePlan(
     placeholderPricing: s.placeholderPricing ?? true,
     limits: s.limits as CatalogPlan['limits'],
     features: s.features ?? [],
+    // Snapshots from before entitlements existed grant none: they keep exactly what they signed up with.
+    entitlements: s.entitlements ?? [],
     status: 'ARCHIVED',
     aiCredits: s.aiCredits ?? null,
     priceIdMonth: null,
@@ -153,6 +166,7 @@ export function effectivePlan(
     description: s.description ?? base.description,
     limits: (s.limits as CatalogPlan['limits']) ?? base.limits,
     features: s.features ?? base.features,
+    entitlements: s.entitlements ?? [],
     aiCredits: s.aiCredits === undefined ? base.aiCredits : s.aiCredits,
     monthlyMinor: s.monthlyMinor ?? base.monthlyMinor,
     yearlyMinor: s.yearlyMinor ?? base.yearlyMinor,

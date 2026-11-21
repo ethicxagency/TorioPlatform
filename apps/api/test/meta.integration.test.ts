@@ -1,3 +1,4 @@
+import { grantUnlimitedPlan } from './helpers';
 import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
@@ -207,6 +208,8 @@ describe.skipIf(!url)('meta channels (real PostgreSQL, fake Graph API)', () => {
     const [owner, agent, outsider] = await Promise.all([mk('owner'), mk('agent'), mk('outsider')]);
     const wsA = await db.workspace.create({ data: { name: 'A', slug: `ma-${sfx}` } });
     const wsB = await db.workspace.create({ data: { name: 'B', slug: `mb-${sfx}` } });
+    await grantUnlimitedPlan(db, wsA.id);
+    await grantUnlimitedPlan(db, wsB.id);
     Object.assign(ids, {
       owner: owner.id,
       agent: agent.id,

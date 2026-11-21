@@ -2,7 +2,7 @@
 
 import { FieldSelect } from '@/components/ui/field-select';
 import { DEFAULT_CURRENCY } from '@torio/contracts';
-import { USAGE_LABEL, USAGE_METRICS } from '@torio/contracts';
+import { ENTITLEMENT_LABEL, PLAN_ENTITLEMENTS, USAGE_LABEL, USAGE_METRICS } from '@torio/contracts';
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -441,6 +441,7 @@ const blank = {
   placeholder: false,
   aiCredits: '',
   features: '',
+  entitlements: [] as string[],
   priceIdMonth: '',
   priceIdYear: '',
   limits: Object.fromEntries(USAGE_METRICS.map((m) => [m, ''])) as Record<string, string>,
@@ -458,6 +459,7 @@ const toForm = (p: PlanItem): Form => ({
   placeholder: p.placeholderPricing,
   aiCredits: p.aiCredits < 0 ? '' : String(p.aiCredits),
   features: p.features.join('\n'),
+  entitlements: [...p.entitlements],
   priceIdMonth: p.priceIdMonth ?? '',
   priceIdYear: p.priceIdYear ?? '',
   limits: Object.fromEntries(
@@ -677,6 +679,7 @@ function PlanDialog({ plan, onClose }: { plan: PlanItem | null; onClose: () => v
         .split('\n')
         .map((x) => x.trim())
         .filter(Boolean),
+      entitlements: f.entitlements as ('courier' | 'brands')[],
       priceIdMonth: f.priceIdMonth.trim() || null,
       priceIdYear: f.priceIdYear.trim() || null,
     };
@@ -848,6 +851,32 @@ function PlanDialog({ plan, onClose }: { plan: PlanItem | null; onClose: () => v
             className="rounded-lg border border-line p-2.5 text-[13px] font-normal"
           />
         </label>
+        <fieldset className="m-0 flex flex-col gap-1.5 border-none p-0 sm:col-span-2">
+          <legend className="mb-1 p-0 text-[12.5px] font-medium">
+            Capabilities the server enforces
+          </legend>
+          {PLAN_ENTITLEMENTS.map((e) => (
+            <label key={e} className="flex items-center gap-2 text-[13px] font-normal">
+              <input
+                type="checkbox"
+                checked={f.entitlements.includes(e)}
+                onChange={(ev) =>
+                  set(
+                    'entitlements',
+                    ev.target.checked
+                      ? [...f.entitlements, e]
+                      : f.entitlements.filter((x) => x !== e),
+                  )
+                }
+              />
+              {ENTITLEMENT_LABEL[e]}
+            </label>
+          ))}
+          <span className="text-xs font-normal text-muted">
+            The feature list above is display text. These switches decide what a workspace on this
+            plan can really use.
+          </span>
+        </fieldset>
         <label className={fld}>
           Provider price ID, monthly
           <input

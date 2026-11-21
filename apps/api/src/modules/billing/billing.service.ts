@@ -17,7 +17,6 @@ import {
   usagePercent,
   type BillingInterval,
   type InvoiceQuery,
-  type UsageMetric,
 } from '@torio/contracts';
 import { APP_CONFIG, type AppConfig } from '../../config/config.module';
 import { PrismaService } from '../../database/prisma.service';
@@ -28,6 +27,7 @@ import {
   WORKSPACE_DETAIL_SELECT,
 } from './billing-details';
 import { priceMinor } from './plans';
+import { EntitlementsService } from './entitlements.service';
 import { effectivePlan, PlansService, type CatalogPlan } from './plans.service';
 import { PlatformSettingsService } from '../platform/platform-settings.service';
 import { BILLING_PROVIDER, type BillingProvider } from './provider/billing-provider';
@@ -47,6 +47,7 @@ export class BillingService {
     private readonly catalog: PlansService,
     private readonly platform: PlatformSettingsService,
     private readonly ssl: SslcommerzService,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   private async seller() {
@@ -111,6 +112,7 @@ export class BillingService {
         USAGE_METRICS.map((m) => [m, p.limits[m] === null ? -1 : p.limits[m]]),
       ) as Record<string, number>,
       features: p.features,
+      entitlements: p.entitlements,
     };
   }
 
@@ -185,44 +187,11 @@ export class BillingService {
     };
   }
 
-  private async usageNumbers(
+  private usageNumbers(
     ws: string,
     sub: { currentPeriodStart: Date | null; currentPeriodEnd: Date | null } | null,
   ) {
-    const db = this.prisma.client;
-    const now = new Date();
-    const start =
-      sub?.currentPeriodStart && sub.currentPeriodEnd && sub.currentPeriodEnd > now
-        ? sub.currentPeriodStart
-        : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-    const end =
-      sub?.currentPeriodStart && sub.currentPeriodEnd && sub.currentPeriodEnd > now
-        ? sub.currentPeriodEnd
-        : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-    const conv = (provider: 'WHATSAPP' | 'INSTAGRAM' | 'MESSENGER') =>
-      db.conversation.count({
-        where: { workspaceId: ws, createdAt: { gte: start }, channel: { provider } },
-      });
-    const [members, channels, contacts, messages, whatsapp, instagram, messenger] =
-      await Promise.all([
-        db.workspaceMembership.count({ where: { workspaceId: ws, status: 'ACTIVE' } }),
-        db.channel.count({ where: { workspaceId: ws, status: 'CONNECTED' } }),
-        db.customer.count({ where: { workspaceId: ws } }),
-        db.message.count({
-          where: { workspaceId: ws, kind: 'OUTBOUND', createdAt: { gte: start } },
-        }),
-        conv('WHATSAPP'),
-        conv('INSTAGRAM'),
-        conv('MESSENGER'),
-      ]);
-    return {
-      start,
-      end,
-      values: { members, channels, contacts, messages, whatsapp, instagram, messenger } as Record<
-        UsageMetric,
-        number
-      >,
-    };
+    return this.entitlements.usageNumbers(ws, sub);
   }
 
   async usage(ws: string) {
