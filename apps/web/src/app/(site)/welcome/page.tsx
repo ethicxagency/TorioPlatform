@@ -8,6 +8,9 @@ import { absoluteUrl, SITE } from '@/lib/site';
  * The public home page. It is served at `/` (src/proxy.ts rewrites visitors here); `/welcome` itself redirects to `/`.
  * Rendered on the server, so crawlers get the full page without running any script.
  */
+/** Pricing on this page comes from the live plans, refreshed within a minute or when Super Admin saves a plan. */
+export const revalidate = 60;
+
 const title = `${SITE.name}: ${SITE.tagline}`;
 export const metadata: Metadata = {
   title: { absolute: title },

@@ -13,6 +13,13 @@ export const AUTH_HINT_COOKIE = 'torio_authed';
  */
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  // `/app` is the customer application's entry point. The dashboard itself lives at `/` (one dashboard, no duplicate):
+  // signed-in customers go there, everyone else goes to sign in first.
+  if (pathname === '/app')
+    return NextResponse.redirect(
+      new URL(req.cookies.has(AUTH_HINT_COOKIE) ? '/' : '/login', req.url),
+      307,
+    );
   if (pathname === '/welcome') return NextResponse.redirect(new URL('/', req.url), 308);
   if (pathname === '/torio-brain') return NextResponse.redirect(new URL('/brain', req.url), 308);
   // The Brain editor is signed-in only; visitors get the public Torio Brain page at the same address.
@@ -30,4 +37,4 @@ export function proxy(req: NextRequest) {
   return NextResponse.next();
 }
 
-export const config = { matcher: ['/', '/welcome', '/brain', '/torio-brain'] };
+export const config = { matcher: ['/', '/welcome', '/brain', '/torio-brain', '/app'] };

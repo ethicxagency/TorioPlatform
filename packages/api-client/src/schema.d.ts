@@ -3156,6 +3156,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["PublicPlansController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/billing/sslcommerz/checkout": {
         parameters: {
             query?: never;
@@ -7611,6 +7627,25 @@ export interface components {
             /** @default true */
             atPeriodEnd: boolean;
             reason?: string;
+        };
+        PublicPlanListDto: {
+            data: {
+                key: string;
+                name: string;
+                description: string;
+                rank: number;
+                recommended: boolean;
+                currency: string;
+                monthlyMinor: number;
+                yearlyMinor: number;
+                monthlyAvailable: boolean;
+                yearlyAvailable: boolean;
+                limits: {
+                    [key: string]: number;
+                };
+                features: string[];
+                entitlements: ("courier" | "brands")[];
+            }[];
         };
         SslCheckoutDto: {
             planKey: string;
@@ -14430,6 +14465,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BillingAcceptedDto"];
+                };
+            };
+        };
+    };
+    PublicPlansController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicPlanListDto"];
                 };
             };
         };

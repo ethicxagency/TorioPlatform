@@ -93,6 +93,29 @@ export const planSchema = z.object({
   features: z.array(z.string()),
   entitlements: z.array(z.enum(PLAN_ENTITLEMENTS)).default([]),
 });
+/**
+ * What the public website may show about a plan: nothing private, no provider price ids, no counts of subscribers.
+ * `-1` in `limits` means unlimited. Only plans that are active (published) and have real pricing appear.
+ */
+export const publicPlanSchema = z.object({
+  key: z.string(),
+  name: z.string(),
+  description: z.string(),
+  rank: z.number().int(),
+  recommended: z.boolean(),
+  currency: z.string(),
+  /** Minor units. A plan with no price for an interval has 0 there and `monthlyAvailable`/`yearlyAvailable` false. */
+  monthlyMinor: z.number().int(),
+  yearlyMinor: z.number().int(),
+  monthlyAvailable: z.boolean(),
+  yearlyAvailable: z.boolean(),
+  limits: z.record(z.string(), z.number().int()),
+  features: z.array(z.string()),
+  entitlements: z.array(z.enum(PLAN_ENTITLEMENTS)),
+});
+export const publicPlanListSchema = z.object({ data: z.array(publicPlanSchema) });
+export type PublicPlan = z.infer<typeof publicPlanSchema>;
+
 export const planListSchema = z.object({ data: z.array(planSchema) });
 
 // ---------- pure rules ----------

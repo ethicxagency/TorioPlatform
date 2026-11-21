@@ -2,7 +2,7 @@
 
 import { createStoreSchema, phoneSchema, STORE_INDUSTRIES } from '@torio/contracts';
 import { ArrowLeft, ArrowRight, BadgeCheck, CheckCircle2, Loader2, XCircle } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { controlCls } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { PhoneField } from './phone-field';
 import { CurrencySelect, TimeZoneSelect } from '@/features/settings/components/regional';
 import { useProfile, useUpdateProfile } from '@/features/settings/queries';
 import { useAuth } from '@/lib/auth';
+import { billingUrlFor, planIntent } from '@/lib/plan-intent';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { checkStoreSlug, StoreFormError, useCreateStore } from '@/lib/workspace';
@@ -123,6 +124,7 @@ function Progress({ step }: { step: 0 | 1 }) {
  */
 export function StoreForm({ additional }: { additional?: boolean }) {
   const router = useRouter();
+  const intent = planIntent(useSearchParams());
   const { user } = useAuth();
   const profile = useProfile().data;
   const saveProfile = useUpdateProfile();
@@ -306,7 +308,8 @@ export function StoreForm({ additional }: { additional?: boolean }) {
       await create.mutateAsync(parsed.data);
       // Only after the server has stored it.
       toast.success('Store created successfully.');
-      router.replace('/');
+      // A plan picked on the pricing page continues to Billing with that plan highlighted.
+      router.replace(intent ? billingUrlFor(intent) : '/');
     } catch (err) {
       const f = err instanceof StoreFormError ? err : null;
       setErrs(f?.fields ?? {});

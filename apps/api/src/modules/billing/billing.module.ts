@@ -9,6 +9,8 @@ import {
 } from './sslcommerz/sslcommerz.controller';
 import { SslcommerzService } from './sslcommerz/sslcommerz.service';
 import { EntitlementsService } from './entitlements.service';
+import { PublicPlansController } from './public-plans.controller';
+import { WebRevalidateService } from './web-revalidate.service';
 import { PlansService } from './plans.service';
 import { BillingController } from './billing.controller';
 import { BillingService } from './billing.service';
@@ -20,11 +22,19 @@ import { UnconfiguredProvider } from './provider/unconfigured.provider';
 @Module({
   controllers: [
     BillingController,
+    PublicPlansController,
     BillingWebhookController,
     SslcommerzWorkspaceController,
     SslcommerzCallbackController,
   ],
-  exports: [PlansService, EntitlementsService, BillingService, BILLING_PROVIDER, SslcommerzService],
+  exports: [
+    PlansService,
+    EntitlementsService,
+    WebRevalidateService,
+    BillingService,
+    BILLING_PROVIDER,
+    SslcommerzService,
+  ],
   providers: [
     BillingService,
     SslcommerzService,
@@ -32,6 +42,7 @@ import { UnconfiguredProvider } from './provider/unconfigured.provider';
     BillingWebhookService,
     PlansService,
     EntitlementsService,
+    WebRevalidateService,
     {
       provide: BILLING_PROVIDER,
       inject: [APP_CONFIG],

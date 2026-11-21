@@ -15,6 +15,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import { APP_CONFIG, type AppConfig } from '../../config/config.module';
 import { PrismaService } from '../../database/prisma.service';
+import { WebRevalidateService } from '../billing/web-revalidate.service';
 import { BILLING_PROVIDER, type BillingProvider } from '../billing/provider/billing-provider';
 import {
   PlansService,
@@ -67,6 +68,7 @@ export class AdminBillingService {
     private readonly plans: PlansService,
     @Inject(BILLING_PROVIDER) private readonly provider: BillingProvider,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly webRevalidate: WebRevalidateService,
   ) {}
 
   // ---------- subscriptions ----------
@@ -423,6 +425,7 @@ export class AdminBillingService {
         tx,
       );
     });
+    this.webRevalidate.plans();
     return this.one(input.key);
   }
 
@@ -457,6 +460,7 @@ export class AdminBillingService {
           tx,
         );
     });
+    this.webRevalidate.plans();
     return this.one(key);
   }
 
@@ -501,6 +505,7 @@ export class AdminBillingService {
         tx,
       );
     });
+    this.webRevalidate.plans();
     return this.one(key);
   }
 }

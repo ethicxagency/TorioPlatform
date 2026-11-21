@@ -10699,6 +10699,27 @@
         ]
       }
     },
+    "/api/v1/public/plans": {
+      "get": {
+        "operationId": "PublicPlansController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicPlanListDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Public"
+        ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/billing/sslcommerz/checkout": {
       "post": {
         "operationId": "SslcommerzWorkspaceController_checkout",
@@ -31509,6 +31530,100 @@
             "maxLength": 500
           }
         }
+      },
+      "PublicPlanListDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "rank": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "recommended": {
+                  "type": "boolean"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "monthlyMinor": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "yearlyMinor": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "monthlyAvailable": {
+                  "type": "boolean"
+                },
+                "yearlyAvailable": {
+                  "type": "boolean"
+                },
+                "limits": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "features": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "entitlements": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "courier",
+                      "brands"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "key",
+                "name",
+                "description",
+                "rank",
+                "recommended",
+                "currency",
+                "monthlyMinor",
+                "yearlyMinor",
+                "monthlyAvailable",
+                "yearlyAvailable",
+                "limits",
+                "features",
+                "entitlements"
+              ]
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
       },
       "SslCheckoutDto": {
         "type": "object",

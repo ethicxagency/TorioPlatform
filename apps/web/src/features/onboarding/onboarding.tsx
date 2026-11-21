@@ -1,27 +1,34 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useMemo } from 'react';
 import { TorioLogo } from '@/components/shell/torio-logo';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Toaster } from '@/components/ui/toaster';
 import { useProfile } from '@/features/settings/queries';
 import { useAuth } from '@/lib/auth';
+import { billingUrlFor, onboardingUrlFor, planIntent } from '@/lib/plan-intent';
 import { useWorkspace } from '@/lib/workspace';
 import { StoreForm } from './store-form';
 
 function Inner() {
   const { status } = useAuth();
   const router = useRouter();
-  const additional = useSearchParams().get('new') === '1';
+  const search = useSearchParams();
+  const additional = search.get('new') === '1';
+  const intent = useMemo(() => planIntent(search), [search]);
   const { stores, isLoading } = useWorkspace();
   const profile = useProfile();
 
   useEffect(() => {
-    if (status === 'anon') router.replace('/login?next=%2Fonboarding');
+    if (status === 'anon')
+      router.replace(
+        `/login?next=${encodeURIComponent(intent ? onboardingUrlFor(intent) : '/onboarding')}`,
+      );
     // Someone who already has a store gets here only through "Add Store" (?new=1); otherwise there is nothing to do.
-    if (status === 'authed' && !isLoading && stores.length > 0 && !additional) router.replace('/');
-  }, [status, isLoading, stores.length, additional, router]);
+    if (status === 'authed' && !isLoading && stores.length > 0 && !additional)
+      router.replace(intent ? billingUrlFor(intent) : '/');
+  }, [status, isLoading, stores.length, additional, router, intent]);
 
   if (
     status !== 'authed' ||

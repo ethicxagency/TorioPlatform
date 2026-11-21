@@ -12,6 +12,7 @@ import {
 import Link from 'next/link';
 import { ChannelIcon } from '@/components/channel-icon';
 import { SITE } from '@/lib/site';
+import { PricingSection } from './pricing';
 import { ProductShowcase } from './product-showcase';
 
 const wrap = 'mx-auto w-full max-w-[1180px] px-4 sm:px-6';
@@ -277,25 +278,7 @@ export function Landing() {
         </div>
       </section>
 
-      <section id="pricing" className="scroll-mt-20 py-20">
-        <div className={wrap}>
-          <div className="mx-auto max-w-[680px] rounded-2xl border border-line bg-white p-8 text-center">
-            <p className={eyebrow}>Pricing</p>
-            <h2 className={h2}>Start free</h2>
-            <p className={`${lead} mx-auto`}>
-              Create an account to try Torio on the Free plan with a small team. Paid plans and
-              their prices will be published here; the plans available to your workspace are always
-              shown under Billing in the app.
-            </p>
-            <Link
-              href="/signup"
-              className="mt-6 inline-flex h-11 items-center rounded-[10px] bg-primary px-5 text-[15px] font-semibold text-white no-underline hover:bg-primary-hover hover:no-underline"
-            >
-              Create your account
-            </Link>
-          </div>
-        </div>
-      </section>
+      <PricingSection />
 
       <section className="bg-[#1C1E54] py-20 text-white">
         <div className={`${wrap} text-center`}>

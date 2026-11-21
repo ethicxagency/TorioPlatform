@@ -29,18 +29,25 @@ export function PlansTab({
   o,
   canManage,
   initialInterval,
+  focusPlan = null,
   onMessage,
 }: {
   ws: string;
   o: Overview;
   canManage: boolean;
   initialInterval: Interval;
+  /** Plan key picked on the public pricing page, highlighted here. */
+  focusPlan?: string | null;
   onMessage: (m: string) => void;
 }) {
   const plans = usePlans(ws);
   const [interval, setIntervalState] = useState<Interval>(initialInterval);
   const [target, setTarget] = useState<Plan | null>(null);
   const curInterval = o.subscription?.interval ?? 'MONTH';
+  useEffect(() => {
+    if (focusPlan && plans.data?.some((p) => p.key === focusPlan))
+      document.getElementById(`plan-${focusPlan}`)?.scrollIntoView({ block: 'center' });
+  }, [focusPlan, plans.data]);
   // SSLCommerz: a term paid once. It applies to a workspace with no subscription, or one already on such a term.
   const gatewayMode =
     !!o.gateway?.sslcommerz.available && (!o.subscription || o.subscription.source === 'GATEWAY');
@@ -115,6 +122,11 @@ export function PlansTab({
           </span>
         )}
       </div>
+      {focusPlan && !list.some((p) => p.key === focusPlan) && (
+        <Notice tone="warn" icon={TriangleAlert}>
+          The plan you picked isn’t available any more. Choose one of the plans below.
+        </Notice>
+      )}
       {list.some((p) => p.placeholderPricing) && (
         <Notice tone="warn" icon={TriangleAlert}>
           Prices on this page are <b>placeholders</b> until real pricing is configured. The amount
@@ -139,7 +151,9 @@ export function PlansTab({
           return (
             <li
               key={p.key}
+              id={`plan-${p.key}`}
               className={cn(
+                p.key === focusPlan && 'ring-2 ring-primary ring-offset-2',
                 'relative flex flex-col rounded-card border bg-white p-4 transition-shadow duration-200 hover:shadow-[0_4px_16px_rgba(0,55,112,0.08)] motion-reduce:transition-none sm:p-5',
                 current
                   ? 'border-primary shadow-[0_0_0_3px_rgba(91,92,226,0.12)]'

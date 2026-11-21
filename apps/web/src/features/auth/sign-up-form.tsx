@@ -18,6 +18,7 @@ import {
   TextField,
 } from './auth-ui';
 import { OrDivider, SocialButtons, useAuthConfig } from './social-buttons';
+import { onboardingUrlFor } from '@/lib/plan-intent';
 import { useNext, withNext } from './use-next';
 
 const schema = registerSchema
@@ -29,7 +30,7 @@ type Values = z.infer<typeof schema>;
 export function SignUpForm() {
   const { adopt } = useAuth();
   const [registered, setRegistered] = useState(false);
-  const { next, router } = useNext(registered);
+  const { next, intent, router } = useNext(registered);
   const cfg = useAuthConfig();
   const {
     register,
@@ -69,7 +70,9 @@ export function SignUpForm() {
     toast.success('Account created successfully.');
     // Only say a verification email was sent when this deployment can actually send one.
     // A new account has no store yet: the first one is created in onboarding (an invite link keeps its own destination).
-    router.push(cfg.data?.email ? '/verify-email' : next === '/' ? '/onboarding' : next);
+    router.push(
+      cfg.data?.email ? '/verify-email' : next === '/' || intent ? onboardingUrlFor(intent) : next,
+    );
   });
 
   const closed = cfg.data && !cfg.data.registrationOpen;

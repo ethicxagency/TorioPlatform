@@ -6,6 +6,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const updated = new Date(SITE.policyUpdated);
   return [
     { url: absoluteUrl('/'), changeFrequency: 'weekly', priority: 1 },
+    { url: absoluteUrl('/pricing'), changeFrequency: 'weekly', priority: 0.9 },
     { url: absoluteUrl('/brain'), changeFrequency: 'monthly', priority: 0.8 },
     {
       url: absoluteUrl('/privacy-policy'),

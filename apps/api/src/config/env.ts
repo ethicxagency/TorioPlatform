@@ -15,6 +15,8 @@ export const envSchema = z
     API_URL: z.url().optional(),
     API_PORT: z.coerce.number().int().min(1).max(65535).default(4000),
     WEB_URL: z.url(),
+    /** Shared with the web app. When set, plan changes in Super Admin tell the public site to refresh its pricing at once. */
+    REVALIDATE_SECRET: z.string().min(16).optional(),
     DATABASE_URL: z
       .string()
       .regex(/^postgres(ql)?:\/\//, 'must be a postgres:// connection string'),

@@ -5,6 +5,7 @@ import {
   USAGE_METRICS,
   type PlanDef,
   type PlanEntitlement,
+  type PublicPlan,
   type UsageMetric,
 } from '@torio/contracts';
 import { PrismaService } from '../../database/prisma.service';
@@ -85,6 +86,35 @@ export class PlansService implements OnModuleInit {
     return (await this.prisma.client.planDefinition.findMany({ orderBy: { rank: 'asc' } })).map(
       toCatalogPlan,
     );
+  }
+  /**
+   * What the public website may show. A plan is public when it is ACTIVE (published; new plans start DISABLED and a
+   * Super Admin enables them) and is a real paid plan: the free default is not a priced card, and a plan still marked
+   * as placeholder pricing is never shown as if it were live. Nothing private leaves here: no provider price ids,
+   * no AI credits, no subscriber counts, no admin notes.
+   */
+  async publicList(): Promise<PublicPlan[]> {
+    return (await this.active())
+      .filter(
+        (p) => p.rank > 0 && !p.placeholderPricing && (p.monthlyMinor > 0 || p.yearlyMinor > 0),
+      )
+      .map((p) => ({
+        key: p.key,
+        name: p.name,
+        description: p.description,
+        rank: p.rank,
+        recommended: p.recommended,
+        currency: p.currency,
+        monthlyMinor: p.monthlyMinor,
+        yearlyMinor: p.yearlyMinor,
+        monthlyAvailable: p.monthlyMinor > 0,
+        yearlyAvailable: p.yearlyMinor > 0,
+        limits: Object.fromEntries(
+          USAGE_METRICS.map((m) => [m, p.limits[m] === null ? -1 : p.limits[m]]),
+        ) as Record<string, number>,
+        features: p.features,
+        entitlements: p.entitlements,
+      }));
   }
   async active() {
     return (await this.all()).filter((p) => p.status === 'ACTIVE');

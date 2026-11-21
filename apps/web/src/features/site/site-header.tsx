@@ -12,7 +12,7 @@ const LINKS = [
   { label: 'Brain', href: '/brain' },
   { label: 'Features', href: '/#features' },
   { label: 'Integrations', href: '/#integrations' },
-  { label: 'Pricing', href: '/#pricing' },
+  { label: 'Pricing', href: '/pricing' },
 ] as const;
 const RESOURCES = [
   { label: 'Privacy Policy', href: '/privacy-policy' },

@@ -1,5 +1,6 @@
 'use client';
 
+import { planIntent } from '@/lib/plan-intent';
 import { ArrowLeft, Info } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -87,6 +88,8 @@ export function SubscriptionPage() {
   const q = useOverview(can('billing:read') ? ws : null);
   const [message, setMessage] = useState('');
   const plansView = params.get('tab') === 'plans';
+  // A plan picked on the public pricing page: shown highlighted. Nothing is bought until the owner confirms here.
+  const chosen = planIntent(params);
   const result = params.get('result');
   const tran = params.get('tran');
   const payment = useGatewayPayment(can('billing:read') ? ws : null, tran);
@@ -192,7 +195,8 @@ export function SubscriptionPage() {
           ws={ws}
           o={o}
           canManage={canManage}
-          initialInterval={o.subscription?.interval ?? 'MONTH'}
+          initialInterval={chosen?.interval ?? o.subscription?.interval ?? 'MONTH'}
+          focusPlan={chosen?.plan ?? null}
           onMessage={say}
         />
       )}
